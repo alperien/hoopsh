@@ -1,0 +1,39 @@
+/**
+ * Broadcast demo:
+ *   npm run broadcast [-- --seed showcase-v2]
+ * Sims a game (deterministic by seed), merges template play-by-play with the
+ * color-commentary provider into a two-voice broadcast script, and saves it.
+ * Swap TemplateColorProvider for an LLM-backed CommentaryProvider to upgrade
+ * the color voice — the interface is identical (see packages/narration).
+ */
+
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { simulateGame } from '@hoopsh/engine';
+import { sampleMatchup } from '@hoopsh/data';
+import { buildBroadcastScript, formatScript, TemplateColorProvider } from '@hoopsh/narration';
+
+const seedArg = process.argv.indexOf('--seed');
+const seed = seedArg !== -1 ? process.argv[seedArg + 1]! : 'showcase-v2';
+
+const { home, away } = sampleMatchup();
+const result = simulateGame({ seed, home, away, collectFrames: false });
+
+const cues = await buildBroadcastScript(result.events, [home, away], new TemplateColorProvider(), { seed });
+const script = formatScript(cues);
+
+mkdirSync('out', { recursive: true });
+const file = `out/broadcast-${seed}.txt`;
+writeFileSync(file, script);
+
+const pbpCount = cues.filter((c) => c.speaker === 'pbp').length;
+const colorCount = cues.filter((c) => c.speaker === 'color').length;
+console.log(`final: ${home.abbrev} ${result.finalScore[0]} — ${away.abbrev} ${result.finalScore[1]}`);
+console.log(`${cues.length} cues (${pbpCount} play-by-play, ${colorCount} color) → ${file}\n`);
+
+// excerpt: the last two minutes of regulation
+const excerpt = cues.filter((c) => c.period === 4 && c.clock <= 120);
+for (const c of excerpt.slice(0, 40)) {
+  const m = Math.floor(c.clock / 60);
+  const s = String(Math.floor(c.clock % 60)).padStart(2, '0');
+  console.log(`[${m}:${s}] ${c.speaker === 'pbp' ? 'PBP  ' : 'COLOR'} ${c.text}`);
+}
