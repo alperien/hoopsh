@@ -58,6 +58,19 @@ export async function buildBroadcastScript(
     buffer = [];
   }
 
+  // flush the trailing buffer — game_end always lands here (period_end flushes
+  // right before it), and providers deserve to react to the final buzzer
+  if (buffer.length > 0) {
+    const last = buffer[buffer.length - 1]!;
+    const lines = await provider.generate({
+      events: buffer, moments: [], score: last.score,
+      period: last.period, clock: last.clock, teams, storylines
+    });
+    for (const l of lines) {
+      cues.push({ t: l.t, period: last.period, clock: last.clock, speaker: 'color', text: l.text });
+    }
+  }
+
   cues.sort((a, b) => a.t - b.t || Number(a.speaker === 'color') - Number(b.speaker === 'color'));
   return cues;
 }

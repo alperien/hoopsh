@@ -79,14 +79,16 @@ const DIST = (ft: number): string => `${Math.round(ft)}-footer`;
 export function generatePlayByPlay(
   events: GameEvent[],
   teams: [Team, Team],
-  opts?: { seed?: string; includeMoments?: boolean }
+  opts?: { seed?: string; includeMoments?: boolean; periods?: number }
 ): NarrationLine[] {
   const rng = new Rng(opts?.seed ?? 'pbp');
   const pool = new Pool(rng);
   const lk = makeLookup(teams);
   const tracker = new ContextTracker();
   const out: NarrationLine[] = [];
-  const totalPeriods = 4;
+  // regulation period count from the rule pack (NBA 4, NCAA 2, ...) so OT
+  // and halves label correctly
+  const totalPeriods = opts?.periods ?? 4;
 
   const line = (e: GameEvent, kind: NarrationLine['kind'], text: string): void => {
     out.push({ t: e.t, period: e.period, clock: e.clock, score: e.score, kind, text });

@@ -75,8 +75,11 @@ function scoreResults(seedResults: SeedResult[]): number {
       const v = sr.avgs[band.metric] ?? NaN;
       const width = band.hi - band.lo;
       if (Number.isNaN(v)) { score += 10; continue; }
-      if (v < band.lo) score += (band.lo - v) / width;
-      else if (v > band.hi) score += (v - band.hi) / width;
+      // out-of-band cost includes the max in-band centering cost so the score
+      // is CONTINUOUS at the band edge (a value just outside can never score
+      // better than a value just inside)
+      if (v < band.lo) score += 0.015 + (band.lo - v) / width;
+      else if (v > band.hi) score += 0.015 + (v - band.hi) / width;
       else {
         // tiny centering pressure to prefer robust interiors
         const mid = (band.lo + band.hi) / 2;

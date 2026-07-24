@@ -47,8 +47,8 @@ function validatePlayer(p: unknown, path: string, issues: ValidationIssue[]): vo
   if (!['PG', 'SG', 'SF', 'PF', 'C'].includes(pl.pos as string)) {
     issues.push({ path: `${path}.pos`, message: `invalid position ${String(pl.pos)}` });
   }
-  if (typeof pl.heightIn !== 'number' || pl.heightIn < 60 || pl.heightIn > 96) {
-    issues.push({ path: `${path}.heightIn`, message: 'heightIn must be 60-96' });
+  if (typeof pl.heightIn !== 'number' || !Number.isFinite(pl.heightIn) || pl.heightIn < 60 || pl.heightIn > 96) {
+    issues.push({ path: `${path}.heightIn`, message: 'heightIn must be a finite number 60-96' });
   }
   const attr = pl.attr as Record<string, unknown> | undefined;
   if (!attr) issues.push({ path: `${path}.attr`, message: 'missing attributes' });
@@ -82,6 +82,15 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
     return issues;
   }
   if (!team.id) issues.push({ path: '$.team.id', message: 'missing id' });
+  // tactics is REQUIRED by the engine (ai reads threeBias/helpAggr unconditionally)
+  const tactics = team.tactics as Record<string, unknown> | undefined;
+  if (!tactics || typeof tactics !== 'object') {
+    issues.push({ path: '$.team.tactics', message: 'missing tactics — need { pace, threeBias, helpAggr } each 0-100' });
+  } else {
+    for (const k of ['pace', 'threeBias', 'helpAggr']) {
+      if (!isRating(tactics[k])) issues.push({ path: `$.team.tactics.${k}`, message: 'must be 0-100' });
+    }
+  }
   if (!Array.isArray(team.players) || team.players.length < 8) {
     issues.push({ path: '$.team.players', message: 'need at least 8 players' });
   } else {
