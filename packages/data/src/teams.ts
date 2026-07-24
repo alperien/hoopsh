@@ -19,7 +19,7 @@ export function cascadiaBreakers(): Team {
     glueForward({ id: 'brk-reyes', name: 'Mateo Reyes', pos: 'PF' }),
     rimRunner({ id: 'brk-ratliff', name: 'Bo Ratliff', pos: 'C' }),
     comboGuard({ id: 'brk-june', name: 'Theo June', pos: 'SG' }),
-    benchScorer({ id: 'brk-vance', name: 'Ripley Vance', pos: 'SG' }),
+    benchScorer({ id: 'brk-vance', name: 'Ripley Voss', pos: 'SG' }),
     floorGeneral({ id: 'brk-ito', name: 'Ren Ito', pos: 'PG', heightIn: 73, weightLb: 180 }),
     benchBig({ id: 'brk-marsh', name: 'Dune Marsh', pos: 'C' }),
     glueForward({ id: 'brk-call', name: 'Avery Call', pos: 'PF', heightIn: 81 })

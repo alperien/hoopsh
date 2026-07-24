@@ -25,12 +25,22 @@ interface Lookup {
 export function makeLookup(teams: [Team, Team]): Lookup {
   const names = new Map<string, string>();
   for (const t of teams) for (const p of t.players) names.set(p.id, p.name);
+  // disambiguate shared last names ("R. Vance" vs "E. Vance")
+  const lastCount = new Map<string, number>();
+  for (const nm of names.values()) {
+    const last = nm.split(' ').pop() ?? nm;
+    lastCount.set(last, (lastCount.get(last) ?? 0) + 1);
+  }
   return {
     name: (id) => names.get(id) ?? id,
     last: (id) => {
       const nm = names.get(id) ?? id;
       const parts = nm.split(' ');
-      return parts[parts.length - 1] ?? nm;
+      const last = parts[parts.length - 1] ?? nm;
+      if ((lastCount.get(last) ?? 0) > 1 && parts.length > 1) {
+        return `${parts[0]![0]}. ${last}`;
+      }
+      return last;
     },
     teamName: (side) => teams[side].name,
     abbrev: (side) => teams[side].abbrev
