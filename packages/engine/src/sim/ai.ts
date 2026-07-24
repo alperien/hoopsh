@@ -108,6 +108,11 @@ export function decideBall(s: GameState): BallAction {
     // value. Utility = P(get downhill)·(rim EV − continuation) + tendencies.
     uDrive = handling * (driveShot.ev - continuation)
       + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
+    // attacking off a live screen: the whole point of calling for it
+    const act = s.poss.action;
+    if (act && act.handlerId === h.p.id && act.phase !== 'coming') {
+      uDrive += A.pnrDriveBonus;
+    }
   }
 
   // --- utility: pass to each teammate
@@ -257,6 +262,92 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   }
 }
 
+// ------------------------------------------------------------ pick-and-roll
+
+/**
+ * Pick-and-roll lifecycle. The action is deliberately thin scaffolding —
+ * everything downstream (pull-up space when the defender ducks under, the
+ * pocket pass to the roller, the pop three) EMERGES from existing systems:
+ * screen stun feeds the contest model, the roll reuses cut machinery (and so
+ * earns the cutter pass bonus), the pop reuses spacing spots.
+ */
+function pnrTick(s: GameState): void {
+  const A = s.params.ai;
+  const act = s.poss.action;
+  const holderId = s.ball.holderId;
+
+  if (act) {
+    const handlerLostBall = holderId !== act.handlerId && act.phase !== 'finishing';
+    if (s.t > act.until || handlerLostBall) {
+      s.poss.action = null;
+      return;
+    }
+    const screener = agent(s, act.screenerId);
+    const handler = agent(s, act.handlerId);
+
+    if (act.phase === 'coming') {
+      const onBall = onBallDefender(s, handler);
+      if (onBall && dist(screener.pos, onBall.pos) < A.pnrScreenSetDistFt) {
+        // contact: the on-ball defender must navigate the screen
+        act.phase = 'set';
+        act.setAt = s.t;
+        const under = s.rng.chance(clamp(A.pnrUnderBase - gravity(handler), 0.08, 0.85));
+        if (under) {
+          onBall.screenStunUntil = s.t + A.pnrStunUnderSec;
+          onBall.navUnderUntil = s.t + 1.2; // drops back — concedes the pull-up
+        } else {
+          const fight = 0.7 + screener.p.attr.strength / 300; // strong screens hit harder
+          onBall.screenStunUntil = s.t + A.pnrStunOverSec * fight;
+        }
+      }
+      return;
+    }
+
+    if (act.phase === 'set' && s.t - act.setAt > 0.5) {
+      // screener's next job: roll to the rim or pop to the arc
+      act.phase = 'finishing';
+      if (gravity(screener) < A.pnrRollGravityCut) {
+        screener.cutUntil = s.t + 1.7; // the roll IS a cut — pocket pass emerges
+      } else {
+        screener.spotKey = screener.pos.y < s.court.centerY ? 'wing_l' : 'wing_r';
+      }
+    }
+    return;
+  }
+
+  // no action running: consider calling one
+  if (
+    s.poss.phase !== 'halfcourt' ||
+    !holderId ||
+    s.poss.shotClock < A.pnrMinShotClock ||
+    s.pendingRelease !== null
+  ) return;
+  const h = agent(s, holderId);
+  if (s.t < h.driveUntil) return;
+  const rim = attackedRim(s, s.poss.team);
+  const dRim = dist(h.pos, rim);
+  if (dRim < 18 || dRim > 31) return;
+  if (!s.rng.chance(A.pnrRatePerTick)) return;
+
+  // pick the screener: prefer low-gravity size (his defender sags -> good screens)
+  let best: Agent | null = null;
+  let bestScore = -Infinity;
+  for (const a of onCourt(s, s.poss.team)) {
+    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+    const score = (1 - gravity(a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400;
+    if (score > bestScore) { bestScore = score; best = a; }
+  }
+  if (!best) return;
+  s.poss.action = {
+    kind: 'pnr',
+    handlerId: holderId,
+    screenerId: best.p.id,
+    phase: 'coming',
+    until: s.t + A.pnrDurationSec,
+    setAt: 0
+  };
+}
+
 /** per-tick off-ball offense behavior */
 export function offenseOffBallTick(s: GameState): void {
   const side = s.poss.team;
@@ -264,8 +355,25 @@ export function offenseOffBallTick(s: GameState): void {
   const spots = spacingSpots(s.court, rim);
   const byKey = new Map(spots.map((x) => [x.key, x.pos]));
 
+  pnrTick(s);
+  const act = s.poss.action;
+
   for (const a of onCourt(s, side)) {
     if (a.fouledOut || a.p.id === s.ball.holderId) continue;
+
+    // screener on his way to set (or holding) the screen
+    if (act && a.p.id === act.screenerId && act.phase !== 'finishing') {
+      const handler = agent(s, act.handlerId);
+      const onBall = onBallDefender(s, handler);
+      if (onBall) {
+        // set up right against the defender, on the handler's side
+        const toHandler = norm(sub(handler.pos, onBall.pos));
+        a.target = add(onBall.pos, scale(toHandler, 1.1));
+        a.intent = 'spot';
+        a.sprinting = act.phase === 'coming';
+        continue;
+      }
+    }
 
     // finish an active cut
     if (s.t < a.cutUntil) {
@@ -348,12 +456,22 @@ export function defenseTick(s: GameState): void {
       continue;
     }
 
+    // pick-and-roll drop coverage: the screener's defender protects the paint
+    const act = s.poss.action;
+    if (act && act.phase !== 'coming' && man.p.id === act.screenerId && holder) {
+      const dRim = Math.max(1, dist(holder.pos, rim));
+      d.target = lerp(rim, holder.pos, clamp(A.pnrDropDepthFt / dRim, 0, 0.85));
+      continue;
+    }
+
     const onBall = holder !== null && man.p.id === holder.p.id;
     if (onBall && holder) {
-      const gap = Math.max(
+      let gap = Math.max(
         2.2,
         s.params.move.defGapBaseFt - gravity(man) * s.params.move.defGapGravityFt
       );
+      // ducking under a screen: drop back, concede the pull-up
+      if (s.t < d.navUnderUntil) gap += A.pnrUnderSagFt;
       const toRim = norm(sub(rim, holder.pos));
       d.target = add(holder.pos, scale(toRim, gap));
       // closeout: sprint when caught out of position (e.g. after a swing pass)

@@ -210,6 +210,18 @@ export interface SimParams {
     // bookkeeping
     assistWindowSec: number;     // catch-to-shot window for assist credit
     assistMaxDribbles: number;
+    // pick-and-roll
+    pnrRatePerTick: number;      // chance per eligible halfcourt tick to call a screen
+    pnrDurationSec: number;      // action lifetime
+    pnrScreenSetDistFt: number;  // screener-to-defender distance that counts as contact
+    pnrStunOverSec: number;      // defender delay when fighting over the screen
+    pnrStunUnderSec: number;     // brief delay when ducking under
+    pnrUnderSagFt: number;       // extra on-ball gap while going under (pull-up space)
+    pnrUnderBase: number;        // base probability of going under vs handler gravity
+    pnrRollGravityCut: number;   // screener gravity below this rolls; above pops
+    pnrDropDepthFt: number;      // screener defender's drop-coverage depth from the rim
+    pnrDriveBonus: number;       // handler drive-utility bonus coming off the screen
+    pnrMinShotClock: number;     // don't start an action later than this
   };
 }
 
@@ -248,18 +260,18 @@ export const defaultParams: SimParams = {
   },
 
   foul: {
-    shootRim: 0.435,
-    shootPaint: 0.16,
+    shootRim: 0.475,
+    shootPaint: 0.165,
     shootMid: 0.05,
     shootThree: 0.012,
     contestFactor: 1.6,
-    reachInPerSec: 0.0153,
+    reachInPerSec: 0.017,
     chargePerDrive: 0.012,
     looseBallPerReb: 0.0215
   },
 
   pass: {
-    riskBase: -3.95,
+    riskBase: -4.05,
     laneRiskCoef: 1.6,
     skillCoef: 0.75,
     stealShare: 0.55,
@@ -352,7 +364,18 @@ export const defaultParams: SimParams = {
     helperGravityWeight: 26,
     closeoutSlackFt: 1.5,
     assistWindowSec: 1.6,
-    assistMaxDribbles: 1
+    assistMaxDribbles: 1,
+    pnrRatePerTick: 0.022,
+    pnrDurationSec: 3.4,
+    pnrScreenSetDistFt: 2.2,
+    pnrStunOverSec: 0.65,
+    pnrStunUnderSec: 0.2,
+    pnrUnderSagFt: 3.5,
+    pnrUnderBase: 0.8,
+    pnrRollGravityCut: 0.52,
+    pnrDropDepthFt: 11,
+    pnrDriveBonus: 0.12,
+    pnrMinShotClock: 7
   }
 };
 

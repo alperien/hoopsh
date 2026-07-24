@@ -95,7 +95,8 @@ function initState(cfg: GameConfig): GameState {
         catchT: -99,
         driveUntil: -99,
         cutUntil: -99,
-        screenStunUntil: -99
+        screenStunUntil: -99,
+        navUnderUntil: -99
       });
     }
   };
@@ -132,7 +133,8 @@ function initState(cfg: GameConfig): GameState {
       startT: 0,
       kind: 'tip',
       lastPass: null,
-      spotMap: new Map()
+      spotMap: new Map(),
+      action: null
     },
     phase: { kind: 'dead', resumeIn: 0.6, clockRuns: false, nextTeam: 0, possKind: 'tip' },
     events: [],

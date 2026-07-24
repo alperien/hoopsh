@@ -49,7 +49,8 @@ export function startPossession(
     startT: s.t,
     kind,
     lastPass: null,
-    spotMap: new Map()
+    spotMap: new Map(),
+    action: null
   };
   emit(s, { type: 'possession_start', team, kind });
   assignSpots(s, team);

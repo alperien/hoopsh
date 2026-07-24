@@ -43,6 +43,19 @@ export interface Agent {
   driveUntil: number;          // t until which a drive commitment holds
   cutUntil: number;
   screenStunUntil: number;     // defender fighting through a screen
+  navUnderUntil: number;       // defender ducking under a screen (concedes pull-up space)
+}
+
+/** a running team action (pick-and-roll first; more actions join over time) */
+export interface PnrAction {
+  kind: 'pnr';
+  handlerId: string;
+  screenerId: string;
+  phase: 'coming' | 'set' | 'finishing';
+  /** absolute t when the action expires */
+  until: number;
+  /** t when the screen connected (drives the set -> finishing transition) */
+  setAt: number;
 }
 
 export interface PendingShot {
@@ -119,6 +132,8 @@ export interface Possession {
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip';
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
+  /** the running set action, if any (e.g. an active pick-and-roll) */
+  action: PnrAction | null;
 }
 
 export interface GameState {
