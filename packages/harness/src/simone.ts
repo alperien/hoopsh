@@ -1,20 +1,41 @@
 /**
  * Sim one game and show your work:
  *   npm run sim [-- --seed my-seed]
+ *   npm run sim [-- --home path/to/team.json --away path/to/other.json]
+ * Team packs are validated JSON (see packages/data/rosters/ for examples).
  * Prints the final, a box score, notable play-by-play, and saves the replay
  * + full PBP to out/.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { buildReplay, simulateGame } from '@hoopsh/engine';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { buildReplay, simulateGame, type Team } from '@hoopsh/engine';
 import { boxScore, tsPct, type PlayerLine } from '@hoopsh/stats';
-import { sampleMatchup } from '@hoopsh/data';
+import { loadTeamPack, sampleMatchup } from '@hoopsh/data';
 import { generatePlayByPlay } from '@hoopsh/narration';
 
-const seedArg = process.argv.indexOf('--seed');
-const seed = seedArg !== -1 ? process.argv[seedArg + 1]! : `game-${Date.now() % 100000}`;
+function argOf(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag);
+  return i !== -1 ? process.argv[i + 1] : undefined;
+}
 
-const { home, away } = sampleMatchup();
+const seed = argOf('--seed') ?? `game-${Date.now() % 100000}`;
+
+function teamFrom(flag: string, fallback: Team): Team {
+  const file = argOf(flag);
+  if (!file) return fallback;
+  const { team, issues } = loadTeamPack(readFileSync(file, 'utf8'));
+  if (!team) {
+    console.error(`invalid team pack ${file}:`);
+    for (const issue of issues) console.error(`  ${issue.path}: ${issue.message}`);
+    process.exit(1);
+  }
+  console.log(`loaded ${flag.slice(2)} team "${team.name}" from ${file}`);
+  return team;
+}
+
+const def = sampleMatchup();
+const home = teamFrom('--home', def.home);
+const away = teamFrom('--away', def.away);
 const t0 = performance.now();
 const result = simulateGame({ seed, home, away });
 const ms = performance.now() - t0;

@@ -15,6 +15,7 @@
     "broadcast": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/broadcast-demo.ts",
     "viewer:embed": "node packages/viewer/embed.mjs",
     "sweep": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/sweep.ts",
+    "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run"
   }
