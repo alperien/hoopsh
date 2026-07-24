@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hoopsh — replay viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e13;
+    --panel: #12161e;
+    --panel2: #171c26;
+    --line: #232a37;
+    --text: #e8ecf3;
+    --muted: #8a94a6;
+    --home: #2dd4bf;   /* Cascadia Breakers */
+    --away: #a78bfa;   /* Meridian Monarchs */
+    --accent: #f59e0b; /* ball */
+    --good: #34d399;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- scoreboard ---------- */
+  header {
+    display: flex; align-items: center; justify-content: center; gap: 28px;
+    padding: 14px 5% 10px;
+    background: linear-gradient(180deg, #10141b, #0b0e13);
+    border-bottom: 1px solid var(--line);
+    user-select: none;
+  }
+  .team { display: flex; align-items: center; gap: 12px; min-width: 210px; }
+  .team.away { flex-direction: row-reverse; text-align: right; }
+  .team .chip { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 auto; }
+  .team.home .chip { background: var(--home); box-shadow: 0 0 12px rgba(45,212,191,.5); }
+  .team.away .chip { background: var(--away); box-shadow: 0 0 12px rgba(167,139,250,.5); }
+  .team .name { font-size: 13px; color: var(--muted); letter-spacing: .04em; }
+  .team .abbr { font-family: 'Barlow Condensed'; font-weight: 600; font-size: 26px; letter-spacing: .06em; }
+  .score {
+    font-family: 'Barlow Condensed'; font-weight: 700; font-size: 52px;
+    min-width: 76px; text-align: center; font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .clockbox { text-align: center; min-width: 110px; }
+  .clockbox .period { font-family: 'Barlow Condensed'; font-weight: 600; font-size: 18px; color: var(--accent); letter-spacing: .1em; }
+  .clockbox .clock { font-family: 'Barlow Condensed'; font-weight: 700; font-size: 34px; font-variant-numeric: tabular-nums; line-height: 1.05; }
+  .clockbox .final { color: var(--good); }
+
+  /* ---------- layout ---------- */
+  main { flex: 1; display: flex; min-height: 0; }
+  #stage { flex: 1; position: relative; min-width: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  aside {
+    width: 320px; flex: 0 0 auto;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  aside h3 {
+    font-family: 'Barlow Condensed'; font-weight: 600; font-size: 15px;
+    letter-spacing: .22em; color: var(--muted);
+    padding: 14px 18px 10px; border-bottom: 1px solid var(--line);
+  }
+  #feed { list-style: none; overflow-y: auto; flex: 1; padding: 10px 14px 16px; }
+  #feed li {
+    display: flex; gap: 9px; align-items: baseline;
+    padding: 7px 8px; border-radius: 8px;
+    font-size: 12.5px; line-height: 1.45; color: #c6cdd9;
+    animation: none;
+  }
+  #feed li.new { background: var(--panel2); color: var(--text); }
+  #feed li .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; position: relative; top: -1px; }
+  #feed li .dot.h { background: var(--home); }
+  #feed li .dot.a { background: var(--away); }
+  #feed li .dot.n { background: #4b5565; }
+  #feed li .t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 11px; flex: 0 0 auto; }
+
+  /* ---------- controls ---------- */
+  footer {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 5%;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    user-select: none;
+  }
+  button {
+    background: var(--panel2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 9px;
+    font: 600 13px 'Inter'; padding: 9px 16px; cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  button:hover { background: #1e2532; }
+  button.primary { background: var(--home); color: #04211d; border-color: transparent; min-width: 86px; }
+  button.primary:hover { filter: brightness(1.08); }
+  #time { font-family: 'Barlow Condensed'; font-weight: 600; font-size: 19px; min-width: 86px; text-align: center; font-variant-numeric: tabular-nums; }
+  #seek { flex: 1; accent-color: var(--home); height: 4px; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+  /* ---------- dropzone ---------- */
+  #drop {
+    position: fixed; inset: 0; z-index: 50;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: var(--bg);
+  }
+  #drop .logo { font-family: 'Barlow Condensed'; font-weight: 700; font-size: 56px; letter-spacing: .02em; }
+  #drop .logo span { color: var(--home); }
+  #drop .zone {
+    border: 2px dashed #2e3748; border-radius: 18px;
+    padding: 46px 70px; text-align: center; color: var(--muted); font-size: 14px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+  }
+  #drop .zone.over, #drop .zone:hover { border-color: var(--home); background: rgba(45,212,191,.05); }
+  #drop input { display: none; }
+  .hidden { display: none !important; }
+
+  @media (max-width: 920px) {
+    aside { display: none; }
+    .team { min-width: 0; }
+    .team .name { display: none; }
+    .score { font-size: 40px; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="team home"><div class="chip"></div><div><div class="abbr" id="hAbbr">—</div><div class="name" id="hName"></div></div></div>
+  <div class="score" id="hScore">0</div>
+  <div class="clockbox"><div class="period" id="period">Q1</div><div class="clock" id="clock">12:00</div></div>
+  <div class="score" id="aScore">0</div>
+  <div class="team away"><div class="chip"></div><div><div class="abbr" id="aAbbr">—</div><div class="name" id="aName"></div></div></div>
+</header>
+
+<main>
+  <div id="stage"><canvas id="court"></canvas></div>
+  <aside>
+    <h3>PLAY-BY-PLAY</h3>
+    <ul id="feed"></ul>
+  </aside>
+</main>
+
+<footer>
+  <button class="primary" id="playBtn">▶ Play</button>
+  <div id="time">Q1 12:00</div>
+  <input type="range" id="seek" min="0" max="100" step="0.1" value="0">
+  <button id="speedBtn">1×</button>
+  <button id="labelBtn">Names: on</button>
+  <span class="hint">space play · ←/→ ±10s</span>
+</footer>
+
+<div id="drop" class="hidden">
+  <div class="logo">hoop<span>sh</span></div>
+  <label class="zone" id="zone">
+    <strong>Drop a replay JSON here</strong><br>or click to choose a file<br><br>
+    <span style="font-size:12px">generate one with <code>npm run sim</code> → <code>out/replay-*.json</code></span>
+    <input type="file" id="file" accept=".json,application/json">
+  </label>
+</div>
+
+<script>
+const EMBEDDED = /*HOOPSH_REPLAY*/null;
+
+/* ================= boot ================= */
+const $ = (id) => document.getElementById(id);
+if (EMBEDDED) boot(EMBEDDED);
+else {
+  $('drop').classList.remove('hidden');
+  const zone = $('zone');
+  const read = (file) => {
+    const r = new FileReader();
+    r.onload = () => { try { boot(JSON.parse(r.result)); $('drop').classList.add('hidden'); } catch (e) { alert('Not a valid replay JSON: ' + e); } };
+    r.readAsText(file);
+  };
+  $('file').addEventListener('change', (e) => e.target.files[0] && read(e.target.files[0]));
+  document.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
+  document.addEventListener('dragleave', () => zone.classList.remove('over'));
+  document.addEventListener('drop', (e) => { e.preventDefault(); zone.classList.remove('over'); e.dataTransfer.files[0] && read(e.dataTransfer.files[0]); });
+}
+
+/* ================= viewer ================= */
+function boot(R) {
+  /* ---- meta ---- */
+  const rules = R.rules;
+  const L = rules.courtLengthFt, W = rules.courtWidthFt;
+  const names = new Map(), lastNames = new Map(), lastCount = new Map();
+  for (const side of [0, 1]) for (const p of R.teams[side].players) {
+    const last = p.name.split(' ').pop();
+    lastCount.set(last, (lastCount.get(last) || 0) + 1);
+  }
+  for (const side of [0, 1]) for (const p of R.teams[side].players) {
+    names.set(p.id, p.name);
+    const parts = p.name.split(' ');
+    const last = parts[parts.length - 1];
+    lastNames.set(p.id, lastCount.get(last) > 1 && parts.length > 1 ? `${parts[0][0]}. ${last}` : last);
+  }
+  $('hAbbr').textContent = R.teams[0].abbrev; $('hName').textContent = R.teams[0].name;
+  $('aAbbr').textContent = R.teams[1].abbrev; $('aName').textContent = R.teams[1].name;
+
+  const frames = R.frames;
+  const duration = frames[frames.length - 1][0];
+  $('seek').max = duration;
+
+  /* ---- ticker entries from events ---- */
+  const feedItems = buildFeed(R, lastNames);
+  const shotFx = R.events.filter((e) => e.type === 'shot');
+
+  /* ---- state ---- */
+  let t = 0, playing = false, speed = 1, speeds = [1, 2, 4, 8], speedIdx = 0;
+  let showLabels = true;
+  let evPtr = 0;          // events consumed (score)
+  let feedPtr = 0;        // feed items consumed
+  let fxPtr = 0;          // shot effects consumed
+  let lineupPtr = 0;
+  let score = [0, 0], over = false;
+  let slots = [R.lineups.filter(l => l.side === 0)[0].slots.slice(), R.lineups.filter(l => l.side === 1)[0].slots.slice()];
+  const effects = [];
+
+  function resetPointers() {
+    evPtr = 0; feedPtr = 0; fxPtr = 0; lineupPtr = 0;
+    score = [0, 0]; effects.length = 0; over = false;
+    slots = [R.lineups.filter(l => l.side === 0)[0].slots.slice(), R.lineups.filter(l => l.side === 1)[0].slots.slice()];
+    feedEl.innerHTML = '';
+  }
+
+  function advancePointers() {
+    while (evPtr < R.events.length && R.events[evPtr].t <= t) {
+      score = R.events[evPtr].score;
+      if (R.events[evPtr].type === 'game_end') over = true;
+      evPtr++;
+    }
+    while (lineupPtr < R.lineups.length && R.lineups[lineupPtr].t <= t) {
+      const l = R.lineups[lineupPtr];
+      slots[l.side] = l.slots.slice();
+      lineupPtr++;
+    }
+    while (fxPtr < shotFx.length && shotFx[fxPtr].t <= t) {
+      const s = shotFx[fxPtr];
+      effects.push({ x: s.x, y: s.y, made: s.made, three: s.three, born: t });
+      fxPtr++;
+    }
+    let added = false;
+    while (feedPtr < feedItems.length && feedItems[feedPtr].t <= t) {
+      appendFeed(feedItems[feedPtr]); feedPtr++; added = true;
+    }
+    if (added) feedEl.scrollTop = feedEl.scrollHeight;
+  }
+
+  /* ---- feed DOM ---- */
+  const feedEl = $('feed');
+  function appendFeed(item) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="dot ${item.side === 0 ? 'h' : item.side === 1 ? 'a' : 'n'}"></span>` +
+      `<span class="t">${item.label}</span><span>${item.text}</span>`;
+    const prev = feedEl.querySelector('.new'); if (prev) prev.classList.remove('new');
+    li.classList.add('new');
+    feedEl.appendChild(li);
+    while (feedEl.children.length > 60) feedEl.removeChild(feedEl.firstChild);
+  }
+
+  /* ---- canvas ---- */
+  const canvas = $('court'), ctx = canvas.getContext('2d');
+  let cw = 0, ch = 0, dpr = 1, scale = 1, ox = 0, oy = 0;
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    cw = rect.width; ch = rect.height;
+    canvas.width = cw * dpr; canvas.height = ch * dpr;
+    const m = 26;
+    scale = Math.min((cw - m * 2) / L, (ch - m * 2) / W);
+    ox = (cw - L * scale) / 2; oy = (ch - W * scale) / 2;
+  }
+  window.addEventListener('resize', resize); resize();
+  const X = (x) => ox + x * scale, Y = (y) => oy + y * scale;
+
+  function drawCourt() {
+    ctx.save();
+    // floor
+    const grd = ctx.createLinearGradient(X(0), Y(0), X(L), Y(W));
+    grd.addColorStop(0, '#b8875c'); grd.addColorStop(.5, '#c69268'); grd.addColorStop(1, '#b8875c');
+    ctx.fillStyle = grd;
+    roundRect(X(-1.5), Y(-1.5), (L + 3) * scale, (W + 3) * scale, 10); ctx.fill();
+    // planks
+    ctx.strokeStyle = 'rgba(90,55,25,.16)'; ctx.lineWidth = 1;
+    for (let x = 0; x <= L; x += 3.7) { ctx.beginPath(); ctx.moveTo(X(x), Y(-1.5)); ctx.lineTo(X(x), Y(W + 1.5)); ctx.stroke(); }
+
+    ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineWidth = Math.max(1.4, scale * .16);
+    ctx.fillStyle = 'rgba(255,255,255,.07)';
+    // boundary + midline + center circle
+    ctx.strokeRect(X(0), Y(0), L * scale, W * scale);
+    line(L / 2, 0, L / 2, W);
+    circle(L / 2, W / 2, 6, false);
+
+    for (const end of [0, 1]) {
+      const dir = end === 0 ? 1 : -1;
+      const base = end === 0 ? 0 : L;
+      const rimX = base + dir * rules.rimInsetFt;
+      const cY = W / 2;
+      // key
+      const keyW = 16, ftDist = 19;
+      ctx.fillRect(X(end === 0 ? 0 : L - ftDist), Y(cY - keyW / 2), ftDist * scale, keyW * scale);
+      ctx.strokeRect(X(end === 0 ? 0 : L - ftDist), Y(cY - keyW / 2), ftDist * scale, keyW * scale);
+      circle(base + dir * ftDist, cY, 6, false);
+      // backboard + rim + restricted area
+      line(base + dir * 4, cY - 3, base + dir * 4, cY + 3);
+      circle(rimX, cY, 0.75, false);
+      arc(rimX, cY, 4, dir);
+      // three-point line
+      const th = rules.three;
+      const breakX = base + dir * th.cornerBreakFt;
+      line(base, cY - th.cornerDistFt, breakX, cY - th.cornerDistFt);
+      line(base, cY + th.cornerDistFt, breakX, cY + th.cornerDistFt);
+      const dxAtBreak = Math.sqrt(Math.max(0, th.arcRadiusFt ** 2 - th.cornerDistFt ** 2));
+      const a = Math.atan2(th.cornerDistFt, dxAtBreak);
+      ctx.beginPath();
+      if (end === 0) ctx.arc(X(rimX), Y(cY), th.arcRadiusFt * scale, -a, a);
+      else ctx.arc(X(rimX), Y(cY), th.arcRadiusFt * scale, Math.PI - a, Math.PI + a);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    function line(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); ctx.stroke(); }
+    function circle(x, y, r) { ctx.beginPath(); ctx.arc(X(x), Y(y), r * scale, 0, Math.PI * 2); ctx.stroke(); }
+    function arc(x, y, r, dir) {
+      ctx.beginPath();
+      if (dir === 1) ctx.arc(X(x), Y(y), r * scale, -Math.PI / 2, Math.PI / 2);
+      else ctx.arc(X(x), Y(y), r * scale, Math.PI / 2, Math.PI * 1.5);
+      ctx.stroke();
+    }
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+
+  /* ---- frame interpolation ---- */
+  let fIdx = 0;
+  function frameAt(time) {
+    // advance / retreat index (frames are dense & sorted)
+    while (fIdx < frames.length - 2 && frames[fIdx + 1][0] <= time) fIdx++;
+    while (fIdx > 0 && frames[fIdx][0] > time) fIdx--;
+    const a = frames[fIdx], b = frames[Math.min(fIdx + 1, frames.length - 1)];
+    const span = Math.max(1e-6, b[0] - a[0]);
+    const k = Math.min(1, Math.max(0, (time - a[0]) / span));
+    return { a, b, k };
+  }
+  const lerp = (a, b, k) => a + (b - a) * k;
+
+  /* ---- render ---- */
+  function render() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    drawCourt();
+    const { a, b, k } = frameAt(t);
+
+    // shot splash effects
+    for (let i = effects.length - 1; i >= 0; i--) {
+      const fx = effects[i];
+      const age = t - fx.born;
+      if (age > 1.4 || age < 0) { effects.splice(i, 1); continue; }
+      const r = (2 + age * 6) * scale;
+      ctx.globalAlpha = Math.max(0, 1 - age / 1.4) * .8;
+      ctx.strokeStyle = fx.made ? 'rgba(52,211,153,1)' : 'rgba(248,113,113,.9)';
+      ctx.lineWidth = fx.made && fx.three ? 3 : 2;
+      ctx.beginPath(); ctx.arc(X(fx.x), Y(fx.y), r, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // players
+    const holderSlot = a[5];
+    const pr = Math.max(8, 1.15 * scale);
+    for (let s = 0; s < 10; s++) {
+      const xi = 6 + s * 2, yi = 7 + s * 2;
+      const px = X(lerp(a[xi], b[xi], k)), py = Y(lerp(a[yi], b[yi], k));
+      const side = s < 5 ? 0 : 1;
+      // holder ring
+      if (s === holderSlot) {
+        ctx.beginPath(); ctx.arc(px, py, pr + 4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fillStyle = side === 0 ? '#2dd4bf' : '#a78bfa';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(10,14,19,.85)'; ctx.lineWidth = 2; ctx.stroke();
+      if (showLabels) {
+        const id = slots[side][s % 5];
+        const nm = lastNames.get(id) || '';
+        ctx.font = `600 ${Math.max(9, scale * 1.05)}px Inter`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillStyle = 'rgba(12,16,22,.78)';
+        ctx.fillText(nm, px + 1, py + pr + 3.5);
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.fillText(nm, px, py + pr + 2.5);
+      }
+    }
+
+    // ball
+    const bx = X(lerp(a[3], b[3], k)), by = Y(lerp(a[4], b[4], k));
+    ctx.beginPath(); ctx.arc(bx, by - (holderSlot === -1 ? pr * .9 : 0), Math.max(5, .55 * scale), 0, Math.PI * 2);
+    ctx.fillStyle = '#f59e0b'; ctx.fill();
+    ctx.strokeStyle = '#7c3f00'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // chrome
+    const period = a[1], clock = lerp(a[2], b[2], k);
+    $('hScore').textContent = score[0];
+    $('aScore').textContent = score[1];
+    const pLabel = period <= rules.periods ? 'Q' + period : 'OT' + (period - rules.periods > 1 ? period - rules.periods : '');
+    if (over && t >= duration - 0.3) {
+      $('period').textContent = 'FINAL';
+      $('clock').textContent = '0:00';
+    } else {
+      $('period').textContent = pLabel;
+      $('clock').textContent = fmtClock(clock);
+    }
+    $('time').textContent = `${pLabel} ${fmtClock(clock)}`;
+    if (!seeking) $('seek').value = t;
+  }
+
+  function fmtClock(c) {
+    const m = Math.floor(Math.max(0, c) / 60), s = Math.floor(Math.max(0, c) % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  /* ---- playback loop ---- */
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (playing) {
+      t = Math.min(duration, t + dt * speed);
+      if (t >= duration) { playing = false; $('playBtn').textContent = '▶ Play'; }
+    }
+    advancePointers();
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  /* ---- controls ---- */
+  function setTime(nt) {
+    const back = nt < t;
+    t = Math.min(duration, Math.max(0, nt));
+    if (back) { resetPointers(); fIdx = 0; }
+    advancePointers();
+  }
+  $('playBtn').addEventListener('click', () => {
+    if (t >= duration) setTime(0);
+    playing = !playing;
+    $('playBtn').textContent = playing ? '❚❚ Pause' : '▶ Play';
+  });
+  $('speedBtn').addEventListener('click', () => {
+    speedIdx = (speedIdx + 1) % speeds.length;
+    speed = speeds[speedIdx];
+    $('speedBtn').textContent = speed + '×';
+  });
+  $('labelBtn').addEventListener('click', () => {
+    showLabels = !showLabels;
+    $('labelBtn').textContent = 'Names: ' + (showLabels ? 'on' : 'off');
+  });
+  let seeking = false;
+  $('seek').addEventListener('input', (e) => { seeking = true; setTime(parseFloat(e.target.value)); });
+  $('seek').addEventListener('change', () => { seeking = false; });
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); $('playBtn').click(); }
+    if (e.code === 'ArrowRight') setTime(t + 10);
+    if (e.code === 'ArrowLeft') setTime(t - 10);
+  });
+}
+
+/* ================= feed builder ================= */
+function buildFeed(R, lastNames) {
+  const items = [];
+  const nm = (id) => lastNames.get(id) || id;
+  const label = (e) => {
+    const p = e.period <= R.rules.periods ? 'Q' + e.period : 'OT';
+    const m = Math.floor(e.clock / 60), s = String(Math.floor(e.clock % 60)).padStart(2, '0');
+    return `${p} ${m}:${s}`;
+  };
+  const push = (e, side, text) => items.push({ t: e.t, side, label: label(e), text });
+
+  for (const e of R.events) {
+    switch (e.type) {
+      case 'tip_off': push(e, e.winner, `${R.teams[e.winner].abbrev} control the tip`); break;
+      case 'period_start': if (e.period > 1) push(e, -1, `Start of ${e.period <= R.rules.periods ? 'Q' + e.period : 'overtime'}`); break;
+      case 'period_end': push(e, -1, `End of ${e.period <= R.rules.periods ? 'Q' + e.period : 'OT'} — ${R.teams[0].abbrev} ${e.score[0]}, ${R.teams[1].abbrev} ${e.score[1]}`); break;
+      case 'game_end': push(e, -1, `FINAL — ${R.teams[0].abbrev} ${e.score[0]}, ${R.teams[1].abbrev} ${e.score[1]}`); break;
+      case 'shot': {
+        const dsc = e.moveType === 'putback' ? 'putback'
+          : e.moveType === 'heave' ? `${Math.round(e.distFt)}ft heave`
+          : e.moveType === 'drive' ? (e.zone === 'rim' ? 'driving layup' : `${Math.round(e.distFt)}ft runner`)
+          : e.moveType === 'cut_finish' ? 'cut finish'
+          : e.three ? `${Math.round(e.distFt)}ft three` : `${Math.round(e.distFt)}ft ${e.zone === 'rim' ? 'layup' : 'jumper'}`;
+        if (e.blockedBy) push(e, e.team, `${nm(e.shooter)}'s ${dsc} BLOCKED by ${nm(e.blockedBy)}`);
+        else if (e.made) push(e, e.team, `${nm(e.shooter)} makes ${dsc}${e.foul ? ' +FOUL' : ''}${e.assist ? ` (${nm(e.assist)} assist)` : ''}`);
+        else push(e, e.team, `${nm(e.shooter)} misses ${dsc}`);
+        break;
+      }
+      case 'free_throw': push(e, e.team, `${nm(e.shooter)} free throw ${e.n}/${e.of} ${e.made ? '✓' : '✗'}`); break;
+      case 'rebound': push(e, e.team, `${e.offensive ? 'Offensive' : 'Defensive'} rebound ${nm(e.player)}`); break;
+      case 'turnover': {
+        const k = e.kind === 'bad_pass' ? (e.stolenBy ? `pass stolen by ${nm(e.stolenBy)}` : 'throws it away')
+          : e.kind === 'lost_ball' ? (e.stolenBy ? `stripped by ${nm(e.stolenBy)}` : 'loses the ball')
+          : e.kind === 'off_foul' ? 'charge' : e.kind === 'shot_clock' ? 'shot-clock violation' : 'out of bounds';
+        push(e, e.team, `Turnover — ${nm(e.player)}, ${k}`);
+        break;
+      }
+      case 'foul': push(e, e.team, `${e.kind.replace('_', ' ')} foul on ${nm(e.on)} (${e.personalCount})${e.fouledOut ? ' — FOULED OUT' : ''}`); break;
+      case 'substitution': push(e, e.team, `Sub: ${e.in.map(nm).join(', ')} in for ${e.out.map(nm).join(', ')}`); break;
+    }
+  }
+  return items;
+}
+</script>
+</body>
+</html>

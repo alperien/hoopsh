@@ -12,6 +12,8 @@
     "batch": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/cli.ts",
     "bench": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/bench.ts",
     "test": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs --test \"packages/*/test/*.test.ts\"",
+    "broadcast": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/broadcast-demo.ts",
+    "viewer:embed": "node packages/viewer/embed.mjs",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run"
   }
