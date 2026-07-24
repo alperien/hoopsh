@@ -48,6 +48,14 @@ export interface SimParams {
     /** chance a rim/paint miss with a strong interior contest is a block */
     blockBase: number;
     blockSkillCoef: number;
+    /** seconds from decision to release, by shot type (the closeout race window) */
+    windupCatchShoot: number;
+    windupPullUp: number;
+    windupDrive: number;
+    windupCutFinish: number;
+    windupPost: number;
+    windupPutback: number;
+    windupHeave: number;
   };
 
   foul: {
@@ -144,6 +152,65 @@ export interface SimParams {
     /** energy at which a bench player is considered ready */
     readyThreshold: number;
   };
+
+  /**
+   * AI utility weights — the decision layer's knobs, fully sweepable.
+   * These shape WHO does WHAT (shot diets, drive rates, ball movement,
+   * defensive spacing); the sections above shape how attempts RESOLVE.
+   */
+  ai: {
+    // shot selection
+    zoneTendBias: number;        // weight of zone shot-diet tendencies
+    pullUpBias: number;          // weight of pull-up tendency on pull-ups
+    threeApptScale: number;      // era three-appetite -> utility scale
+    tacticsThreeScale: number;   // team threeBias -> utility scale
+    contestBrakeAt: number;      // contest level where the brake engages
+    contestBrakeBase: number;    // brake strength at average decisions rating
+    contestBrakeIQ: number;      // extra brake per unit of decisions rating
+    holdAdvance: number;         // hold utility while bringing the ball up
+    holdHalfcourt: number;       // hold utility in the halfcourt
+    // drive
+    driveMinDistFt: number;      // no drive evaluation inside this range
+    driveProjContestBase: number;
+    driveProjContestCrowd: number;
+    handlingBase: number;        // base P(get downhill)
+    handlingSkillDiv: number;    // handle-vs-lateral divisor
+    handlingGapDiv: number;      // defender-gap divisor
+    driveTendOffset: number;     // drive tendency neutral point
+    driveTendScale: number;
+    laneCrowdPenalty: number;
+    driveFlat: number;
+    driveTransitionMult: number;
+    // passing
+    passRiskUtilMult: number;    // how strongly turnover risk discounts a pass
+    passEVScale: number;         // teammate shot EV weight
+    cutterBonus: number;         // hitting an active cutter
+    swingBase: number;           // intrinsic ball-movement value
+    swingPassOutScale: number;
+    swingVisionScale: number;
+    playmakerOffset: number;     // playmaker-pull neutral rating
+    playmakerScale: number;      // value of feeding a creator
+    passContinuationScale: number;
+    catchContestScale: number;   // openness -> expected catch contest
+    // off-ball
+    cutRateScale: number;        // per-tick cut chance per unit of motion tendency
+    cutDurationSec: number;
+    crashBase: number;           // offensive rebound crash probability base
+    crashTendScale: number;
+    // defense positioning
+    guardDistBase: number;       // tightest off-ball guard distance
+    guardDistOpen: number;       // extra sag vs zero-gravity players
+    sagStartFt: number;          // ball distance where help-side sag begins
+    sagRangeFt: number;
+    sagMax: number;
+    sagGravityCut: number;       // gravity resistance to sagging
+    helpSpotPull: number;        // help spot pull toward the ball
+    helperGravityWeight: number; // reluctance to help off shooters
+    closeoutSlackFt: number;     // gap slack before a closeout sprint
+    // bookkeeping
+    assistWindowSec: number;     // catch-to-shot window for assist credit
+    assistMaxDribbles: number;
+  };
 }
 
 export const defaultParams: SimParams = {
@@ -170,7 +237,14 @@ export const defaultParams: SimParams = {
     ftBasePct: 0.71,
     ftSkillSwing: 0.12,
     blockBase: 0.3,
-    blockSkillCoef: 0.5
+    blockSkillCoef: 0.5,
+    windupCatchShoot: 0.42,
+    windupPullUp: 0.55,
+    windupDrive: 0.45,
+    windupCutFinish: 0.3,
+    windupPost: 0.65,
+    windupPutback: 0.25,
+    windupHeave: 0.3
   },
 
   foul: {
@@ -231,6 +305,54 @@ export const defaultParams: SimParams = {
   sub: {
     tiredThreshold: 62,
     readyThreshold: 88
+  },
+
+  ai: {
+    zoneTendBias: 0.22,
+    pullUpBias: 0.18,
+    threeApptScale: 0.35,
+    tacticsThreeScale: 0.18,
+    contestBrakeAt: 0.35,
+    contestBrakeBase: 0.5,
+    contestBrakeIQ: 0.35,
+    holdAdvance: 0.35,
+    holdHalfcourt: -0.02,
+    driveMinDistFt: 9,
+    driveProjContestBase: 0.35,
+    driveProjContestCrowd: 0.22,
+    handlingBase: 0.55,
+    handlingSkillDiv: 160,
+    handlingGapDiv: 18,
+    driveTendOffset: 35,
+    driveTendScale: 0.42,
+    laneCrowdPenalty: 0.1,
+    driveFlat: -0.05,
+    driveTransitionMult: 1.2,
+    passRiskUtilMult: 2.4,
+    passEVScale: 0.94,
+    cutterBonus: 0.5,
+    swingBase: 0.03,
+    swingPassOutScale: 0.16,
+    swingVisionScale: 0.12,
+    playmakerOffset: 55,
+    playmakerScale: 0.09,
+    passContinuationScale: 0.9,
+    catchContestScale: 0.72,
+    cutRateScale: 0.006,
+    cutDurationSec: 1.6,
+    crashBase: 0.25,
+    crashTendScale: 0.6,
+    guardDistBase: 2.8,
+    guardDistOpen: 4.5,
+    sagStartFt: 16,
+    sagRangeFt: 34,
+    sagMax: 0.6,
+    sagGravityCut: 0.75,
+    helpSpotPull: 0.28,
+    helperGravityWeight: 26,
+    closeoutSlackFt: 1.5,
+    assistWindowSec: 1.6,
+    assistMaxDribbles: 1
   }
 };
 

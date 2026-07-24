@@ -34,6 +34,7 @@ export function decideBall(s: GameState): BallAction {
   if (!holderId) return { kind: 'hold' };
   const h = agent(s, holderId);
   const D = s.params.decide;
+  const A = s.params.ai;
   const rim = attackedRim(s, h.side);
   const distToRim = dist(h.pos, rim);
   const tactics = s.teams[h.side].tactics;
@@ -59,7 +60,10 @@ export function decideBall(s: GameState): BallAction {
 
   // judge the shot against the contest expected AT RELEASE, not right now —
   // a defender sprinting into a closeout makes the look worse than it seems
-  const windup = shotMove === 'catch_shoot' ? 0.42 : shotMove === 'pull_up' ? 0.55 : 0.45;
+  const W = s.params.shot;
+  const windup =
+    shotMove === 'catch_shoot' ? W.windupCatchShoot :
+    shotMove === 'pull_up' ? W.windupPullUp : W.windupDrive;
   const contest = anticipatedContest(s, h, h.pos, windup);
   const myShot = shotEV(s, h, h.pos, shotMove, contest);
 
@@ -67,33 +71,43 @@ export function decideBall(s: GameState): BallAction {
   const zoneTend =
     myShot.zone === 'rim' || myShot.zone === 'paint' ? h.p.tend.shotRim :
     myShot.zone === 'mid' ? h.p.tend.shotMid : h.p.tend.shotThree;
-  let shootBias = ((zoneTend - 50) / 100) * 0.22;
-  if (shotMove === 'pull_up') shootBias += ((h.p.tend.pullUp - 50) / 100) * 0.18;
+  let shootBias = ((zoneTend - 50) / 100) * A.zoneTendBias;
+  if (shotMove === 'pull_up') shootBias += ((h.p.tend.pullUp - 50) / 100) * A.pullUpBias;
   if (myShot.zone === 'three') {
-    shootBias += (D.threeAppetite - 1) * 0.35 + ((tactics.threeBias - 50) / 100) * 0.18;
+    shootBias += (D.threeAppetite - 1) * A.threeApptScale + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
   }
   // shooting over a contest is a bad habit; smart players pass out of it
   const contestBrake =
-    clamp(contest.level - 0.35, 0, 1) * (0.5 + ((h.p.attr.decisions - 50) / 100) * 0.35);
+    clamp(contest.level - A.contestBrakeAt, 0, 1) *
+    (A.contestBrakeBase + ((h.p.attr.decisions - 50) / 100) * A.contestBrakeIQ);
   // transition looks are worth extra before the defense sets
   const transitionTerm = s.poss.phase === 'transition' ? D.transitionBonus : 0;
   const uShoot = myShot.ev + shootBias + transitionTerm - continuation - contestBrake;
 
   // --- utility: drive
   let uDrive = -Infinity;
-  if (!driving && distToRim > 9 && s.poss.phase !== 'advance') {
+  if (!driving && distToRim > A.driveMinDistFt && s.poss.phase !== 'advance') {
     const onBall = onBallDefender(s, h);
     const gap = onBall ? dist(onBall.pos, h.pos) : 8;
     const laneCrowd = defendersInLane(s, h, rim);
     const projected = lerp(h.pos, rim, clamp((distToRim - 5) / distToRim, 0, 1));
-    const projContest = { level: clamp(0.35 + laneCrowd * 0.22, 0, 1), by: null, heightAdvFt: 0 };
+    const projContest = {
+      level: clamp(A.driveProjContestBase + laneCrowd * A.driveProjContestCrowd, 0, 1),
+      by: null,
+      heightAdvFt: 0
+    };
     const driveShot = shotEV(s, h, projected, 'drive', projContest);
-    const handling = clamp(0.55 + (h.p.attr.ballHandle - (onBall?.p.attr.lateral ?? 50)) / 160 + (gap - 4) / 18, 0.2, 0.95);
-    const tendTerm = ((h.p.tend.drive - 35) / 100) * 0.42 * D.driveAppetite;
+    const handling = clamp(
+      A.handlingBase +
+        (h.p.attr.ballHandle - (onBall?.p.attr.lateral ?? 50)) / A.handlingSkillDiv +
+        (gap - 4) / A.handlingGapDiv,
+      0.2, 0.95
+    );
+    const tendTerm = ((h.p.tend.drive - A.driveTendOffset) / 100) * A.driveTendScale * D.driveAppetite;
     // a stalled drive isn't a wasted possession — it resets to the continuation
     // value. Utility = P(get downhill)·(rim EV − continuation) + tendencies.
     uDrive = handling * (driveShot.ev - continuation)
-      + tendTerm + transitionTerm * 1.2 - laneCrowd * 0.1 - 0.05;
+      + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
   }
 
   // --- utility: pass to each teammate
@@ -101,20 +115,23 @@ export function decideBall(s: GameState): BallAction {
   for (const m of onCourt(s, h.side)) {
     if (m.p.id === h.p.id || m.fouledOut) continue;
     const o = openness(s, m);
-    const catchContest = { level: clamp((1 - o) * 0.72, 0, 1), by: null, heightAdvFt: 0.5 };
+    const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
     const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest);
     const risk = passRisk(s, h, m);
     const cutting = s.t < m.cutUntil;
-    const cutterBonus = cutting ? 0.5 : 0;
-    const swingBonus = 0.03 + ((h.p.tend.passOut - 50) / 100) * 0.16 + ((h.p.attr.passVision - 50) / 100) * 0.12;
+    const cutterBonus = cutting ? A.cutterBonus : 0;
+    const swingBonus =
+      A.swingBase +
+      ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
+      ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
     // getting the ball back to a playmaker has value beyond his own shot —
     // he creates the NEXT action (how offenses route through their engine)
     const playmakerPull =
-      (((m.p.attr.passVision + m.p.attr.ballHandle) / 2 - 55) / 100) * 0.09;
+      (((m.p.attr.passVision + m.p.attr.ballHandle) / 2 - A.playmakerOffset) / 100) * A.playmakerScale;
     const u =
-      theirShot.ev * (1 - risk.turnoverP * 2.4) * 0.94
+      theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
       + cutterBonus + swingBonus + playmakerPull
-      - continuation * 0.9;
+      - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,
@@ -125,7 +142,7 @@ export function decideBall(s: GameState): BallAction {
   }
 
   // --- utility: hold (keep probing)
-  const uHold = s.poss.phase === 'advance' ? 0.35 : -0.02;
+  const uHold = s.poss.phase === 'advance' ? A.holdAdvance : A.holdHalfcourt;
 
   // softmax selection over available actions
   const actions: { a: BallAction; u: number }[] = [
@@ -233,10 +250,10 @@ export function offenseOffBallTick(s: GameState): void {
     if (
       s.poss.phase === 'halfcourt' &&
       a.spotKey !== 'dunker' &&
-      s.rng.chance((a.p.tend.offBallMotion / 100) * 0.006) &&
+      s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale) &&
       dist(a.pos, rim) > 16
     ) {
-      a.cutUntil = s.t + 1.6;
+      a.cutUntil = s.t + s.params.ai.cutDurationSec;
       continue;
     }
 
@@ -270,6 +287,7 @@ export function defenseTick(s: GameState): void {
   const holderId = s.ball.holderId;
   const holder = holderId ? agent(s, holderId) : null;
   const helpAggr = s.teams[defSide].tactics.helpAggr / 100;
+  const A = s.params.ai;
 
   // is a help rotation warranted?
   let helper: Agent | null = null;
@@ -281,7 +299,7 @@ export function defenseTick(s: GameState): void {
       for (const d of onCourt(s, defSide)) {
         if (d.fouledOut || !d.manId || d.manId === holder.p.id) continue;
         const man = agent(s, d.manId);
-        const score = dist(d.pos, rim) + gravity(man) * 26 * (1.35 - helpAggr);
+        const score = dist(d.pos, rim) + gravity(man) * A.helperGravityWeight * (1.35 - helpAggr);
         if (score < bestScore) { bestScore = score; helper = d; }
       }
     }
@@ -310,7 +328,7 @@ export function defenseTick(s: GameState): void {
       const toRim = norm(sub(rim, holder.pos));
       d.target = add(holder.pos, scale(toRim, gap));
       // closeout: sprint when caught out of position (e.g. after a swing pass)
-      d.sprinting = dist(d.pos, holder.pos) > gap + 1.5;
+      d.sprinting = dist(d.pos, holder.pos) > gap + A.closeoutSlackFt;
       // beaten on a drive: chase the intercept point
       if (s.t < holder.driveUntil) {
         d.target = lerp(holder.pos, rim, 0.3);
@@ -321,12 +339,13 @@ export function defenseTick(s: GameState): void {
 
     // off-ball: guard the man-rim line, sagging with ball distance & low gravity
     const g = gravity(man);
-    const guardDist = 2.8 + (1 - g) * 4.5;
+    const guardDist = A.guardDistBase + (1 - g) * A.guardDistOpen;
     const manToRim = norm(sub(rim, man.pos));
     const basePoint = add(man.pos, scale(manToRim, Math.min(guardDist, dist(man.pos, rim) * 0.5)));
     const ballDist = dist(man.pos, s.ball.pos);
-    const sag = clamp((ballDist - 16) / 34, 0, 0.6) * (1 - g * 0.75) * (0.6 + helpAggr * 0.6);
-    const helpSpot = lerp(rim, s.ball.pos, 0.28);
+    const sag = clamp((ballDist - A.sagStartFt) / A.sagRangeFt, 0, A.sagMax)
+      * (1 - g * A.sagGravityCut) * (0.6 + helpAggr * 0.6);
+    const helpSpot = lerp(rim, s.ball.pos, A.helpSpotPull);
     d.target = lerp(basePoint, helpSpot, sag);
   }
 }

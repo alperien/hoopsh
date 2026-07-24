@@ -423,8 +423,8 @@ function startShot(
   const lp = s.poss.lastPass;
   if (
     made && lp &&
-    s.t - shooter.catchT <= 1.6 &&
-    shooter.dribblesSinceCatch <= 1 &&
+    s.t - shooter.catchT <= s.params.ai.assistWindowSec &&
+    shooter.dribblesSinceCatch <= s.params.ai.assistMaxDribbles &&
     lp.from !== shooter.p.id
   ) {
     assist = lp.from;
@@ -474,7 +474,9 @@ function onShotReleased(s: GameState, offSide: TeamSide): void {
   for (const a of onCourt(s, offSide)) {
     if (a.fouledOut) continue;
     const near = dist(a.pos, rim) < 22;
-    const crash = near && s.rng.chance(0.25 + (a.p.tend.crashOffReb / 100) * 0.6);
+    const crash = near && s.rng.chance(
+      s.params.ai.crashBase + (a.p.tend.crashOffReb / 100) * s.params.ai.crashTendScale
+    );
     if (crash) {
       a.intent = 'crash';
       a.target = { x: rim.x + s.rng.range(-5, 5), y: rim.y + s.rng.range(-5, 5) };
@@ -814,15 +816,16 @@ function tickLive(s: GameState, dt: number): void {
 }
 
 /** windup time before the ball leaves the shooter's hands, by shot type */
-function windupSec(moveType: ShotMoveType): number {
+function windupSec(s: GameState, moveType: ShotMoveType): number {
+  const W = s.params.shot;
   switch (moveType) {
-    case 'catch_shoot': return 0.42;
-    case 'pull_up': return 0.55;
-    case 'drive': return 0.45;
-    case 'cut_finish': return 0.3;
-    case 'post': return 0.65;
-    case 'putback': return 0.25;
-    case 'heave': return 0.3;
+    case 'catch_shoot': return W.windupCatchShoot;
+    case 'pull_up': return W.windupPullUp;
+    case 'drive': return W.windupDrive;
+    case 'cut_finish': return W.windupCutFinish;
+    case 'post': return W.windupPost;
+    case 'putback': return W.windupPutback;
+    case 'heave': return W.windupHeave;
   }
 }
 
@@ -834,7 +837,7 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       s.pendingRelease = {
         shooterId: h.p.id,
         moveType: action.moveType,
-        releaseAt: s.t + windupSec(action.moveType),
+        releaseAt: s.t + windupSec(s, action.moveType),
         contest0: contestAt(s, h, h.pos).level
       };
       h.target = h.pos;
