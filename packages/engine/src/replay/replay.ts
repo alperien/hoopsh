@@ -26,7 +26,7 @@ export interface ReplayTeamMeta {
 }
 
 export interface LineupSnapshot {
-  /** absolute game seconds this lineup takes effect */
+  /** wall-clock timeline seconds this lineup takes effect */
   t: number;
   side: 0 | 1;
   slots: string[];
@@ -71,15 +71,15 @@ export function buildReplay(result: GameResult): Replay {
     if (e.type === 'game_start') {
       current[0] = [...e.home.lineup];
       current[1] = [...e.away.lineup];
-      lineups.push({ t: e.t, side: 0, slots: [...current[0]] });
-      lineups.push({ t: e.t, side: 1, slots: [...current[1]] });
+      lineups.push({ t: e.wt, side: 0, slots: [...current[0]] });
+      lineups.push({ t: e.wt, side: 1, slots: [...current[1]] });
     } else if (e.type === 'substitution') {
       const slots = current[e.team];
       for (let i = 0; i < e.out.length; i++) {
         const idx = slots.indexOf(e.out[i]!);
         if (idx !== -1 && e.in[i]) slots[idx] = e.in[i]!;
       }
-      lineups.push({ t: e.t, side: e.team, slots: [...slots] });
+      lineups.push({ t: e.wt, side: e.team, slots: [...slots] });
     }
   }
 

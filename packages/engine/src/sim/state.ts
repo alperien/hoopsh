@@ -72,7 +72,6 @@ export interface PendingShot {
   made: boolean;
   assist?: string;
   foul?: { by: string; ftAwarded: number; andOne: boolean };
-  atBuzzer: boolean;
 }
 
 export interface BallFlight {
@@ -151,7 +150,8 @@ export interface GameState {
 
   period: number;
   clock: number;   // seconds remaining in period
-  t: number;       // absolute elapsed game seconds
+  t: number;       // absolute elapsed game seconds (game-clock time)
+  wallT: number;   // wall-clock timeline: advances every tick, stoppages included
   score: [number, number];
   teamFoulsPeriod: [number, number];
   tipWinner: TeamSide;
@@ -212,11 +212,12 @@ export type DistOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> 
 /** append an event, stamping time/score context */
 export function emit(
   s: GameState,
-  e: DistOmit<GameEvent, 't' | 'period' | 'clock' | 'score'>
+  e: DistOmit<GameEvent, 't' | 'wt' | 'period' | 'clock' | 'score'>
 ): void {
   s.events.push({
     ...(e as GameEvent),
     t: round2(s.t),
+    wt: round2(s.wallT),
     period: s.period,
     clock: Math.max(0, round2(s.clock)),
     score: [s.score[0], s.score[1]]

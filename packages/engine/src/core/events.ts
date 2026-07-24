@@ -39,6 +39,12 @@ export type PossessionOutcome =
 interface Base {
   /** absolute elapsed game seconds (across periods, excludes stoppage) */
   t: number;
+  /**
+   * wall-clock timeline seconds — advances during EVERY phase including
+   * stoppages (free throws, dead balls). Viewers and replays key on this;
+   * stats key on t (game-clock time).
+   */
+  wt: number;
   period: number;
   /** seconds remaining in period */
   clock: number;

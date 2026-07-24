@@ -123,6 +123,7 @@ function initState(cfg: GameConfig): GameState {
     period: 1,
     clock: rules.periodMinutes * 60,
     t: 0,
+    wallT: 0,
     score: [0, 0],
     teamFoulsPeriod: [0, 0],
     tipWinner: 0,
@@ -151,6 +152,10 @@ function initState(cfg: GameConfig): GameState {
 // ------------------------------------------------------------------ ticker
 
 function tick(s: GameState, dt: number): void {
+  // the wall clock advances on EVERY tick — stoppages included — so replays
+  // capture free-throw rituals and dead-ball repositioning instead of
+  // compressing them into teleports (game-clock t advances via advanceClock)
+  s.wallT += dt;
   switch (s.phase.kind) {
     case 'live': tickLive(s, dt); break;
     case 'dead': tickDead(s, dt); break;
@@ -190,7 +195,7 @@ function tickLive(s: GameState, dt: number): void {
   }
 
   // period expiry with ball live
-  if (s.clock <= 0) { endPeriod(s); return; }
+  if (s.clock < 1e-6) { endPeriod(s); return; }
 
   const holderId = s.ball.holderId;
   if (!holderId) {
@@ -320,16 +325,17 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
 
 // ------------------------------------------------------------------ frames
 
-function recordFrame(s: GameState): void {
+function recordFrame(s: GameState, force = false): void {
   if (!s.collectFrames) return;
-  // frame cadence: every params.frameEvery ticks — track via t modulo
+  // cadence keyed to the WALL clock (relative epsilon: float accumulation
+  // across ~29k ticks was silently dropping the final frame)
   const step = s.params.frameEvery / s.params.tickHz;
-  if (s.frames.length > 0) {
+  if (!force && s.frames.length > 0) {
     const lastT = s.frames[s.frames.length - 1]![0]!;
-    if (s.t - lastT < step - 1e-9) return;
+    if (s.wallT - lastT < step * 0.999) return;
   }
   const row: number[] = [
-    round1(s.t),
+    round1(s.wallT),
     s.period,
     round1(Math.max(0, s.clock)),
     round1(s.ball.pos.x),
@@ -381,6 +387,8 @@ export function simulateGame(cfg: GameConfig): GameResult {
   if (!s.over) {
     emit(s, { type: 'game_end' });
   }
+  // guarantee the final positions and game_end instant are representable
+  recordFrame(s, true);
 
   return {
     seed: String(cfg.seed),

@@ -16,9 +16,15 @@ const template = readFileSync(templatePath, 'utf8');
 const replay = readFileSync(replayPath, 'utf8').trim();
 
 const MARK = '/*HOOPSH_REPLAY*/null';
-if (!template.includes(MARK)) {
+const markAt = template.indexOf(MARK);
+if (markAt === -1) {
   console.error('viewer template is missing the HOOPSH_REPLAY marker');
   process.exit(1);
 }
-writeFileSync(outPath, template.replace(MARK, replay));
+// harden the bake: (1) escape "</" inside the JSON (valid JSON escape) so a
+// player name containing </script> can't break out of the script tag;
+// (2) splice via slice instead of String.replace, whose $-patterns corrupt
+// replacements containing bare dollar signs (e.g. a team named "Team $1")
+const safeReplay = replay.replace(/<\//g, '<\\/');
+writeFileSync(outPath, template.slice(0, markAt) + safeReplay + template.slice(markAt + MARK.length));
 console.log(`wrote ${outPath} (${(replay.length / 1024 / 1024).toFixed(2)} MB embedded)`);

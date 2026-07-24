@@ -176,13 +176,21 @@ const EMBEDDED = /*HOOPSH_REPLAY*/null;
 
 /* ================= boot ================= */
 const $ = (id) => document.getElementById(id);
-if (EMBEDDED) boot(EMBEDDED);
+let BOOTED = false;
+function bootOnce(data) {
+  // boot() wires listeners and starts a render loop — a second boot would
+  // double every handler and run two loops on one canvas
+  if (BOOTED) { alert('Refresh the page to load a different replay.'); return; }
+  BOOTED = true;
+  boot(data);
+}
+if (EMBEDDED) bootOnce(EMBEDDED);
 else {
   $('drop').classList.remove('hidden');
   const zone = $('zone');
   const read = (file) => {
     const r = new FileReader();
-    r.onload = () => { try { boot(JSON.parse(r.result)); $('drop').classList.add('hidden'); } catch (e) { alert('Not a valid replay JSON: ' + e); } };
+    r.onload = () => { try { bootOnce(JSON.parse(r.result)); $('drop').classList.add('hidden'); } catch (e) { alert('Not a valid replay JSON: ' + e); } };
     r.readAsText(file);
   };
   $('file').addEventListener('change', (e) => e.target.files[0] && read(e.target.files[0]));
@@ -237,7 +245,9 @@ function boot(R) {
   }
 
   function advancePointers() {
-    while (evPtr < R.events.length && R.events[evPtr].t <= t) {
+    // all timeline comparisons use wt (wall-clock) — events carry both wt
+    // (timeline) and t (game-clock, for stats); frames row[0] is wall-clock
+    while (evPtr < R.events.length && R.events[evPtr].wt <= t) {
       score = R.events[evPtr].score;
       if (R.events[evPtr].type === 'game_end') over = true;
       evPtr++;
@@ -247,9 +257,13 @@ function boot(R) {
       slots[l.side] = l.slots.slice();
       lineupPtr++;
     }
-    while (fxPtr < shotFx.length && shotFx[fxPtr].t <= t) {
+    while (fxPtr < shotFx.length && shotFx[fxPtr].wt <= t) {
       const s = shotFx[fxPtr];
-      effects.push({ x: s.x, y: s.y, made: s.made, three: s.three, born: t });
+      // born at the SHOT's own instant (not the scrub position) so rewinds
+      // don't re-flash the whole game's shots at once; skip already-faded ones
+      if (t - s.wt <= 1.5) {
+        effects.push({ x: s.x, y: s.y, made: s.made, three: s.three, born: s.wt });
+      }
       fxPtr++;
     }
     let added = false;
@@ -490,7 +504,7 @@ function buildFeed(R, lastNames) {
     const m = Math.floor(e.clock / 60), s = String(Math.floor(e.clock % 60)).padStart(2, '0');
     return `${p} ${m}:${s}`;
   };
-  const push = (e, side, text) => items.push({ t: e.t, side, label: label(e), text });
+  const push = (e, side, text) => items.push({ t: e.wt, side, label: label(e), text });
 
   for (const e of R.events) {
     switch (e.type) {
