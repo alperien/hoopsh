@@ -91,7 +91,6 @@ export function startShot(
     made: blockedBy ? false : made,
     assist,
     foul,
-    atBuzzer: s.clock <= 0.3
   };
 
   s.ball.holderId = null;
@@ -145,7 +144,7 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
     bonusInfo = recordFoul(s, agent(s, shot.foul.by), 'shooting', shooter);
   }
 
-  const periodOver = s.clock <= 0;
+  const periodOver = s.clock < 1e-6;
 
   if (shot.made) {
     if (shot.foul) {

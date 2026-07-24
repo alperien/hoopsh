@@ -100,6 +100,7 @@ export function deadBall(
 ): void {
   s.ball.flight = null;
   s.ball.holderId = null;
+  s.pendingRelease = null; // abandon any windup — the play is dead
   s.phase = {
     kind: 'dead',
     resumeIn: opts.resumeIn ?? 1.8,
@@ -153,7 +154,7 @@ export function tickDead(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'dead' }>;
   if (ph.clockRuns) {
     advanceClock(s, dt);
-    if (s.clock <= 0) { endPeriod(s); return; }
+    if (s.clock < 1e-6) { endPeriod(s); return; }
   }
   ph.resumeIn -= dt;
   integrateMovement(s, dt);
@@ -174,7 +175,7 @@ export function tickDead(s: GameState, dt: number): void {
 export function tickScramble(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'scramble' }>;
   advanceClock(s, dt);
-  if (s.clock <= 0) { endPeriod(s); return; }
+  if (s.clock < 1e-6) { endPeriod(s); return; }
   s.ball.pos = lerp(s.ball.pos, ph.landAt, 0.25);
 
   // nearby players converge on the ball
@@ -230,7 +231,8 @@ export function tickScramble(s: GameState, dt: number): void {
     s.poss.phase = 'halfcourt';
     giveBall(s, winner);
     const rim = attackedRim(s, winner.side);
-    if (dist(winner.pos, rim) < 6 && s.rng.chance(s.params.reb.putbackChance)) {
+    // putbacks must be released before the buzzer (clock guard)
+    if (s.clock > 0.02 && dist(winner.pos, rim) < 6 && s.rng.chance(s.params.reb.putbackChance)) {
       startShot(s, winner, 'putback');
       return;
     }
@@ -246,6 +248,7 @@ export function tickScramble(s: GameState, dt: number): void {
 export function endPeriod(s: GameState): void {
   endPossession(s, 'period_end');
   s.clock = 0;
+  s.pendingRelease = null; // a windup at the horn never gets released
   emit(s, { type: 'period_end' });
 
   const isFinalScheduled = s.period >= s.rules.periods;

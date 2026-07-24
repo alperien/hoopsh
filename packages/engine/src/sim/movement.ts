@@ -11,10 +11,16 @@ import { onCourt, type Agent, type GameState } from './state.js';
 import { moveSpeed } from './ai.js';
 
 export function advanceClock(s: GameState, dt: number): void {
+  // game-clock time (t, minutes) never runs past the horn — a legal
+  // buzzer-beater may still be airborne (that lives on the wall clock),
+  // but the period contributes at most its scheduled seconds to t.
+  // Keeps team minutes summing to exactly 5 × game length.
+  const effective = Math.min(dt, Math.max(0, s.clock));
   s.clock -= dt;
-  s.t += dt;
+  if (effective <= 0) return;
+  s.t += effective;
   for (const side of [0, 1] as TeamSide[]) {
-    for (const a of onCourt(s, side)) a.secondsPlayed += dt;
+    for (const a of onCourt(s, side)) a.secondsPlayed += effective;
   }
 }
 

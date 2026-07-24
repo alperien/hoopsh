@@ -103,10 +103,10 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   // sequence complete
   if (made) {
     endPossession(s, 'made_ft');
-    if (s.clock <= 0) { endPeriod(s); return; }
+    if (s.clock < 1e-6) { endPeriod(s); return; }
     deadBall(s, other(ph.side), { clockRuns: false, resumeIn: 1.6 });
   } else {
-    if (s.clock <= 0) { endPeriod(s); return; }
+    if (s.clock < 1e-6) { endPeriod(s); return; }
     // live rebound off the miss
     const rim = attackedRim(s, ph.side);
     s.ball.pos = { ...rim };

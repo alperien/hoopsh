@@ -9,7 +9,7 @@ import { agent, emit, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
 import { onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
-import { deadBall, endPossession, giveBall, startPossession } from './possession.js';
+import { deadBall, endPeriod, endPossession, giveBall, startPossession } from './possession.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 
 export function startPass(
@@ -77,6 +77,9 @@ export function resolvePassArrival(s: GameState): void {
   });
   s.poss.lastPass = { from, t: s.t };
   giveBall(s, to);
+  // a catch after the buzzer is a dead play — the ball must be shot before 0.0
+  // (passes in flight while the clock expires were scoring post-buzzer baskets)
+  if (s.clock < 1e-6) { endPeriod(s); return; }
   s.decisionAt = s.t + 0.12; // quick trigger: catch-and-shoot window
 }
 
