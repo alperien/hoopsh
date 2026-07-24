@@ -147,7 +147,13 @@ export function decideBall(s: GameState): BallAction {
   }
 
   // --- utility: hold (keep probing)
-  const uHold = s.poss.phase === 'advance' ? A.holdAdvance : A.holdHalfcourt;
+  let uHold = s.poss.phase === 'advance' ? A.holdAdvance : A.holdHalfcourt;
+  // a screen is on its way — wait for it instead of swinging the ball away
+  // (audit: without this, the handler passed before 93% of screens arrived)
+  const pnrAct = s.poss.action;
+  if (pnrAct && pnrAct.handlerId === h.p.id && pnrAct.phase === 'coming') {
+    uHold += A.pnrWaitBoost;
+  }
 
   // softmax selection over available actions
   const actions: { a: BallAction; u: number }[] = [
@@ -162,6 +168,14 @@ export function decideBall(s: GameState): BallAction {
   const weights = actions.map((x) => Math.exp((x.u - maxU) / temp));
   const idx = s.rng.weighted(weights);
   return actions[idx]!.a;
+}
+
+/** the defender ASSIGNED to this player (falls back to nearest on-ball man) */
+export function assignedDefender(s: GameState, man: Agent): Agent | null {
+  for (const d of onCourt(s, other(man.side))) {
+    if (!d.fouledOut && d.manId === man.p.id && dist(d.pos, man.pos) < 16) return d;
+  }
+  return onBallDefender(s, man);
 }
 
 export function onBallDefender(s: GameState, holder: Agent): Agent | null {
@@ -288,7 +302,7 @@ function pnrTick(s: GameState): void {
     }
 
     if (act.phase === 'coming') {
-      const onBall = onBallDefender(s, handler);
+      const onBall = assignedDefender(s, handler);
       if (onBall && dist(screener.pos, onBall.pos) < A.pnrScreenSetDistFt) {
         // contact: the on-ball defender must navigate the screen
         act.phase = 'set';
@@ -331,12 +345,18 @@ function pnrTick(s: GameState): void {
   if (dRim < 18 || dRim > 31) return;
   if (!s.rng.chance(A.pnrRatePerTick)) return;
 
-  // pick the screener: prefer low-gravity size (his defender sags -> good screens)
+  // pick the screener: low-gravity size (his defender sags -> good screens),
+  // discounted by how far he must travel — a screen that can't arrive in time
+  // is worse than no screen (audit: distance-blind choice left 93% of actions inert)
   let best: Agent | null = null;
   let bestScore = -Infinity;
   for (const a of onCourt(s, s.poss.team)) {
     if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
-    const score = (1 - gravity(a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400;
+    const travel = dist(a.pos, h.pos);
+    if (travel > A.pnrMaxScreenDistFt) continue;
+    const score =
+      (1 - gravity(a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400
+      - travel / 40;
     if (score > bestScore) { bestScore = score; best = a; }
   }
   if (!best) return;
@@ -366,18 +386,17 @@ export function offenseOffBallTick(s: GameState): void {
     // screener on his way to set (or holding) the screen
     if (act && a.p.id === act.screenerId && act.phase !== 'finishing') {
       const handler = agent(s, act.handlerId);
-      const onBall = onBallDefender(s, handler);
-      if (onBall) {
-        // set up beside the defender on the handler's side; once there, PLANT
-        // (a screen is a stationary pick — grinding into the defender looks
-        // like a collision glitch and is an illegal screen anyway)
-        const toHandler = norm(sub(handler.pos, onBall.pos));
-        const spot = add(onBall.pos, scale(toHandler, 1.6));
-        a.target = dist(a.pos, spot) < 0.9 ? a.pos : spot;
-        a.intent = 'spot';
-        a.sprinting = act.phase === 'coming';
-        continue;
-      }
+      const onBall = assignedDefender(s, handler);
+      // set up beside the defender on the handler's side; once there, PLANT
+      // (a screen is a stationary pick — grinding into the defender looks
+      // like a collision glitch and is an illegal screen anyway)
+      const anchor = onBall ? onBall.pos : handler.pos;
+      const toHandler = onBall ? norm(sub(handler.pos, onBall.pos)) : { x: 0, y: 1 };
+      const spot = add(anchor, scale(toHandler, 1.6));
+      a.target = dist(a.pos, spot) < 0.9 ? a.pos : spot;
+      a.intent = 'spot';
+      a.sprinting = act.phase === 'coming';
+      continue;
     }
 
     // finish an active cut

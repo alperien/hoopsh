@@ -117,8 +117,6 @@ export interface SimParams {
     threeAppetite: number;
     /** global multiplier on drive appetite */
     driveAppetite: number;
-    /** chance per decision to attack in transition before defense sets */
-    transitionPush: number;
     /** EV bonus for open transition looks */
     transitionBonus: number;
   };
@@ -222,6 +220,8 @@ export interface SimParams {
     pnrDropDepthFt: number;      // screener defender's drop-coverage depth from the rim
     pnrDriveBonus: number;       // handler drive-utility bonus coming off the screen
     pnrMinShotClock: number;     // don't start an action later than this
+    pnrWaitBoost: number;        // handler hold-utility boost while the screen arrives
+    pnrMaxScreenDistFt: number;  // screener candidates farther than this are skipped
   };
 }
 
@@ -230,13 +230,13 @@ export const defaultParams: SimParams = {
   frameEvery: 2,
 
   shot: {
-    baseRim: 0.6,
+    baseRim: 0.574,
     basePaint: -0.35,
-    baseMid: -0.62,
+    baseMid: -0.61,
     baseThree: -0.83,
     skillCoef: 0.5,
     skillCoefThree: 0.45,
-    contestCoef: -1.15,
+    contestCoef: -1.125,
     contestMidpoint: 0.38,
     movePullUp: -0.22,
     moveDrive: -0.08,
@@ -265,7 +265,7 @@ export const defaultParams: SimParams = {
     shootMid: 0.05,
     shootThree: 0.012,
     contestFactor: 1.6,
-    reachInPerSec: 0.017,
+    reachInPerSec: 0.0178,
     chargePerDrive: 0.012,
     looseBallPerReb: 0.0215
   },
@@ -274,7 +274,7 @@ export const defaultParams: SimParams = {
     riskBase: -4.05,
     laneRiskCoef: 1.6,
     skillCoef: 0.75,
-    stealShare: 0.55,
+    stealShare: 0.546,
     speedFtS: 45
   },
 
@@ -287,14 +287,13 @@ export const defaultParams: SimParams = {
   },
 
   decide: {
-    intervalSec: 0.7,
-    temperature: 0.055,
-    continuationMax: 1.48,
+    intervalSec: 0.661,
+    temperature: 0.064,
+    continuationMax: 1.449,
     continuationCurve: 0.22,
     urgencySec: 5,
     threeAppetite: 0.94,
     driveAppetite: 1.15,
-    transitionPush: 0.55,
     transitionBonus: 0.12
   },
 
@@ -350,7 +349,7 @@ export const defaultParams: SimParams = {
     playmakerScale: 0.09,
     passContinuationScale: 0.9,
     catchContestScale: 0.72,
-    cutRateScale: 0.006,
+    cutRateScale: 0.0044,
     cutDurationSec: 1.6,
     crashBase: 0.21,
     crashTendScale: 0.6,
@@ -366,7 +365,7 @@ export const defaultParams: SimParams = {
     assistWindowSec: 1.6,
     assistMaxDribbles: 1,
     pnrRatePerTick: 0.022,
-    pnrDurationSec: 3.4,
+    pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
     pnrStunOverSec: 0.65,
     pnrStunUnderSec: 0.2,
@@ -375,7 +374,9 @@ export const defaultParams: SimParams = {
     pnrRollGravityCut: 0.52,
     pnrDropDepthFt: 11,
     pnrDriveBonus: 0.12,
-    pnrMinShotClock: 7
+    pnrMinShotClock: 8,
+    pnrWaitBoost: 0.3,
+    pnrMaxScreenDistFt: 26
   }
 };
 
