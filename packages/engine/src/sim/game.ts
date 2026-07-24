@@ -231,7 +231,9 @@ function tickLive(s: GameState, dt: number): void {
   } else if (s.poss.phase !== 'halfcourt') {
     h.intent = 'advance';
     const dir = rim.x > s.court.midX ? -1 : 1;
-    h.target = { x: rim.x + dir * 26, y: s.court.centerY + s.rng.range(-1, 1) };
+    // stable target — regenerating it with jitter every tick made the
+    // handler visibly vibrate while bringing the ball up
+    h.target = { x: rim.x + dir * 26, y: s.court.centerY };
     h.sprinting = s.poss.phase === 'transition';
   } else {
     h.intent = 'spot';

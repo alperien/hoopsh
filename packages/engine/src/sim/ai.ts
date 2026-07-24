@@ -366,9 +366,12 @@ export function offenseOffBallTick(s: GameState): void {
       const handler = agent(s, act.handlerId);
       const onBall = onBallDefender(s, handler);
       if (onBall) {
-        // set up right against the defender, on the handler's side
+        // set up beside the defender on the handler's side; once there, PLANT
+        // (a screen is a stationary pick — grinding into the defender looks
+        // like a collision glitch and is an illegal screen anyway)
         const toHandler = norm(sub(handler.pos, onBall.pos));
-        a.target = add(onBall.pos, scale(toHandler, 1.1));
+        const spot = add(onBall.pos, scale(toHandler, 1.6));
+        a.target = dist(a.pos, spot) < 0.9 ? a.pos : spot;
         a.intent = 'spot';
         a.sprinting = act.phase === 'coming';
         continue;
