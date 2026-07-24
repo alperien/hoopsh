@@ -219,7 +219,7 @@ export const defaultParams: SimParams = {
 
   shot: {
     baseRim: 0.6,
-    basePaint: -0.46,
+    basePaint: -0.35,
     baseMid: -0.62,
     baseThree: -0.82,
     skillCoef: 0.5,
@@ -248,18 +248,18 @@ export const defaultParams: SimParams = {
   },
 
   foul: {
-    shootRim: 0.38,
+    shootRim: 0.435,
     shootPaint: 0.16,
     shootMid: 0.05,
     shootThree: 0.012,
     contestFactor: 1.6,
-    reachInPerSec: 0.015,
+    reachInPerSec: 0.0153,
     chargePerDrive: 0.012,
-    looseBallPerReb: 0.02
+    looseBallPerReb: 0.0215
   },
 
   pass: {
-    riskBase: -3.85,
+    riskBase: -3.95,
     laneRiskCoef: 1.6,
     skillCoef: 0.75,
     stealShare: 0.55,
@@ -267,8 +267,8 @@ export const defaultParams: SimParams = {
   },
 
   reb: {
-    offWeightMult: 0.9,
-    missDistBase: 4.2,
+    offWeightMult: 0.82,
+    missDistBase: 4.22,
     missDistCoef: 0.16,
     proximityPower: 1.4,
     putbackChance: 0.45
@@ -340,7 +340,7 @@ export const defaultParams: SimParams = {
     catchContestScale: 0.72,
     cutRateScale: 0.006,
     cutDurationSec: 1.6,
-    crashBase: 0.25,
+    crashBase: 0.21,
     crashTendScale: 0.6,
     guardDistBase: 2.8,
     guardDistOpen: 4.5,
