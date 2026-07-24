@@ -190,6 +190,35 @@ function laneT(a: V2, b: V2, p: V2): number {
   return clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / l2, 0, 1);
 }
 
+/** react to a shot going up: crash the boards, box out, or get back on D */
+export function onShotReleased(s: GameState, offSide: TeamSide): void {
+  const rim = attackedRim(s, offSide);
+  for (const a of onCourt(s, offSide)) {
+    if (a.fouledOut) continue;
+    const near = dist(a.pos, rim) < 22;
+    const crash = near && s.rng.chance(
+      s.params.ai.crashBase + (a.p.tend.crashOffReb / 100) * s.params.ai.crashTendScale
+    );
+    if (crash) {
+      a.intent = 'crash';
+      a.target = { x: rim.x + s.rng.range(-5, 5), y: rim.y + s.rng.range(-5, 5) };
+      a.sprinting = true;
+    } else {
+      a.intent = 'getback';
+      a.target = lerp(attackedRim(s, other(offSide)), s.court.rims[rim.x > s.court.midX ? 0 : 1]!, 0.55);
+      a.sprinting = false;
+    }
+  }
+  for (const d of onCourt(s, other(offSide))) {
+    if (d.fouledOut) continue;
+    const man = d.manId ? s.agents.get(d.manId) : null;
+    d.intent = 'crash';
+    d.target = man && dist(man.pos, rim) < 20
+      ? lerp(man.pos, rim, 0.45) // box out between man and rim
+      : lerp(d.pos, rim, 0.5);
+  }
+}
+
 // ------------------------------------------------------------ offense setup
 
 /** assign spacing spots for the possession by personnel */
