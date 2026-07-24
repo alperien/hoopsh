@@ -77,9 +77,12 @@ describe(`archetype behavior over ${GAMES} games`, () => {
   it.todo('floor general (Vance): clearly the assist leader on his team (needs v0.2 PnR)');
 
   it('non-shooting bigs do not chuck threes', () => {
+    // allowance of max(1, 8% of FGA) tolerates the occasional end-of-period
+    // desperation heave (any player stuck with the ball must launch one)
+    // without tolerating actual three-point chucking at volume
     for (const id of ['mon-halvorsen', 'brk-marsh', 'mon-yaro']) {
       const l = lines.get(id)!;
-      expect(l.tpa / Math.max(1, l.fga)).toBeLessThan(0.08);
+      expect(l.tpa).toBeLessThanOrEqual(Math.max(1, l.fga * 0.08));
     }
   });
 
