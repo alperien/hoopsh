@@ -233,7 +233,7 @@ export const defaultParams: SimParams = {
     baseRim: 0.6,
     basePaint: -0.35,
     baseMid: -0.62,
-    baseThree: -0.82,
+    baseThree: -0.83,
     skillCoef: 0.5,
     skillCoefThree: 0.45,
     contestCoef: -1.15,
@@ -260,7 +260,7 @@ export const defaultParams: SimParams = {
   },
 
   foul: {
-    shootRim: 0.475,
+    shootRim: 0.485,
     shootPaint: 0.165,
     shootMid: 0.05,
     shootThree: 0.012,
@@ -279,7 +279,7 @@ export const defaultParams: SimParams = {
   },
 
   reb: {
-    offWeightMult: 0.82,
+    offWeightMult: 0.85,
     missDistBase: 4.22,
     missDistCoef: 0.16,
     proximityPower: 1.4,

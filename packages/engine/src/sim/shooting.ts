@@ -148,11 +148,13 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
   const periodOver = s.clock <= 0;
 
   if (shot.made) {
-    endPossession(s, 'made_fg');
     if (shot.foul) {
-      enterFreeThrows(s, shooter, 1); // and-one
+      // and-one: the possession isn't over until the free throw resolves —
+      // the FT flow emits the single possession_end
+      enterFreeThrows(s, shooter, 1);
       return;
     }
+    endPossession(s, 'made_fg');
     if (periodOver) { endPeriod(s); return; }
     const lastTwoMin = s.period >= s.rules.periods && s.clock <= 120;
     deadBall(s, other(shot.side), { clockRuns: !lastTwoMin, resumeIn: 2.2 });

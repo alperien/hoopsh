@@ -277,13 +277,15 @@ function pnrTick(s: GameState): void {
   const holderId = s.ball.holderId;
 
   if (act) {
+    const screener = agent(s, act.screenerId);
+    const handler = agent(s, act.handlerId);
     const handlerLostBall = holderId !== act.handlerId && act.phase !== 'finishing';
-    if (s.t > act.until || handlerLostBall) {
+    const actorGone =
+      !screener.onCourt || screener.fouledOut || !handler.onCourt || handler.fouledOut;
+    if (s.t > act.until || handlerLostBall || actorGone) {
       s.poss.action = null;
       return;
     }
-    const screener = agent(s, act.screenerId);
-    const handler = agent(s, act.handlerId);
 
     if (act.phase === 'coming') {
       const onBall = onBallDefender(s, handler);

@@ -20,7 +20,8 @@ export function swapPlayers(s: GameState, side: TeamSide, out: Agent, into: Agen
   emit(s, { type: 'substitution', team: side, out: [out.p.id], in: [into.p.id] });
 }
 
-export function checkSubs(s: GameState): void {
+/** protect: a player who must stay on the floor (e.g. the free-throw shooter) */
+export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
   const crunch =
     s.period >= s.rules.periods &&
@@ -31,6 +32,7 @@ export function checkSubs(s: GameState): void {
     const team = s.teams[side];
     const starters = new Set(team.starters);
     for (const id of [...s.lineup[side]]) {
+      if (id === protect) continue;
       const a = agent(s, id);
       if (a.fouledOut) continue;
       if (crunch) {

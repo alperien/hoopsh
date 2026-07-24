@@ -30,7 +30,10 @@ export function tipWeightedWinner(s: GameState): TeamSide {
 }
 
 export function bestHandler(s: GameState, side: TeamSide): Agent {
-  const players = onCourt(s, side).filter((x) => !x.fouledOut);
+  const eligible = onCourt(s, side).filter((x) => !x.fouledOut);
+  // bench exhausted (every replacement used): play on with whoever is out there
+  // rather than crashing — custom short rosters are legal input
+  const players = eligible.length > 0 ? eligible : onCourt(s, side);
   return players.reduce((m, x) => (x.p.attr.ballHandle > m.p.attr.ballHandle ? x : m));
 }
 
@@ -50,8 +53,17 @@ export function startPossession(
     kind,
     lastPass: null,
     spotMap: new Map(),
-    action: null
+    action: null,
+    ended: false
   };
+  // stale-timer hygiene: commitments from the previous possession must not
+  // leak into this one (a defender still "cutting", a stun crossing sides)
+  for (const [, a] of s.agents) {
+    a.driveUntil = -99;
+    a.cutUntil = -99;
+    a.screenStunUntil = -99;
+    a.navUnderUntil = -99;
+  }
   emit(s, { type: 'possession_start', team, kind });
   assignSpots(s, team);
   assignMatchups(s, other(team));
@@ -72,6 +84,11 @@ export function endPossession(
   s: GameState,
   outcome: 'made_fg' | 'made_ft' | 'def_rebound' | 'turnover' | 'period_end'
 ): void {
+  // a possession ends exactly once — and-ones, buzzer flows, and FT-miss
+  // scrambles all route here, so guard against double counting (pace/ORtg
+  // depend on this invariant)
+  if (s.poss.ended) return;
+  s.poss.ended = true;
   emit(s, { type: 'possession_end', team: s.poss.team, outcome });
 }
 

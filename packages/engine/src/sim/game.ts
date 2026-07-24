@@ -134,7 +134,8 @@ function initState(cfg: GameConfig): GameState {
       kind: 'tip',
       lastPass: null,
       spotMap: new Map(),
-      action: null
+      action: null,
+      ended: false
     },
     phase: { kind: 'dead', resumeIn: 0.6, clockRuns: false, nextTeam: 0, possKind: 'tip' },
     events: [],
@@ -238,7 +239,7 @@ function tickLive(s: GameState, dt: number): void {
   } else {
     h.intent = 'spot';
     h.sprinting = false;
-    // probe: drift slightly toward open space in front of the arc
+    // hold position and survey — repositioning comes from drive/pass decisions
     h.target = h.pos;
   }
 

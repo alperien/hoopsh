@@ -57,7 +57,7 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
     nextIn: 1.4,
     lastMade: false
   };
-  checkSubs(s);
+  checkSubs(s, shooter.p.id); // never sub out the man headed to the line
   // cosmetic positioning around the key
   const rim = attackedRim(s, shooter.side);
   const dir = rim.x > s.court.midX ? -1 : 1;

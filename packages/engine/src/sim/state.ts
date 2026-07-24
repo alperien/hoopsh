@@ -134,6 +134,8 @@ export interface Possession {
   spotMap: Map<string, string>; // agentId -> spacing spot key
   /** the running set action, if any (e.g. an active pick-and-roll) */
   action: PnrAction | null;
+  /** guard: possession_end has been emitted for this possession */
+  ended: boolean;
 }
 
 export interface GameState {
