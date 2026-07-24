@@ -1,0 +1,7 @@
+{
+  "name": "@hoopsh/engine",
+  "version": "0.1.0",
+  "description": "Deterministic 2D spatial basketball simulation engine. Pure, zero-dependency, runs in Node and browsers.",
+  "type": "module",
+  "main": "src/index.ts"
+}

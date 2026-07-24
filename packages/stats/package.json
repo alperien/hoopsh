@@ -1,0 +1,10 @@
+{
+  "name": "@hoopsh/stats",
+  "version": "0.1.0",
+  "description": "Folds hoopsh engine event streams into box scores, advanced stats, and shot charts.",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@hoopsh/engine": "*"
+  }
+}

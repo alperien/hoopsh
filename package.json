@@ -1,0 +1,18 @@
+{
+  "name": "hoopsh",
+  "private": true,
+  "version": "0.1.0",
+  "description": "hoopsh — a modular, deterministic 2D spatial basketball simulation core",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "sim": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/simone.ts",
+    "batch": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/cli.ts",
+    "bench": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/bench.ts",
+    "test": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs --test \"packages/*/test/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test:vitest": "vitest run"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@hoopsh/narration",
+  "version": "0.1.0",
+  "description": "Broadcast layer for hoopsh: template play-by-play with game-context awareness, plus LLM color-commentary interfaces.",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@hoopsh/engine": "*"
+  }
+}

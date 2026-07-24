@@ -1,0 +1,10 @@
+{
+  "name": "@hoopsh/data",
+  "version": "0.1.0",
+  "description": "Player/team schemas, validation, and sample fictional data packs for hoopsh.",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@hoopsh/engine": "*"
+  }
+}
