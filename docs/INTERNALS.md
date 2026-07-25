@@ -69,9 +69,9 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 5. **Actions are thin scaffolding.** Pick-and-roll sets up geometry (screen contact,
    stun, roll); the payoff (pull-up space, pocket pass) *emerges* from existing systems.
 6. **Staged surface is labeled.** Fields marked `STAGED` in `model/player.ts`
-   (`perimeterD`, `interiorD`, `consistency`, `tend.iso/post/pushPace`) are defined but
-   not yet consumed — each is tied to a roadmap stage. Wiring one without its stage's
-   mechanics adds unvalidated surface area.
+   (`consistency`, `tend.iso/post/pushPace`) are defined but not yet consumed — each is
+   tied to a roadmap stage. Wiring one without its stage's mechanics adds unvalidated
+   surface area.
 
 ## The safety net (run all of it before pushing)
 
