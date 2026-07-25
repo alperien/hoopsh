@@ -47,6 +47,16 @@ export type BallAction =
   | { kind: 'hold' };
 
 /** the ball-handler's decision — evaluated every params.decide.intervalSec */
+/**
+ * Creation score — THE usage-hierarchy definition. Used by both ball routing
+ * (decideBall's re-initiation pull) and action initiation (pnrTick's rank
+ * gate), one definition so "who should run the offense" never disagrees
+ * between deciding to pass and deciding to call a screen.
+ */
+function creation(a: Agent): number {
+  return (a.p.attr.ballHandle + a.p.attr.passVision) / 2;
+}
+
 export function decideBall(s: GameState): BallAction {
   const holderId = s.ball.holderId;
   if (!holderId) return { kind: 'hold' };
@@ -103,6 +113,18 @@ export function decideBall(s: GameState): BallAction {
   if (myShot.zone === 'three') {
     shootBias += (D.threeAppetite - 1) * A.threeApptScale + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
   }
+  // catch-and-shoot decisiveness: a genuinely OPEN three off the catch is
+  // the payoff of ball movement — letting it fly is drilled behavior, and
+  // without this term the continuation value talks every receiver out of
+  // shooting (kicks die in re-swings and creators never earn assists). Two
+  // gates, both from incidents: contest < 0.5 so only the CREATED advantage
+  // fires, not an ordinary swing catch (ungated: pace 133 vs band 95-103);
+  // three-point zone only, because the drilled catch-and-shoot is a JUMP-SHOT
+  // concept — paint catches are finishes the cut machinery already values,
+  // and applying the bonus there flooded the rim and sank 3PA share to 26%.
+  if (shotMove === 'catch_shoot' && myShot.zone === 'three') {
+    shootBias += A.catchShootBonus * clamp((0.5 - contest.level) / 0.5, 0, 1);
+  }
   // shooting over a contest is a bad habit; smart players pass out of it
   const contestBrake =
     clamp(contest.level - A.contestBrakeAt, 0, 1) *
@@ -110,6 +132,44 @@ export function decideBall(s: GameState): BallAction {
   // transition looks are worth extra before the defense sets
   const transitionTerm = s.poss.phase === 'transition' ? D.transitionBonus : 0;
   const uShoot = myShot.ev + shootBias + transitionTerm - continuation - contestBrake;
+
+  // --- utility: pass to each teammate
+  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' } | null = null;
+  let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
+  for (const m of onCourt(s, h.side)) {
+    if (m.p.id === h.p.id || m.fouledOut) continue;
+    const o = openness(s, m);
+    const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
+    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest);
+    if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
+    const risk = passRisk(s, h, m);
+    const cutting = s.t < m.cutUntil;
+    const cutterBonus = cutting ? A.cutterBonus : 0;
+    const swingBonus =
+      A.swingBase +
+      ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
+      ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
+    // re-initiation: routing the ball UP the creation hierarchy has value
+    // beyond the receiver's own shot — he creates the NEXT action. Relative
+    // and clamped at zero: the primary feels no pull toward lesser handlers,
+    // but passing DOWN is never penalized — a kick-out is judged on shot
+    // merit alone (penalizing it produced a ball-stopping primary). Clock-
+    // scaled: hierarchy is an early-offense concept — as the clock drains,
+    // shot value takes over.
+    const playmakerPull =
+      (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * (sc / full);
+    const u =
+      theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
+      + cutterBonus + swingBonus + playmakerPull
+      - continuation * A.passContinuationScale;
+    if (bestPass === null || u > bestPass.u) {
+      bestPass = {
+        toId: m.p.id,
+        u,
+        passKind: driving ? 'kickout' : s.poss.phase === 'transition' ? 'outlet' : 'normal'
+      };
+    }
+  }
 
   // --- utility: drive
   let uDrive = -Infinity;
@@ -142,9 +202,39 @@ export function decideBall(s: GameState): BallAction {
       0.2, 0.95
     );
     const tendTerm = ((h.p.tend.drive - A.driveTendOffset) / 100) * A.driveTendScale * D.driveAppetite;
-    // a stalled drive isn't a wasted possession — it resets to the continuation
-    // value. Utility = P(get downhill)·(rim EV − continuation) + tendencies.
-    uDrive = handling * (driveShot.ev - continuation)
+    // a live drive is worth the BETTER of finishing at the rim or the
+    // paint-touch-and-spray: penetration collapses the help defense and
+    // manufactures an open look for the best-positioned teammate
+    // (driveKickBoost = the extra openness the collapse buys him). The kick
+    // premium is gated by the lane crowd — an EMPTY lane creates no spray
+    // (nobody helped; its value is already in the high finish EV), a crowded
+    // lane is where the kick lives. Ungated, every drive carried a phantom
+    // kick premium and the paint flooded league-wide (rim share 86%, 3PA 13%).
+    // Without the option term entirely, the rim attempt alone rarely beats
+    // the continuation value and drives never launch (Stage 2 probe: 2 drive
+    // wins in 657 decisions for the league's best handler). A stalled drive
+    // still just resets to the continuation value.
+    // ...and the premium scales with the DRIVER's vision: drive-and-kick is
+    // a passing skill. An elite creator prices the spray option in full; a
+    // low-vision wing driving into a crowd has no spray option (he cannot
+    // deliver that pass), so his drive is finish-or-bust and the continuation
+    // bar correctly rejects it. This is what routes drive volume — and the
+    // assists it creates — through the creation hierarchy without a single
+    // special case.
+    const kickPremium = A.driveKickBoost * Math.min(1, laneCrowd) * (h.p.attr.passVision / 100);
+    const collapse = bestCatchEv > -Infinity
+      ? Math.max(driveShot.ev, bestCatchEv + kickPremium)
+      : driveShot.ev;
+    // the negative branch is discounted, not charged in full: a drive is
+    // closer to an option than a commitment — a handler whose downhill
+    // outcome trails the reset mostly aborts back to the offense (at the
+    // cost of a beat of clock), he does not cash the bad branch. Charged in
+    // full, the negative diff scaled WITH handling skill and punished elite
+    // handlers hardest, burying the drive tendency dial; zeroed entirely, it
+    // freed every mid-tendency role player to drive and the paint flooded
+    // (pace 113, FTA 31, 3PA 26% — both incidents from Stage 2 tuning).
+    const driveDiff = collapse - continuation;
+    uDrive = handling * (driveDiff >= 0 ? driveDiff : driveDiff * A.driveAbortDiscount)
       + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
     // attacking off a live screen: the whole point of calling for it
     const act = s.poss.action;
@@ -153,39 +243,17 @@ export function decideBall(s: GameState): BallAction {
     }
   }
 
-  // --- utility: pass to each teammate
-  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' } | null = null;
-  for (const m of onCourt(s, h.side)) {
-    if (m.p.id === h.p.id || m.fouledOut) continue;
-    const o = openness(s, m);
-    const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
-    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest);
-    const risk = passRisk(s, h, m);
-    const cutting = s.t < m.cutUntil;
-    const cutterBonus = cutting ? A.cutterBonus : 0;
-    const swingBonus =
-      A.swingBase +
-      ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
-      ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
-    // getting the ball back to a playmaker has value beyond his own shot —
-    // he creates the NEXT action (how offenses route through their engine)
-    const playmakerPull =
-      (((m.p.attr.passVision + m.p.attr.ballHandle) / 2 - A.playmakerOffset) / 100) * A.playmakerScale;
-    const u =
-      theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + cutterBonus + swingBonus + playmakerPull
-      - continuation * A.passContinuationScale;
-    if (bestPass === null || u > bestPass.u) {
-      bestPass = {
-        toId: m.p.id,
-        u,
-        passKind: driving ? 'kickout' : s.poss.phase === 'transition' ? 'outlet' : 'normal'
-      };
-    }
-  }
-
   // --- utility: hold (keep probing)
   let uHold = s.poss.phase === 'advance' ? A.holdAdvance : A.holdHalfcourt;
+  // mid-drive: keep attacking. The collapse option priced at launch (drive
+  // block above) is still maturing while the dribble is live — without this,
+  // hold falls to the halfcourt baseline one tick after launch and every
+  // drive ends in an instant kick before the help ever commits. Scaled by
+  // remaining drive seconds (capped at 1s) so the boost is strong at launch
+  // and gone by the terminal decision: penetrate first, THEN finish or spray
+  // off the true post-collapse looks. A flat boost instead suppresses the
+  // kick outright and drives die at the rim in contested junk.
+  if (driving) uHold += A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, 1);
   // a screen is on its way — wait for it instead of swinging the ball away
   // (audit: without this, the handler passed before 93% of screens arrived)
   const pnrAct = s.poss.action;
@@ -400,7 +468,21 @@ function pnrTick(s: GameState): void {
   const rim = attackedRim(s, s.poss.team);
   const dRim = dist(h.pos, rim);
   if (dRim < 18 || dRim > 31) return;
-  if (!s.rng.chance(A.pnrRatePerTick)) return;
+  // usage hierarchy: actions are called by the pecking order. rank01 is the
+  // holder's creation standing among on-court teammates (ties count half), so
+  // the primary initiates most screens while the weakest creator mostly
+  // swings instead; pnrUsageFloor keeps secondary actions alive.
+  const myC = creation(h);
+  let below = 0;
+  let peers = 0;
+  for (const a of onCourt(s, s.poss.team)) {
+    if (a.p.id === holderId || a.fouledOut) continue;
+    peers++;
+    const c = creation(a);
+    below += c < myC ? 1 : c === myC ? 0.5 : 0;
+  }
+  const rank01 = peers > 0 ? below / peers : 1;
+  if (!s.rng.chance(A.pnrRatePerTick * (A.pnrUsageFloor + (1 - A.pnrUsageFloor) * rank01))) return;
 
   // pick the screener: low-gravity size (his defender sags -> good screens),
   // discounted by how far he must travel — a screen that can't arrive in time

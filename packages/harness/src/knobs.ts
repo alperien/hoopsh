@@ -116,7 +116,12 @@ export const SWEEPABLE: Knob[] = [
   // than the resolution-layer knobs above — expect the search to lean on
   // these later, for fine centering, rather than for the first big
   // corrections.
-  { path: 'ai.swingBase', lo: 0.0, hi: 0.08 },
+  // swingBase capped at 0.045: at 0.064 the sweep met every league band by
+  // reviving hot-potato swing offense — assists re-pooled at wing hubs and
+  // the floor-general hierarchy collapsed (Stage 2 incident). Ball-movement
+  // intrinsic value is a STYLE lever; bands cannot see creation structure,
+  // so the range must not let the optimizer trade it away.
+  { path: 'ai.swingBase', lo: 0.0, hi: 0.045 },
   { path: 'ai.holdHalfcourt', lo: -0.08, hi: 0.05 },
   { path: 'ai.contestBrakeBase', lo: 0.3, hi: 0.75 },
   { path: 'ai.crashBase', lo: 0.15, hi: 0.4 },

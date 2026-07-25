@@ -222,8 +222,7 @@ export interface SimParams {
     swingBase: number;           // intrinsic ball-movement value
     swingPassOutScale: number;
     swingVisionScale: number;
-    playmakerOffset: number;     // playmaker-pull neutral rating
-    playmakerScale: number;      // value of feeding a creator
+    playmakerScale: number;      // EV per 100 creation-gap points routed up-hierarchy
     passContinuationScale: number;
     catchContestScale: number;   // openness -> expected catch contest
     // off-ball
@@ -246,7 +245,12 @@ export interface SimParams {
     assistWindowSec: number;     // catch-to-shot window for assist credit
     assistMaxDribbles: number;
     // pick-and-roll
-    pnrRatePerTick: number;      // chance per eligible halfcourt tick to call a screen
+    pnrRatePerTick: number;      // base chance per eligible halfcourt tick to call a screen
+    pnrUsageFloor: number;       // action-rate share the lineup's weakest creator keeps
+    driveKickBoost: number;      // EV the help-collapse adds to the best teammate look
+    driveAbortDiscount: number;  // share of a bad drive's downside actually paid (abort option)
+    driveHoldBoost: number;      // hold bonus per remaining drive second (keep attacking)
+    catchShootBonus: number;     // shoot bias for an open look in the catch window
     pnrDurationSec: number;      // action lifetime
     pnrScreenSetDistFt: number;  // screener-to-defender distance that counts as contact
     pnrStunOverSec: number;      // defender delay when fighting over the screen
@@ -274,8 +278,8 @@ export const defaultParams: SimParams = {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
     baseRim: 0.5824,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.35,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
-    baseMid: -0.61,     // ≈ 35% mid-range before skill (NBA ~40%, but the
+    basePaint: -0.3858,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    baseMid: -0.5228,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.83,   // ≈ 30% raw; skill + open looks lift the league to ~36%
     // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
@@ -288,7 +292,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.0697,
+    contestCoef: -1.1347,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -311,7 +315,7 @@ export const defaultParams: SimParams = {
     // Free throws are modeled in PERCENTAGE space, not logits — FT% has no
     // contest and a tight, well-known distribution. Rating 50 → 71%,
     // rating 100 → 83%, rating 0 → 59%. League average lands ~77%. REAL.
-    ftBasePct: 0.71,
+    ftBasePct: 0.705,
     ftSkillSwing: 0.12,
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
@@ -338,8 +342,8 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.485,
-    shootPaint: 0.165,
+    shootRim: 0.442,
+    shootPaint: 0.1386,
     shootMid: 0.05,
     shootThree: 0.012,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
@@ -347,19 +351,19 @@ export const defaultParams: SimParams = {
     contestFactor: 1.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0178,
+    reachInPerSec: 0.0161,
     // Charges per drive — deliberately rare; the offensive foul is the least
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.027
+    looseBallPerReb: 0.02
   },
 
   pass: {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.05,
+    riskBase: -3.98,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -367,7 +371,7 @@ export const defaultParams: SimParams = {
     skillCoef: 0.75,
     // Of failed passes, ~55% are stolen (credited to a defender) and the rest
     // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
-    stealShare: 0.546,
+    stealShare: 0.62,
     // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45
@@ -377,7 +381,7 @@ export const defaultParams: SimParams = {
     // The offense is at a structural disadvantage on the glass (it is
     // retreating, the defense is between man and rim), so offensive rebound
     // weights are discounted. This is THE lever on ORB% (band 20-30%). SWEPT.
-    offWeightMult: 0.85,
+    offWeightMult: 0.78,
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
@@ -410,22 +414,26 @@ export const defaultParams: SimParams = {
     // fire early. Real NBA offenses average ~1.10-1.15 points/possession;
     // this sits above that because it represents the value of a possession
     // being CONTINUED from a live-ball state, not its average outcome. SWEPT.
-    continuationMax: 1.449,
+    // re-centered by hand for the Stage 2 decision-layer mechanics (drive
+    // collapse pricing + catch-and-shoot decisiveness shifted the patience
+    // equilibrium; two sweeps could not escape the old basin) — then
+    // sweep-polished from this start point
+    continuationMax: 1.52,
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
-    continuationCurve: 0.22,
+    continuationCurve: 0.2005,
     // Inside this many shot-clock seconds, urgency scales the continuation
     // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
     // ERA KNOBS. Global multipliers on three-point and drive appetite —
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
-    threeAppetite: 0.94,
-    driveAppetite: 0.9789,
+    threeAppetite: 1.0,
+    driveAppetite: 0.9,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
-    transitionBonus: 0.12
+    transitionBonus: 0.02
   },
 
   move: {
@@ -483,10 +491,10 @@ export const defaultParams: SimParams = {
     threeApptScale: 0.35,
     tacticsThreeScale: 0.18,
     contestBrakeAt: 0.35,
-    contestBrakeBase: 0.5,
+    contestBrakeBase: 0.3718,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: -0.02,
+    holdHalfcourt: 0.0057,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -501,11 +509,12 @@ export const defaultParams: SimParams = {
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
     cutterBonus: 0.5,
-    swingBase: 0.03,
+    swingBase: 0.038,
     swingPassOutScale: 0.16,
     swingVisionScale: 0.12,
-    playmakerOffset: 55,
-    playmakerScale: 0.09,
+    // FEEL — re-initiation pull: full-clock EV of feeding a teammate 100
+    // creation points above the holder (decays with the shot clock; decideBall)
+    playmakerScale: 0.18,
     passContinuationScale: 0.9,
     catchContestScale: 0.72,
     cutRateScale: 0.0044,
@@ -524,9 +533,30 @@ export const defaultParams: SimParams = {
     // FEEL — lateral quickness is the larger containment share; perimeterD
     // (angles, hand discipline) contributes the rest
     containDBlend: 0.4,
-    assistWindowSec: 1.6,
-    assistMaxDribbles: 1,
-    pnrRatePerTick: 0.022,
+    // REAL — NBA scorekeeping credits a pass leading to a score through
+    // roughly two seconds / two dribbles of a "direct scoring move"; at
+    // 1.6s/1 dribble the engine's assisted-FGM share ran 46% vs the NBA's
+    // ~58% (Stage 2 measurement)
+    assistWindowSec: 2.0,
+    assistMaxDribbles: 2,
+    // FEEL — base action-call rate; raised from 0.022 when usage-rank gating
+    // landed so league screen volume held (redistribution, not reduction)
+    pnrRatePerTick: 0.03,
+    pnrUsageFloor: 0.25,
+    // FEEL — how much an open look improves when its defender helps on a
+    // drive; prices the paint-touch-and-spray option inside drive utility
+    driveKickBoost: 0.2,
+    // FEEL — most of a bad drive's downside is recovered by aborting into the
+    // reset; only this share is paid (keeps role players suppressed without
+    // punishing elite handlers for their own skill)
+    driveAbortDiscount: 0.35,
+    // FEEL — keeps the dribble alive until the help commits; scaled by
+    // remaining drive seconds in decideBall so the terminal decision is free
+    driveHoldBoost: 0.25,
+    // FEEL — open-three catch-and-shoot decisiveness at full openness (linear
+    // to zero at contest 0.5, arc only); the make model already favors the
+    // catch rhythm, this makes the DECISION match it
+    catchShootBonus: 0.13,
     pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
     pnrStunOverSec: 0.65,
@@ -535,7 +565,7 @@ export const defaultParams: SimParams = {
     pnrUnderBase: 0.8,
     pnrRollGravityCut: 0.52,
     pnrDropDepthFt: 11,
-    pnrDriveBonus: 0.12,
+    pnrDriveBonus: 0.2,
     pnrMinShotClock: 8,
     pnrWaitBoost: 0.3,
     pnrMaxScreenDistFt: 26

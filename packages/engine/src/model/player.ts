@@ -37,11 +37,11 @@ export interface Attributes {
   drawFoul: number;
 
   // playmaking
-  /** ball-security under pressure — resolve.ts passing.ts stripP (denominator vs a defender's steal) and decideBall's drive-handling term */
+  /** ball-security under pressure — resolve.ts passing.ts stripP (denominator vs a defender's steal), decideBall's drive-handling term, and half of ai.ts creation() (the usage-hierarchy score) */
   ballHandle: number;
   /** pass accuracy — resolve.ts passRisk skillTerm (turnover risk) alongside passVision */
   passAcc: number;
-  /** court vision — resolve.ts passRisk skillTerm, plus ai.ts swingBonus/playmakerPull (feeding a high-vision teammate has value beyond his own shot) */
+  /** court vision — resolve.ts passRisk skillTerm; ai.ts swingBonus; half of ai.ts creation() (usage hierarchy); scales the drive kick premium (drive-and-kick is a passing skill) */
   passVision: number;
 
   // defense
