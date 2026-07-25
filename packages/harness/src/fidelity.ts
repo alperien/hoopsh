@@ -90,7 +90,7 @@ const jokic: Player = {
     decisions: 99, consistency: 90
   },
   tend: {
-    shotRim: 60, shotMid: 55, shotThree: 40, pullUp: 40,
+    shotRim: 62, shotMid: 58, shotThree: 56, pullUp: 42,
     drive: 25, passOut: 75, iso: 40, post: 92,
     offBallMotion: 30, crashOffReb: 55,
     gambleSteal: 40, foulAggr: 30, pushPace: 45

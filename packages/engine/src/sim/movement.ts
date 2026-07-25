@@ -87,17 +87,30 @@ export function integrateMovement(s: GameState, dt: number): void {
   // fouls/possession changes result from it, it just stops players
   // visually overlapping in the replay)
   const R = s.params.move.avoidRadiusFt;
+  // a live poster DISPLACES opponents rather than splitting the separation:
+  // post play is legal contact, and the symmetric 50/50 split let the man
+  // guarding the block stall the walk-down and backdown indefinitely
+  // (fidelity incident: self-posts never arrived; backdowns carved ~1 ft of
+  // the designed ~3). Who gets to lean is already strength-gated upstream —
+  // actionTick's poster score carries strength/finishing.
+  const act = s.poss.action;
+  const posterId = act && act.kind === 'post' ? act.posterId : null;
+  const lean = s.params.move.postLeanShare;
   for (let i = 0; i < agentsOnCourt.length; i++) {
     for (let j = i + 1; j < agentsOnCourt.length; j++) {
       const a = agentsOnCourt[i]!;
       const b = agentsOnCourt[j]!;
       const d = dist(a.pos, b.pos);
       if (d < R && d > 1e-6) {
-        // push each agent half the overlap distance ((R - d) * 0.5) directly
-        // away from the other, along the line between them
-        const push = scale(norm(sub(a.pos, b.pos)), (R - d) * 0.5);
-        a.pos = clampRect(add(a.pos, push), s.court.length, s.court.width, 0.5);
-        b.pos = clampRect(sub(b.pos, push), s.court.length, s.court.width, 0.5);
+        // split the overlap between the two — 50/50 normally, lean-weighted
+        // against an OPPONENT of the live poster (teammates still split even)
+        let aShare = 0.5;
+        if (posterId === a.p.id && b.side !== a.side) aShare = 1 - lean;
+        else if (posterId === b.p.id && a.side !== b.side) aShare = lean;
+        const overlap = R - d;
+        const dir = norm(sub(a.pos, b.pos));
+        a.pos = clampRect(add(a.pos, scale(dir, overlap * aShare)), s.court.length, s.court.width, 0.5);
+        b.pos = clampRect(sub(b.pos, scale(dir, overlap * (1 - aShare))), s.court.length, s.court.width, 0.5);
       }
     }
   }

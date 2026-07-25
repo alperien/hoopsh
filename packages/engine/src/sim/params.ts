@@ -174,6 +174,8 @@ export interface SimParams {
     /** contest-skill mix: share contributed by role defense (interiorD near
      *  the rim, perimeterD outside) vs generic contestSkill */
     contestDBlend: number;
+    /** collision-separation share absorbed by a live poster's opponent */
+    postLeanShare: number;
   };
 
   fatigue: {
@@ -482,7 +484,10 @@ export const defaultParams: SimParams = {
     // distance from which a closeout can still bother a shooter. FEEL.
     contestRadiusFt: 6.5,
     // FEEL — role defense carries just under half the contest-skill definition
-    contestDBlend: 0.45
+    contestDBlend: 0.45,
+    // FEEL — post play is legal contact: the defender absorbs most of the
+    // body separation when a live poster leans in (0.5 = symmetric)
+    postLeanShare: 0.85
   },
 
   fatigue: {
@@ -607,8 +612,11 @@ export const defaultParams: SimParams = {
     // At 4.5s the action expired mid-backdown and post scoring never fired.
     postDurationSec: 7.0,
     // FEEL — once position is carved out the turnaround is the default plan;
-    // the spray still wins whenever the double spikes a teammate open
-    postShotBonus: 0.3,
+    // the spray still wins whenever the double spikes a teammate open. Raised
+    // from 0.3: a 99-vision hub reached 'working' 7 times a game and sprayed
+    // out of ~6 — pass options beat the shot in every near-tie (fidelity
+    // probe). Real hubs finish over half their worked post-ups.
+    postShotBonus: 0.48,
     isoCallShare: 0.7,
     isoDriveBonus: 0.15,
     isoDurationSec: 3.0

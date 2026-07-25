@@ -292,6 +292,16 @@ export function decideBall(s: GameState): BallAction {
   if (postingUp && s.t - act0.postedAt < A.postBackdownSec) {
     uHold += A.postWorkBoost;
   }
+  // ...and the self-post walk-down gets the same commitment: he CALLED this
+  // action — without the boost, a high-vision hub passed away mid-dribble
+  // on nearly every self-post and the call never reached the block
+  // (fidelity incident: 1.2 post shots/game for a 92-post-tendency center)
+  if (
+    act0?.kind === 'post' && act0.posterId === h.p.id &&
+    act0.phase === 'posting' && act0.feederId === act0.posterId
+  ) {
+    uHold += A.postWorkBoost;
+  }
 
   // SOFTMAX over utilities: usually the best action, sometimes not. The
   // temperature (params.decide.temperature, ~0.06 expected points) is the
