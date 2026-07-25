@@ -5,6 +5,24 @@
  * probability models that resolve outcomes. Drive-and-kick isn't scripted —
  * help convergence lowers the drive EV and raises the kickout EV, so the pass
  * happens. Tendencies bias utilities; attributes change the underlying EVs.
+ *
+ * ── HOW TO READ THIS FILE ──────────────────────────────────────────────────
+ * Everything in `decideBall` is denominated in EXPECTED POINTS. Each candidate
+ * action gets a utility; a softmax over those utilities picks one. So:
+ *   • a term of +0.1 means "worth a tenth of a point"
+ *   • the yardstick every action is measured against is `continuation` — the
+ *     expected points of NOT acting yet (keep working the possession)
+ *   • all weights come from SimParams.ai so the sweep can reach them
+ *
+ * Three layers live here, in order:
+ *   1. decideBall + helpers  — what the ball-handler does
+ *   2. assignSpots / offenseOffBallTick / pnrTick — what the other four do
+ *   3. assignMatchups / defenseTick — what the defense does
+ *
+ * The most realism-critical relationships in the file:
+ *   gravity() → defensive gap and sag depth (WHY shooters create space)
+ *   help convergence → drive EV falls, kickout EV rises (drive-and-kick)
+ *   screen stun → contest drops (WHY a pick-and-roll pull-up is a good shot)
  */
 
 import { clamp } from '../core/rng.js';
@@ -39,18 +57,27 @@ export function decideBall(s: GameState): BallAction {
   const distToRim = dist(h.pos, rim);
   const tactics = s.teams[h.side].tactics;
 
-  // continuation value: what "keep working" is worth, decaying with the shot clock
+  // CONTINUATION VALUE — the yardstick for every decision below.
+  // "What are the remaining seconds of this possession worth if I don't act?"
+  // Decays as the shot clock drains, then collapses linearly inside the
+  // urgency window (any shot beats a violation). This single curve is what
+  // produces patient early-clock offense and desperate late-clock heaves.
   const full = s.rules.shotClockSec;
   const sc = Math.max(0, s.poss.shotClock);
   let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
   if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
 
-  // desperation heave
+  // Desperation heave: with <1.2s of shot clock (or a period expiring inside
+  // 2.5s) and no chance to get closer than 32 ft, just launch it. Bypasses the
+  // whole utility comparison — no shot is "good", but a violation is worse.
   const periodExpiring = s.clock < 2.5 && s.clock < sc;
   if ((sc < 1.2 || periodExpiring) && distToRim > 32) {
     return { kind: 'shoot', moveType: 'heave' };
   }
 
+  // Which KIND of shot this would be — drives the difficulty adjustment and
+  // the windup length. The catch-and-shoot window is 0.9s and zero dribbles:
+  // rise up immediately off the catch, or it becomes a (harder) pull-up.
   const driving = s.t < h.driveUntil;
   const sinceCatch = s.t - h.catchT;
   const shotMove: BallAction['moveType'] & string =
@@ -90,6 +117,8 @@ export function decideBall(s: GameState): BallAction {
     const onBall = onBallDefender(s, h);
     const gap = onBall ? dist(onBall.pos, h.pos) : 8;
     const laneCrowd = defendersInLane(s, h, rim);
+    // Where the drive would END: 5 ft short of the rim (a layup/floater spot,
+    // not the rim itself — nobody finishes AT the center of the hoop).
     const projected = lerp(h.pos, rim, clamp((distToRim - 5) / distToRim, 0, 1));
     const projContest = {
       level: clamp(A.driveProjContestBase + laneCrowd * A.driveProjContestCrowd, 0, 1),
@@ -97,6 +126,10 @@ export function decideBall(s: GameState): BallAction {
       heightAdvFt: 0
     };
     const driveShot = shotEV(s, h, projected, 'drive', projContest);
+    // P(actually get downhill) — the matchup at the point of attack:
+    //   base 0.55, ± the ballHandle-vs-lateral-quickness gap, ± the cushion
+    //   the defender is giving (a 9 ft gap is an invitation; 2 ft is a wall).
+    //   Clamped [0.2, 0.95]: nobody is uncontainable, nobody is helpless.
     const handling = clamp(
       A.handlingBase +
         (h.p.attr.ballHandle - (onBall?.p.attr.lateral ?? 50)) / A.handlingSkillDiv +
@@ -155,7 +188,10 @@ export function decideBall(s: GameState): BallAction {
     uHold += A.pnrWaitBoost;
   }
 
-  // softmax selection over available actions
+  // SOFTMAX over utilities: usually the best action, sometimes not. The
+  // temperature (params.decide.temperature, ~0.06 expected points) is the
+  // engine's "IQ dial" — near zero makes every player a perfect optimizer,
+  // higher values produce human noise and bad shots.
   const actions: { a: BallAction; u: number }[] = [
     { a: { kind: 'shoot', moveType: shotMove }, u: uShoot },
     { a: { kind: 'hold' }, u: uHold }
@@ -186,9 +222,20 @@ export function onBallDefender(s: GameState, holder: Agent): Agent | null {
     const dd = dist(d.pos, holder.pos);
     if (dd < bestD) { bestD = dd; best = d; }
   }
+  // 12 ft cutoff: past that nobody is meaningfully "on the ball"
   return best && bestD < 12 ? best : null;
 }
 
+/**
+ * How crowded the drive lane is: a soft count of defenders sitting between the
+ * handler and the rim. Feeds both the projected contest on a drive and a
+ * direct utility penalty — this is what makes a packed paint deter drives and
+ * (via the kickout branch) makes help defense produce open shooters.
+ *
+ * t ∈ (0.15, 0.95): ignore defenders standing on top of the handler (that's
+ * the on-ball matchup, handled separately) and those already under the rim.
+ * lat < 5 ft: within a body's width of the driving line, weighted linearly.
+ */
 function defendersInLane(s: GameState, h: Agent, rim: V2): number {
   let count = 0;
   for (const d of onCourt(s, other(h.side))) {
@@ -249,6 +296,9 @@ export function assignSpots(s: GameState, side: TeamSide): void {
 
   // ball handler (best handle) takes the top; shooters fill wings/corners;
   // the worst shooter lives at the dunker spot
+  // Best handler initiates from the top; everyone else fills by gravity —
+  // shooters get the wings and corners (where their gravity stretches the
+  // defense), the lowest-gravity big goes to the dunker spot.
   const sorted = [...players].sort((a, b) => b.p.attr.ballHandle - a.p.attr.ballHandle);
   const handler = sorted[0]!;
   const rest = sorted.slice(1).sort((a, b) => gravity(b) - gravity(a));
@@ -261,7 +311,9 @@ export function assignSpots(s: GameState, side: TeamSide): void {
     if (i < 3) {
       map.set(a.p.id, shooterKeys[i]!);
     } else {
-      // lowest-gravity big: dunker spot if a true non-shooter, else last shooter spot
+      // gravity < 0.42 ≈ "the defense will not respect him out there", so he
+      // is more useful on the baseline as a lob/putback threat than standing
+      // in a corner being ignored (which would clog the spacing he can't use)
       map.set(a.p.id, gravity(a) < 0.42 ? 'dunker' : shooterKeys[3]!);
     }
   });
@@ -399,7 +451,8 @@ export function offenseOffBallTick(s: GameState): void {
       continue;
     }
 
-    // finish an active cut
+    // Finish an active cut: drive hard at a point just short of the rim
+    // (lerp 0.06 back toward the cutter keeps him from piling onto the hoop).
     if (s.t < a.cutUntil) {
       a.intent = 'cut';
       a.target = lerp(rim, a.pos, 0.06);
@@ -412,6 +465,7 @@ export function offenseOffBallTick(s: GameState): void {
       s.poss.phase === 'halfcourt' &&
       a.spotKey !== 'dunker' &&
       s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale) &&
+      // only cut from outside 16 ft — a cut needs runway to be worth anything
       dist(a.pos, rim) > 16
     ) {
       a.cutUntil = s.t + s.params.ai.cutDurationSec;
@@ -432,6 +486,9 @@ export function offenseOffBallTick(s: GameState): void {
 export function assignMatchups(s: GameState, defSide: TeamSide): void {
   const defenders = onCourt(s, defSide).filter((a) => !a.fouledOut);
   const attackers = onCourt(s, other(defSide)).filter((a) => !a.fouledOut);
+  // Match by size: height plus a weight term (÷12 puts pounds on roughly the
+  // same scale as inches, so a 250 lb wing sorts above a 240 lb one of equal
+  // height). Crude but produces sane bigs-on-bigs, guards-on-guards pairings.
   const bySize = (arr: Agent[]) =>
     [...arr].sort((a, b) => (b.p.heightIn + b.p.weightLb / 12) - (a.p.heightIn + a.p.weightLb / 12));
   const d = bySize(defenders);
@@ -459,6 +516,11 @@ export function defenseTick(s: GameState): void {
       let bestScore = Infinity;
       for (const d of onCourt(s, defSide)) {
         if (d.fouledOut || !d.manId || d.manId === holder.p.id) continue;
+        // Pick the helper: closest to the rim, but STRONGLY penalized for
+        // leaving a shooter (gravity × 26 ft-equivalent). This is the real
+        // help-defense dilemma — you rotate off the worst shooter, and elite
+        // shooters effectively can't be helped off of. helpAggr scales how
+        // much a team tolerates the risk.
         const man = agent(s, d.manId);
         const score = dist(d.pos, rim) + gravity(man) * A.helperGravityWeight * (1.35 - helpAggr);
         if (score < bestScore) { bestScore = score; helper = d; }
@@ -474,7 +536,8 @@ export function defenseTick(s: GameState): void {
     if (!man) { d.target = lerp(rim, s.ball.pos, 0.4); continue; }
 
     if (helper && d.p.id === helper.p.id && holder) {
-      // rotate to the rim / drive path
+      // rotate to the rim, shaded 22% up the drive path — meet the driver at
+      // the front of the rim rather than standing under the basket
       d.target = lerp(rim, holder.pos, 0.22);
       d.sprinting = true;
       continue;
@@ -501,6 +564,8 @@ export function defenseTick(s: GameState): void {
       // closeout: sprint when caught out of position (e.g. after a swing pass)
       d.sprinting = dist(d.pos, holder.pos) > gap + A.closeoutSlackFt;
       // beaten on a drive: chase the intercept point
+      // Beaten on a drive: abandon the cushion and chase the intercept point
+      // 30% of the way to the rim — trail the drive rather than the man.
       if (s.t < holder.driveUntil) {
         d.target = lerp(holder.pos, rim, 0.3);
         d.sprinting = true;
@@ -512,6 +577,9 @@ export function defenseTick(s: GameState): void {
     const g = gravity(man);
     const guardDist = A.guardDistBase + (1 - g) * A.guardDistOpen;
     const manToRim = norm(sub(rim, man.pos));
+    // Stand on the man-rim line at guardDist — but never more than halfway to
+    // the rim, or a defender guarding someone in the corner ends up under the
+    // basket instead of between his man and it.
     const basePoint = add(man.pos, scale(manToRim, Math.min(guardDist, dist(man.pos, rim) * 0.5)));
     const ballDist = dist(man.pos, s.ball.pos);
     const sag = clamp((ballDist - A.sagStartFt) / A.sagRangeFt, 0, A.sagMax)
@@ -532,6 +600,10 @@ export function moveSpeed(s: GameState, a: Agent): number {
     const lat = lateralSpeed(a.p.attr) * (a.sprinting ? 1.15 : 1);
     return Math.min(max, lat);
   }
+  // Offense/off-ball: sprint only when the situation demands it (transition,
+  // cuts, crashes); otherwise cruise. Defenders are capped by LATERAL speed
+  // above, which is why quick-footed guards contain drives better than fast
+  // straight-line runners.
   const mult = a.sprinting ? 1 : s.params.move.halfcourtSpeedMult;
   return max * mult;
 }

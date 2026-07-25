@@ -34,8 +34,15 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
     if (d.fouledOut) continue;
     const dd = dist(d.pos, pos);
     if (dd > radius) continue;
+    // contest = proximity × technique × availability
+    //  closing: linear falloff — a defender ON the shooter contests 1.0, one at
+    //           the radius edge contests ~0. Distance is the dominant term.
     const closing = 1 - dd / radius;
+    //  skill: contestSkill 0→0.55, 100→1.0. Even a poor defender standing there
+    //         bothers a shot; technique adds up to ~80% more disruption.
     const skill = 0.55 + 0.45 * (d.p.attr.contestSkill / 100);
+    //  stunned: caught on a screen → he's there but useless (55% reduction).
+    //         This is what makes a pick-and-roll pull-up a good shot.
     const stunned = s.t < d.screenStunUntil ? 0.45 : 1;
     const level = closing * skill * stunned;
     if (level > best) {
@@ -44,6 +51,8 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
       bestReach = reachFt(d.p);
     }
   }
+  // uncontested default of +0.5 ft: shooting over nobody is like shooting over
+  // someone slightly shorter than you — a mild positive, not a free pass
   const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5;
   return { level: clamp(best, 0, 1), by, heightAdvFt };
 }
@@ -66,6 +75,10 @@ export function anticipatedContest(
   let bestReach = 0;
   for (const d of onCourt(s, other(shooter.side))) {
     if (d.fouledOut) continue;
+    // project the defender forward by 80% of the windup: he closes ground
+    // while the shooter gathers, but not perfectly (he must also decelerate to
+    // contest rather than run past). 0.8 keeps anticipation honest rather than
+    // clairvoyant.
     const lead = windupSec * 0.8;
     const proj = {
       x: d.pos.x + d.vel.x * lead,
@@ -130,10 +143,20 @@ export function shotMakeP(
     moveType === 'heave' ? P.moveHeave : 0;
 
   // deep threes get harder past the line; rim shots get harder away from point-blank
+  // Within-zone distance penalties (the zone bases cover the typical shot;
+  // these handle the tails):
+  //  • threes: each foot beyond 23 costs 0.055 logits ≈ 1.3 percentage points,
+  //    so a 30-footer is ~9 points worse than a corner three. Matches the real
+  //    falloff on deep attempts.
+  //  • rim: 0.09/ft from point-blank out to the 4 ft zone edge — a dunk and a
+  //    4-foot floater are genuinely different shots.
   const distAdj =
     zone === 'three' ? -0.055 * Math.max(0, distFt - 23) :
     zone === 'rim' ? -0.09 * distFt : 0;
 
+  // Size only matters at the rim (a 7-footer's reach is irrelevant on a
+  // jumper). Clamped to ±1.5 ft of standing-reach advantage so extreme
+  // mismatches stay believable rather than automatic.
   const heightTerm = zone === 'rim' ? P.rimHeightCoef * clamp(contest.heightAdvFt, -1.5, 1.5) : 0;
 
   const fatigue = P.fatigueCoef * (1 - shooter.energy / 100);
@@ -155,7 +178,11 @@ export function shotEV(
   const pts = loc.three ? 3 : 2;
   const pFoul = shootingFoulP(s, shooter, loc.zone, contest);
   const ftP = freeThrowP(s, shooter);
-  const ftEV = pFoul * (loc.three ? 3 : 2) * ftP * (1 - p); // crude: foul mostly matters on misses
+  // Foul EV: drawing a shooting foul on a MISS converts the possession into
+  // 2 (or 3) free throws. On a make it's an and-one worth only 1 FT, which is
+  // why this is weighted by (1 - p) — a deliberate simplification that keeps
+  // the foul-hunting incentive roughly right without double-counting and-ones.
+  const ftEV = pFoul * (loc.three ? 3 : 2) * ftP * (1 - p);
   return { ev: p * pts + ftEV, p, zone: loc.zone, three: loc.three, distFt: loc.distFt };
 }
 
@@ -169,6 +196,11 @@ export function blockP(s: GameState, zone: ShotZone, contest: Contest): number {
   if (contest.by === null || (zone !== 'rim' && zone !== 'paint')) return 0;
   const blocker = agent(s, contest.by);
   const P = s.params.shot;
+  // Only would-be misses reach here, so this reallocates misses → blocks
+  // without touching FG% calibration. Scaled by contest level (you can't block
+  // what you aren't near) and capped at 50% so even Gobert doesn't erase
+  // every contested miss. The 1.8 gain and 0.14 skill weight are tuned to hit
+  // the 3.5-6.5 blocks/game band.
   const skill = P.blockSkillCoef * n(blocker.p.attr.block);
   return clamp((P.blockBase + skill * 0.14) * contest.level * 1.8, 0, 0.5);
 }
@@ -186,12 +218,19 @@ export function shootingFoulP(
     zone === 'rim' ? F.shootRim :
     zone === 'paint' ? F.shootPaint :
     zone === 'mid' ? F.shootMid : F.shootThree;
+  // Three multiplicative factors on the zone base:
+  //  contestMult — tight contests mean contact (1.0 → contestFactor)
+  //  draw        — foul-drawing craft: elite draws ~65% more whistles than
+  //                average, a passive player ~35% fewer. This is the single
+  //                biggest driver of individual FTA differences.
+  //  aggr        — the DEFENDER's foulAggr tendency: hackers foul ~50% more
   const contestMult = 1 + (F.contestFactor - 1) * contest.level;
   const draw = 1 + 0.65 * n(shooter.p.attr.drawFoul);
   let aggr = 1;
   if (contest.by) {
     aggr = 1 + 0.5 * n(agent(s, contest.by).p.tend.foulAggr);
   }
+  // hard cap 60%: even a hack-a-Shaq scenario leaves some chance of a clean play
   return clamp(base * contestMult * draw * aggr, 0, 0.6);
 }
 
@@ -214,11 +253,17 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
   const passLen = Math.max(4, dist(a, b));
   for (const d of onCourt(s, other(from.side))) {
     if (d.fouledOut) continue;
+    // Lane occlusion: how badly defenders clog the passing line.
+    // 6 ft is the reach-plus-step envelope around a pass lane — beyond that a
+    // defender is irrelevant to this pass.
     const dLane = distToLane(a, b, d.pos);
     if (dLane > 6) continue;
     const along = clamp(1 - dLane / 6, 0, 1);
+    // steal rating 0→0.5, 100→1.0: anyone in the lane is a hazard; ball-hawks
+    // are twice the hazard
     const stealSkill = 0.5 + 0.5 * (d.p.attr.steal / 100);
     const contribution = along * stealSkill;
+    // 0.6 damping keeps multiple loose defenders from stacking into certainty
     occlusion += contribution * 0.6;
     if (contribution > dangerScore) {
       dangerScore = contribution;
@@ -226,6 +271,8 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
     }
   }
   // long cross-court passes are riskier
+  // Cross-court passes are riskier: beyond 25 ft, each extra 10 ft adds 0.12
+  // logits. Long skip passes hang in the air — real turnover source.
   const lengthTerm = 0.12 * Math.max(0, passLen - 25) / 10;
   const skillTerm = P.skillCoef * ((n(from.p.attr.passAcc) + n(from.p.attr.passVision)) / 2);
   const logit = P.riskBase + P.laneRiskCoef * clamp(occlusion, 0, 1.6) + lengthTerm - skillTerm;
@@ -247,7 +294,11 @@ function distToLane(a: V2, b: V2, p: V2): number {
 /** sample where a missed shot lands */
 export function sampleMissLanding(s: GameState, rim: V2, shotDistFt: number): V2 {
   const R = s.params.reb;
+  // Long shots rebound long (well-documented in tracking data) — this is why
+  // three-heavy games produce more guard rebounds and longer scrambles.
   const mean = R.missDistBase + R.missDistCoef * shotDistFt;
+  // 45% relative spread: rebounds cluster near the mean but with a real tail;
+  // floor of 1 ft prevents a degenerate on-rim sample.
   const d = Math.max(1, s.rng.gaussian(mean, mean * 0.45));
   const angle = s.rng.range(0, Math.PI * 2);
   const raw = { x: rim.x + Math.cos(angle) * d, y: rim.y + Math.sin(angle) * d };
@@ -269,10 +320,17 @@ export function resolveRebound(
   for (const side of [0, 1] as TeamSide[]) {
     for (const a of onCourt(s, side)) {
       if (a.fouledOut) continue;
+      // 24 ft cutoff: beyond that you're not getting to this rebound
       const d = dist(a.pos, spot);
       if (d > 24) continue;
+      // Proximity dominates (1/(1+d)^power) — rebounding is mostly positioning
       const prox = 1 / Math.pow(1 + d, R.proximityPower);
       const attr = a.p.attr;
+      // Offense vs defense reward DIFFERENT skills, which is the whole
+      // asymmetry of the glass: the offense needs pursuit and hops (offReb,
+      // vertical) because it's attacking from behind; the defense wins by
+      // owning the space first (defReb, boxout). Height enters both at 0.6
+      // per inch — dominant in absolute terms, as it should be.
       const rebSkill = a.side === offSide
         ? attr.offReb * 0.6 + attr.vertical * 0.25 + a.p.heightIn * 0.6
         : attr.defReb * 0.45 + attr.boxout * 0.25 + attr.vertical * 0.12 + a.p.heightIn * 0.6;
@@ -298,6 +356,17 @@ export function openness(s: GameState, a: Agent): number {
 }
 
 /** shooter gravity: how far out and how tightly a defense must respect this player */
+/**
+ * Shooter gravity ∈ [0,1] — how much respect the defense must pay this player
+ * beyond the arc. The single most important derived quantity for SPACING:
+ * it shrinks the on-ball gap defenders keep, reduces how far help defenders
+ * sag off, and steers help rotations away from shooters.
+ *
+ * Weighted 65% ABILITY / 35% WILLINGNESS on purpose: a great shooter who never
+ * shoots eventually gets ignored, and a volume gunner who can't shoot still
+ * commands *some* attention. Both terms are needed — this is why "Curry-ness"
+ * requires elite `three` AND heavy `shotThree`.
+ */
 export function gravity(a: Agent): number {
   return clamp((a.p.attr.three / 100) * 0.65 + (a.p.tend.shotThree / 100) * 0.35, 0, 1);
 }
