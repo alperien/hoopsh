@@ -5,9 +5,21 @@ import type { ShotZone } from '../core/events.js';
 
 /**
  * Court geometry derived from a rule pack.
- * Coordinates: origin at home baseline left corner; x runs the length of the
- * court, y the width. Home attacks the HIGH-x rim in periods 1-2 by convention
- * (the sim flips attack direction at halftime like real basketball).
+ *
+ * Coordinate system: origin (0, 0) is the home baseline's LEFT corner as
+ * viewed looking down the court from behind that baseline. +x runs the full
+ * LENGTH of the court (0 .. courtLengthFt, e.g. 0..94 for NBA) toward the
+ * opposite baseline; +y runs the WIDTH of the court (0 .. courtWidthFt, e.g.
+ * 0..50 for NBA) from that left sideline to the right sideline. All units are
+ * feet. There is no y-flip or rotation anywhere downstream — every consumer
+ * (AI, resolve.ts, replay frames) shares this exact frame.
+ *
+ * Two rims, fixed in world space: `rims[0]` always sits at the LOW-x baseline
+ * (near the origin), `rims[1]` at the HIGH-x baseline. Which TEAM attacks
+ * which rim is not fixed, though — attackedRim() in sim/state.ts says home
+ * attacks the high-x rim (rims[1]) in the first half and the low-x rim
+ * (rims[0]) in the second half, flipping at intermission exactly like real
+ * basketball (teams swap baskets at halftime; the court itself never moves).
  */
 export interface Court {
   length: number;
@@ -28,10 +40,15 @@ export function makeCourt(rules: RulePack): Court {
     midX: l / 2,
     centerY: w / 2,
     rims: [
+      // NBA rimInsetFt = 5.25 ft: the rim center sits 5.25 ft in from the
+      // baseline (not ON the baseline) — matches the real hoop's mounting
+      // point relative to the backboard/baseline in an NBA gym.
       { x: rules.rimInsetFt, y: w / 2 },
       { x: l - rules.rimInsetFt, y: w / 2 }
     ],
     ftSpots: [
+      // NBA ftLineFt = 19 ft from baseline (15 ft from the rim's face, plus
+      // the ~4 ft from backboard to baseline) — the real free-throw distance.
       { x: rules.ftLineFt, y: w / 2 },
       { x: l - rules.ftLineFt, y: w / 2 }
     ]
@@ -46,8 +63,24 @@ export interface ShotLocation {
 
 /**
  * Classify a shot location against the attacked rim.
- * Corner threes use the straight-line rule inside the corner-break distance;
- * everything past the break uses the arc.
+ *
+ * The real NBA three-point line is NOT a single arc: it's a semicircle of
+ * radius `arcRadiusFt` (23.75 ft) centered on the rim, but that arc is
+ * clipped short in the corners by two straight lines running parallel to the
+ * sideline at `cornerDistFt` (22 ft) from the rim's lateral center, from the
+ * baseline out to where the straight line meets the arc at `cornerBreakFt`
+ * (14 ft) from the baseline. This exists in real life because the full-radius
+ * arc would otherwise run out of bounds past the sideline near the corner —
+ * the rule literally reshapes the line to keep it on the court. That's why
+ * corner threes (22 ft) are shorter than above-the-break threes (23.75 ft):
+ * it's a side effect of the court's fixed width, not a design choice.
+ *
+ * So the classification branches on which geometry applies: within
+ * `cornerBreakFt` of the baseline, "is this a three" is a straight LATERAL
+ * distance check off the rim's center line (mirrors the real straight corner
+ * line); beyond the break, it switches to a circular check against
+ * `arcRadiusFt` (mirrors the real arc). Getting this branch wrong would
+ * misclassify the shortest, most efficient three-point shot in the game.
  */
 export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): ShotLocation {
   const d = dist(p, rim);
@@ -61,6 +94,12 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
     three = d >= rules.three.arcRadiusFt;
   }
 
+  // non-three zones split by raw distance from the rim: point-blank shots
+  // (dunks, layups) vs. the rest of the paint (floaters, hooks, put-backs)
+  // vs. everything outside the key that isn't a three (the mid-range).
+  // 4 ft and 14 ft roughly bracket "restricted area" and "the paint" in real
+  // broadcast shot-chart terms, even though the engine doesn't model the
+  // restricted-area arc or the lane lines as hard boundaries.
   let zone: ShotZone;
   if (three) zone = 'three';
   else if (d <= 4) zone = 'rim';
@@ -70,7 +109,44 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
   return { distFt: d, zone, three };
 }
 
-/** halfcourt spacing spots for the offense attacking `rim` (5-out template) */
+/**
+ * Halfcourt spacing spots for the offense attacking `rim` — a 5-out template
+ * (all five spots live beyond/around the paint; there's no fixed post-up
+ * "4-out-1-in" slot). ai.ts assignSpots hands these out by personnel: best
+ * ball-handler to `top`, the four best-gravity shooters to the
+ * wings/corners, and the worst shooter to `dunker` if he's a true
+ * non-shooter. `elbow_l/r` and `short_roll` aren't part of the initial
+ * assignment — they're used as ad hoc landing spots during actions (e.g. a
+ * popping screener) rather than a starting formation slot.
+ *
+ * Every position below is a named REAL basketball spot:
+ *  - `top`: top of the key / top of the arc, dead center, the traditional
+ *    point-guard-with-the-ball spot (26 ft out — beyond the three-point arc
+ *    so the primary ball-handler naturally starts as a three-point threat).
+ *  - `wing_l`/`wing_r`: the wings, angled ~35-40° off the baseline at
+ *    three-point range (21 ft out, ~15.5 ft off the center line) — the
+ *    classic catch-and-shoot / drive-either-way spot for a team's other
+ *    perimeter shooters.
+ *  - `corner_l`/`corner_r`: the corner threes, sitting at 21.5 ft LATERAL
+ *    distance from the rim's center line. This deliberately mirrors the real
+ *    cornerDistFt geometry from classifyShot (22 ft) minus a small margin —
+ *    a shooter standing here is just inside the three-point line, not
+ *    straddling or stepping on it, and the shot is the shortest three on the
+ *    floor (see the classifyShot corner-vs-arc note above).
+ *  - `dunker`: the dunker's spot — deep in the paint right next to the
+ *    baseline (4 ft from the rim), where a non-shooting big parks himself to
+ *    stay out of the primary driver's lane while remaining a lob/dump-off
+ *    threat. Putting a shooter here would clog the drive; putting a
+ *    non-shooter on the perimeter would let his defender sag off and
+ *    congest the paint instead — hence assignSpots routing by gravity.
+ *  - `elbow_l`/`elbow_r`: the elbows — where the free-throw line meets the
+ *    lane lines, a classic pass-and-cut or pick-and-pop landing spot.
+ *  - `short_roll`: the "short roll" area, roughly the front of the rim at
+ *    mid-paint depth — where a screener who rolled to the basket but got cut
+ *    off pulls up short to become a passing-window threat instead of
+ *    forcing the finish (ai.ts pnrTick routes a rolling screener here via
+ *    the cut machinery rather than assigning it directly).
+ */
 export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] {
   // direction from rim toward midcourt
   const dir = rim.x < court.midX ? 1 : -1;
