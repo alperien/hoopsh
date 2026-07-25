@@ -59,6 +59,11 @@ Dependency rule: **`engine` imports nothing; everything else imports `engine`.**
 The typed event stream is the public contract — stats, narration, and viewers are pure
 consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
+**All documentation:** [ARCHITECTURE.md](./ARCHITECTURE.md) (design rationale) ·
+[docs/INTERNALS.md](./docs/INTERNALS.md) (module map & tick pipeline) ·
+[docs/ONBOARDING.md](./docs/ONBOARDING.md) (two-evening guided path) ·
+[AGENTS.md](./AGENTS.md) (**contributor covenant — read before changing anything**)
+
 ## The core bet: hybrid spatial–stochastic simulation
 
 Pure physics sims can't be calibrated; pure stat sims have no feel. hoopsh runs
@@ -81,20 +86,27 @@ Signature mechanics:
 ## Realism status
 
 A batch harness grades league-wide averages against 16 NBA acceptance bands
-(pace, efficiency, shot mix, rebounding, fouls, turnovers…). Current state: the engine
-has hit **16/16**; ongoing AI-realism work (usage hierarchy, anticipated contests) has
-several bands oscillating within 1–3 units pending the automated parameter sweep.
-Archetype tests pin player differentiation (elite shooter ≈ 25 pts on ~20 FGA with a
-deep-three diet; rim-runner takes 90%+ of shots inside; non-shooting bigs don't chuck).
+(pace, efficiency, shot mix, rebounding, fouls, turnovers…), and an automated
+parameter sweep (`npm run sweep`) keeps them locked. Current state: **46–48 of 48
+band-checks passing across three independent seed bases** at 40-game samples —
+residual misses are <1% band-edge grazes (the sampling noise floor). A 50-test
+suite (including a permanent invariant suite born from two adversarial audit
+rounds) guards determinism, possession accounting, minutes conservation, and
+buzzer integrity on every change. Archetype tests pin player differentiation
+(elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
+of shots inside; non-shooting bigs don't chuck).
 
 Run it yourself: `npm run batch -- --games 50`.
 
 ## Roadmap
 
-**Phase 2 (current):** replay viewer ✅ · README ✅ · broadcast demo · automated
-parameter sweep to lock all 16 bands · orchestrator refactor · pick-and-roll & usage
-hierarchy (make floor generals lead their teams in assists) · post-up game · star
-fixtures validated against real-life stat ranges.
+**Done:** replay viewer ✅ · broadcast demo ✅ · automated parameter sweep ✅ ·
+orchestrator refactor ✅ · pick-and-roll ✅ · invariant suite ✅ · full documentation
+campaign (33% engine comment density, contributor covenant, onboarding path) ✅
+
+**Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
+their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
+solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
 
 **Beyond:** season layer (schedules, fatigue across games, injuries) · progression &
 aging · NCAA + EuroLeague rule-pack tuning · era packs (1995 vs 2015 shot diets) ·
