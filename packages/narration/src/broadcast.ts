@@ -1,6 +1,12 @@
 /**
  * Broadcast script builder: merges play-by-play and color commentary into a
  * two-voice script — ready for text display or TTS rendering.
+ *
+ * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
+ * §6): the reference example of wiring pbp.ts + a CommentaryProvider
+ * (provider.ts) together into one merged script. The engine never depends on
+ * this file — it only consumes `GameEvent`s already produced by a finished
+ * sim (AGENTS.md §1.3/§6).
  */
 
 import type { GameEvent, Team } from '@hoopsh/engine';
@@ -22,14 +28,42 @@ export async function buildBroadcastScript(
   provider: CommentaryProvider,
   opts?: { seed?: string; windowEvents?: number }
 ): Promise<BroadcastCue[]> {
+  // PBP is generated in one pass up front via pbp.ts's own generator, with
+  // `includeMoments: false` because moment TEXT ("X are on a run") is a PBP-
+  // layer concern already handled by renderMoment() there — this function
+  // only needs pbp.ts's play-call lines, and detects moments itself below
+  // (via its own separate ContextTracker) to decide window boundaries.
   const pbp = generatePlayByPlay(events, teams, { seed: opts?.seed, includeMoments: false });
   const cues: BroadcastCue[] = pbp.map((l: NarrationLine) => ({
     t: l.t, period: l.period, clock: l.clock, speaker: 'pbp' as const, text: l.text
   }));
 
-  // window the raw events and let the provider add color
+  // Windowing algorithm: raw events accumulate into `buffer` and a window
+  // closes (flushes to the provider) at the FIRST of three boundaries:
+  //   1. size    — buffer reaches `windowEvents` (default 24) events, so a
+  //                quiet stretch of the game still gets color commentary at
+  //                a bounded cadence rather than never flushing;
+  //   2. period  — the event is a period_end, so color commentary never
+  //                straddles a quarter break (each quarter's color reflects
+  //                only that quarter's events);
+  //   3. moment  — a narrative moment (run/milestone/lead_change/tie/
+  //                clutch_start) was just detected, so color commentary can
+  //                react to a big swing IMMEDIATELY rather than waiting up
+  //                to `windowEvents` more events for the next size boundary.
+  // Each flushed window is a fresh, independent call to `provider.generate()`
+  // — this is the caller side of CommentaryProvider's stateless-per-window
+  // design documented in provider.ts.
   const windowSize = opts?.windowEvents ?? 24;
   const tracker = new ContextTracker();
+  // STAGED/UNWIRED: threaded into every generate() call below so a provider
+  // COULD read continuity notes left by an earlier window, but nothing in
+  // this function ever pushes onto it — it stays `[]` for the whole script.
+  // A provider that wants cross-window continuity today has to keep its own
+  // internal state; this array is future surface for a caller (not yet
+  // written) that extracts storyline notes from a provider's output.
+  // UNWIRED — the continuity channel exists in the CommentaryProvider contract
+  // but nothing populates it yet; wire it when an LLM provider starts carrying
+  // narratives across windows (narration is frozen, so this waits with it)
   const storylines: string[] = [];
   let buffer: GameEvent[] = [];
   let bufferMoments = [];
@@ -71,6 +105,12 @@ export async function buildBroadcastScript(
     }
   }
 
+  // Merge order: primarily by timestamp: `a.t - b.t`. The second sort key
+  // (`Number(a.speaker === 'color') - Number(...)`) only matters for a tie —
+  // two cues landing at the EXACT same `t` — and resolves it by putting 'pbp'
+  // (false→0) before 'color' (true→1), so at a shared timestamp the play-by-
+  // play call always reads before the color reaction to it, matching how a
+  // real broadcast pairs a play call first and a colorman's reaction second.
   cues.sort((a, b) => a.t - b.t || Number(a.speaker === 'color') - Number(b.speaker === 'color'));
   return cues;
 }

@@ -1,6 +1,19 @@
 #!/usr/bin/env node
 // Bake a replay JSON into the viewer, producing a standalone shareable HTML file.
 //   node packages/viewer/embed.mjs out/replay-<seed>.json out/viewer-<seed>.html
+//
+// Usage:
+//   1. Generate a replay first (this script never simulates anything itself):
+//        npm run sim -- --seed <seed>            → writes out/replay-<seed>.json
+//   2. Bake it into the standalone viewer template (packages/viewer/index.html):
+//        node packages/viewer/embed.mjs out/replay-<seed>.json out/viewer-<seed>.html
+//      (also reachable as `npm run viewer:embed -- <replay.json> <out.html>`,
+//      see package.json)
+//   3. Open out/viewer-<seed>.html directly in a browser — no server needed,
+//      the replay JSON is inlined into the page (see the MARK splice below),
+//      so the file is fully self-contained and shareable on its own.
+// Zero dependencies: this is plain Node fs/path/url, matching the rest of the
+// zero-dependency dev runtime (see tools/register.mjs for why that matters).
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
