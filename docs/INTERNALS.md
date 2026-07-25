@@ -112,4 +112,10 @@ live-ball strips replaced some assisted catch-and-shoot volume, and the
 underlying assisted-share gap below is the real fix) ·
 league assisted-share ~46-50% of makes vs NBA ~58% (no acceptance band constrains
 it yet; gates the floor-general 6+ apg level ratchet in archetypes.test.ts) ·
-man-to-man with drop coverage only · narration/viewer are frozen prototypes.
+man-to-man with drop coverage only ·
+bench-exhausted foul-outs play on (NBA rule analog: a fouled-out player remains
+when no substitute exists — reachable only with short/foul-storm rosters; the
+no-fouled-out-actors invariant applies whenever replacements exist, and every
+lineup-consuming site falls back consistently rather than crashing — hardened
+after the Stage 2 adversarial audit) ·
+narration/viewer are frozen prototypes.
