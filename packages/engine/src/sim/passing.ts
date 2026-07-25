@@ -12,9 +12,9 @@
 
 import { clamp } from '../core/rng.js';
 import { add, dist, lerp, scale } from '../core/vec.js';
-import { agent, emit, onCourt, other, type Agent, type GameState } from './state.js';
+import { agent, attackedRim, emit, onCourt, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
-import { onBallDefender } from './ai.js';
+import { assignedDefender, onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
 import { deadBall, endPeriod, endPossession, giveBall, startPossession } from './possession.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
@@ -117,6 +117,28 @@ export function resolvePassArrival(s: GameState): void {
     type: 'pass', team: passer.side, from, to: to.p.id, kind: f.passKind ?? 'normal'
   });
   s.poss.lastPass = { from, t: s.t }; // feeds assist-window checks in shooting.ts (catch-to-shot timing)
+  // a handoff catch stuns the receiver's trailing defender — the hub's body
+  // is the screen. This is the whole payoff of the DHO action: the receiver
+  // rises into a catch-and-shoot with the contest wiped, or attacks downhill.
+  const act = s.poss.action;
+  if (f.passKind === 'handoff' && act?.kind === 'dho' && to.p.id === act.receiverId) {
+    const trail = assignedDefender(s, to);
+    if (trail) trail.screenStunUntil = s.t + s.params.ai.dhoStunSec;
+    // ...and the receiver TURNS THE CORNER: a drive commitment off the catch
+    // (his man is screened behind him — the whole point). Inside the arc the
+    // downhill attack is the play; at the arc the catch-and-shoot machinery
+    // competes naturally. Without this, receivers caught, reset, and the
+    // action produced 0.1 assists a game on 8.9 handoffs.
+    const rim = attackedRim(s, to.side);
+    if (dist(to.pos, rim) < 22) {
+      // inside the arc: turn the corner downhill
+      to.driveUntil = s.t + 1.35; // same commitment as executeAction's drive
+    }
+    // at/beyond the arc: no commitment — the catch-and-shoot machinery owns
+    // the rise (a drive grant there sprinted the receiver INTO the defense
+    // and swallowed the open three the stun had just bought)
+    s.poss.action = null; // the action delivered; normal offense resumes
+  }
   giveBall(s, to);
   // a catch after the buzzer is a dead play — the ball must be shot before 0.0
   // (passes in flight while the clock expires were scoring post-buzzer baskets)

@@ -77,7 +77,20 @@ export interface IsoAction {
   until: number;
 }
 
-export type TeamAction = PnrAction | PostAction | IsoAction;
+/**
+ * Dribble-handoff: the hub holds while the receiver sprints to him; the
+ * handoff is an ordinary pass (kind 'handoff') whose CATCH stuns the
+ * receiver's trailing defender — the hub's body is the screen. The elbow
+ * touch that powers hub-center offenses.
+ */
+export interface DhoAction {
+  kind: 'dho';
+  hubId: string;
+  receiverId: string;
+  until: number;
+}
+
+export type TeamAction = PnrAction | PostAction | IsoAction | DhoAction;
 
 export interface PendingShot {
   shooterId: string;

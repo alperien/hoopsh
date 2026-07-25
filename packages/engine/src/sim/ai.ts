@@ -42,7 +42,7 @@ import {
 
 export type BallAction =
   | { kind: 'shoot'; moveType: 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post' }
-  | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' }
+  | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' }
   | { kind: 'drive' }
   | { kind: 'hold' };
 
@@ -150,7 +150,7 @@ export function decideBall(s: GameState): BallAction {
   const uShoot = myShot.ev + shootBias + transitionTerm - continuation - contestBrake;
 
   // --- utility: pass to each teammate
-  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' } | null = null;
+  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
   let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
   for (const m of onCourt(s, h.side)) {
     if (m.p.id === h.p.id || m.fouledOut) continue;
@@ -167,6 +167,12 @@ export function decideBall(s: GameState): BallAction {
       act0?.kind === 'post' && act0.phase === 'posting' &&
       m.p.id === act0.posterId && dist(m.pos, m.target) < 4;
     const entryBonus = entryTarget ? A.postEntryBonus : 0;
+    // the handoff: once the DHO receiver has sprinted into range, handing it
+    // off IS the play — the catch stuns his trailing defender (passing.ts)
+    const dhoTarget =
+      act0?.kind === 'dho' && act0.hubId === h.p.id &&
+      m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
+    const dhoBonus = dhoTarget ? A.dhoHandoffBonus : 0;
     const swingBonus =
       A.swingBase +
       ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
@@ -182,13 +188,14 @@ export function decideBall(s: GameState): BallAction {
       (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * (sc / full);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + cutterBonus + swingBonus + playmakerPull + entryBonus
+      + cutterBonus + swingBonus + playmakerPull + entryBonus + dhoBonus
       - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,
         u,
-        passKind: entryTarget ? 'entry'
+        passKind: dhoTarget ? 'handoff'
+          : entryTarget ? 'entry'
           : driving ? 'kickout'
           : s.poss.phase === 'transition' ? 'outlet' : 'normal'
       };
@@ -284,6 +291,11 @@ export function decideBall(s: GameState): BallAction {
   // a screen is on its way — wait for it instead of swinging the ball away
   // (audit: without this, the handler passed before 93% of screens arrived)
   if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase === 'coming') {
+    uHold += A.pnrWaitBoost;
+  }
+  // a DHO is live and mine: hold while the receiver sprints in — same "wait
+  // for the action to arrive" semantics as the screen
+  if (act0?.kind === 'dho' && act0.hubId === h.p.id) {
     uHold += A.pnrWaitBoost;
   }
   // the backdown: a post player who just caught the entry works his position
@@ -490,6 +502,17 @@ function actionTick(s: GameState): void {
     }
     return;
   }
+  if (act && act.kind === 'dho') {
+    const hub = agent(s, act.hubId);
+    const recv = agent(s, act.receiverId);
+    // a null holder is the handoff in flight; resolvePassArrival clears the
+    // action on the catch (after stunning the trailing defender)
+    const hubLostIt = holderId !== null && holderId !== act.hubId;
+    if (s.t > act.until || hubLostIt || !hub.onCourt || hub.fouledOut || !recv.onCourt || recv.fouledOut) {
+      s.poss.action = null;
+    }
+    return;
+  }
   if (act && act.kind === 'iso') {
     const handler = agent(s, act.handlerId);
     if (s.t > act.until || holderId !== act.handlerId || !handler.onCourt || handler.fouledOut) {
@@ -598,11 +621,24 @@ function actionTick(s: GameState): void {
     if (sc > posterScore) { posterScore = sc; poster = a; }
   }
   const isoScore = Math.max(0, (h.p.tend.iso - 50) / 100);
+  // DHO receiver: the best gravity/motion mover in range — the handoff is a
+  // SHOOTER's action (the stun buys him his rise), so gravity carries it
+  let dhoRecv: Agent | null = null;
+  let dhoScore = 0;
+  for (const a of onCourt(s, s.poss.team)) {
+    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+    if (dist(a.pos, h.pos) > 26) continue;
+    const sc = gravity(a) * 0.65 + (a.p.tend.offBallMotion / 100) * 0.35;
+    if (sc > dhoScore) { dhoScore = sc; dhoRecv = a; }
+  }
   const wPnr = best ? 1 : 0;
   const wPost = poster && posterScore > A.postCallCut ? posterScore * A.postCallShare : 0;
   const wIso = isoScore * A.isoCallShare;
-  if (wPnr + wPost + wIso <= 0) return;
-  const pick = s.rng.weighted([wPnr, wPost, wIso]);
+  // scaled by the caller's creation: the DHO is how a HUB creates — a
+  // low-vision holder doesn't orchestrate elbow offense
+  const wDho = dhoRecv ? dhoScore * A.dhoCallShare * (creation(h) / 100) : 0;
+  if (wPnr + wPost + wIso + wDho <= 0) return;
+  const pick = s.rng.weighted([wPnr, wPost, wIso, wDho]);
 
   if (pick === 1 && poster) {
     // send the big to the near block; the entry incentive lives in decideBall.
@@ -621,6 +657,13 @@ function actionTick(s: GameState): void {
   }
   if (pick === 2) {
     s.poss.action = { kind: 'iso', handlerId: holderId, until: s.t + A.isoDurationSec };
+    return;
+  }
+  if (pick === 3 && dhoRecv) {
+    s.poss.action = {
+      kind: 'dho', hubId: holderId, receiverId: dhoRecv.p.id,
+      until: s.t + A.dhoDurationSec
+    };
     return;
   }
   if (!best) return;
@@ -646,6 +689,17 @@ export function offenseOffBallTick(s: GameState): void {
 
   for (const a of onCourt(s, side)) {
     if (a.fouledOut || a.p.id === s.ball.holderId) continue;
+
+    // the DHO receiver sprints AT the hub — the handoff fires on proximity
+    // (decideBall's dhoTarget check); reuses the cut intent so his defender
+    // trails him into the hub's body
+    if (act?.kind === 'dho' && a.p.id === act.receiverId) {
+      const hub = agent(s, act.hubId);
+      a.intent = 'cut';
+      a.target = lerp(hub.pos, a.pos, 0.05);
+      a.sprinting = true;
+      continue;
+    }
 
     // a posting big holds the block — no cuts, no relocations, just position
     if (act?.kind === 'post' && a.p.id === act.posterId) {
@@ -745,8 +799,14 @@ export function defenseTick(s: GameState): void {
   const postWorking =
     holder !== null && actD?.kind === 'post' &&
     actD.posterId === holder.p.id && actD.phase === 'working';
+  // the blitz: an extreme-gravity HOLDER beyond the arc draws a second body —
+  // denial's on-ball sibling, and what actually caps elite pull-up volume
+  // (the fidelity benchmark kept 15+ deep attempts against single coverage)
+  const blitz =
+    holder !== null && gravity(holder) > A.denyGravityCut &&
+    dist(holder.pos, rim) > A.blitzBeyondFt;
   let helper: Agent | null = null;
-  if (holder && (s.t < holder.driveUntil || postWorking)) {
+  if (holder && (s.t < holder.driveUntil || postWorking || blitz)) {
     const dRim = dist(holder.pos, rim);
     if (dRim < s.params.move.helpTriggerFt) {
       // nearest weak-side defender whose man has the least gravity
@@ -773,6 +833,14 @@ export function defenseTick(s: GameState): void {
     if (!man) { d.target = lerp(rim, s.ball.pos, 0.4); continue; }
 
     if (helper && d.p.id === helper.p.id && holder) {
+      if (blitz && s.t >= holder.driveUntil) {
+        // blitz: close on the HOLDER, slightly rim-side — a stunting second
+        // body that turns his pull-up into a contested look and invites the
+        // pass out (assists rise league-wide; that's the point)
+        d.target = lerp(holder.pos, rim, 0.08);
+        d.sprinting = true;
+        continue;
+      }
       // rotate to the rim, shaded 22% up the drive path — meet the driver at
       // the front of the rim rather than standing under the basket
       d.target = lerp(rim, holder.pos, 0.22);

@@ -285,6 +285,13 @@ export interface SimParams {
     isoCallShare: number;        // weight of the iso option in the action-call roll
     isoDriveBonus: number;       // attack commitment while the iso is live
     isoDurationSec: number;      // iso window length
+    // dribble-handoff action
+    dhoCallShare: number;        // weight of the DHO option in the action-call roll
+    dhoHandoffDistFt: number;    // receiver proximity that triggers the handoff pass
+    dhoStunSec: number;          // trailing-defender stun on the catch (the hub is the screen)
+    dhoDurationSec: number;      // action lifetime
+    dhoHandoffBonus: number;     // pass-utility bonus for the handoff itself
+    blitzBeyondFt: number;       // blitz an extreme-gravity HOLDER beyond this range
   };
 }
 
@@ -299,8 +306,8 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5824,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.3858,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    baseRim: 0.5481,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    basePaint: -0.2759,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.5228,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.9089,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
@@ -317,7 +324,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.1347,
+    contestCoef: -1.1082,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -406,7 +413,7 @@ export const defaultParams: SimParams = {
     skillCoef: 0.75,
     // Of failed passes, ~55% are stolen (credited to a defender) and the rest
     // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
-    stealShare: 0.62,
+    stealShare: 0.5473,
     // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45
@@ -420,7 +427,7 @@ export const defaultParams: SimParams = {
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
-    missDistBase: 4.6746,
+    missDistBase: 4.6944,
     missDistCoef: 0.16,
     // How sharply proximity dominates the scramble: weight ∝ 1/(1+d)^power.
     // Higher = rebounding is pure positioning; lower = size/skill matter more.
@@ -453,7 +460,7 @@ export const defaultParams: SimParams = {
     // collapse pricing + catch-and-shoot decisiveness shifted the patience
     // equilibrium; two sweeps could not escape the old basin) — then
     // sweep-polished from this start point
-    continuationMax: 1.52,
+    continuationMax: 1.489,
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
@@ -529,10 +536,10 @@ export const defaultParams: SimParams = {
     threeApptScale: 0.35,
     tacticsThreeScale: 0.18,
     contestBrakeAt: 0.35,
-    contestBrakeBase: 0.3718,
+    contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.0057,
+    holdHalfcourt: 0.0273,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -547,7 +554,7 @@ export const defaultParams: SimParams = {
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
     cutterBonus: 0.5,
-    swingBase: 0.0442,
+    swingBase: 0.045,
     swingPassOutScale: 0.16,
     swingVisionScale: 0.12,
     // FEEL — re-initiation pull: full-clock EV of feeding a teammate 100
@@ -557,7 +564,7 @@ export const defaultParams: SimParams = {
     catchContestScale: 0.72,
     cutRateScale: 0.0044,
     cutDurationSec: 1.6,
-    crashBase: 0.2398,
+    crashBase: 0.1978,
     crashTendScale: 0.6,
     guardDistBase: 2.8,
     guardDistOpen: 4.5,
@@ -631,7 +638,17 @@ export const defaultParams: SimParams = {
     postShotBonus: 0.48,
     isoCallShare: 0.7,
     isoDriveBonus: 0.15,
-    isoDurationSec: 3.0
+    isoDurationSec: 3.0,
+    // FEEL — the DHO: the hub-center creation pattern (weight also scales with
+    // the caller's creation and the receiver's gravity/motion in actionTick)
+    dhoCallShare: 0.9,
+    dhoHandoffDistFt: 3.2,
+    dhoStunSec: 0.55,
+    dhoDurationSec: 3.5,
+    dhoHandoffBonus: 0.5,
+    // FEEL — the blitz: extreme-gravity holders get a second body beyond the
+    // arc (what actually caps an elite shooter's pull-up volume)
+    blitzBeyondFt: 20
   }
 };
 

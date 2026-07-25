@@ -202,7 +202,7 @@ const TARGETS: Record<string, Target[]> = {
 
 const args = process.argv.slice(2);
 const gamesIdx = args.indexOf('--games');
-const GAMES = gamesIdx >= 0 ? Number(args[gamesIdx + 1]) : 24;
+const GAMES = gamesIdx >= 0 ? Number(args[gamesIdx + 1]) : 40; // 24-game reads swung +-3 pts between samples
 
 function runBenchmark(bench: Team, starId: string): AggLine {
   let agg: AggLine | null = null;
