@@ -100,6 +100,7 @@ sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then rea
 | "What is this project?" | `README.md`, `ARCHITECTURE.md` |
 | "Where is X / where do I change Y?" | `docs/INTERNALS.md` |
 | "Am I allowed to do this?" | `AGENTS.md` |
+| "HOW do I build this new thing?" | `docs/PLAYBOOK.md` (recipes + step-by-step process) |
 | "What does this number mean?" | The comment next to it (if missing: that's a docs bug — fix it) |
 | "What can consumers rely on?" | `core/events.ts` |
 | "Why is the league average what it is?" | `sim/params.ts` header + `harness/src/bands.ts` |

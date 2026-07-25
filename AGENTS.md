@@ -9,6 +9,10 @@ actually corrupted stats or wasted calibration runs.
 Reading order for a new contributor: `README.md` → `ARCHITECTURE.md` →
 `docs/INTERNALS.md` → this file → `docs/ONBOARDING.md` (guided walkthrough).
 
+**Writing NEW code?** This file is the law; **`docs/PLAYBOOK.md` is the procedure** —
+an eight-step process, per-change-shape recipes with exemplars, STOP conditions, and
+the required completion-report format. Follow it step by step.
+
 ---
 
 ## 1. Prime directives (violating any of these is never acceptable)

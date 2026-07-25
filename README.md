@@ -62,7 +62,8 @@ consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
 **All documentation:** [ARCHITECTURE.md](./ARCHITECTURE.md) (design rationale) ·
 [docs/INTERNALS.md](./docs/INTERNALS.md) (module map & tick pipeline) ·
 [docs/ONBOARDING.md](./docs/ONBOARDING.md) (two-evening guided path) ·
-[AGENTS.md](./AGENTS.md) (**contributor covenant — read before changing anything**)
+[AGENTS.md](./AGENTS.md) (**contributor covenant — read before changing anything**) ·
+[docs/PLAYBOOK.md](./docs/PLAYBOOK.md) (step-by-step procedure for writing new code)
 
 ## The core bet: hybrid spatial–stochastic simulation
 
