@@ -469,8 +469,14 @@ function actionTick(s: GameState): void {
       return;
     }
     if (act.phase === 'posting' && holderId === act.posterId) {
-      act.phase = 'working'; // entry caught — the backdown clock starts
-      act.postedAt = s.t;
+      // entry caught — or, on a self-post (feederId === posterId), the
+      // dribble-down: wait until he has actually reached the block, else
+      // "working" would start 26 ft from the rim
+      const selfPost = act.feederId === act.posterId;
+      if (!selfPost || dist(poster.pos, poster.target) < 3.5) {
+        act.phase = 'working'; // the backdown clock starts
+        act.postedAt = s.t;
+      }
     }
     return;
   }
@@ -571,7 +577,12 @@ function actionTick(s: GameState): void {
   let poster: Agent | null = null;
   let posterScore = 0;
   for (const a of onCourt(s, s.poss.team)) {
-    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+    // the HOLDER is a legal poster: a hub big who is also his team's best
+    // creator (the Jokić shape) initiates his own post-up by dribbling down
+    // to the block — before this, the usage hierarchy routed him the ball
+    // and the post action then required someone ELSE to hold it, so the
+    // profile scored 7.9 ppg with 0.6 post touches (fidelity incident)
+    if (a.fouledOut || s.t < a.cutUntil) continue;
     // post appetite carries the score; strength/finishing make it credible
     const sc = ((a.p.tend.post - 40) / 100) * (0.6 + a.p.attr.strength / 300 + a.p.attr.finishing / 500);
     if (sc > posterScore) { posterScore = sc; poster = a; }
@@ -584,7 +595,10 @@ function actionTick(s: GameState): void {
   const pick = s.rng.weighted([wPnr, wPost, wIso]);
 
   if (pick === 1 && poster) {
-    // send the big to the near block; the entry incentive lives in decideBall
+    // send the big to the near block; the entry incentive lives in decideBall.
+    // Self-post (poster === holder): he dribbles himself down instead —
+    // feederId === posterId marks it, and the working transition waits for
+    // ARRIVAL at the block rather than a catch (see the post branch above).
     const side = poster.pos.y < s.court.centerY ? 'post_l' : 'post_r';
     const spot = spacingSpots(s.court, attackedRim(s, s.poss.team)).find((x) => x.key === side)!;
     poster.spotKey = side;

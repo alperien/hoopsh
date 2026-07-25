@@ -233,7 +233,15 @@ function tickLive(s: GameState, dt: number): void {
   const holderAct = s.poss.action;
   const backingDown =
     holderAct?.kind === 'post' && holderAct.posterId === h.p.id && holderAct.phase === 'working';
-  if (backingDown) {
+  const walkingToBlock =
+    holderAct?.kind === 'post' && holderAct.posterId === h.p.id &&
+    holderAct.phase === 'posting' && holderAct.feederId === holderAct.posterId;
+  if (walkingToBlock) {
+    // self-post: dribble down to the block at a walk — the target was set by
+    // the action call; actionTick flips to 'working' on arrival
+    h.intent = 'spot';
+    h.sprinting = false;
+  } else if (backingDown) {
     // the backdown: slow power dribbles carve toward the rim — this is what
     // turns the ~8 ft entry catch into a ~4 ft finish (without it the post
     // was a passing station that never scored: 0.1 post shots/game). Creep

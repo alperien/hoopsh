@@ -297,14 +297,17 @@ export const defaultParams: SimParams = {
     basePaint: -0.3858,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.5228,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
-    baseThree: -0.83,   // ≈ 30% raw; skill + open looks lift the league to ~36%
+    baseThree: -0.89,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
     // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
     // means an elite finisher gains ~+12 percentage points at the rim.
     // Three's coef is LOWER than the others on purpose: real three-point
     // percentage has a narrow spread (league 36%, elite 42%) — shooters
     // separate themselves by VOLUME and difficulty, not by hit rate. SWEPT.
     skillCoef: 0.5,
-    skillCoefThree: 0.45,
+    // raised from 0.45 in the fidelity phase: at 0.45 a 99-rated shooter hit
+    // 31.8% on a heavy pull-up diet — BELOW league average. Elite spread
+    // widened; the sweep re-centers baseThree if the league mean drifts.
+    skillCoefThree: 0.62,
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
@@ -329,10 +332,13 @@ export const defaultParams: SimParams = {
     // shoot worse, which is why rotations matter. FEEL.
     fatigueCoef: -0.35,
     // Free throws are modeled in PERCENTAGE space, not logits — FT% has no
-    // contest and a tight, well-known distribution. Rating 50 → 71%,
-    // rating 100 → 83%, rating 0 → 59%. League average lands ~77%. REAL.
-    ftBasePct: 0.705,
-    ftSkillSwing: 0.12,
+    // REAL — rating 100 → ~85%+, rating 50 → 66%, rating 0 → ~47%: elite
+    // FT shooters live at 88-91%, bricklayers in the 50s. The swing was
+    // originally 0.12 (an 83% ceiling), which failed the fidelity harness's
+    // 99-rated benchmark at 79% — league mean is preserved by re-centering
+    // the base (the fidelity phase widens SPREADS; bands still own the mean).
+    ftBasePct: 0.66,
+    ftSkillSwing: 0.19,
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
