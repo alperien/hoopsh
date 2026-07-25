@@ -180,7 +180,7 @@ export function scoringWing(who: Named): Player {
     },
     tend: {
       shotRim: 62, shotMid: 42, shotThree: 52, pullUp: 58,
-      drive: 74, passOut: 42, iso: 60, post: 12,
+      drive: 74, passOut: 42, iso: 78, post: 12,
       offBallMotion: 58, crashOffReb: 22,
       gambleSteal: 38, foulAggr: 36, pushPace: 55
     }
