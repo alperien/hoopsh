@@ -68,8 +68,10 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
    stream — never reach into engine internals.
 5. **Actions are thin scaffolding.** Pick-and-roll sets up geometry (screen contact,
    stun, roll); the payoff (pull-up space, pocket pass) *emerges* from existing systems.
+   The post-up follows the same shape: the entry reuses the pass model, the double-team
+   reuses help defense, and the spray out of the double reuses kick-out machinery.
 6. **Staged surface is labeled.** Fields marked `STAGED` in `model/player.ts`
-   (`consistency`, `tend.iso/post/pushPace`) are defined but not yet consumed — each is
+   (`consistency`, `tend.pushPace`) are defined but not yet consumed — each is
    tied to a roadmap stage. Wiring one without its stage's mechanics adds unvalidated
    surface area.
 
@@ -104,10 +106,10 @@ invariant.**
 
 Simplified inbounds (timed reset, no inbound passer) · no timeouts · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
-no live-ball turnover pressure on drives (drive volume carries no strip/charge
-risk beyond the generic reach-in model — the diagnosed cause of the Stage 2
-calibration residual: FGA runs ~2-3% over band with steals low; a drive-strip
-model is the planned fix and feeds both) ·
+league assists run ~1 under the band floor (the sole Stage 2 calibration
+residual — 45/48 checks at 40 games x 3 seeds; unassisted post twos and
+live-ball strips replaced some assisted catch-and-shoot volume, and the
+underlying assisted-share gap below is the real fix) ·
 league assisted-share ~46-50% of makes vs NBA ~58% (no acceptance band constrains
 it yet; gates the floor-general 6+ apg level ratchet in archetypes.test.ts) ·
 man-to-man with drop coverage only · narration/viewer are frozen prototypes.
