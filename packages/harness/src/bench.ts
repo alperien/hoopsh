@@ -1,6 +1,15 @@
 /**
  * Performance benchmark — tracks the ≥1 game/sec/core budget from day one.
  *   npm run bench
+ *
+ * Two-phase deliberately: an untimed warmup loop lets Node's JIT (V8)
+ * finish tiering up simulateGame's hot paths BEFORE the clock starts, so
+ * the measured N=25 loop reflects steady-state throughput rather than
+ * being dragged down by first-run interpretation/deopt costs that no real
+ * usage (a sweep worker running thousands of games back-to-back) would
+ * actually pay per-game. Same fixed matchup for every iteration (from
+ * @hoopsh/data's sampleMatchup) — this measures raw sim speed, not
+ * roster-dependent variance, so only the seed changes game to game.
  */
 
 import { simulateGame } from '@hoopsh/engine';
@@ -8,7 +17,7 @@ import { sampleMatchup } from '@hoopsh/data';
 
 const { home, away } = sampleMatchup();
 
-// warmup (JIT)
+// warmup (JIT) — untimed on purpose, see file header.
 for (let i = 0; i < 3; i++) {
   simulateGame({ seed: `warm-${i}`, home, away, collectFrames: false });
 }

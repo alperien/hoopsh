@@ -3,8 +3,22 @@
  * drawn from modern NBA league-wide numbers (roughly 2015-2025 ranges, wide
  * enough to accept era variation, tight enough to catch a broken engine).
  *
+ * Provenance: these are REAL numbers — league-wide season averages a fan of
+ * the modern game would recognize — not derived from any hoopsh run. They
+ * are deliberately wide bands, not point targets: the goal is "does this
+ * still look like basketball," not "match the 2023-24 season exactly." A
+ * mechanics change that pushes a metric outside its band has broken
+ * something; a change that merely shifts it toward one edge within the band
+ * hasn't, and shouldn't be hand-chased (see AGENTS.md §4.4 — that's the
+ * sweep's job, not a manual nudge).
+ *
  * Calibration order (see ARCHITECTURE.md §5): pace → shot mix → efficiency →
- * fouls/rebounds/turnovers → archetype differentiation.
+ * fouls/rebounds/turnovers → archetype differentiation. This ordering
+ * matters because the metrics are coupled top-to-bottom: pace sets how many
+ * possessions there are to distribute across the shot-mix bands, shot mix
+ * sets how many attempts feed the efficiency bands, and so on. Tuning a
+ * downstream band before an upstream one is calibrated is chasing a moving
+ * target — always re-verify pace first when a bunch of bands drift together.
  */
 
 export interface Band {
@@ -12,15 +26,23 @@ export interface Band {
   label: string;
   lo: number;
   hi: number;
-  /** formatting hint */
+  /** formatting hint — when true, format as a percentage (×100, one decimal, "%" suffix) instead of a plain per-game count; see aggregate.ts#formatReport */
   pct?: boolean;
 }
 
+// One row per NBA_BANDS entry. `metric` is the LeagueAverages key it checks
+// (see aggregate.ts#finalize) — every metric here must have a matching key
+// there or evaluate() reads NaN and the band always fails loudly rather than
+// silently passing.
 export const NBA_BANDS: Band[] = [
   { metric: 'pace', label: 'Pace (poss/48 per team)', lo: 95, hi: 103.5 },
   { metric: 'pts', label: 'Points per game', lo: 105, hi: 122 },
   { metric: 'fga', label: 'FGA per game', lo: 84, hi: 92 },
   { metric: 'fgPct', label: 'FG%', lo: 0.44, hi: 0.495, pct: true },
+  // "3PA share of FGA" rather than a raw 3PA-per-game count on purpose: share
+  // is invariant to pace, so it isolates shot-SELECTION realism from tempo —
+  // a fast, high-volume team and a slow, low-volume one can both be
+  // realistic at the same share.
   { metric: 'tpaShare', label: '3PA share of FGA', lo: 0.33, hi: 0.45, pct: true },
   { metric: 'tpPct', label: '3P%', lo: 0.335, hi: 0.385, pct: true },
   { metric: 'fta', label: 'FTA per game', lo: 18, hi: 27 },

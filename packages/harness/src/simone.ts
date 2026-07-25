@@ -5,6 +5,13 @@
  * Team packs are validated JSON (see packages/data/rosters/ for examples).
  * Prints the final, a box score, notable play-by-play, and saves the replay
  * + full PBP to out/.
+ *
+ * This is the "single game, human-readable" entry point — contrast with
+ * cli.ts (many games, no play-by-play, just the acceptance-band report) and
+ * bench.ts (many games, no output at all except a timing summary). If you
+ * only remember one command in this package, this is usually the one:
+ * fast enough to eyeball after any engine change, and its (events)/FINAL
+ * line is the exact fingerprint AGENTS.md's docs-only verification checks.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';

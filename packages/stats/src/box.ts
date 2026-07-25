@@ -1,13 +1,42 @@
 /**
  * Fold a hoopsh event stream into a box score.
  *
- * Because the sim is the source of truth, nothing here is estimated:
- * minutes come from lineup timelines, possessions from possession events,
- * plus-minus from score deltas while on the floor.
+ * The folding philosophy, and why it matters: this module NEVER estimates a
+ * number it could instead derive exactly from the event stream (core/events.ts
+ * §1.3 of AGENTS.md — events are the only contract). Concretely:
+ *   - minutes come from lineup timelines (game_start + substitution events
+ *     tell us exactly who was on the floor every second — see accrueMinutes);
+ *   - possessions come from possession_end events (one authoritative count
+ *     per possession, guarded upstream by sim/possession.ts so it can never
+ *     double-fire — see PossessionEndEvent's doc comment);
+ *   - plus-minus comes from score deltas while a five-man unit is on the
+ *     floor (see scorePoints), not from any lineup-level bookkeeping the
+ *     engine keeps internally.
+ * A box score built this way is bit-for-bit reconstructible from the event
+ * stream alone, which is exactly what the invariant suite
+ * (packages/engine/test/invariants.test.ts) checks against adversarial games.
+ * If a number here can't be justified by "which events fired," it doesn't
+ * belong in this file — that's a sign the missing information belongs in
+ * the event stream instead (AGENTS.md §1.3), not that this module should
+ * start guessing.
+ *
+ * Known rough edge (documented, not silently patched — see AGENTS.md §7):
+ * `fastbreakPts` only accumulates from made field goals inside a possession
+ * that opened in transition; free throws scored inside that same possession
+ * are NOT added to it (see the 'free_throw' case). So a shooting foul drawn
+ * on a fast break undercounts that possession's fastbreak points by the FT
+ * makes. Left as-is here rather than "fixed" during a docs-only pass.
  */
 
 import type { GameEvent, ShotEvent, Team, TeamSide } from '@hoopsh/engine';
 
+/**
+ * Made/attempted shot counts split by court zone, per player. Zones mirror
+ * `geometry/court.ts`'s shot-zone classification exactly (each `shot` event
+ * carries the zone the engine already assigned) — this module doesn't
+ * re-derive "which zone was that shot in" from coordinates, it just folds
+ * the zone label the event already stamped.
+ */
 export interface ZoneLine {
   rim: { m: number; a: number };
   paint: { m: number; a: number };
@@ -15,6 +44,7 @@ export interface ZoneLine {
   three: { m: number; a: number };
 }
 
+/** One player's full box-score line for the game. `min` is display-rounded to 0.1 (see the rounding note in boxScore); every counting stat is an exact fold of the events that named this player. */
 export interface PlayerLine {
   id: string;
   name: string;
@@ -39,6 +69,7 @@ export interface PlayerLine {
   zones: ZoneLine;
 }
 
+/** One team's game totals. `poss` is the possession_end count (see boxScore); `fastbreakPts` follows the convention documented at the 'shot' case in boxScore — it does not include free throws. */
 export interface TeamTotals {
   side: TeamSide;
   teamId: string;
@@ -80,12 +111,18 @@ function emptyZones(): ZoneLine {
   };
 }
 
+/**
+ * Fold one game's event stream into a full box score.
+ *
+ * Single forward pass over `events` (they arrive in emission order, which is
+ * chronological on both time axes — see core/events.ts). Each event type
+ * updates exactly the counters it's authoritative for; nothing here looks
+ * ahead or reconstructs state the events didn't already carry.
+ */
 export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
   const lines = new Map<string, PlayerLine>();
-  const teamOf = new Map<string, TeamSide>();
   for (const side of [0, 1] as TeamSide[]) {
     for (const p of teams[side].players) {
-      teamOf.set(p.id, side);
       lines.set(p.id, {
         id: p.id, name: p.name, team: side,
         min: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
@@ -107,8 +144,31 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
   let finalScore: [number, number] = [0, 0];
   let periods = 0;
   const shotEvents: ShotEvent[] = [];
+  // Whether team `side`'s CURRENT possession started off a live turnover of
+  // the ball (steal / live-ball rebound) rather than a dead-ball inbound.
+  // Set once per possession_start, read on every made shot/FT inside that
+  // possession — see the fastbreakPts convention note at the shot case below.
   let transitionPoss: [boolean, boolean] = [false, false];
 
+  /**
+   * Credit every player currently on the floor with the elapsed time since
+   * the last event, in-place before processing the event at `t`.
+   *
+   * Keys on `t` (game-clock time), never `wt` (replay/wall-clock time) — see
+   * core/events.ts and AGENTS.md §1.5. `t` freezes during whistles and stops
+   * dead at the horn, which is exactly what "minutes played" means; `wt` keeps
+   * advancing through free-throw routines and dead-ball stoppages, so folding
+   * on `wt` would inflate every player's minutes by the game's total stoppage
+   * time. This is the box score's half of the two-time-axis discipline the
+   * engine enforces on the other side (movement.ts#advanceClock is the only
+   * writer of `t`) — mixing the axes here would reintroduce the same class of
+   * bug the engine guards against, just in stats instead of gameplay.
+   *
+   * Called once per event, before that event's own side effects, so the floor
+   * lineup used for the elapsed slice is always the one that was on the court
+   * DURING that slice (post-substitution processing would double-count into
+   * the wrong players).
+   */
   const accrueMinutes = (t: number): void => {
     const dt = t - lastT;
     if (dt > 0) {
@@ -122,6 +182,16 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
     lastT = t;
   };
 
+  /**
+   * Attribute `pts` scored by `side` to every player of both teams currently
+   * on the floor: +pts for the scoring team's five, -pts for the other five.
+   * This is the entire plus-minus model — no lineup-level running total is
+   * kept anywhere else, so a player's plusMinus is exactly "net score while
+   * I personally was on the court," derived the same way a scorer's table
+   * would compute it by hand. The invariant suite checks this sums to zero
+   * league-wide and equals final margin × 5 per team (score is zero-sum by
+   * construction: one side's + is the other's -).
+   */
   const scorePoints = (side: TeamSide, pts: number): void => {
     totals[side].pts += pts;
     for (const id of onCourt[side]) lines.get(id)!.plusMinus += pts;
@@ -145,10 +215,21 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
       case 'period_start': break;
       case 'period_end': periods += 1; break;
       case 'possession_start': {
+        // A possession counts as "transition" for fastbreak-point purposes
+        // when it began off a live turnover of the ball — a steal (opponent
+        // loses it mid-dribble/pass, we're already moving) or a live-ball
+        // defensive rebound (no dead-ball reset, offense can outrun the
+        // defense getting back) — as opposed to a 'tip' or dead-ball 'inbound'
+        // where the defense has time to set. This flag stays true for the
+        // WHOLE possession it opens, not just the immediate transition look;
+        // see the fastbreakPts convention note in the 'shot' case below.
         transitionPoss[e.team] = e.kind === 'steal' || e.kind === 'live_rebound';
         break;
       }
       case 'possession_end': {
+        // The only place poss increments — one authoritative count per
+        // possession, matching PossessionEndEvent's fire-exactly-once
+        // guarantee (sim/possession.ts endPossession guards this upstream).
         totals[e.team].poss += 1;
         break;
       }
@@ -167,6 +248,20 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
           line.pts += e.points;
           if (e.three) { line.tpm += 1; totals[e.team].tpm += 1; }
           scorePoints(e.team, e.points);
+          // CONVENTION, not a bug: fastbreakPts credits the made SHOT'S points
+          // whenever the possession it belongs to opened in transition
+          // (transitionPoss[team] was set true back at possession_start),
+          // even if this particular shot came after the initial burst of
+          // speed settled into a normal half-court look. hoopsh attributes
+          // "fastbreak points" to the possession's origin (steal / live
+          // rebound) rather than re-detecting transition tempo shot-by-shot.
+          // NOTE: free throws are NOT folded into fastbreakPts even when they
+          // happen inside a transitionPoss possession — see the free_throw
+          // case below, which updates pts/ftm but never touches fastbreakPts.
+          // That asymmetry (makes count, and-one/shooting-foul FTs from the
+          // same possession don't) is a real gap in this convention, not
+          // something intentionally chosen — see the file-level note for why
+          // it's called out rather than silently patched.
           if (transitionPoss[e.team]) totals[e.team].fastbreakPts += e.points;
           if (e.assist) {
             const passer = lines.get(e.assist);
@@ -183,6 +278,10 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
         break;
       }
       case 'free_throw': {
+        // Free throws never touch fastbreakPts (see the file-header note) —
+        // only points/ftm and plus-minus, same accounting as any other made
+        // point, just without the zones/fga bookkeeping a field-goal attempt
+        // carries (FTs aren't shots from a court zone).
         const line = lines.get(e.shooter)!;
         line.fta += 1;
         totals[e.team].fta += 1;
@@ -225,10 +324,30 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
     }
   }
 
+  // Display rounding: minutes are folded in exact seconds (`line.min` above
+  // is a running seconds total) and only quantized to 0.1-minute granularity
+  // here, once, at the end — matching how a broadcast box score prints
+  // minutes. Rounding EACH player independently means the team's five
+  // players' minutes can sum to up to ±0.3 away from the true
+  // gameMinutes × 5 (five independent roundings to the nearest 0.1 min can
+  // each drift up to 0.05 min, i.e. 3 seconds, before summing) — this is WHY
+  // the invariant test asserts minutes conservation with a 0.3-minute
+  // tolerance (packages/engine/test/invariants.test.ts) instead of exact
+  // equality. It's a display artifact of independent per-player rounding,
+  // not a bookkeeping leak — the pre-rounding seconds always sum exactly.
   for (const line of lines.values()) line.min = Math.round((line.min / 60) * 10) / 10;
 
   const totalPoss = totals[0].poss + totals[1].poss;
   const gameMinutes = Math.max(1, lastT / 60);
+  // Pace, in the standard NBA sense: possessions per team per 48-minute
+  // equivalent game. totalPoss/2 gives ONE team's raw possession count
+  // (both teams get essentially the same number of possessions per game,
+  // off by at most 1 depending who has the ball at the horn — hence
+  // averaging via the sum rather than picking totals[0] or totals[1]
+  // directly), then scaled from actual gameMinutes up/down to a 48-minute
+  // basis so a game that went to overtime is still comparable to a
+  // regulation-length one. `Math.max(1, …)` guards against a division by
+  // zero if this were ever called on a zero-length/empty event stream.
   const pace = (totalPoss / 2) * (48 / gameMinutes);
 
   return {
@@ -242,6 +361,13 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
 }
 
 // ---------------------------------------------------------------- derived
+//
+// Standard basketball-analytics formulas, applied uniformly whether the
+// caller passes team totals or (for the percentage stats) a single player's
+// line — both shapes satisfy the minimal structural types below. Each guards
+// its own zero-attempt case so an 0-for-0 shooter/team reads as 0% rather
+// than NaN (silent NaN propagation into a league-average report is exactly
+// the kind of bug this module exists to prevent — see the file header).
 
 export function fgPct(t: { fgm: number; fga: number }): number {
   return t.fga === 0 ? 0 : t.fgm / t.fga;
@@ -255,20 +381,47 @@ export function ftPct(t: { ftm: number; fta: number }): number {
   return t.fta === 0 ? 0 : t.ftm / t.fta;
 }
 
+/**
+ * True shooting percentage: points per "true shot attempt," where a true
+ * shot attempt weights free throws at 0.44 attempts instead of 1. REAL —
+ * 0.44 is the standard basketball-analytics constant approximating how many
+ * FT trips-of-two (or and-one/three-shot fouls) correspond to a single shot
+ * attempt-equivalent league-wide; it is not tuned by this codebase, just
+ * borrowed from how TS% is defined everywhere else in the sport. The `2 *`
+ * in the denominator converts the true-attempts count into the same
+ * points-per-shot scale as points itself (a "worth 2 points" normalization),
+ * so TS% reads as a percentage comparable to FG%/eFG% rather than points per
+ * attempt.
+ */
 export function tsPct(t: { pts: number; fga: number; fta: number }): number {
   const denom = 2 * (t.fga + 0.44 * t.fta);
   return denom === 0 ? 0 : t.pts / denom;
 }
 
+/**
+ * Effective field-goal percentage: FG% adjusted so a made three counts as
+ * 1.5 makes instead of 1, because it's worth 1.5× the points of a two. The
+ * `0.5 * t.tpm` bonus is exactly that extra half-make credit — REAL, the
+ * standard eFG% definition, not a hoopsh-specific tuning.
+ */
 export function efgPct(t: { fgm: number; tpm: number; fga: number }): number {
   return t.fga === 0 ? 0 : (t.fgm + 0.5 * t.tpm) / t.fga;
 }
 
+/** Offensive rating: points scored per 100 possessions — the standard efficiency measure, decoupled from pace so a fast team and a slow team can be compared on "how good were they with the ball" alone. */
 export function ortg(t: TeamTotals): number {
   return t.poss === 0 ? 0 : (t.pts / t.poss) * 100;
 }
 
-/** offensive rebound percentage for a side, given both team totals */
+/**
+ * Offensive rebound percentage for a side, given both team totals: own
+ * offensive boards over the total number of DEFENSIVE-rebound opportunities
+ * that were up for grabs, own-ORB + opp-DRB (every missed defended shot ends
+ * in exactly one of those two outcomes on the boxscore, ignoring the rarer
+ * live-ball scramble outcomes tracked elsewhere in the event stream). This
+ * is why the function needs BOTH sides' totals rather than just `own` —
+ * ORB% is a share of a contested pool, not own.orb over own.fga.
+ */
 export function orbPct(own: TeamTotals, opp: TeamTotals): number {
   const denom = own.orb + opp.drb;
   return denom === 0 ? 0 : own.orb / denom;

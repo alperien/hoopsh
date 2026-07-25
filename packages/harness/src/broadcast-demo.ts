@@ -5,6 +5,11 @@
  * color-commentary provider into a two-voice broadcast script, and saves it.
  * Swap TemplateColorProvider for an LLM-backed CommentaryProvider to upgrade
  * the color voice — the interface is identical (see packages/narration).
+ *
+ * Note the default seed here ("showcase-v2") differs from simone.ts's usual
+ * demo seed ("showcase-v3", the one AGENTS.md's docs-only fingerprint check
+ * pins) — they're independent demo scripts with their own default seeds, not
+ * meant to reproduce each other's output.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
