@@ -1,18 +1,51 @@
 /**
  * SimParams — THE calibration surface.
  *
- * Every probability constant in the engine lives here, in one flat, serializable
- * object. The harness tunes these against real-league acceptance bands; player
- * ratings act as modifiers *inside* the formulas that consume these values.
+ * Every tunable constant in the engine lives here, in one flat, serializable
+ * object. Nothing else in the engine may hardcode a behavioral constant: the
+ * harness sweeps THIS file (`npm run sweep`) against real NBA acceptance
+ * bands, so a number hidden elsewhere is a number the optimizer cannot reach.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * HOW TO READ THESE NUMBERS
+ *
+ * 1. LOGITS, not probabilities. Every outcome resolves as
+ *        P = sigmoid(base + Σ modifier terms)
+ *    so a `base*` value is log-odds. Handy conversions:
+ *        logit  -2.6  -1.0  -0.85  -0.5   0.0   +0.4  +0.6  +1.0
+ *        P       7%    27%    30%   38%   50%    60%   65%   73%
+ *    A base is calibrated to mean "league-average player, league-average
+ *    contest" — because rating influence enters as n(rating) ∈ [-1,+1] which
+ *    is exactly 0 at rating 50 (see model/derived.ts).
+ *
+ * 2. UNITS. Distances are FEET, times are SECONDS, speeds ft/s, rates are
+ *    per-tick or per-second as named. Nothing here is in pixels or meters.
+ *
+ * 3. UTILITIES (the `ai` block) are in EXPECTED POINTS. The decision layer
+ *    compares "expected points if I shoot now" against "expected points if we
+ *    keep working" (`continuationMax`), so a bias of 0.1 means "worth a tenth
+ *    of a point" — that is the scale to think in when nudging these.
+ *
+ * 4. PROVENANCE. Values fall into three kinds, and the comments say which:
+ *      • REAL — a measured basketball fact (free-throw % ≈ 71-78% league-wide).
+ *      • SWEPT — found by the optimizer hunting the 16 acceptance bands. These
+ *        carry odd precision (0.485, 1.449) precisely because a machine chose
+ *        them; do not "tidy" them without re-running the sweep.
+ *      • FEEL — hand-set for plausible motion/timing, not statistically
+ *        constrained (mostly the `move`, windup, and dead-ball timings).
+ *
+ * 5. COUPLING WARNING. These knobs are NOT independent. Foul rates feed shot
+ *    EV (a foul is worth free throws), which changes shot selection, which
+ *    changes pace and shot mix. Historical example: raising `foul.shootRim`
+ *    from 0.475 to 0.5 collapsed the league three-point rate from ~38% to 30%
+ *    because every player suddenly preferred driving. ALWAYS re-verify with
+ *    `npm run batch` / `npm run sweep` after touching anything here.
  *
  * Layering (see ARCHITECTURE.md §2):
  *   global SimParams  -> league realism (this file)
  *   rating curves     -> player differentiation (model/derived.ts)
  *   era packs (later) -> historical overrides on top
- *
- * All probabilities resolve through logistic models: P = sigmoid(base + Σ terms),
- * so "base" values below are logits, not probabilities.
- * sigmoid(0.62)≈0.65, sigmoid(-0.16)≈0.46, sigmoid(-0.55)≈0.37.
+ * ────────────────────────────────────────────────────────────────────────────
  */
 
 export interface SimParams {
@@ -226,94 +259,214 @@ export interface SimParams {
 }
 
 export const defaultParams: SimParams = {
+  // 10 Hz: fine enough that a 28 ft/s sprinter moves <3 ft per tick (smooth
+  // motion, accurate contests), coarse enough for ~6 games/sec. FEEL.
   tickHz: 10,
+  // one replay frame per 2 ticks = 5 Hz: the viewer interpolates between them,
+  // and it halves replay size (~1.8 MB/game). FEEL.
   frameEvery: 2,
 
   shot: {
-    baseRim: 0.574,
-    basePaint: -0.35,
-    baseMid: -0.61,
-    baseThree: -0.83,
+    // Zone bases — league-average shooter, league-average contest. SWEPT,
+    // and they land near real NBA zone efficiencies:
+    baseRim: 0.574,     // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    basePaint: -0.35,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    baseMid: -0.61,     // ≈ 35% mid-range before skill (NBA ~40%, but the
+                        //   distance penalty below and contest terms shift it)
+    baseThree: -0.83,   // ≈ 30% raw; skill + open looks lift the league to ~36%
+    // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
+    // means an elite finisher gains ~+12 percentage points at the rim.
+    // Three's coef is LOWER than the others on purpose: real three-point
+    // percentage has a narrow spread (league 36%, elite 42%) — shooters
+    // separate themselves by VOLUME and difficulty, not by hit rate. SWEPT.
     skillCoef: 0.5,
     skillCoefThree: 0.45,
+    // Defense's main lever: penalty per unit of contest above the midpoint.
+    // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
+    // versus a wide-open one. SWEPT.
     contestCoef: -1.125,
+    // The contest level that counts as "normal NBA defensive pressure" — the
+    // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
-    movePullUp: -0.22,
-    moveDrive: -0.08,
-    moveCutFinish: 0.18,
-    movePost: -0.05,
-    movePutback: 0.1,
-    moveHeave: -2.6,
+    // Shot-creation difficulty adjustments (logits). Ordering reflects real
+    // shot-quality data: unassisted self-created jumpers are hardest, cuts
+    // and putbacks are high-percentage because the defense is out of position.
+    movePullUp: -0.22,    // off the dribble, defender attached
+    moveDrive: -0.08,     // moving finish through traffic
+    moveCutFinish: 0.18,  // caught in stride at the rim (STAGED move type)
+    movePost: -0.05,      // STAGED until the post-up action lands
+    movePutback: 0.1,     // already inside, defense scrambling
+    moveHeave: -2.6,      // ≈ 7% — a desperation launch, correctly awful
+    // Size at the rim: per foot of standing-reach advantage over the
+    // contester. A 7-footer finishing over a guard gains real percentage;
+    // clamped to ±1.5 ft in the model so it can't run away. FEEL.
     rimHeightCoef: 0.35,
+    // Legs at empty (energy 0) vs fresh: ~-8 points of FG%. Tired players
+    // shoot worse, which is why rotations matter. FEEL.
     fatigueCoef: -0.35,
+    // Free throws are modeled in PERCENTAGE space, not logits — FT% has no
+    // contest and a tight, well-known distribution. Rating 50 → 71%,
+    // rating 100 → 83%, rating 0 → 59%. League average lands ~77%. REAL.
     ftBasePct: 0.71,
     ftSkillSwing: 0.12,
+    // Blocks are drawn only from shots that were ALREADY going to miss, so
+    // this reallocates misses to blocks rather than changing FG%. Keeps block
+    // totals tunable without disturbing efficiency calibration. SWEPT.
     blockBase: 0.3,
     blockSkillCoef: 0.5,
+    // WINDUP = seconds between "decides to shoot" and release. This is the
+    // engine's signature mechanic: it creates the catch-and-shoot vs closeout
+    // RACE, so a defender who is 8 ft away when the decision is made may
+    // arrive in time to contest. Real release times: ~0.4 s for a quick
+    // catch-and-shoot, ~0.55 s for a gathered pull-up. REAL-ish/FEEL.
     windupCatchShoot: 0.42,
     windupPullUp: 0.55,
     windupDrive: 0.45,
     windupCutFinish: 0.3,
-    windupPost: 0.65,
-    windupPutback: 0.25,
+    windupPost: 0.65,   // STAGED
+    windupPutback: 0.25, // shortest: already up in the air
     windupHeave: 0.3
   },
 
   foul: {
+    // Shooting-foul probability per attempt, at average contest and average
+    // drawFoul. Steeply zone-dependent, like real officiating: contact at the
+    // rim is whistled constantly, a jump shot almost never. These four values
+    // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
+    // the most coupling-sensitive knobs in the file (see header point 5).
     shootRim: 0.485,
     shootPaint: 0.165,
     shootMid: 0.05,
     shootThree: 0.012,
+    // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
+    // (smothered). Ties foul rate to defensive aggression. FEEL.
     contestFactor: 1.6,
+    // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
+    // yields the handful of reach-ins a real game produces. SWEPT.
     reachInPerSec: 0.0178,
+    // Charges per drive — deliberately rare; the offensive foul is the least
+    // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
+    // Loose-ball fouls per contested rebound scramble. SWEPT.
     looseBallPerReb: 0.0215
   },
 
   pass: {
+    // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
+    // mostly safe, and turnovers come from the lane-occlusion term below.
+    // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
     riskBase: -4.05,
+    // A defender sitting in the passing lane is the real turnover cause:
+    // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
+    // Vision/accuracy reduce risk; an elite passer roughly halves it. SWEPT.
     skillCoef: 0.75,
+    // Of failed passes, ~55% are stolen (credited to a defender) and the rest
+    // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
     stealShare: 0.546,
+    // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
+    // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45
   },
 
   reb: {
+    // The offense is at a structural disadvantage on the glass (it is
+    // retreating, the defense is between man and rim), so offensive rebound
+    // weights are discounted. This is THE lever on ORB% (band 20-30%). SWEPT.
     offWeightMult: 0.85,
+    // Where a miss lands: mean distance from the rim = base + coef × shot
+    // distance. Long shots produce long rebounds — a real, well-documented
+    // effect that makes guards' rebounds on three-heavy nights plausible.
     missDistBase: 4.22,
     missDistCoef: 0.16,
+    // How sharply proximity dominates the scramble: weight ∝ 1/(1+d)^power.
+    // Higher = rebounding is pure positioning; lower = size/skill matter more.
     proximityPower: 1.4,
+    // Chance an offensive rebound caught at the rim goes straight back up
+    // rather than resetting the offense. FEEL, and it produces the putback
+    // shot type. SWEPT-adjacent.
     putbackChance: 0.45
   },
 
   decide: {
+    // Seconds between ball-handler decision evaluations (jittered ±25% at the
+    // call site). Roughly "how often a player re-reads the floor" — the main
+    // lever on how many actions fit in a possession. SWEPT.
     intervalSec: 0.661,
+    // Softmax temperature over action utilities, in expected-points units.
+    // Low (0.06) = players nearly always take the best option; raising it adds
+    // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
     temperature: 0.064,
+    // THE MOST IMPORTANT NUMBER IN THE ENGINE.
+    // Expected points of "keep working this possession" with a full shot
+    // clock ≈ 1.45. Every shot decision is a comparison against this: shoot
+    // only if the look beats what the possession is otherwise worth. It sets
+    // pace, shot selection, and shot quality simultaneously — raise it and
+    // teams hunt better shots (slower, more efficient), lower it and they
+    // fire early. Real NBA offenses average ~1.10-1.15 points/possession;
+    // this sits above that because it represents the value of a possession
+    // being CONTINUED from a live-ball state, not its average outcome. SWEPT.
     continuationMax: 1.449,
+    // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
+    // decays slowly then falls off a cliff late — mirroring how real offenses
+    // stay patient until roughly 6-8 seconds remain. SWEPT.
     continuationCurve: 0.22,
+    // Inside this many shot-clock seconds, urgency scales the continuation
+    // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
+    // ERA KNOBS. Global multipliers on three-point and drive appetite —
+    // these are the intended hooks for era packs (a 1995 pack would set
+    // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
     threeAppetite: 0.94,
     driveAppetite: 1.15,
+    // Expected-points bonus for attacking before the defense is set. Drives
+    // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.12
   },
 
   move: {
+    // Nobody sprints in the half court: cruising speed is 72% of max.
+    // (Sprinting is reserved for transition, cuts, closeouts, crashes.) FEEL.
     halfcourtSpeedMult: 0.72,
+    // Soft body radius, ft — players push apart below this. Two shoulders'
+    // width; prevents overlap without simulating real collisions. FEEL.
     avoidRadiusFt: 2.4,
+    // On-ball defensive gap vs an average shooter, shrinking by up to
+    // defGapGravityFt against a maximum-gravity shooter. THIS PAIR IS WHY
+    // ELITE SHOOTERS CREATE SPACE: a defender must play Curry ~2.8 ft
+    // tighter, which is what a drive attacks. FEEL, high realism impact.
     defGapBaseFt: 5.0,
     defGapGravityFt: 2.2,
+    // A drive inside this distance from the rim summons help — the trigger
+    // that makes drive-and-kick emerge without scripting it. FEEL.
     helpTriggerFt: 15,
+    // Defenders within this radius affect a shot's contest level. Roughly the
+    // distance from which a closeout can still bother a shooter. FEEL.
     contestRadiusFt: 6.5
   },
 
   fatigue: {
+    // Energy units per second on the floor (scale 0-100). At ~0.055/s a
+    // starter drops from 100 toward the sub threshold over a ~6-8 minute
+    // stint — which is what produces realistic NBA rotation patterns. FEEL.
     drainPerSec: 0.055,
+    // Sprinting costs up to 2.4× the resting drain (scaled by actual speed).
+    // Note stamina rating also scales this in movement.ts. FEEL.
     sprintDrainMult: 2.4,
+    // Bench recovery is ~10× faster than drain: a few minutes off restores a
+    // player, matching real rotation cadence. FEEL.
     recoverPerSecBench: 0.55,
+    // Even at zero energy a player still moves at 82% speed — exhaustion
+    // degrades, it doesn't cripple. FEEL.
     minSpeedMult: 0.82
   },
 
   sub: {
+    // Sub OUT below this energy (starters get a +12 allowance in subs.ts so
+    // they play longer stints); a bench player must be at least `ready` to
+    // come in, preventing exhausted-for-exhausted swaps. Together these two
+    // numbers ARE the rotation pattern: ~8-9 man rotations, starters ~30-34
+    // minutes. FEEL, validated by the archetype minutes test.
     tiredThreshold: 62,
     readyThreshold: 88
   },
