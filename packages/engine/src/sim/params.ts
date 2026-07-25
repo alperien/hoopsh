@@ -273,7 +273,7 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.574,     // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    baseRim: 0.5824,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.35,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.61,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
@@ -288,7 +288,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.125,
+    contestCoef: -1.0697,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -352,7 +352,7 @@ export const defaultParams: SimParams = {
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0215
+    looseBallPerReb: 0.027
   },
 
   pass: {
@@ -422,7 +422,7 @@ export const defaultParams: SimParams = {
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
     threeAppetite: 0.94,
-    driveAppetite: 1.15,
+    driveAppetite: 0.9789,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.12
