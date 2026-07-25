@@ -12,7 +12,7 @@
 
 import { clamp } from '../core/rng.js';
 import { add, dist, lerp, scale } from '../core/vec.js';
-import { agent, emit, other, type Agent, type GameState } from './state.js';
+import { agent, emit, onCourt, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
 import { onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
@@ -143,16 +143,35 @@ export function attemptReachIn(s: GameState, dt: number): void {
   const holderId = s.ball.holderId;
   if (!holderId) return;
   const h = agent(s, holderId);
-  const d = onBallDefender(s, h);
+  // ball exposure: power dribbles show the ball. A live drive or post
+  // backdown multiplies the reach-in rate — this is the live-ball turnover
+  // pressure that keeps attack volume honest (without it, FGA ran 2-3% over
+  // band with steals pinned at the low edge; the Stage 2 diagnosis).
+  const act = s.poss.action;
+  const attacking =
+    s.t < h.driveUntil ||
+    (act?.kind === 'post' && act.posterId === h.p.id && act.phase === 'working');
+  let d = onBallDefender(s, h);
+  if (attacking) {
+    // in traffic ANY converging defender can get a hand in — a beaten on-ball
+    // man is behind the play, and the strip risk of attacking a crowd comes
+    // from the helpers meeting the ball at the gather
+    for (const cand of onCourt(s, other(h.side))) {
+      if (cand.fouledOut) continue;
+      if (!d || dist(cand.pos, h.pos) < dist(d.pos, h.pos)) d = cand;
+    }
+  }
   // 4.2ft: has to be tight, hand-check range — this is deliberately shorter
   // than onBallDefender's own 12ft "who guards him" radius, since a reach-in
   // needs the defender close enough to actually get a hand on the ball
-  if (!d || dist(d.pos, h.pos) > 4.2) return;
+  // (attacking widens it to gather range: strips happen at the gather)
+  if (!d || dist(d.pos, h.pos) > (attacking ? 5.5 : 4.2)) return;
   const F = s.params.foul;
   // per-tick probability from a per-second rate (reachInPerSec * dt), boosted
   // up to +85% for a maximum-gambleSteal defender — aggressive gamblers reach
   // in far more often than conservative ones, at the cost of the foul risk below
-  const p = F.reachInPerSec * dt * (1 + 0.85 * n(d.p.tend.gambleSteal));
+  const exposure = attacking ? F.attackReachInMult : 1;
+  const p = F.reachInPerSec * dt * exposure * (1 + 0.85 * n(d.p.tend.gambleSteal));
   if (!s.rng.chance(p)) return;
 
   // given a reach-in happens, stripP is the clean-strip share: 0.3 base, +0.3
@@ -161,7 +180,13 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // defender's hands beat a poor handler) — clamped to [0.08, 0.7] so even
   // the best/worst matchups still have a real chance either way, never a
   // guaranteed foul or guaranteed strip
-  const stripP = clamp(0.3 + 0.3 * n(d.p.attr.steal) - 0.22 * n(h.p.attr.ballHandle), 0.08, 0.7);
+  // attacking reach-ins skew cleaner: a poke at the gather is a strip far
+  // more often than a hack (without the skew, the attack-exposure tax paid
+  // out in fouls instead of the turnovers it exists to produce)
+  const stripP = clamp(
+    0.3 + (attacking ? F.attackStripBonus : 0) + 0.3 * n(d.p.attr.steal) - 0.22 * n(h.p.attr.ballHandle),
+    0.08, 0.85
+  );
   if (s.rng.chance(stripP)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'lost_ball', stolenBy: d.p.id

@@ -14,7 +14,7 @@ import {
   type Agent, type GameState
 } from './state.js';
 import { Rng } from '../core/rng.js';
-import { dist, len, lerp } from '../core/vec.js';
+import { add, dist, len, lerp, norm, scale, sub } from '../core/vec.js';
 import {
   decideBall, defenseTick, offenseOffBallTick, type BallAction
 } from './ai.js';
@@ -230,7 +230,25 @@ function tickLive(s: GameState, dt: number): void {
   }
 
   // holder movement intent
-  if (s.t < h.driveUntil) {
+  const holderAct = s.poss.action;
+  const backingDown =
+    holderAct?.kind === 'post' && holderAct.posterId === h.p.id && holderAct.phase === 'working';
+  if (backingDown) {
+    // the backdown: slow power dribbles carve toward the rim — this is what
+    // turns the ~8 ft entry catch into a ~4 ft finish (without it the post
+    // was a passing station that never scored: 0.1 post shots/game). Creep
+    // speed comes from the short target leash (~1.5 ft/s), and the advance
+    // stops at the restricted-area edge.
+    const dRim = dist(h.pos, rim);
+    if (dRim > 4.5) {
+      const step = scale(norm(sub(rim, h.pos)), 0.15);
+      h.target = add(h.pos, step);
+    } else {
+      h.target = { ...h.pos };
+    }
+    h.intent = 'spot';
+    h.sprinting = false;
+  } else if (s.t < h.driveUntil) {
     h.intent = 'drive';
     h.target = rim;
     h.sprinting = true;

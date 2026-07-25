@@ -46,7 +46,7 @@ export interface Agent {
   navUnderUntil: number;       // defender ducking under a screen (concedes pull-up space)
 }
 
-/** a running team action (pick-and-roll first; more actions join over time) */
+/** a running team action — pick-and-roll, post-up, or isolation */
 export interface PnrAction {
   kind: 'pnr';
   handlerId: string;
@@ -57,6 +57,27 @@ export interface PnrAction {
   /** t when the screen connected (drives the set -> finishing transition) */
   setAt: number;
 }
+
+export interface PostAction {
+  kind: 'post';
+  /** the big working the block */
+  posterId: string;
+  /** holder when the action was called (informational — any current holder may enter) */
+  feederId: string;
+  /** posting: establishing position, waiting on the entry; working: has the ball on the block */
+  phase: 'posting' | 'working';
+  until: number;
+  /** t of the entry catch (drives the backdown window in decideBall) */
+  postedAt: number;
+}
+
+export interface IsoAction {
+  kind: 'iso';
+  handlerId: string;
+  until: number;
+}
+
+export type TeamAction = PnrAction | PostAction | IsoAction;
 
 export interface PendingShot {
   shooterId: string;
@@ -132,7 +153,7 @@ export interface Possession {
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
   /** the running set action, if any (e.g. an active pick-and-roll) */
-  action: PnrAction | null;
+  action: TeamAction | null;
   /** guard: possession_end has been emitted for this possession */
   ended: boolean;
 }

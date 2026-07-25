@@ -180,7 +180,7 @@ export interface PossessionEndEvent extends Base {
  * never produces a `pass` event). `kind` — 'normal': a standard halfcourt
  * pass; 'kickout': a pass out of a live drive (sim/ai.ts decideBall labels
  * any pass while `driving` a kickout); 'outlet': a pass during transition
- * phase (fast break ball movement); 'entry': reserved for post-entry passes
+ * phase (fast break ball movement); 'entry': the feed to a posted big (post action)
  * — the type exists but no current AI code path assigns it (it awaits the
  * post-up action; see the tend.post STAGED note in model/player.ts).
  */

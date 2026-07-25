@@ -101,6 +101,10 @@ export interface SimParams {
     contestFactor: number;
     /** chance per second of on-ball pressure that a reach-in occurs */
     reachInPerSec: number;
+    /** reach-in rate multiplier while the holder is driving or backing down */
+    attackReachInMult: number;
+    /** added clean-strip share on attacking reach-ins (pokes at the gather) */
+    attackStripBonus: number;
     /** offensive foul (charge) chance per drive */
     chargePerDrive: number;
     /** loose-ball foul chance per contested rebound */
@@ -263,6 +267,18 @@ export interface SimParams {
     pnrMinShotClock: number;     // don't start an action later than this
     pnrWaitBoost: number;        // handler hold-utility boost while the screen arrives
     pnrMaxScreenDistFt: number;  // screener candidates farther than this are skipped
+    // post-up action
+    postCallShare: number;       // weight of the post option in the action-call roll
+    postCallCut: number;         // minimum poster score to consider an entry
+    postEntryBonus: number;      // pass-utility bonus for feeding a settled poster
+    postWorkBoost: number;       // hold bonus during the backdown window
+    postBackdownSec: number;     // how long the poster works before shoot-or-spray
+    postShotBonus: number;       // shoot bias once the backdown is worked (vs single coverage)
+    postDurationSec: number;     // action lifetime (posting + working)
+    // isolation action
+    isoCallShare: number;        // weight of the iso option in the action-call roll
+    isoDriveBonus: number;       // attack commitment while the iso is live
+    isoDurationSec: number;      // iso window length
   };
 }
 
@@ -302,7 +318,7 @@ export const defaultParams: SimParams = {
     movePullUp: -0.22,    // off the dribble, defender attached
     moveDrive: -0.08,     // moving finish through traffic
     moveCutFinish: 0.18,  // caught in stride at the rim (STAGED move type)
-    movePost: -0.05,      // STAGED until the post-up action lands
+    movePost: -0.05,      // FEEL — back-to-basket craft costs a touch vs a clean look
     movePutback: 0.1,     // already inside, defense scrambling
     moveHeave: -2.6,      // ≈ 7% — a desperation launch, correctly awful
     // Size at the rim: per foot of standing-reach advantage over the
@@ -342,8 +358,8 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.442,
-    shootPaint: 0.1386,
+    shootRim: 0.4,
+    shootPaint: 0.118,
     shootMid: 0.05,
     shootThree: 0.012,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
@@ -352,6 +368,10 @@ export const defaultParams: SimParams = {
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
     reachInPerSec: 0.0161,
+    // FEEL — power dribbles expose the ball; attack volume pays a live-ball
+    // turnover tax (drives and post backdowns)
+    attackReachInMult: 3.4,
+    attackStripBonus: 0.25,
     // Charges per drive — deliberately rare; the offensive foul is the least
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
@@ -363,7 +383,7 @@ export const defaultParams: SimParams = {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -3.98,
+    riskBase: -4.02,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -556,7 +576,7 @@ export const defaultParams: SimParams = {
     // FEEL — open-three catch-and-shoot decisiveness at full openness (linear
     // to zero at contest 0.5, arc only); the make model already favors the
     // catch rhythm, this makes the DECISION match it
-    catchShootBonus: 0.13,
+    catchShootBonus: 0.18,
     pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
     pnrStunOverSec: 0.65,
@@ -568,7 +588,24 @@ export const defaultParams: SimParams = {
     pnrDriveBonus: 0.2,
     pnrMinShotClock: 8,
     pnrWaitBoost: 0.3,
-    pnrMaxScreenDistFt: 26
+    pnrMaxScreenDistFt: 26,
+    // FEEL — post/iso action weights and windows; the post score is carried by
+    // tend.post so a team without a post threat simply never rolls it
+    postCallShare: 1.0,
+    postCallCut: 0.1,
+    postEntryBonus: 0.22,
+    postWorkBoost: 0.2,
+    postBackdownSec: 2.2,
+    // 7s covers: establish position (~1s) + wait for the entry (~1-2s) +
+    // the 2.2s backdown + at least two shoot-or-spray decision windows.
+    // At 4.5s the action expired mid-backdown and post scoring never fired.
+    postDurationSec: 7.0,
+    // FEEL — once position is carved out the turnaround is the default plan;
+    // the spray still wins whenever the double spikes a teammate open
+    postShotBonus: 0.3,
+    isoCallShare: 0.7,
+    isoDriveBonus: 0.15,
+    isoDurationSec: 3.0
   }
 };
 

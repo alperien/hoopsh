@@ -144,7 +144,7 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  *  - `short_roll`: the "short roll" area, roughly the front of the rim at
  *    mid-paint depth — where a screener who rolled to the basket but got cut
  *    off pulls up short to become a passing-window threat instead of
- *    forcing the finish (ai.ts pnrTick routes a rolling screener here via
+ *    forcing the finish (ai.ts actionTick routes a rolling screener here via
  *    the cut machinery rather than assigning it directly).
  */
 export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] {
@@ -162,6 +162,9 @@ export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] 
     { key: 'corner_l', pos: { x: baselineX + dir * 4, y: cy - 21.5 } },
     { key: 'corner_r', pos: { x: baselineX + dir * 4, y: cy + 21.5 } },
     { key: 'dunker', pos: spot(4, cy + 9) },
+    // low blocks — post-up real estate, ~first hash beside the key
+    { key: 'post_l', pos: spot(3.5, cy - 6.5) },
+    { key: 'post_r', pos: spot(3.5, cy + 6.5) },
     { key: 'elbow_l', pos: spot(16, cy - 8) },
     { key: 'elbow_r', pos: spot(16, cy + 8) },
     { key: 'short_roll', pos: spot(11, cy) }

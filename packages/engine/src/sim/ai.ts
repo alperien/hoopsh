@@ -16,7 +16,7 @@
  *
  * Three layers live here, in order:
  *   1. decideBall + helpers  — what the ball-handler does
- *   2. assignSpots / offenseOffBallTick / pnrTick — what the other four do
+ *   2. assignSpots / offenseOffBallTick / actionTick — what the other four do
  *   3. assignMatchups / defenseTick — what the defense does
  *
  * The most realism-critical relationships in the file:
@@ -49,7 +49,7 @@ export type BallAction =
 /** the ball-handler's decision — evaluated every params.decide.intervalSec */
 /**
  * Creation score — THE usage-hierarchy definition. Used by both ball routing
- * (decideBall's re-initiation pull) and action initiation (pnrTick's rank
+ * (decideBall's re-initiation pull) and action initiation (actionTick's rank
  * gate), one definition so "who should run the offense" never disagrees
  * between deciding to pass and deciding to call a screen.
  */
@@ -90,8 +90,13 @@ export function decideBall(s: GameState): BallAction {
   // rise up immediately off the catch, or it becomes a (harder) pull-up.
   const driving = s.t < h.driveUntil;
   const sinceCatch = s.t - h.catchT;
+  const act0 = s.poss.action;
+  // working the block: shots from a live post-up resolve as post moves
+  // (windupPost + movePost in the shot model) instead of hurried pull-ups
+  const postingUp = act0?.kind === 'post' && act0.posterId === h.p.id && act0.phase === 'working';
   const shotMove: BallAction['moveType'] & string =
-    driving && distToRim < 12 ? 'drive'
+    postingUp && distToRim < 14 ? 'post'
+      : driving && distToRim < 12 ? 'drive'
       : sinceCatch < 0.9 && h.dribblesSinceCatch === 0 ? 'catch_shoot'
       : 'pull_up';
 
@@ -100,7 +105,8 @@ export function decideBall(s: GameState): BallAction {
   const W = s.params.shot;
   const windup =
     shotMove === 'catch_shoot' ? W.windupCatchShoot :
-    shotMove === 'pull_up' ? W.windupPullUp : W.windupDrive;
+    shotMove === 'pull_up' ? W.windupPullUp :
+    shotMove === 'post' ? W.windupPost : W.windupDrive;
   const contest = anticipatedContest(s, h, h.pos, windup);
   const myShot = shotEV(s, h, h.pos, shotMove, contest);
 
@@ -122,8 +128,18 @@ export function decideBall(s: GameState): BallAction {
   // three-point zone only, because the drilled catch-and-shoot is a JUMP-SHOT
   // concept — paint catches are finishes the cut machinery already values,
   // and applying the bonus there flooded the rim and sank 3PA share to 26%.
+  // ...and scaled by the shooter's own three-point appetite, with a hard
+  // floor at tendency 25: the green light belongs to shooters and a true
+  // non-shooter never has it. A sagged-off big is OPEN precisely because the
+  // defense wants him shooting — unscaled, he obliged (bigs chucked ~9% of
+  // their FGA from deep and league 3P% sagged).
   if (shotMove === 'catch_shoot' && myShot.zone === 'three') {
-    shootBias += A.catchShootBonus * clamp((0.5 - contest.level) / 0.5, 0, 1);
+    shootBias += A.catchShootBonus * clamp((0.5 - contest.level) / 0.5, 0, 1) * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+  }
+  // the worked post move: after the backdown the turnaround is the plan —
+  // without this the spray won 8:1 and post scoring never materialized
+  if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
+    shootBias += A.postShotBonus;
   }
   // shooting over a contest is a bad habit; smart players pass out of it
   const contestBrake =
@@ -145,6 +161,12 @@ export function decideBall(s: GameState): BallAction {
     const risk = passRisk(s, h, m);
     const cutting = s.t < m.cutUntil;
     const cutterBonus = cutting ? A.cutterBonus : 0;
+    // a big posted and settled on the block wants the entry — the feed is the
+    // whole point of the action (any current holder may throw it)
+    const entryTarget =
+      act0?.kind === 'post' && act0.phase === 'posting' &&
+      m.p.id === act0.posterId && dist(m.pos, m.target) < 4;
+    const entryBonus = entryTarget ? A.postEntryBonus : 0;
     const swingBonus =
       A.swingBase +
       ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
@@ -160,13 +182,15 @@ export function decideBall(s: GameState): BallAction {
       (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * (sc / full);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + cutterBonus + swingBonus + playmakerPull
+      + cutterBonus + swingBonus + playmakerPull + entryBonus
       - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,
         u,
-        passKind: driving ? 'kickout' : s.poss.phase === 'transition' ? 'outlet' : 'normal'
+        passKind: entryTarget ? 'entry'
+          : driving ? 'kickout'
+          : s.poss.phase === 'transition' ? 'outlet' : 'normal'
       };
     }
   }
@@ -237,9 +261,12 @@ export function decideBall(s: GameState): BallAction {
     uDrive = handling * (driveDiff >= 0 ? driveDiff : driveDiff * A.driveAbortDiscount)
       + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
     // attacking off a live screen: the whole point of calling for it
-    const act = s.poss.action;
-    if (act && act.handlerId === h.p.id && act.phase !== 'coming') {
+    if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase !== 'coming') {
       uDrive += A.pnrDriveBonus;
+    }
+    // a cleared side is an invitation — the iso call is a commitment to attack
+    if (act0?.kind === 'iso' && act0.handlerId === h.p.id) {
+      uDrive += A.isoDriveBonus;
     }
   }
 
@@ -256,9 +283,14 @@ export function decideBall(s: GameState): BallAction {
   if (driving) uHold += A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, 1);
   // a screen is on its way — wait for it instead of swinging the ball away
   // (audit: without this, the handler passed before 93% of screens arrived)
-  const pnrAct = s.poss.action;
-  if (pnrAct && pnrAct.handlerId === h.p.id && pnrAct.phase === 'coming') {
+  if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase === 'coming') {
     uHold += A.pnrWaitBoost;
+  }
+  // the backdown: a post player who just caught the entry works his position
+  // for a beat before the shoot-or-spray decision (same shape as the drive
+  // hold — the advantage is still maturing while he carves out space)
+  if (postingUp && s.t - act0.postedAt < A.postBackdownSec) {
+    uHold += A.postWorkBoost;
   }
 
   // SOFTMAX over utilities: usually the best action, sometimes not. The
@@ -409,11 +441,40 @@ export function assignSpots(s: GameState, side: TeamSide): void {
  * pocket pass to the roller, the pop three) EMERGES from existing systems:
  * screen stun feeds the contest model, the roll reuses cut machinery (and so
  * earns the cutter pass bonus), the pop reuses spacing spots.
+ *
+ * Post-ups and isolations run through the same slot: the post entry reuses
+ * the pass model (with an entry incentive), the double-team reuses help
+ * defense, and the spray out of the double reuses kick-out machinery — the
+ * post becomes a passing hub for free. The iso is pure decision-layer: a
+ * commitment window that boosts the handler's attack.
  */
-function pnrTick(s: GameState): void {
+function actionTick(s: GameState): void {
   const A = s.params.ai;
   const act = s.poss.action;
   const holderId = s.ball.holderId;
+
+  if (act && act.kind === 'post') {
+    const poster = agent(s, act.posterId);
+    // gave it up from the block (the spray) or lost it — the action is over;
+    // during 'posting' a null holder is normal (the entry is in flight)
+    const sprayed = act.phase === 'working' && holderId !== act.posterId;
+    if (s.t > act.until || sprayed || !poster.onCourt || poster.fouledOut) {
+      s.poss.action = null;
+      return;
+    }
+    if (act.phase === 'posting' && holderId === act.posterId) {
+      act.phase = 'working'; // entry caught — the backdown clock starts
+      act.postedAt = s.t;
+    }
+    return;
+  }
+  if (act && act.kind === 'iso') {
+    const handler = agent(s, act.handlerId);
+    if (s.t > act.until || holderId !== act.handlerId || !handler.onCourt || handler.fouledOut) {
+      s.poss.action = null;
+    }
+    return;
+  }
 
   if (act) {
     const screener = agent(s, act.screenerId);
@@ -498,6 +559,40 @@ function pnrTick(s: GameState): void {
       - travel / 40;
     if (score > bestScore) { bestScore = score; best = a; }
   }
+  // the call: screen, post entry, or a clear-out. One weighted roll across
+  // whatever this lineup actually offers — a team without a post threat never
+  // posts, a low-iso handler never clears out (identity through tendencies).
+  let poster: Agent | null = null;
+  let posterScore = 0;
+  for (const a of onCourt(s, s.poss.team)) {
+    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+    // post appetite carries the score; strength/finishing make it credible
+    const sc = ((a.p.tend.post - 40) / 100) * (0.6 + a.p.attr.strength / 300 + a.p.attr.finishing / 500);
+    if (sc > posterScore) { posterScore = sc; poster = a; }
+  }
+  const isoScore = Math.max(0, (h.p.tend.iso - 50) / 100);
+  const wPnr = best ? 1 : 0;
+  const wPost = poster && posterScore > A.postCallCut ? posterScore * A.postCallShare : 0;
+  const wIso = isoScore * A.isoCallShare;
+  if (wPnr + wPost + wIso <= 0) return;
+  const pick = s.rng.weighted([wPnr, wPost, wIso]);
+
+  if (pick === 1 && poster) {
+    // send the big to the near block; the entry incentive lives in decideBall
+    const side = poster.pos.y < s.court.centerY ? 'post_l' : 'post_r';
+    const spot = spacingSpots(s.court, attackedRim(s, s.poss.team)).find((x) => x.key === side)!;
+    poster.spotKey = side;
+    poster.target = { ...spot.pos };
+    s.poss.action = {
+      kind: 'post', posterId: poster.p.id, feederId: holderId,
+      phase: 'posting', until: s.t + A.postDurationSec, postedAt: 0
+    };
+    return;
+  }
+  if (pick === 2) {
+    s.poss.action = { kind: 'iso', handlerId: holderId, until: s.t + A.isoDurationSec };
+    return;
+  }
   if (!best) return;
   s.poss.action = {
     kind: 'pnr',
@@ -516,14 +611,21 @@ export function offenseOffBallTick(s: GameState): void {
   const spots = spacingSpots(s.court, rim);
   const byKey = new Map(spots.map((x) => [x.key, x.pos]));
 
-  pnrTick(s);
+  actionTick(s);
   const act = s.poss.action;
 
   for (const a of onCourt(s, side)) {
     if (a.fouledOut || a.p.id === s.ball.holderId) continue;
 
+    // a posting big holds the block — no cuts, no relocations, just position
+    if (act?.kind === 'post' && a.p.id === act.posterId) {
+      a.intent = 'spot';
+      a.sprinting = false;
+      continue;
+    }
+
     // screener on his way to set (or holding) the screen
-    if (act && a.p.id === act.screenerId && act.phase !== 'finishing') {
+    if (act?.kind === 'pnr' && a.p.id === act.screenerId && act.phase !== 'finishing') {
       const handler = agent(s, act.handlerId);
       const onBall = assignedDefender(s, handler);
       // set up beside the defender on the handler's side; once there, PLANT
@@ -594,9 +696,15 @@ export function defenseTick(s: GameState): void {
   const helpAggr = s.teams[defSide].tactics.helpAggr / 100;
   const A = s.params.ai;
 
-  // is a help rotation warranted?
+  // is a help rotation warranted? Drives trigger it, and so does a live
+  // post-up being worked on the block — the double-team is what turns the
+  // post into a passing hub (help leaves a shooter; the poster sprays)
+  const actD = s.poss.action;
+  const postWorking =
+    holder !== null && actD?.kind === 'post' &&
+    actD.posterId === holder.p.id && actD.phase === 'working';
   let helper: Agent | null = null;
-  if (holder && s.t < holder.driveUntil) {
+  if (holder && (s.t < holder.driveUntil || postWorking)) {
     const dRim = dist(holder.pos, rim);
     if (dRim < s.params.move.helpTriggerFt) {
       // nearest weak-side defender whose man has the least gravity
@@ -632,7 +740,7 @@ export function defenseTick(s: GameState): void {
 
     // pick-and-roll drop coverage: the screener's defender protects the paint
     const act = s.poss.action;
-    if (act && act.phase !== 'coming' && man.p.id === act.screenerId && holder) {
+    if (act && act.kind === 'pnr' && act.phase !== 'coming' && man.p.id === act.screenerId && holder) {
       const dRim = Math.max(1, dist(holder.pos, rim));
       d.target = lerp(rim, holder.pos, clamp(A.pnrDropDepthFt / dRim, 0, 0.85));
       continue;

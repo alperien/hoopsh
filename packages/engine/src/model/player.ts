@@ -16,7 +16,7 @@ export interface Attributes {
   speed: number;
   /** acceleration off a stop/cut (model/derived.ts acceleration); governs how fast velocity can change each tick in movement.ts */
   accel: number;
-  /** screen-setting punch (ai.ts pnrTick "fight" term) and rebound box-out leverage alongside boxout/offReb/defReb in resolve.ts resolveRebound */
+  /** screen-setting punch (ai.ts actionTick "fight" term) and rebound box-out leverage alongside boxout/offReb/defReb in resolve.ts resolveRebound */
   strength: number;
   /** jump — tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound; also the height-advantage term for shooting over a defender */
   vertical: number;
@@ -86,9 +86,9 @@ export interface Tendencies {
   drive: number;
   /** appetite for giving the ball up rather than creating — ai.ts decideBall swingBonus (intrinsic ball-movement value on top of the receiving teammate's shot EV) */
   passOut: number;
-  /** STAGED — consumed when the iso action lands (Stage 2); see docs/INTERNALS.md */
+  /** appetite for clearing out one-on-one — ai.ts actionTick iso-call weight; a live iso boosts the handler's attack (ai.isoDriveBonus) */
   iso: number;
-  /** STAGED — consumed when the post-up action lands (Stage 2); see docs/INTERNALS.md */
+  /** appetite for backing a man down — ai.ts actionTick post-call score (with strength/finishing); a posted big draws the entry, works the block, and sprays out of the double */
   post: number;
 
   // off-ball behavior
