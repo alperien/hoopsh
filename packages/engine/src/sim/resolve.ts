@@ -201,7 +201,14 @@ export function shotEV(
 
 export function freeThrowP(s: GameState, shooter: Agent): number {
   const P = s.params.shot;
-  return clamp(P.ftBasePct + P.ftSkillSwing * n(shooter.p.attr.freeThrow), 0.3, 0.98);
+  // linear base + swing, plus an elite kick above rating 80 (n > 0.6): a
+  // purely linear model provably cannot express the league mean (~78%) and
+  // the elite tail (88-91%) at once — the volume-weighted league shooter is
+  // already rating ~85+, so the tail needs its own curvature (fidelity
+  // incident: a 99-rated benchmark capped at 83%).
+  const nv = n(shooter.p.attr.freeThrow);
+  const elite = Math.max(0, (nv - 0.6) / 0.4) * P.ftEliteKick;
+  return clamp(P.ftBasePct + P.ftSkillSwing * nv + elite, 0.3, 0.98);
 }
 
 /** chance a rim/paint miss is credited as a block by the best contester */

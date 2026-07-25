@@ -679,11 +679,16 @@ export function offenseOffBallTick(s: GameState): void {
       continue;
     }
 
-    // occasionally trigger a cut for motion-heavy players when the lane is open
+    // occasionally trigger a cut for motion-heavy players when the lane is
+    // open. A DENIED man cuts far more: his defender is top-locked on the
+    // ball side (see defenseTick denial), which is exactly when the backdoor
+    // is there — the classic counter, and what keeps an all-time shooter's
+    // offense alive when the catch is taken away.
+    const denyCutMult = gravity(a) > s.params.ai.denyGravityCut ? s.params.ai.denyBackdoorMult : 1;
     if (
       s.poss.phase === 'halfcourt' &&
       a.spotKey !== 'dunker' &&
-      s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale) &&
+      s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale * denyCutMult) &&
       // only cut from outside 16 ft — a cut needs runway to be worth anything
       dist(a.pos, rim) > 16
     ) {
@@ -807,6 +812,19 @@ export function defenseTick(s: GameState): void {
 
     // off-ball: guard the man-rim line, sagging with ball distance & low gravity
     const g = gravity(man);
+    // DENIAL: an all-time shooter doesn't get guarded, he gets denied — above
+    // the gravity threshold the defender shades onto the man-BALL line (top-
+    // lock) to take the catch away instead of protecting the drive line.
+    // This is what actually caps an elite shooter's volume in real basketball:
+    // the fidelity harness's 0.98-gravity benchmark took 22+ threes because
+    // openness-priced passes kept finding him — denial prices the pass lane
+    // itself (passRisk's lane occlusion reads the defender's position, so
+    // feeds to a denied man become genuinely riskier and teammates benefit).
+    if (g > A.denyGravityCut && s.ball.holderId && s.ball.holderId !== man.p.id) {
+      const toBall = norm(sub(s.ball.pos, man.pos));
+      d.target = add(man.pos, scale(toBall, A.denyDistFt));
+      continue;
+    }
     const guardDist = A.guardDistBase + (1 - g) * A.guardDistOpen;
     const manToRim = norm(sub(rim, man.pos));
     // Stand on the man-rim line at guardDist — but never more than halfway to

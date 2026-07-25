@@ -78,6 +78,7 @@ export interface SimParams {
     /** free throws: percentage-space base at rating 50 and swing to rating 100 */
     ftBasePct: number;
     ftSkillSwing: number;
+    ftEliteKick: number;         // extra FT% above rating 80, full at 100 (elite tail curvature)
     /** chance a rim/paint miss with a strong interior contest is a block */
     blockBase: number;
     blockSkillCoef: number;
@@ -243,6 +244,9 @@ export interface SimParams {
     sagRangeFt: number;
     sagMax: number;
     sagGravityCut: number;       // gravity resistance to sagging
+    denyGravityCut: number;      // above this gravity, deny the catch (top-lock)
+    denyDistFt: number;          // how far up the man-ball line the denier shades
+    denyBackdoorMult: number;    // cut-rate multiplier for a denied man (the counter)
     helpSpotPull: number;        // help spot pull toward the ball
     helperGravityWeight: number; // reluctance to help off shooters
     closeoutSlackFt: number;     // gap slack before a closeout sprint
@@ -339,8 +343,11 @@ export const defaultParams: SimParams = {
     // originally 0.12 (an 83% ceiling), which failed the fidelity harness's
     // 99-rated benchmark at 79% — league mean is preserved by re-centering
     // the base (the fidelity phase widens SPREADS; bands still own the mean).
-    ftBasePct: 0.66,
+    ftBasePct: 0.652,
     ftSkillSwing: 0.19,
+    // REAL — the elite tail: +5.5% at rating 100, zero below 80; rating 99
+    // lands ~90%, matching the 88-91% real elite band
+    ftEliteKick: 0.055,
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
@@ -558,6 +565,11 @@ export const defaultParams: SimParams = {
     sagRangeFt: 34,
     sagMax: 0.6,
     sagGravityCut: 0.75,
+    // FEEL — only all-time shooters get face-guarded; 0.88 gravity needs
+    // roughly a 90+ three rating with a heavy three diet
+    denyGravityCut: 0.88,
+    denyDistFt: 2.2,
+    denyBackdoorMult: 3.5,       // FEEL — denial invites the backdoor
     helpSpotPull: 0.28,
     helperGravityWeight: 26,
     closeoutSlackFt: 1.5,

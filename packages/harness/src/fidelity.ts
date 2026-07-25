@@ -42,7 +42,7 @@ const curry: Player = {
     decisions: 90, consistency: 85
   },
   tend: {
-    shotRim: 26, shotMid: 20, shotThree: 96, pullUp: 88,
+    shotRim: 26, shotMid: 20, shotThree: 86, pullUp: 66,
     drive: 38, passOut: 62, iso: 55, post: 3,
     offBallMotion: 96, crashOffReb: 8,
     gambleSteal: 55, foulAggr: 25, pushPace: 70
