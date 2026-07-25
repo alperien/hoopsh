@@ -342,3 +342,36 @@ export function benchScorer(who: Named): Player {
     }
   });
 }
+
+/**
+ * Modern floor-spacing center — a big who stretches the defense beyond
+ * the arc instead of posting up. Defining ratings: three=76 + freeThrow=82
+ * (a legitimate outside shooter, distinct from rimRunner's 12/52 — this
+ * archetype plays in space, not the paint) paired with shotThree=78 (heavily
+ * prefers the three-point line, unlike rimRunner's shotThree=1) and gravity ≈
+ * 0.77 (calculated as 0.65×76/100 + 0.35×78/100; exceeds the 0.42 threshold
+ * in ai.ts#assignSpots so defenses cannot park him at the dunker spot). Post
+ * tendency=8 and midRange=36 say this is not a back-to-basket big; finishing=80
+ * and strength=88 keep him a legitimate rim threat when defenders sag. Interior
+ * defense stays elite (84) but block=72 is lower than rimRunner's 90 — this
+ * player prioritizes shooting over rim protection, the modern trade-off.
+ */
+export function stretchBig(who: Named): Player {
+  return makePlayer({
+    pos: 'C', heightIn: 84, weightLb: 265, ...who,
+    attr: {
+      speed: 66, accel: 62, lateral: 48, stamina: 78, strength: 88, vertical: 80,
+      finishing: 80, midRange: 36, three: 76, freeThrow: 82, drawFoul: 58,
+      ballHandle: 38, passAcc: 56, passVision: 52,
+      perimeterD: 42, interiorD: 84, steal: 36, block: 72, contestSkill: 74,
+      offReb: 62, defReb: 82, boxout: 80,
+      decisions: 68, consistency: 74
+    },
+    tend: {
+      shotRim: 58, shotMid: 12, shotThree: 78, pullUp: 22,
+      drive: 24, passOut: 44, iso: 8, post: 8,
+      offBallMotion: 62, crashOffReb: 48,
+      gambleSteal: 22, foulAggr: 48, pushPace: 40
+    }
+  });
+}

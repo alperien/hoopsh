@@ -6,7 +6,7 @@
 // data-pack validation surface (schema.js — the mod/content boundary).
 export {
   eliteShooter, rimRunner, floorGeneral, threeAndD, scoringWing,
-  postAnchor, comboGuard, glueForward, benchBig, benchScorer
+  postAnchor, comboGuard, glueForward, benchBig, benchScorer, stretchBig
 } from './archetypes.js';
 export { cascadiaBreakers, meridianMonarchs, sampleMatchup } from './teams.js';
 export {
