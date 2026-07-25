@@ -323,7 +323,11 @@ export function tickScramble(s: GameState, dt: number): void {
       .filter((a) => !a.fouledOut)
       .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0];
     if (fouler) {
-      const victim = onCourt(s, ph.offSide)
+      // prefer a victim who hasn't fouled out — a ghost free-throw shooter in
+      // the bench-exhausted state would violate the no-fouled-out-actors rule
+      const victims = onCourt(s, ph.offSide);
+      const liveVictims = victims.filter((a) => !a.fouledOut);
+      const victim = (liveVictims.length > 0 ? liveVictims : victims)
         .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0]!;
       const { inBonus } = recordFoul(s, fouler, 'loose_ball', victim);
       if (inBonus) {

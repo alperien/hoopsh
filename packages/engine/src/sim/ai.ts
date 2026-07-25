@@ -397,7 +397,13 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const rim = attackedRim(s, side);
   const spots = spacingSpots(s.court, rim);
   const byKey = new Map(spots.map((x) => [x.key, x.pos]));
-  const players = onCourt(s, side).filter((a) => !a.fouledOut);
+  // bench exhausted and every on-court player fouled out: play on with who's
+  // out there rather than crashing (mirrors bestHandler — NBA rule analog: a
+  // fouled-out player remains when no substitute exists; custom short rosters
+  // are legal input, and the adversarial audit produced this state at default
+  // params with a foul-prone no-bench fixture)
+  const eligible = onCourt(s, side).filter((a) => !a.fouledOut);
+  const players = eligible.length > 0 ? eligible : onCourt(s, side);
 
   // ball handler (best handle) takes the top; shooters fill wings/corners;
   // the worst shooter lives at the dunker spot
@@ -673,8 +679,15 @@ export function offenseOffBallTick(s: GameState): void {
 
 /** assign man matchups: sort both lineups by size and pair them */
 export function assignMatchups(s: GameState, defSide: TeamSide): void {
-  const defenders = onCourt(s, defSide).filter((a) => !a.fouledOut);
-  const attackers = onCourt(s, other(defSide)).filter((a) => !a.fouledOut);
+  // same bench-exhausted fallback as assignSpots/bestHandler: when a whole
+  // lineup has fouled out (legal with short rosters), play on rather than
+  // index into an empty list — `o[...]!` crashed here in the audit fixture
+  const pick = (side: TeamSide) => {
+    const live = onCourt(s, side).filter((a) => !a.fouledOut);
+    return live.length > 0 ? live : onCourt(s, side);
+  };
+  const defenders = pick(defSide);
+  const attackers = pick(other(defSide));
   // Match by size: height plus a weight term (÷12 puts pounds on roughly the
   // same scale as inches, so a 250 lb wing sorts above a 240 lb one of equal
   // height). Crude but produces sane bigs-on-bigs, guards-on-guards pairings.

@@ -353,10 +353,15 @@ export function resolveRebound(
     }
   }
   if (candidates.length === 0) {
-    // nobody near (shouldn't happen) — closest player on defense gets it
+    // nobody near (shouldn't happen) — closest player gets it. Prefer players
+    // who haven't fouled out: the main loop filters them, and this fallback
+    // handing a ghost actor the ball was an audited invariant violation in
+    // the bench-exhausted degenerate state.
     const all = [...onCourt(s, 0), ...onCourt(s, 1)];
-    all.sort((x, y) => dist(x.pos, spot) - dist(y.pos, spot));
-    return all[0]!;
+    const live = all.filter((x) => !x.fouledOut);
+    const pool = live.length > 0 ? live : all;
+    pool.sort((x, y) => dist(x.pos, spot) - dist(y.pos, spot));
+    return pool[0]!;
   }
   return candidates[s.rng.weighted(weights)]!;
 }
