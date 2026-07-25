@@ -167,6 +167,9 @@ export interface SimParams {
     helpTriggerFt: number;
     /** contest radius — defenders inside this affect the shot */
     contestRadiusFt: number;
+    /** contest-skill mix: share contributed by role defense (interiorD near
+     *  the rim, perimeterD outside) vs generic contestSkill */
+    contestDBlend: number;
   };
 
   fatigue: {
@@ -238,6 +241,7 @@ export interface SimParams {
     helpSpotPull: number;        // help spot pull toward the ball
     helperGravityWeight: number; // reluctance to help off shooters
     closeoutSlackFt: number;     // gap slack before a closeout sprint
+    containDBlend: number;       // on-ball containment: perimeterD share vs lateral
     // bookkeeping
     assistWindowSec: number;     // catch-to-shot window for assist credit
     assistMaxDribbles: number;
@@ -442,7 +446,9 @@ export const defaultParams: SimParams = {
     helpTriggerFt: 15,
     // Defenders within this radius affect a shot's contest level. Roughly the
     // distance from which a closeout can still bother a shooter. FEEL.
-    contestRadiusFt: 6.5
+    contestRadiusFt: 6.5,
+    // FEEL — role defense carries just under half the contest-skill definition
+    contestDBlend: 0.45
   },
 
   fatigue: {
@@ -515,6 +521,9 @@ export const defaultParams: SimParams = {
     helpSpotPull: 0.28,
     helperGravityWeight: 26,
     closeoutSlackFt: 1.5,
+    // FEEL — lateral quickness is the larger containment share; perimeterD
+    // (angles, hand discipline) contributes the rest
+    containDBlend: 0.4,
     assistWindowSec: 1.6,
     assistMaxDribbles: 1,
     pnrRatePerTick: 0.022,

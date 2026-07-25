@@ -130,9 +130,14 @@ export function decideBall(s: GameState): BallAction {
     //   base 0.55, ± the ballHandle-vs-lateral-quickness gap, ± the cushion
     //   the defender is giving (a 9 ft gap is an invitation; 2 ft is a wall).
     //   Clamped [0.2, 0.95]: nobody is uncontainable, nobody is helpless.
+    // containment = physical mirror (lateral) blended with point-of-attack
+    // craft (perimeterD) per ai.containDBlend
+    const contain = onBall
+      ? onBall.p.attr.lateral * (1 - A.containDBlend) + onBall.p.attr.perimeterD * A.containDBlend
+      : 50;
     const handling = clamp(
       A.handlingBase +
-        (h.p.attr.ballHandle - (onBall?.p.attr.lateral ?? 50)) / A.handlingSkillDiv +
+        (h.p.attr.ballHandle - contain) / A.handlingSkillDiv +
         (gap - 4) / A.handlingGapDiv,
       0.2, 0.95
     );

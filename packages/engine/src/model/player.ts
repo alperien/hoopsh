@@ -45,15 +45,15 @@ export interface Attributes {
   passVision: number;
 
   // defense
-  /** STAGED — consumed when defensive schemes land (Stage 2); see docs/INTERNALS.md */
+  /** point-of-attack craft — ai.ts on-ball containment vs drives (ai.containDBlend) and resolve.ts contest skill outside the rim area (move.contestDBlend) */
   perimeterD: number;
-  /** STAGED — consumed when defensive schemes land (Stage 2); see docs/INTERNALS.md */
+  /** rim-area positioning/verticality — resolve.ts contest skill within 14 ft of the attacked rim (move.contestDBlend); distinct from `block`, which converts misses into blocks */
   interiorD: number;
   /** on-ball strip and passing-lane instincts — resolve.ts passing stripP and passRisk's lane occlusion (danger-defender weighting) */
   steal: number;
   /** shot-blocking timing/length — resolve.ts blockP skill term (chance a rim/paint miss is credited as a block) */
   block: number;
-  /** closeout/contest technique independent of raw speed — resolve.ts contestAt/anticipatedContest skill multiplier on contest level */
+  /** closeout/contest technique independent of raw speed — resolve.ts contestAt/anticipatedContest skill multiplier, blended with perimeterD/interiorD per move.contestDBlend */
   contestSkill: number;
 
   // rebounding

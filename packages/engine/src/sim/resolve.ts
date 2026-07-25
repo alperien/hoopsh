@@ -27,6 +27,7 @@ export interface Contest {
 /** contest level on a shot released by `shooter` at `pos` */
 export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
   const radius = s.params.move.contestRadiusFt;
+  const rim = attackedRim(s, shooter.side);
   let best = 0;
   let by: string | null = null;
   let bestReach = 0;
@@ -38,9 +39,14 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
     //  closing: linear falloff — a defender ON the shooter contests 1.0, one at
     //           the radius edge contests ~0. Distance is the dominant term.
     const closing = 1 - dd / radius;
-    //  skill: contestSkill 0→0.55, 100→1.0. Even a poor defender standing there
-    //         bothers a shot; technique adds up to ~80% more disruption.
-    const skill = 0.55 + 0.45 * (d.p.attr.contestSkill / 100);
+    //  skill: technique blended with role defense — interiorD when the defender
+    //         is protecting the rim area, perimeterD outside (move.contestDBlend
+    //         sets the mix). 0.55 floor: presence alone bothers a shot.
+    const nearRim = dist(d.pos, rim) < 14;
+    const roleD = nearRim ? d.p.attr.interiorD : d.p.attr.perimeterD;
+    const blend = s.params.move.contestDBlend;
+    const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
+    const skill = 0.55 + 0.45 * (defSkill / 100);
     //  stunned: caught on a screen → he's there but useless (55% reduction).
     //         This is what makes a pick-and-roll pull-up a good shot.
     const stunned = s.t < d.screenStunUntil ? 0.45 : 1;
@@ -70,6 +76,7 @@ export function anticipatedContest(
   windupSec: number
 ): Contest {
   const radius = s.params.move.contestRadiusFt;
+  const rim = attackedRim(s, shooter.side);
   let best = 0;
   let by: string | null = null;
   let bestReach = 0;
@@ -87,7 +94,13 @@ export function anticipatedContest(
     const dd = Math.min(dist(d.pos, pos), dist(proj, pos));
     if (dd > radius) continue;
     const closing = 1 - dd / radius;
-    const skill = 0.55 + 0.45 * (d.p.attr.contestSkill / 100);
+    // same role-defense blend as contestAt so anticipation and resolution use
+    // one skill definition (interiorD near the rim, perimeterD outside)
+    const nearRim = dist(d.pos, rim) < 14;
+    const roleD = nearRim ? d.p.attr.interiorD : d.p.attr.perimeterD;
+    const blend = s.params.move.contestDBlend;
+    const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
+    const skill = 0.55 + 0.45 * (defSkill / 100);
     const stunned = s.t < d.screenStunUntil ? 0.45 : 1;
     const level = closing * skill * stunned;
     if (level > best) {
