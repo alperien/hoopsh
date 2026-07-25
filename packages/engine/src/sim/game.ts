@@ -276,12 +276,14 @@ function tickLive(s: GameState, dt: number): void {
   attemptReachIn(s, dt);
   if (s.phase.kind !== 'live') return;
 
-  // charge check while driving
+  // charge check while driving — turnover first, THEN the foul: recordFoul
+  // may foul the driver out and emit his replacement sub, and the turnover
+  // must not appear to be committed by a player already off the floor
   if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * 2)) {
-    recordFoul(s, h, 'offensive');
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'off_foul'
     });
+    recordFoul(s, h, 'offensive');
     endPossession(s, 'turnover');
     deadBall(s, other(h.side), { clockRuns: false });
     return;
@@ -330,9 +332,10 @@ function recordFrame(s: GameState, force = false): void {
   // cadence keyed to the WALL clock (relative epsilon: float accumulation
   // across ~29k ticks was silently dropping the final frame)
   const step = s.params.frameEvery / s.params.tickHz;
-  if (!force && s.frames.length > 0) {
+  if (s.frames.length > 0) {
     const lastT = s.frames[s.frames.length - 1]![0]!;
-    if (s.wallT - lastT < step * 0.999) return;
+    // forced frames still respect strict monotonicity after round1()
+    if (s.wallT - lastT < (force ? 0.05 : step * 0.999)) return;
   }
   const row: number[] = [
     round1(s.wallT),

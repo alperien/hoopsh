@@ -72,7 +72,10 @@ export function startShot(
     made && lp &&
     s.t - shooter.catchT <= s.params.ai.assistWindowSec &&
     shooter.dribblesSinceCatch <= s.params.ai.assistMaxDribbles &&
-    lp.from !== shooter.p.id
+    lp.from !== shooter.p.id &&
+    // the passer can be substituted at a continuation dead ball between his
+    // pass and this shot — no assists from the bench
+    s.agents.get(lp.from)?.onCourt === true
   ) {
     assist = lp.from;
   }

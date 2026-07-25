@@ -60,7 +60,9 @@ export function resolvePassArrival(s: GameState): void {
       });
       endPossession(s, 'turnover');
       startPossession(s, thief.side, 'steal', thief);
-      thief.pos = { ...s.ball.pos };
+      // the BALL snaps to the thief (a deflection), never the player to the
+      // ball — teleporting bodies breaks the replay's physical continuity
+      s.ball.pos = { x: thief.pos.x, y: thief.pos.y };
     } else {
       emit(s, {
         type: 'turnover', team: passer.side, player: from, kind: 'out_of_bounds'
