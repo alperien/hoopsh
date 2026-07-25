@@ -1,12 +1,10 @@
 # PLAYBOOK — how to write NEW code for hoopsh, step by step
 
-**Audience: any agent (or human) implementing new functionality — especially agents
-that prefer following a procedure over improvising one.** `AGENTS.md` is the LAW
-(what you may and may not do). This file is the PROCEDURE (exactly how to do it).
-When they seem to conflict, the law wins — and you stop and report the conflict.
+**Audience: any agent (or human) implementing new functionality.** `AGENTS.md` is the
+LAW (what you may and may not do). This file is the PROCEDURE (how to do it). When
+they conflict, the law wins; stop and report the conflict.
 
-You do not need to be clever to produce excellent work here. You need to follow
-these steps in order, copy the cited exemplars, and be honest in your report.
+Follow these steps in order, copy the cited exemplars, report accurately.
 
 ---
 
@@ -45,7 +43,7 @@ Answer, in one sentence each, BEFORE coding:
 ### Step 5. Implement in the smallest verifiable increments
 - One coherent piece at a time; run `npm test` after each piece, not just at the end.
 - Copy the exemplar's SHAPE: same file organization, same comment style, same
-  naming pattern. Consistency beats originality here.
+  naming pattern. Match the exemplar rather than choosing an alternative structure.
 - Every new number gets a comment (units + meaning + provenance tag REAL/SWEPT/FEEL).
 - New constants go in `sim/params.ts`, never inline (AGENTS.md §1.4).
 
@@ -60,12 +58,12 @@ Paste the actual outputs into your report. If bands drifted and your brief didn'
 authorize re-tuning: report the drift; do NOT freelance a sweep.
 
 ### Step 7. Self-review (the checklist)
-Go through Part 3's checklist line by line. Honestly. It exists because every item
-on it has been violated at least once in this project's history.
+Go through Part 3's checklist line by line. Each item corresponds to at least one
+historical violation in this project.
 
 ### Step 8. Write the completion report
-Use the exact format in Part 3. A report that says "docs don't explain X, so I did
-not guess" is a GOOD report. A confident wrong answer is the worst outcome.
+Use the exact format in Part 3. A report stating "docs don't explain X, so I did
+not guess" ranks above a confident wrong answer.
 
 ---
 
@@ -123,9 +121,9 @@ screener branch + drive bonus in `sim/ai.ts`, drop coverage in `defenseTick`,
    absence).
 5. `sim/params.ts` + `knobs.ts` — every rate/distance/duration as knobs.
 6. Consider whether the action deserves an **event** (Recipe D) for narration/stats.
-7. Prove liveness: an on/off comparison probe (sim N games with the trigger rate
-   zeroed via params override vs default) — PnR shipped 93% inert once because
-   nobody measured this.
+7. Prove liveness: an on/off comparison probe (sim N games, trigger rate zeroed via
+   params override vs default). Incident: the initial pick-and-roll implementation
+   reached screen contact in 6.5% of actions; liveness was unmeasured before merge.
 **Tier: mechanics** → full ladder + recalibration authorization in your brief.
 
 ### Recipe D — a new event type
@@ -172,8 +170,8 @@ those packs are calibrated.
 ### Recipe G — a new consumer feature (stats / harness / narration / viewer)
 **Also covers pure data content**: new archetype builders, team packs, roster
 fixtures (`data/`) — pattern-match the ten builders in `data/src/archetypes.ts`
-and export from the package index. Validated: a haiku-tier agent shipped a clean
-archetype under this recipe on its first attempt.
+and export from the package index. Validated with a minimal-capability agent
+(2026-07): a clean archetype produced on the first attempt.
 **Exemplar:** `fastbreakPts` in `stats/box.ts` (a fold over possession kinds).
 1. Consume ONLY the event stream / replay JSON. If the data you need isn't in the
    events, that's Recipe D first — never reach into engine internals.
@@ -189,7 +187,7 @@ archetype under this recipe on its first attempt.
 
 ### Hard STOP conditions (stop working, write your report, escalate)
 1. The same verification failure twice in a row after two distinct fix attempts.
-   Thrashing destroys codebases faster than bugs do.
+   Repeated failed attempts are a higher-risk failure mode than the underlying bug.
 2. You need a file outside your declared scope.
 3. An **invariant test** fails — your change is wrong (AGENTS.md §1.6). Do not
    touch the test. Report the failure verbatim.
@@ -198,12 +196,12 @@ archetype under this recipe on its first attempt.
 6. Bands drifted and your brief didn't pre-authorize recalibration.
 
 ### Anti-thrash / anti-guessing rules
-- Max 3 edit-run cycles on the same problem before you must re-read the relevant
-  module docs top to bottom (the answer is usually in a comment you skimmed).
-- Never weaken/delete/re-tune a test or band to make your code pass.
-- Never "tidy" values, formatting, or names outside your diff.
-- Unsure what a number/mechanism means and the docs don't say? Write "the docs do
-  not explain X" in your report. That sentence is worth more than a guess.
+- Max 3 edit-run cycles on the same problem before re-reading the relevant module
+  docs top to bottom (the answer is often in a previously-skimmed comment).
+- Never weaken/delete/re-tune a test or band to make code pass.
+- Never "tidy" values, formatting, or names outside the diff.
+- Unsure what a number/mechanism means and the docs don't say? State "the docs do
+  not explain X" in the report; a stated unknown is preferable to a guess.
 
 ### Self-review checklist (before your report)
 - [ ] Every file I touched was in my declared scope
@@ -237,8 +235,9 @@ OUT-OF-SCOPE FINDINGS: <bugs/oddities noticed, NOT fixed>
 
 ## Part 4 — For dispatchers: the task-briefing template
 
-Half of multi-agent quality is the brief. A weak agent with a great brief outperforms
-a strong agent with a vague one. Use this template verbatim:
+Brief quality is a primary determinant of multi-agent output quality: a lower-capability
+agent with a well-specified brief typically outperforms a higher-capability agent with
+an underspecified one. Template (use verbatim):
 
 ```
 REPO: /path/to/hoopsh — read AGENTS.md and docs/PLAYBOOK.md before anything else.
@@ -249,8 +248,8 @@ OUT OF SCOPE (do not touch, even to fix): <list or "everything else">
 TIER: <from AGENTS.md §4.3> — verification commands you must run and paste: <list>
 FROZEN FINGERPRINT (captured at dispatch time): <events / final / test counts>
   ⚠ Dispatcher: capture this AFTER your last code change, immediately before
-  dispatch. A stale fingerprint sends the agent chasing phantom regressions —
-  this has happened.
+  dispatch. Incident: a stale fingerprint sent an agent chasing a phantom
+  regression.
 ACCEPTANCE CRITERIA: <bulleted, checkable>
 AUTHORIZED: <recalibration? new params? new tests? — explicit yes/no each>
 REPORT: use PLAYBOOK Part 3's completion-report format.

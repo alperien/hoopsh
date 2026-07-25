@@ -25,14 +25,14 @@
 
 <!-- ================= SOURCE: README.md ================= -->
 
-# hoopsh 🏀
+# hoopsh
 
 *A modular, deterministic, 2D-spatial basketball simulation core.*
 
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **calibrated probability models fed by spatial context**, so games look
-like basketball *and* season-scale statistics land inside real-league ranges. Every point
+resolve through **calibrated probability models fed by spatial context**: games follow
+basketball rules and season-scale statistics fall inside real-league ranges. Every point
 in a box score traces back to a simulated shot from a real (x, y) location.
 
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
@@ -96,13 +96,13 @@ document, reading paths by role, which doc answers which question). The short li
 
 ## The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims can't be calibrated; pure stat sims have no feel. hoopsh runs
+Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs
 continuous 2D movement and decision-making, but resolves discrete events through
 logistic models whose every constant lives in one flat object: **`SimParams`**, the
 calibration surface. Player identity comes from handcrafted **attributes** (what a
-player *can* do) and **tendencies** (what they *want* to do) — an elite shooter profile
-organically produces a heavy deep-three diet, off-ball gravity that warps the defense,
-and star-level scoring volume. Nobody scripts that; it emerges.
+player *can* do) and **tendencies** (what they *want* to do). An elite shooter profile
+produces a heavy deep-three diet, off-ball gravity that warps the defense, and
+star-level scoring volume as a result of these interactions, without being scripted.
 
 Signature mechanics:
 - **Shot windup** — shots take 0.4–0.65s to release, making every catch-and-shoot a
@@ -118,21 +118,21 @@ Signature mechanics:
 A batch harness grades league-wide averages against 16 NBA acceptance bands
 (pace, efficiency, shot mix, rebounding, fouls, turnovers…), and an automated
 parameter sweep (`npm run sweep`) keeps them locked. Current state: **46–48 of 48
-band-checks passing across three independent seed bases** at 40-game samples —
+band-checks passing across three independent seed bases** at 40-game samples;
 residual misses are <1% band-edge grazes (the sampling noise floor). A 50-test
-suite (including a permanent invariant suite born from two adversarial audit
-rounds) guards determinism, possession accounting, minutes conservation, and
+suite, including a permanent invariant suite derived from two adversarial audit
+rounds, guards determinism, possession accounting, minutes conservation, and
 buzzer integrity on every change. Archetype tests pin player differentiation
 (elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
-of shots inside; non-shooting bigs don't chuck).
+of shots inside; non-shooting bigs do not take low-value shots).
 
 Run it yourself: `npm run batch -- --games 50`.
 
 ## Roadmap
 
-**Done:** replay viewer ✅ · broadcast demo ✅ · automated parameter sweep ✅ ·
-orchestrator refactor ✅ · pick-and-roll ✅ · invariant suite ✅ · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path) ✅
+**Done:** replay viewer · broadcast demo · automated parameter sweep ·
+orchestrator refactor · pick-and-roll · invariant suite · full documentation
+campaign (33% engine comment density, contributor covenant, onboarding path)
 
 **Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
 their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
@@ -182,7 +182,7 @@ Not chosen yet — treat as all-rights-reserved until a license lands.
 
 ## 2. The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims are uncalibratable; pure stat sims have no feel. hoopsh runs a
+Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs a
 **continuous 2D spatial layer** (movement, spacing, defensive positioning) and resolves
 **discrete events probabilistically** (shots, passes, fouls, rebounds) using models fed
 by spatial context:
@@ -258,8 +258,8 @@ rules. NBA ships first; NCAA/EuroLeague are follow-ups. Custom leagues are just 
   the calibration surface.
 
 "Curry-ness" = elite three ratings + heavy three/pull-up tendencies + high off-ball
-movement + gravity (defenses guard him tighter, farther out — which *creates* the
-spacing his teammates feed on). Identity emerges from the interaction, not a script.
+movement + gravity (defenses guard him tighter, farther out, which creates the
+spacing his teammates feed on). Identity is a product of this interaction, not a script.
 
 ### 4.4 Offense AI
 
@@ -357,8 +357,8 @@ season layer (schedules, rotations, fatigue across games, injuries) → progress
 # hoopsh internals — a guided tour
 
 Read [ARCHITECTURE.md](../ARCHITECTURE.md) first for the *why*; this is the *where*.
-Everything below assumes the golden rule: **`engine` imports nothing; everything else
-consumes its event stream.**
+Everything below assumes the governing rule: **`engine` imports nothing; everything
+else consumes its event stream.**
 
 ## The tick pipeline (10 Hz)
 
@@ -412,13 +412,13 @@ Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (sch
 validation, archetypes, sample packs), `narration/` (frozen demo layer),
 `harness/` (batch runner, bands, sweep, benchmarks), `packages/viewer/` (prototype).
 
-## Design rules that keep this codebase sane
+## Design rules that maintain consistency across this codebase
 
 1. **One probability form.** Every resolution is `sigmoid(base + Σ terms)`; every
    constant lives in `SimParams`. Rating influence goes through `n(rating)` ∈ [-1, 1].
 2. **Self-consistent AI.** The model that resolves a shot is the model the AI uses to
-   *choose* it (`shotEV` calls `shotMakeP`). Decision and outcome can never drift apart.
-3. **Determinism is sacred.** One seeded `Rng` per game. No `Math.random`, no `Date`,
+   *choose* it (`shotEV` calls `shotMakeP`). Decision and outcome cannot drift apart.
+3. **Determinism is mandatory.** One seeded `Rng` per game. No `Math.random`, no `Date`,
    no iteration-order dependence. Same seed ⇒ bit-identical events + frames.
 4. **Events are the only truth.** If a consumer needs something, it goes in the event
    stream — never reach into engine internals.
@@ -427,7 +427,7 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 6. **Staged surface is labeled.** Fields marked `STAGED` in `model/player.ts`
    (`perimeterD`, `interiorD`, `consistency`, `tend.iso/post/pushPace`) are defined but
    not yet consumed — each is tied to a roadmap stage. Wiring one without its stage's
-   mechanics would be fake depth.
+   mechanics adds unvalidated surface area.
 
 ## The safety net (run all of it before pushing)
 
@@ -442,8 +442,9 @@ npm run bench    # ≥1 game/sec budget (typical ~6)
 audit rounds verified: possession start/end balance, zero post-horn scoring, exact
 minutes conservation, plus-minus ≡ margin×5, score reconstructible from events, no
 off-court or fouled-out actors, team-foul monotonicity, strictly monotonic replay
-frames, and a physical teleport ceiling on player movement. **If you change the engine
-and an invariant fails, the engine is wrong — never the invariant.**
+frames, and a physical teleport ceiling on player movement. **Policy: if a change to
+the engine makes an invariant fail, the change is treated as wrong — never the
+invariant.**
 
 ## Calibration workflow
 
@@ -469,11 +470,11 @@ man-to-man with drop coverage only · narration/viewer are frozen prototypes.
 
 # AGENTS.md — the hoopsh contributor covenant
 
-**Audience: AI agents first, humans second.** If you are an AI agent assigned to work
-on part of this codebase, read this file completely before writing anything. It exists
-so that many different agents, working on different parts at different times, produce
-ONE consistent codebase. Every rule below was earned — several encode incidents that
-actually corrupted stats or wasted calibration runs.
+**Audience: AI agents first, humans second.** An AI agent assigned to work on this
+codebase must read this file completely before writing anything. It exists so that
+many agents, working on different parts at different times, produce ONE consistent
+codebase. Several rules below encode incidents that corrupted stats or wasted
+calibration runs; see the DO-NOT list (§2) and prime directives (§1) for citations.
 
 Reading order for a new contributor: `README.md` → `ARCHITECTURE.md` →
 `docs/INTERNALS.md` → this file → `docs/ONBOARDING.md` (guided walkthrough).
@@ -489,11 +490,11 @@ the required completion-report format. Follow it step by step.
 ### 1.1 The engine imports nothing
 `packages/engine` has **zero dependencies** — no npm packages, no Node built-ins
 (`node:fs`, `node:path`, …), no globals beyond the JS language and `structuredClone`.
-It must run identically in Node and a browser. If your engine change needs I/O,
-you're putting it in the wrong package.
+It must run identically in Node and a browser. An engine change that needs I/O
+belongs in a different package.
 
-### 1.2 Determinism is sacred
-Same seed ⇒ bit-identical events and frames, forever, on every platform.
+### 1.2 Determinism is mandatory
+Same seed ⇒ bit-identical events and frames, on every platform, with no exception.
 - **Never** use `Math.random`, `Date`, `performance.now`, or any ambient state inside
   the engine. All randomness flows through the game's seeded `Rng` (core/rng.ts).
 - Be careful with **iteration order**: `Map`/`Set` iterate in insertion order (fine),
@@ -503,14 +504,14 @@ Same seed ⇒ bit-identical events and frames, forever, on every platform.
   see §4.3 for which verification tier that puts you in.
 
 ### 1.3 Events are the only contract
-Consumers (stats, narration, viewers, future experiences) know NOTHING about engine
-internals. If a consumer needs information, it goes into the **event stream**
+Consumers (stats, narration, viewers, future experiences) have no visibility into
+engine internals. Information a consumer needs goes into the **event stream**
 (core/events.ts) — never expose engine state directly. Box scores must remain fully
 reconstructible from events alone (an invariant test enforces this).
 
 ### 1.4 Every behavioral constant lives in SimParams
-If you hardcode a tunable number inside engine logic, the calibration sweep cannot
-reach it and league realism silently degrades. New constants go in
+A hardcoded tunable number inside engine logic is unreachable by the calibration
+sweep, and league realism degrades without warning. New constants go in
 `sim/params.ts` (+ a range entry in `harness/src/knobs.ts` if sweepable).
 Timing/geometry literals that are NOT behavioral levers (e.g. cosmetic free-throw
 lineup spots) may stay inline but must carry a comment explaining their real-world
@@ -521,15 +522,15 @@ meaning (see §5).
   Minutes, pace, and all statistics key on it.
 - `wallT` / `Base.wt` — **replay timeline**. Advances every tick, stoppages included.
   Frames and viewers key on it.
-Mixing them reintroduces the two worst bugs this project has had (post-buzzer scoring;
-free-throw teleport-glides). `movement.ts#advanceClock` is the only writer of `t`;
-`game.ts#tick` is the only writer of `wallT`.
+Mixing them has caused two historical incidents: post-buzzer scoring and free-throw
+teleport-glides. `movement.ts#advanceClock` is the only writer of `t`; `game.ts#tick`
+is the only writer of `wallT`.
 
-### 1.6 Invariants are law
+### 1.6 Invariants take precedence
 `packages/engine/test/invariants.test.ts` encodes guarantees verified by adversarial
-audits. **If your change makes an invariant fail, your change is wrong — never the
-invariant.** Weakening or deleting a test to make code pass is the single most
-serious violation in this repo. (Tests may be *corrected* only when the test itself
+audits. **If a change makes an invariant fail, the change is wrong — never the
+invariant.** Weakening or deleting a test to make code pass is the highest-severity
+violation defined in this repo. (Tests may be *corrected* only when the test itself
 has a demonstrable bug — document the reasoning in the commit message.)
 
 ### 1.7 Only erasable TypeScript syntax
@@ -544,32 +545,32 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 
 ## 2. The DO-NOT list
 
-1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a sloppy `0.5` — a machine
-   chose it against 48 acceptance-band checks. Rounding it un-calibrates the league.
-   If a value offends you, re-run the sweep and bake its output.
+1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
+   optimizer chose it against 48 acceptance-band checks. Rounding it de-calibrates the
+   league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
-   Depth without validation is fake depth and expands the solver's search space.
+   Unvalidated depth expands the solver's search space with no offsetting benefit.
 3. **Do not put behavior in consumer packages.** The viewer renders; narration
    describes; stats folds. None of them may influence or re-derive game logic.
 4. **Do not touch calibrated defaults without re-verifying.** Any change to
    `sim/params.ts` values or to mechanics that consume them requires the calibration
-   ladder (§4.2). The knobs are COUPLED — the file header documents an incident where
-   raising one foul rate collapsed the league three-point rate by 8 points.
+   ladder (§4.2). The knobs are coupled. Incident (file header, `sim/params.ts`):
+   increasing one foul rate reduced the league three-point rate by 8 points.
 5. **Do not leave dead or misleading surface.** Anything defined-but-unconsumed must
    be labeled `STAGED` (deliberate, tied to a roadmap stage) or `UNWIRED` (accidental
    debt, with the condition for wiring it). Unlabeled dead code gets deleted.
-6. **Do not add runtime dependencies anywhere without explicit owner approval.** The
-   whole repo currently runs with ZERO installed packages; that is a feature.
-7. **Do not reformat, rename, or "improve" code outside your assigned scope.** Multi-
-   agent work only stays mergeable if diffs are minimal and scoped. No drive-by edits.
+6. **Do not add runtime dependencies without explicit owner approval.** The repo
+   runs with zero installed packages by design.
+7. **Do not reformat, rename, or "improve" code outside assigned scope.** Multi-agent
+   work stays mergeable only if diffs are minimal and scoped. No drive-by edits.
 8. **Do not break replay compatibility silently.** The replay JSON shape and the
    frame row layout are consumed by the standalone viewer; bump `Replay.version` and
    update `packages/viewer` in the same change.
 9. **Do not bypass the roster schema.** New player/team fields go through
    `data/src/schema.ts` validation and the pack `formatVersion` discipline.
 10. **Do not trust your memory of this file's rules over the code's own comments.**
-    When they disagree, the code comments + tests are newer; flag the discrepancy.
+    When they disagree, the code comments and tests are newer; flag the discrepancy.
 
 ---
 
@@ -624,8 +625,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 ### 4.4 Calibration etiquette
 - The 16 NBA bands (`harness/src/bands.ts`) are the gate. "Locked" means 46–48 of 48
   band-checks passing across the three seed bases at 40+ games, with any single miss
-  under ~1% outside a band edge — that residual is the **noise floor** (sampling
-  variance), not miscalibration. Do not chase it with hand-nudges; that's the sweep's job.
+  under ~1% outside a band edge; that residual is the **noise floor** (sampling
+  variance), not miscalibration. Do not chase it with hand-nudges — use the sweep.
 - After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
   precision), then re-verify with `--iters 0`.
 
@@ -642,6 +643,9 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 - **Voice**: explain the *basketball or design reason*, not the code mechanics.
   Good: "sagging off non-shooters works because his open 9-footer is a win for the
   defense." Bad: "// multiply by 0.6".
+- **Register**: documentation and comments use a neutral technical register:
+  declarative statements, incident citations rather than narrative, no motivational
+  or promotional language. Emphasis is reserved for severity and safety-critical rules.
 - **Every new numeric literal** gets either real-world units + meaning ("13.75 ft =
   NBA free-throw line to rim center") or an honest "FEEL — tuned for plausible
   timing, not statistically constrained."
@@ -650,8 +654,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 - **New exported functions** get JSDoc: what, when it's called (phase/trigger), and
   non-obvious side effects on `GameState`.
 - **Traps get called out where they live** (ordering constraints, idempotency guards,
-  protected IDs). If you needed a minute to understand something, write the sentence
-  that would have saved you the minute.
+  protected IDs): a one-sentence comment at the point of confusion, stating what
+  would otherwise require investigation to determine.
 - Keep the two reference docs current: an architectural change updates
   `ARCHITECTURE.md`/`docs/INTERNALS.md` in the SAME commit.
 - Any edit to a source document regenerates the compiled Bible in the same
@@ -668,8 +672,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   (`shotEV` wraps `shotMakeP`). Never let the AI's beliefs drift from reality.
 - **Probabilistic resolution over hard physics**: spatial context feeds logistic
   models. That's the core bet that keeps realism calibratable.
-- **Ratings express identity through interaction**, not special cases. Before adding
-  an `if (player.isCurry)`-shaped branch, stop — that's always wrong here.
+- **Ratings express identity through interaction**, not special cases. An
+  `if (player.isCurry)`-shaped branch is prohibited; do not add one.
 
 ## 7. When unsure
 
@@ -677,9 +681,10 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   modeled, add it to the known-simplifications list in `docs/INTERNALS.md` rather
   than half-implementing it.
 - If a task seems to require breaking a prime directive, STOP and escalate to the
-  project owner with the conflict spelled out. Do not creatively reinterpret the rules.
-- Leave the campsite cleaner: if you find undocumented mystery, document it (comments
-  are always in scope); if you find a bug outside your scope, report it — don't fix it silently.
+  project owner with the conflict spelled out. Do not reinterpret the rules.
+- Two standing obligations beyond the assigned task: document undocumented behavior
+  encountered (comments are always in scope); report bugs found outside scope rather
+  than fixing them silently.
 
 
 ---
@@ -689,13 +694,11 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 
 # PLAYBOOK — how to write NEW code for hoopsh, step by step
 
-**Audience: any agent (or human) implementing new functionality — especially agents
-that prefer following a procedure over improvising one.** `AGENTS.md` is the LAW
-(what you may and may not do). This file is the PROCEDURE (exactly how to do it).
-When they seem to conflict, the law wins — and you stop and report the conflict.
+**Audience: any agent (or human) implementing new functionality.** `AGENTS.md` is the
+LAW (what you may and may not do). This file is the PROCEDURE (how to do it). When
+they conflict, the law wins; stop and report the conflict.
 
-You do not need to be clever to produce excellent work here. You need to follow
-these steps in order, copy the cited exemplars, and be honest in your report.
+Follow these steps in order, copy the cited exemplars, report accurately.
 
 ---
 
@@ -734,7 +737,7 @@ Answer, in one sentence each, BEFORE coding:
 ### Step 5. Implement in the smallest verifiable increments
 - One coherent piece at a time; run `npm test` after each piece, not just at the end.
 - Copy the exemplar's SHAPE: same file organization, same comment style, same
-  naming pattern. Consistency beats originality here.
+  naming pattern. Match the exemplar rather than choosing an alternative structure.
 - Every new number gets a comment (units + meaning + provenance tag REAL/SWEPT/FEEL).
 - New constants go in `sim/params.ts`, never inline (AGENTS.md §1.4).
 
@@ -749,12 +752,12 @@ Paste the actual outputs into your report. If bands drifted and your brief didn'
 authorize re-tuning: report the drift; do NOT freelance a sweep.
 
 ### Step 7. Self-review (the checklist)
-Go through Part 3's checklist line by line. Honestly. It exists because every item
-on it has been violated at least once in this project's history.
+Go through Part 3's checklist line by line. Each item corresponds to at least one
+historical violation in this project.
 
 ### Step 8. Write the completion report
-Use the exact format in Part 3. A report that says "docs don't explain X, so I did
-not guess" is a GOOD report. A confident wrong answer is the worst outcome.
+Use the exact format in Part 3. A report stating "docs don't explain X, so I did
+not guess" ranks above a confident wrong answer.
 
 ---
 
@@ -812,9 +815,9 @@ screener branch + drive bonus in `sim/ai.ts`, drop coverage in `defenseTick`,
    absence).
 5. `sim/params.ts` + `knobs.ts` — every rate/distance/duration as knobs.
 6. Consider whether the action deserves an **event** (Recipe D) for narration/stats.
-7. Prove liveness: an on/off comparison probe (sim N games with the trigger rate
-   zeroed via params override vs default) — PnR shipped 93% inert once because
-   nobody measured this.
+7. Prove liveness: an on/off comparison probe (sim N games, trigger rate zeroed via
+   params override vs default). Incident: the initial pick-and-roll implementation
+   reached screen contact in 6.5% of actions; liveness was unmeasured before merge.
 **Tier: mechanics** → full ladder + recalibration authorization in your brief.
 
 ### Recipe D — a new event type
@@ -861,8 +864,8 @@ those packs are calibrated.
 ### Recipe G — a new consumer feature (stats / harness / narration / viewer)
 **Also covers pure data content**: new archetype builders, team packs, roster
 fixtures (`data/`) — pattern-match the ten builders in `data/src/archetypes.ts`
-and export from the package index. Validated: a haiku-tier agent shipped a clean
-archetype under this recipe on its first attempt.
+and export from the package index. Validated with a minimal-capability agent
+(2026-07): a clean archetype produced on the first attempt.
 **Exemplar:** `fastbreakPts` in `stats/box.ts` (a fold over possession kinds).
 1. Consume ONLY the event stream / replay JSON. If the data you need isn't in the
    events, that's Recipe D first — never reach into engine internals.
@@ -878,7 +881,7 @@ archetype under this recipe on its first attempt.
 
 ### Hard STOP conditions (stop working, write your report, escalate)
 1. The same verification failure twice in a row after two distinct fix attempts.
-   Thrashing destroys codebases faster than bugs do.
+   Repeated failed attempts are a higher-risk failure mode than the underlying bug.
 2. You need a file outside your declared scope.
 3. An **invariant test** fails — your change is wrong (AGENTS.md §1.6). Do not
    touch the test. Report the failure verbatim.
@@ -887,12 +890,12 @@ archetype under this recipe on its first attempt.
 6. Bands drifted and your brief didn't pre-authorize recalibration.
 
 ### Anti-thrash / anti-guessing rules
-- Max 3 edit-run cycles on the same problem before you must re-read the relevant
-  module docs top to bottom (the answer is usually in a comment you skimmed).
-- Never weaken/delete/re-tune a test or band to make your code pass.
-- Never "tidy" values, formatting, or names outside your diff.
-- Unsure what a number/mechanism means and the docs don't say? Write "the docs do
-  not explain X" in your report. That sentence is worth more than a guess.
+- Max 3 edit-run cycles on the same problem before re-reading the relevant module
+  docs top to bottom (the answer is often in a previously-skimmed comment).
+- Never weaken/delete/re-tune a test or band to make code pass.
+- Never "tidy" values, formatting, or names outside the diff.
+- Unsure what a number/mechanism means and the docs don't say? State "the docs do
+  not explain X" in the report; a stated unknown is preferable to a guess.
 
 ### Self-review checklist (before your report)
 - [ ] Every file I touched was in my declared scope
@@ -926,8 +929,9 @@ OUT-OF-SCOPE FINDINGS: <bugs/oddities noticed, NOT fixed>
 
 ## Part 4 — For dispatchers: the task-briefing template
 
-Half of multi-agent quality is the brief. A weak agent with a great brief outperforms
-a strong agent with a vague one. Use this template verbatim:
+Brief quality is a primary determinant of multi-agent output quality: a lower-capability
+agent with a well-specified brief typically outperforms a higher-capability agent with
+an underspecified one. Template (use verbatim):
 
 ```
 REPO: /path/to/hoopsh — read AGENTS.md and docs/PLAYBOOK.md before anything else.
@@ -938,8 +942,8 @@ OUT OF SCOPE (do not touch, even to fix): <list or "everything else">
 TIER: <from AGENTS.md §4.3> — verification commands you must run and paste: <list>
 FROZEN FINGERPRINT (captured at dispatch time): <events / final / test counts>
   ⚠ Dispatcher: capture this AFTER your last code change, immediately before
-  dispatch. A stale fingerprint sends the agent chasing phantom regressions —
-  this has happened.
+  dispatch. Incident: a stale fingerprint sent an agent chasing a phantom
+  regression.
 ACCEPTANCE CRITERIA: <bulleted, checkable>
 AUTHORIZED: <recalibration? new params? new tests? — explicit yes/no each>
 REPORT: use PLAYBOOK Part 3's completion-report format.
@@ -959,10 +963,10 @@ Dispatcher rules:
 
 <!-- ================= SOURCE: docs/ONBOARDING.md ================= -->
 
-# Onboarding — from zero to productive in two evenings
+# Onboarding — a two-evening path
 
-This is the guided path. Documents tell you *what's true*; this file tells you
-*what order to learn it in*, with checkpoints so you know it stuck.
+This is the guided path. The other documents state *what's true*; this file states
+*the order to learn it in*, with checkpoints to verify retention.
 
 ---
 
@@ -985,12 +989,12 @@ Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.j
 onto it, press space. Watch a full possession. Scrub around a free throw.
 
 **3. Read the two contracts** (~45 min):
-- `packages/engine/src/core/events.ts` — every event type and its invariants.
-  This is what EVERY consumer sees; internalize it.
+- `packages/engine/src/core/events.ts` — every event type and its invariants;
+  this is what every consumer sees.
 - `packages/engine/src/sim/params.ts` — read the header primer carefully
   (logit table, units, provenance tags), then skim the annotated defaults.
 
-**Checkpoint 1** — you should be able to answer without looking:
+**Checkpoint 1** — answer without looking:
 - Why are there two time axes, and which one do stats use?
 - What does `SWEPT` provenance mean, and why must you not round those values?
 - Which package is allowed to import which?
@@ -1011,7 +1015,7 @@ follow one possession end to end:
 3. **The handler thinks** — `ai.ts#decideBall` every ~0.66s: computes the
    **continuation value** (what "keep working" is worth), then utilities for
    shoot / drive / pass(×4) / hold — all in expected points — and softmaxes.
-   Read this function slowly; it is the heart of the engine.
+   This is the engine's central decision function.
 4. **A pass** — `passing.ts#startPass`: risk resolved AT LAUNCH (determinism),
    flight animated, `resolvePassArrival` hands the ball over and opens the
    0.12s catch-and-shoot window.
@@ -1026,31 +1030,31 @@ follow one possession end to end:
    lineup timelines, plus-minus from score deltas, possessions from
    `possession_end` (which fires exactly once — see the `poss.ended` guard).
 
-While tracing, keep the viewer open on the same seed. Everything you read is
-visible: the windup pause before a shot, the closeout sprint, the scramble.
+Keep the viewer open on the same seed while tracing: the windup pause before a shot,
+the closeout sprint, and the scramble are all visible in the replay.
 
 **2. Read the emergence machinery** (~30 min):
 `resolve.ts#gravity` (why shooters warp defenses) → `ai.ts#defenseTick` (gap,
-sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then read
-`ARCHITECTURE.md §5` again — it will land differently now.
+sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then re-read
+`ARCHITECTURE.md §5` with the traced possession as context.
 
-**3. First-change exercises** (~45 min, pick one, throwaway — don't commit):
+**3. First-change exercises** (~45 min, pick one, throwaway — do not commit):
 - **Safe**: In `params.ts`, set `decide.threeAppetite: 0.5` via an override in a
-  scratch script (use `simulateGame({ params: { decide: { threeAppetite: 0.5 } } })`)
-  and run 10 games. Watch the 3PA share crater in the box scores. Revert nothing —
-  you never touched the file.
+  scratch script (`simulateGame({ params: { decide: { threeAppetite: 0.5 } } })`)
+  and run 10 games. Observe the 3PA share drop in the box scores; no revert needed,
+  since the file itself was never touched.
 - **Safer**: Write a 10-line consumer: count screen-adjacent pull-up threes from the
-  event stream of 20 games. You'll learn the event contract by using it.
+  event stream of 20 games. Exercises the event contract directly.
 - **Advanced**: Follow AGENTS.md §4 end-to-end for a real one-knob change
   (e.g. `reb.putbackChance` +0.05): fingerprint → change → `npm test` → batch →
-  revert. The point is the ritual, not the change.
+  revert. The objective is familiarity with the verification procedure.
 
-**Checkpoint 2** — you're productive when you can:
+**Checkpoint 2** — Competency criteria:
 - Explain how drive-and-kick emerges without a script (three mechanisms).
-- Say exactly what happens to `possession_end` on an and-one.
-- Name the file you'd edit to change what a 90 `speed` rating means, and the file
-  you'd edit to make players *want* to shoot earlier.
-- State the verification tier of the change you're about to make.
+- State exactly what happens to `possession_end` on an and-one.
+- Name the file to edit to change what a 90 `speed` rating means, and the file
+  to edit to make players *want* to shoot earlier.
+- State the verification tier of the change being made.
 
 ---
 

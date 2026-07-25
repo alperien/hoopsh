@@ -1,10 +1,10 @@
 # AGENTS.md — the hoopsh contributor covenant
 
-**Audience: AI agents first, humans second.** If you are an AI agent assigned to work
-on part of this codebase, read this file completely before writing anything. It exists
-so that many different agents, working on different parts at different times, produce
-ONE consistent codebase. Every rule below was earned — several encode incidents that
-actually corrupted stats or wasted calibration runs.
+**Audience: AI agents first, humans second.** An AI agent assigned to work on this
+codebase must read this file completely before writing anything. It exists so that
+many agents, working on different parts at different times, produce ONE consistent
+codebase. Several rules below encode incidents that corrupted stats or wasted
+calibration runs; see the DO-NOT list (§2) and prime directives (§1) for citations.
 
 Reading order for a new contributor: `README.md` → `ARCHITECTURE.md` →
 `docs/INTERNALS.md` → this file → `docs/ONBOARDING.md` (guided walkthrough).
@@ -20,11 +20,11 @@ the required completion-report format. Follow it step by step.
 ### 1.1 The engine imports nothing
 `packages/engine` has **zero dependencies** — no npm packages, no Node built-ins
 (`node:fs`, `node:path`, …), no globals beyond the JS language and `structuredClone`.
-It must run identically in Node and a browser. If your engine change needs I/O,
-you're putting it in the wrong package.
+It must run identically in Node and a browser. An engine change that needs I/O
+belongs in a different package.
 
-### 1.2 Determinism is sacred
-Same seed ⇒ bit-identical events and frames, forever, on every platform.
+### 1.2 Determinism is mandatory
+Same seed ⇒ bit-identical events and frames, on every platform, with no exception.
 - **Never** use `Math.random`, `Date`, `performance.now`, or any ambient state inside
   the engine. All randomness flows through the game's seeded `Rng` (core/rng.ts).
 - Be careful with **iteration order**: `Map`/`Set` iterate in insertion order (fine),
@@ -34,14 +34,14 @@ Same seed ⇒ bit-identical events and frames, forever, on every platform.
   see §4.3 for which verification tier that puts you in.
 
 ### 1.3 Events are the only contract
-Consumers (stats, narration, viewers, future experiences) know NOTHING about engine
-internals. If a consumer needs information, it goes into the **event stream**
+Consumers (stats, narration, viewers, future experiences) have no visibility into
+engine internals. Information a consumer needs goes into the **event stream**
 (core/events.ts) — never expose engine state directly. Box scores must remain fully
 reconstructible from events alone (an invariant test enforces this).
 
 ### 1.4 Every behavioral constant lives in SimParams
-If you hardcode a tunable number inside engine logic, the calibration sweep cannot
-reach it and league realism silently degrades. New constants go in
+A hardcoded tunable number inside engine logic is unreachable by the calibration
+sweep, and league realism degrades without warning. New constants go in
 `sim/params.ts` (+ a range entry in `harness/src/knobs.ts` if sweepable).
 Timing/geometry literals that are NOT behavioral levers (e.g. cosmetic free-throw
 lineup spots) may stay inline but must carry a comment explaining their real-world
@@ -52,15 +52,15 @@ meaning (see §5).
   Minutes, pace, and all statistics key on it.
 - `wallT` / `Base.wt` — **replay timeline**. Advances every tick, stoppages included.
   Frames and viewers key on it.
-Mixing them reintroduces the two worst bugs this project has had (post-buzzer scoring;
-free-throw teleport-glides). `movement.ts#advanceClock` is the only writer of `t`;
-`game.ts#tick` is the only writer of `wallT`.
+Mixing them has caused two historical incidents: post-buzzer scoring and free-throw
+teleport-glides. `movement.ts#advanceClock` is the only writer of `t`; `game.ts#tick`
+is the only writer of `wallT`.
 
-### 1.6 Invariants are law
+### 1.6 Invariants take precedence
 `packages/engine/test/invariants.test.ts` encodes guarantees verified by adversarial
-audits. **If your change makes an invariant fail, your change is wrong — never the
-invariant.** Weakening or deleting a test to make code pass is the single most
-serious violation in this repo. (Tests may be *corrected* only when the test itself
+audits. **If a change makes an invariant fail, the change is wrong — never the
+invariant.** Weakening or deleting a test to make code pass is the highest-severity
+violation defined in this repo. (Tests may be *corrected* only when the test itself
 has a demonstrable bug — document the reasoning in the commit message.)
 
 ### 1.7 Only erasable TypeScript syntax
@@ -75,32 +75,32 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 
 ## 2. The DO-NOT list
 
-1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a sloppy `0.5` — a machine
-   chose it against 48 acceptance-band checks. Rounding it un-calibrates the league.
-   If a value offends you, re-run the sweep and bake its output.
+1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
+   optimizer chose it against 48 acceptance-band checks. Rounding it de-calibrates the
+   league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
-   Depth without validation is fake depth and expands the solver's search space.
+   Unvalidated depth expands the solver's search space with no offsetting benefit.
 3. **Do not put behavior in consumer packages.** The viewer renders; narration
    describes; stats folds. None of them may influence or re-derive game logic.
 4. **Do not touch calibrated defaults without re-verifying.** Any change to
    `sim/params.ts` values or to mechanics that consume them requires the calibration
-   ladder (§4.2). The knobs are COUPLED — the file header documents an incident where
-   raising one foul rate collapsed the league three-point rate by 8 points.
+   ladder (§4.2). The knobs are coupled. Incident (file header, `sim/params.ts`):
+   increasing one foul rate reduced the league three-point rate by 8 points.
 5. **Do not leave dead or misleading surface.** Anything defined-but-unconsumed must
    be labeled `STAGED` (deliberate, tied to a roadmap stage) or `UNWIRED` (accidental
    debt, with the condition for wiring it). Unlabeled dead code gets deleted.
-6. **Do not add runtime dependencies anywhere without explicit owner approval.** The
-   whole repo currently runs with ZERO installed packages; that is a feature.
-7. **Do not reformat, rename, or "improve" code outside your assigned scope.** Multi-
-   agent work only stays mergeable if diffs are minimal and scoped. No drive-by edits.
+6. **Do not add runtime dependencies without explicit owner approval.** The repo
+   runs with zero installed packages by design.
+7. **Do not reformat, rename, or "improve" code outside assigned scope.** Multi-agent
+   work stays mergeable only if diffs are minimal and scoped. No drive-by edits.
 8. **Do not break replay compatibility silently.** The replay JSON shape and the
    frame row layout are consumed by the standalone viewer; bump `Replay.version` and
    update `packages/viewer` in the same change.
 9. **Do not bypass the roster schema.** New player/team fields go through
    `data/src/schema.ts` validation and the pack `formatVersion` discipline.
 10. **Do not trust your memory of this file's rules over the code's own comments.**
-    When they disagree, the code comments + tests are newer; flag the discrepancy.
+    When they disagree, the code comments and tests are newer; flag the discrepancy.
 
 ---
 
@@ -155,8 +155,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 ### 4.4 Calibration etiquette
 - The 16 NBA bands (`harness/src/bands.ts`) are the gate. "Locked" means 46–48 of 48
   band-checks passing across the three seed bases at 40+ games, with any single miss
-  under ~1% outside a band edge — that residual is the **noise floor** (sampling
-  variance), not miscalibration. Do not chase it with hand-nudges; that's the sweep's job.
+  under ~1% outside a band edge; that residual is the **noise floor** (sampling
+  variance), not miscalibration. Do not chase it with hand-nudges — use the sweep.
 - After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
   precision), then re-verify with `--iters 0`.
 
@@ -173,6 +173,9 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 - **Voice**: explain the *basketball or design reason*, not the code mechanics.
   Good: "sagging off non-shooters works because his open 9-footer is a win for the
   defense." Bad: "// multiply by 0.6".
+- **Register**: documentation and comments use a neutral technical register:
+  declarative statements, incident citations rather than narrative, no motivational
+  or promotional language. Emphasis is reserved for severity and safety-critical rules.
 - **Every new numeric literal** gets either real-world units + meaning ("13.75 ft =
   NBA free-throw line to rim center") or an honest "FEEL — tuned for plausible
   timing, not statistically constrained."
@@ -181,8 +184,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 - **New exported functions** get JSDoc: what, when it's called (phase/trigger), and
   non-obvious side effects on `GameState`.
 - **Traps get called out where they live** (ordering constraints, idempotency guards,
-  protected IDs). If you needed a minute to understand something, write the sentence
-  that would have saved you the minute.
+  protected IDs): a one-sentence comment at the point of confusion, stating what
+  would otherwise require investigation to determine.
 - Keep the two reference docs current: an architectural change updates
   `ARCHITECTURE.md`/`docs/INTERNALS.md` in the SAME commit.
 - Any edit to a source document regenerates the compiled Bible in the same
@@ -199,8 +202,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   (`shotEV` wraps `shotMakeP`). Never let the AI's beliefs drift from reality.
 - **Probabilistic resolution over hard physics**: spatial context feeds logistic
   models. That's the core bet that keeps realism calibratable.
-- **Ratings express identity through interaction**, not special cases. Before adding
-  an `if (player.isCurry)`-shaped branch, stop — that's always wrong here.
+- **Ratings express identity through interaction**, not special cases. An
+  `if (player.isCurry)`-shaped branch is prohibited; do not add one.
 
 ## 7. When unsure
 
@@ -208,6 +211,7 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   modeled, add it to the known-simplifications list in `docs/INTERNALS.md` rather
   than half-implementing it.
 - If a task seems to require breaking a prime directive, STOP and escalate to the
-  project owner with the conflict spelled out. Do not creatively reinterpret the rules.
-- Leave the campsite cleaner: if you find undocumented mystery, document it (comments
-  are always in scope); if you find a bug outside your scope, report it — don't fix it silently.
+  project owner with the conflict spelled out. Do not reinterpret the rules.
+- Two standing obligations beyond the assigned task: document undocumented behavior
+  encountered (comments are always in scope); report bugs found outside scope rather
+  than fixing them silently.

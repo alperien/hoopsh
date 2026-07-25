@@ -1,8 +1,8 @@
 # hoopsh internals — a guided tour
 
 Read [ARCHITECTURE.md](../ARCHITECTURE.md) first for the *why*; this is the *where*.
-Everything below assumes the golden rule: **`engine` imports nothing; everything else
-consumes its event stream.**
+Everything below assumes the governing rule: **`engine` imports nothing; everything
+else consumes its event stream.**
 
 ## The tick pipeline (10 Hz)
 
@@ -56,13 +56,13 @@ Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (sch
 validation, archetypes, sample packs), `narration/` (frozen demo layer),
 `harness/` (batch runner, bands, sweep, benchmarks), `packages/viewer/` (prototype).
 
-## Design rules that keep this codebase sane
+## Design rules that maintain consistency across this codebase
 
 1. **One probability form.** Every resolution is `sigmoid(base + Σ terms)`; every
    constant lives in `SimParams`. Rating influence goes through `n(rating)` ∈ [-1, 1].
 2. **Self-consistent AI.** The model that resolves a shot is the model the AI uses to
-   *choose* it (`shotEV` calls `shotMakeP`). Decision and outcome can never drift apart.
-3. **Determinism is sacred.** One seeded `Rng` per game. No `Math.random`, no `Date`,
+   *choose* it (`shotEV` calls `shotMakeP`). Decision and outcome cannot drift apart.
+3. **Determinism is mandatory.** One seeded `Rng` per game. No `Math.random`, no `Date`,
    no iteration-order dependence. Same seed ⇒ bit-identical events + frames.
 4. **Events are the only truth.** If a consumer needs something, it goes in the event
    stream — never reach into engine internals.
@@ -71,7 +71,7 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 6. **Staged surface is labeled.** Fields marked `STAGED` in `model/player.ts`
    (`perimeterD`, `interiorD`, `consistency`, `tend.iso/post/pushPace`) are defined but
    not yet consumed — each is tied to a roadmap stage. Wiring one without its stage's
-   mechanics would be fake depth.
+   mechanics adds unvalidated surface area.
 
 ## The safety net (run all of it before pushing)
 
@@ -86,8 +86,9 @@ npm run bench    # ≥1 game/sec budget (typical ~6)
 audit rounds verified: possession start/end balance, zero post-horn scoring, exact
 minutes conservation, plus-minus ≡ margin×5, score reconstructible from events, no
 off-court or fouled-out actors, team-foul monotonicity, strictly monotonic replay
-frames, and a physical teleport ceiling on player movement. **If you change the engine
-and an invariant fails, the engine is wrong — never the invariant.**
+frames, and a physical teleport ceiling on player movement. **Policy: if a change to
+the engine makes an invariant fail, the change is treated as wrong — never the
+invariant.**
 
 ## Calibration workflow
 

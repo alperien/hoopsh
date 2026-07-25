@@ -1,11 +1,11 @@
-# hoopsh 🏀
+# hoopsh
 
 *A modular, deterministic, 2D-spatial basketball simulation core.*
 
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **calibrated probability models fed by spatial context**, so games look
-like basketball *and* season-scale statistics land inside real-league ranges. Every point
+resolve through **calibrated probability models fed by spatial context**: games follow
+basketball rules and season-scale statistics fall inside real-league ranges. Every point
 in a box score traces back to a simulated shot from a real (x, y) location.
 
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
@@ -69,13 +69,13 @@ document, reading paths by role, which doc answers which question). The short li
 
 ## The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims can't be calibrated; pure stat sims have no feel. hoopsh runs
+Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs
 continuous 2D movement and decision-making, but resolves discrete events through
 logistic models whose every constant lives in one flat object: **`SimParams`**, the
 calibration surface. Player identity comes from handcrafted **attributes** (what a
-player *can* do) and **tendencies** (what they *want* to do) — an elite shooter profile
-organically produces a heavy deep-three diet, off-ball gravity that warps the defense,
-and star-level scoring volume. Nobody scripts that; it emerges.
+player *can* do) and **tendencies** (what they *want* to do). An elite shooter profile
+produces a heavy deep-three diet, off-ball gravity that warps the defense, and
+star-level scoring volume as a result of these interactions, without being scripted.
 
 Signature mechanics:
 - **Shot windup** — shots take 0.4–0.65s to release, making every catch-and-shoot a
@@ -91,21 +91,21 @@ Signature mechanics:
 A batch harness grades league-wide averages against 16 NBA acceptance bands
 (pace, efficiency, shot mix, rebounding, fouls, turnovers…), and an automated
 parameter sweep (`npm run sweep`) keeps them locked. Current state: **46–48 of 48
-band-checks passing across three independent seed bases** at 40-game samples —
+band-checks passing across three independent seed bases** at 40-game samples;
 residual misses are <1% band-edge grazes (the sampling noise floor). A 50-test
-suite (including a permanent invariant suite born from two adversarial audit
-rounds) guards determinism, possession accounting, minutes conservation, and
+suite, including a permanent invariant suite derived from two adversarial audit
+rounds, guards determinism, possession accounting, minutes conservation, and
 buzzer integrity on every change. Archetype tests pin player differentiation
 (elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
-of shots inside; non-shooting bigs don't chuck).
+of shots inside; non-shooting bigs do not take low-value shots).
 
 Run it yourself: `npm run batch -- --games 50`.
 
 ## Roadmap
 
-**Done:** replay viewer ✅ · broadcast demo ✅ · automated parameter sweep ✅ ·
-orchestrator refactor ✅ · pick-and-roll ✅ · invariant suite ✅ · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path) ✅
+**Done:** replay viewer · broadcast demo · automated parameter sweep ·
+orchestrator refactor · pick-and-roll · invariant suite · full documentation
+campaign (33% engine comment density, contributor covenant, onboarding path)
 
 **Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
 their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse

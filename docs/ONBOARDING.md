@@ -1,7 +1,7 @@
-# Onboarding — from zero to productive in two evenings
+# Onboarding — a two-evening path
 
-This is the guided path. Documents tell you *what's true*; this file tells you
-*what order to learn it in*, with checkpoints so you know it stuck.
+This is the guided path. The other documents state *what's true*; this file states
+*the order to learn it in*, with checkpoints to verify retention.
 
 ---
 
@@ -24,12 +24,12 @@ Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.j
 onto it, press space. Watch a full possession. Scrub around a free throw.
 
 **3. Read the two contracts** (~45 min):
-- `packages/engine/src/core/events.ts` — every event type and its invariants.
-  This is what EVERY consumer sees; internalize it.
+- `packages/engine/src/core/events.ts` — every event type and its invariants;
+  this is what every consumer sees.
 - `packages/engine/src/sim/params.ts` — read the header primer carefully
   (logit table, units, provenance tags), then skim the annotated defaults.
 
-**Checkpoint 1** — you should be able to answer without looking:
+**Checkpoint 1** — answer without looking:
 - Why are there two time axes, and which one do stats use?
 - What does `SWEPT` provenance mean, and why must you not round those values?
 - Which package is allowed to import which?
@@ -50,7 +50,7 @@ follow one possession end to end:
 3. **The handler thinks** — `ai.ts#decideBall` every ~0.66s: computes the
    **continuation value** (what "keep working" is worth), then utilities for
    shoot / drive / pass(×4) / hold — all in expected points — and softmaxes.
-   Read this function slowly; it is the heart of the engine.
+   This is the engine's central decision function.
 4. **A pass** — `passing.ts#startPass`: risk resolved AT LAUNCH (determinism),
    flight animated, `resolvePassArrival` hands the ball over and opens the
    0.12s catch-and-shoot window.
@@ -65,31 +65,31 @@ follow one possession end to end:
    lineup timelines, plus-minus from score deltas, possessions from
    `possession_end` (which fires exactly once — see the `poss.ended` guard).
 
-While tracing, keep the viewer open on the same seed. Everything you read is
-visible: the windup pause before a shot, the closeout sprint, the scramble.
+Keep the viewer open on the same seed while tracing: the windup pause before a shot,
+the closeout sprint, and the scramble are all visible in the replay.
 
 **2. Read the emergence machinery** (~30 min):
 `resolve.ts#gravity` (why shooters warp defenses) → `ai.ts#defenseTick` (gap,
-sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then read
-`ARCHITECTURE.md §5` again — it will land differently now.
+sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then re-read
+`ARCHITECTURE.md §5` with the traced possession as context.
 
-**3. First-change exercises** (~45 min, pick one, throwaway — don't commit):
+**3. First-change exercises** (~45 min, pick one, throwaway — do not commit):
 - **Safe**: In `params.ts`, set `decide.threeAppetite: 0.5` via an override in a
-  scratch script (use `simulateGame({ params: { decide: { threeAppetite: 0.5 } } })`)
-  and run 10 games. Watch the 3PA share crater in the box scores. Revert nothing —
-  you never touched the file.
+  scratch script (`simulateGame({ params: { decide: { threeAppetite: 0.5 } } })`)
+  and run 10 games. Observe the 3PA share drop in the box scores; no revert needed,
+  since the file itself was never touched.
 - **Safer**: Write a 10-line consumer: count screen-adjacent pull-up threes from the
-  event stream of 20 games. You'll learn the event contract by using it.
+  event stream of 20 games. Exercises the event contract directly.
 - **Advanced**: Follow AGENTS.md §4 end-to-end for a real one-knob change
   (e.g. `reb.putbackChance` +0.05): fingerprint → change → `npm test` → batch →
-  revert. The point is the ritual, not the change.
+  revert. The objective is familiarity with the verification procedure.
 
-**Checkpoint 2** — you're productive when you can:
+**Checkpoint 2** — Competency criteria:
 - Explain how drive-and-kick emerges without a script (three mechanisms).
-- Say exactly what happens to `possession_end` on an and-one.
-- Name the file you'd edit to change what a 90 `speed` rating means, and the file
-  you'd edit to make players *want* to shoot earlier.
-- State the verification tier of the change you're about to make.
+- State exactly what happens to `possession_end` on an and-one.
+- Name the file to edit to change what a 90 `speed` rating means, and the file
+  to edit to make players *want* to shoot earlier.
+- State the verification tier of the change being made.
 
 ---
 

@@ -27,7 +27,7 @@
 
 ## 2. The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims are uncalibratable; pure stat sims have no feel. hoopsh runs a
+Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs a
 **continuous 2D spatial layer** (movement, spacing, defensive positioning) and resolves
 **discrete events probabilistically** (shots, passes, fouls, rebounds) using models fed
 by spatial context:
@@ -103,8 +103,8 @@ rules. NBA ships first; NCAA/EuroLeague are follow-ups. Custom leagues are just 
   the calibration surface.
 
 "Curry-ness" = elite three ratings + heavy three/pull-up tendencies + high off-ball
-movement + gravity (defenses guard him tighter, farther out — which *creates* the
-spacing his teammates feed on). Identity emerges from the interaction, not a script.
+movement + gravity (defenses guard him tighter, farther out, which creates the
+spacing his teammates feed on). Identity is a product of this interaction, not a script.
 
 ### 4.4 Offense AI
 
