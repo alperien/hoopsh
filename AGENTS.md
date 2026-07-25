@@ -185,6 +185,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   that would have saved you the minute.
 - Keep the two reference docs current: an architectural change updates
   `ARCHITECTURE.md`/`docs/INTERNALS.md` in the SAME commit.
+- Any edit to a source document regenerates the compiled Bible in the same
+  commit: `npm run docs:bible` (never edit `docs/BIBLE.md` directly).
 
 ---
 

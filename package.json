@@ -2,7 +2,7 @@
   "name": "hoopsh",
   "private": true,
   "version": "0.1.0",
-  "description": "hoopsh — a modular, deterministic 2D spatial basketball simulation core",
+  "description": "hoopsh \u2014 a modular, deterministic 2D spatial basketball simulation core",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -17,6 +17,7 @@
     "sweep": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/sweep.ts",
     "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
     "typecheck": "tsc --noEmit",
-    "test:vitest": "vitest run"
+    "test:vitest": "vitest run",
+    "docs:bible": "node tools/build-bible.mjs"
   }
 }

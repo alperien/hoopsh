@@ -97,6 +97,7 @@ sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then rea
 
 | Question | Answer lives in |
 |---|---|
+| "Which document do I even need?" | `docs/README.md` (the library hub) |
 | "What is this project?" | `README.md`, `ARCHITECTURE.md` |
 | "Where is X / where do I change Y?" | `docs/INTERNALS.md` |
 | "Am I allowed to do this?" | `AGENTS.md` |

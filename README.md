@@ -59,11 +59,13 @@ Dependency rule: **`engine` imports nothing; everything else imports `engine`.**
 The typed event stream is the public contract — stats, narration, and viewers are pure
 consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-**All documentation:** [ARCHITECTURE.md](./ARCHITECTURE.md) (design rationale) ·
-[docs/INTERNALS.md](./docs/INTERNALS.md) (module map & tick pipeline) ·
-[docs/ONBOARDING.md](./docs/ONBOARDING.md) (two-evening guided path) ·
-[AGENTS.md](./AGENTS.md) (**contributor covenant — read before changing anything**) ·
-[docs/PLAYBOOK.md](./docs/PLAYBOOK.md) (step-by-step procedure for writing new code)
+**All documentation → [docs/README.md](./docs/README.md)** (the library hub: every
+document, reading paths by role, which doc answers which question). The short list:
+[ARCHITECTURE.md](./ARCHITECTURE.md) (design) · [docs/INTERNALS.md](./docs/INTERNALS.md)
+(module map) · [AGENTS.md](./AGENTS.md) (**contributor covenant**) ·
+[docs/PLAYBOOK.md](./docs/PLAYBOOK.md) (build procedure) ·
+[docs/ONBOARDING.md](./docs/ONBOARDING.md) (learning path) ·
+[docs/BIBLE.md](./docs/BIBLE.md) (everything compiled into one generated file)
 
 ## The core bet: hybrid spatial–stochastic simulation
 
