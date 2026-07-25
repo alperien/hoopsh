@@ -30,6 +30,10 @@ describe('realism regression guard (wide bands)', () => {
   const avgs = finalize(acc);
 
   for (const band of NBA_BANDS) {
+    // ratchet bands are declared destinations, not yet enforced floors — the
+    // batch report and sweep see them; the regression guard does not (see
+    // bands.ts Band.ratchet)
+    if (band.ratchet) continue;
     const width = band.hi - band.lo;
     const lo = band.lo - width * 0.35;
     const hi = band.hi + width * 0.35;

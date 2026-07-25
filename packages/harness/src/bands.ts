@@ -28,6 +28,10 @@ export interface Band {
   hi: number;
   /** formatting hint — when true, format as a percentage (×100, one decimal, "%" suffix) instead of a plain per-game count; see aggregate.ts#formatReport */
   pct?: boolean;
+  /** ratchet target: reported in the batch table and scored by the sweep,
+   *  but EXCLUDED from the wide regression guard until the mechanics that
+   *  close the gap land — a declared destination, not yet an enforced floor */
+  ratchet?: boolean;
 }
 
 // One row per NBA_BANDS entry. `metric` is the LeagueAverages key it checks
@@ -54,5 +58,12 @@ export const NBA_BANDS: Band[] = [
   { metric: 'blk', label: 'Blocks per game', lo: 3.5, hi: 6.5 },
   { metric: 'tov', label: 'Turnovers per game', lo: 11.5, hi: 15.5 },
   { metric: 'pf', label: 'Fouls per game', lo: 16, hi: 22.5 },
-  { metric: 'ortg', label: 'Offensive rating', lo: 106, hi: 121 }
+  { metric: 'ortg', label: 'Offensive rating', lo: 106, hi: 121 },
+  // REAL — NBA assisted share of made FGs runs ~54-62% across 2015-2025
+  // (recent seasons ~56-59%). The engine sits ~50%: unassisted pull-ups,
+  // drives, and worked post-ups out-volume real basketball's catch-and-shoot
+  // economy. RATCHET: the fidelity phase owns closing this (it gates
+  // playmaker assist totals — a 9-apg season is unreachable at 50% share);
+  // flip `ratchet` off once the gap's mechanics land and the sweep re-locks.
+  { metric: 'astdShare', label: 'Assisted share of FGM', lo: 0.54, hi: 0.62, pct: true, ratchet: true }
 ];

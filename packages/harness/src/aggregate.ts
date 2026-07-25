@@ -139,6 +139,9 @@ export function finalize(acc: Accumulator): LeagueAverages {
     orbPct: acc.orbPctSum / g,
     trb: acc.trb / g,
     ast: acc.ast / g,
+    // every assist marks exactly one assisted made FG, so league assisted
+    // share is directly ast/fgm (volume-weighted, like the other ratio stats)
+    astdShare: acc.ast / Math.max(1, acc.fgm),
     stl: acc.stl / g,
     blk: acc.blk / g,
     tov: acc.tov / g,
