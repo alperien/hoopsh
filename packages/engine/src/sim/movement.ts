@@ -67,7 +67,10 @@ export function applyFatigue(s: GameState, dt: number): void {
     if (a.fouledOut) continue;
     if (a.onCourt) {
       const speedShare = len(a.vel) / 28;
-      const drain = F.drainPerSec * (1 + speedShare * F.sprintDrainMult) * dt;
+      // stamina rating scales drain: 50 is neutral, 100 drains half again
+      // slower, 0 half again faster — iron-man profiles play longer stints
+      const staminaMult = 1.25 - (a.p.attr.stamina / 100) * 0.5;
+      const drain = F.drainPerSec * (1 + speedShare * F.sprintDrainMult) * staminaMult * dt;
       a.energy = clamp(a.energy - drain, 0, 100);
     } else {
       a.energy = clamp(a.energy + F.recoverPerSecBench * dt, 0, 100);

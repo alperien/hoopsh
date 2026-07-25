@@ -32,7 +32,9 @@ export interface Attributes {
   passVision: number;
 
   // defense
+  /** STAGED — consumed when defensive schemes land (Stage 2); see docs/INTERNALS.md */
   perimeterD: number;
+  /** STAGED — consumed when defensive schemes land (Stage 2); see docs/INTERNALS.md */
   interiorD: number;
   steal: number;
   block: number;
@@ -45,6 +47,7 @@ export interface Attributes {
 
   // mental
   decisions: number; // shot selection & pass reads
+  /** STAGED — consumed by the hot/cold variance model (Stage 3); see docs/INTERNALS.md */
   consistency: number;
 }
 
@@ -59,7 +62,9 @@ export interface Tendencies {
   // with-ball inclinations
   drive: number;
   passOut: number;
+  /** STAGED — consumed when the iso action lands (Stage 2); see docs/INTERNALS.md */
   iso: number;
+  /** STAGED — consumed when the post-up action lands (Stage 2); see docs/INTERNALS.md */
   post: number;
 
   // off-ball behavior
@@ -71,6 +76,7 @@ export interface Tendencies {
   foulAggr: number;
 
   // pace
+  /** STAGED — consumed by the team-pace layer (Stage 2); see docs/INTERNALS.md */
   pushPace: number;
 }
 
