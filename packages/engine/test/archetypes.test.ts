@@ -9,7 +9,7 @@ import { simulateGame } from '@hoopsh/engine';
 import { boxScore, type PlayerLine } from '@hoopsh/stats';
 import { sampleMatchup } from '@hoopsh/data';
 
-const GAMES = 8;
+const GAMES = 16;
 
 function seasonLines(): Map<string, PlayerLine & { games: number }> {
   const totals = new Map<string, PlayerLine & { games: number }>();
@@ -66,15 +66,33 @@ describe(`archetype behavior over ${GAMES} games`, () => {
     expect(per('brk-ratliff', 'trb')).toBeGreaterThan(6);
   });
 
-  // KNOWN GAP (v0.2 milestone: usage hierarchy & pick-and-roll).
-  // Finding from calibration session 1: assists credit the LAST passer, and
-  // half-court creation currently flows through swing positions (wings) rather
-  // than through the primary initiator. A floor general needs structural
-  // creation patterns — PnR, paint-touch-and-spray, re-initiation after swings
-  // — to lead his team in assists the way real PGs do. Scalar knobs
-  // (playmakerPull) moved touches but not terminal creation. Ratchet this to:
-  // "floor general leads team assists at 6+" when the PnR milestone lands.
-  it.todo('floor general (Vance): clearly the assist leader on his team (needs v0.2 PnR)');
+  // Resolved structurally (Stage 2 usage hierarchy): the calibration-session-1
+  // finding was that creation flowed through swing positions and scalar knobs
+  // moved touches but not terminal creation. The structural fix, in ai.ts:
+  // the playmaker pull is RELATIVE to the holder's own creation score and
+  // clock-scaled (re-initiation after swings); PnR initiation is gated by the
+  // holder's creation rank (ai.pnrUsageFloor); drive utility prices the
+  // paint-touch-and-spray option, crowd-gated and scaled by the driver's own
+  // vision; open catch-and-shoot threes convert (ai.catchShootBonus). The
+  // floor general now leads his team in assists — historically he ran 4th.
+  it('floor general (Vance): the assist leader on his team', () => {
+    const vance = per('mon-vance', 'ast');
+    expect(vance).toBeGreaterThanOrEqual(4); // level floor; see ratchet below
+    for (const id of lines.keys()) {
+      if (id.startsWith('mon-') && id !== 'mon-vance') {
+        expect(vance).toBeGreaterThan(per(id, 'ast'));
+      }
+    }
+  });
+
+  // LEVEL RATCHET (deferred to the fidelity phase): a real floor general
+  // leads at 6-10 apg, not ~5. The gap is league assisted-share — the engine
+  // credits ~46-50% of makes as assisted vs the NBA's ~58%, and no acceptance
+  // band constrains it yet. Chasing the level with style knobs oscillates
+  // (Stage 2 measurement); it needs an assisted-share band in harness/bands
+  // plus per-player validation against real profiles (Curry/LeBron/Jokić
+  // benchmark work). Ratchet the floor above to 6+ when that band lands.
+  it.todo('floor general (Vance): 6+ assists per game (needs assisted-share band)');
 
   it('non-shooting bigs do not chuck threes', () => {
     // allowance of max(1, 8% of FGA) tolerates the occasional end-of-period
