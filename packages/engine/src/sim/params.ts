@@ -297,7 +297,7 @@ export const defaultParams: SimParams = {
     basePaint: -0.3858,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.5228,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
-    baseThree: -0.89,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
+    baseThree: -0.9089,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
     // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
     // means an elite finisher gains ~+12 percentage points at the rim.
     // Three's coef is LOWER than the others on purpose: real three-point
@@ -365,7 +365,7 @@ export const defaultParams: SimParams = {
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
     shootRim: 0.4,
-    shootPaint: 0.118,
+    shootPaint: 0.1,
     shootMid: 0.05,
     shootThree: 0.012,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
@@ -382,7 +382,7 @@ export const defaultParams: SimParams = {
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.02
+    looseBallPerReb: 0.0255
   },
 
   pass: {
@@ -411,7 +411,7 @@ export const defaultParams: SimParams = {
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
-    missDistBase: 4.22,
+    missDistBase: 4.6746,
     missDistCoef: 0.16,
     // How sharply proximity dominates the scramble: weight ∝ 1/(1+d)^power.
     // Higher = rebounding is pure positioning; lower = size/skill matter more.
@@ -426,7 +426,7 @@ export const defaultParams: SimParams = {
     // Seconds between ball-handler decision evaluations (jittered ±25% at the
     // call site). Roughly "how often a player re-reads the floor" — the main
     // lever on how many actions fit in a possession. SWEPT.
-    intervalSec: 0.661,
+    intervalSec: 0.6538,
     // Softmax temperature over action utilities, in expected-points units.
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
@@ -448,14 +448,14 @@ export const defaultParams: SimParams = {
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
-    continuationCurve: 0.2005,
+    continuationCurve: 0.181,
     // Inside this many shot-clock seconds, urgency scales the continuation
     // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
     // ERA KNOBS. Global multipliers on three-point and drive appetite —
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
-    threeAppetite: 1.0,
+    threeAppetite: 1.013,
     driveAppetite: 0.9,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
@@ -535,7 +535,7 @@ export const defaultParams: SimParams = {
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
     cutterBonus: 0.5,
-    swingBase: 0.038,
+    swingBase: 0.0442,
     swingPassOutScale: 0.16,
     swingVisionScale: 0.12,
     // FEEL — re-initiation pull: full-clock EV of feeding a teammate 100
@@ -545,7 +545,7 @@ export const defaultParams: SimParams = {
     catchContestScale: 0.72,
     cutRateScale: 0.0044,
     cutDurationSec: 1.6,
-    crashBase: 0.21,
+    crashBase: 0.2398,
     crashTendScale: 0.6,
     guardDistBase: 2.8,
     guardDistOpen: 4.5,
