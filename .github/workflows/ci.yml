@@ -20,7 +20,10 @@ jobs:
       - name: band smoke (8 games)
         run: npm run batch -- --games 8
       - name: fingerprint determinism (two runs must match)
+        # normalize the wall-clock timing line — the SIMULATION is
+        # deterministic, the "simulated in Xms" stopwatch is not (run #1
+        # failed on exactly this)
         run: |
-          npm run sim -- --seed ci-fp > /tmp/fp1.txt
-          npm run sim -- --seed ci-fp > /tmp/fp2.txt
+          npm run sim -- --seed ci-fp | sed 's/simulated in [0-9]*ms/simulated in Xms/' > /tmp/fp1.txt
+          npm run sim -- --seed ci-fp | sed 's/simulated in [0-9]*ms/simulated in Xms/' > /tmp/fp2.txt
           diff /tmp/fp1.txt /tmp/fp2.txt
