@@ -40,6 +40,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Rng, simulateGame, type GameEvent, type Team } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
+import { distPhrase, shotCall, type ShooterTraits } from '@hoopsh/narration';
 import { flagNumber, flagValue } from './args.js';
 
 // a neutral name pool large enough for two rosters per excerpt; assignment is
@@ -66,15 +67,24 @@ function fmtClock(period: number, clock: number): string {
   return `Q${period} ${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** render one sim event into the bbref-ish dry register (null = not a play line) */
-function renderEvent(e: GameEvent, name: (id: string) => string): string | null {
+/**
+ * render one sim event into the bbref-ish dry register (null = not a play
+ * line). Exported for the renderer's own tests (every shot-vocabulary
+ * variant must produce the exact bbref grammar).
+ */
+export function renderEvent(
+  e: GameEvent,
+  name: (id: string) => string,
+  traits?: (id: string) => ShooterTraits | undefined
+): string | null {
   switch (e.type) {
     case 'shot': {
-      const kind = e.three
-        ? `3-pt jump shot from ${Math.round(e.distFt)} ft`
-        : e.zone === 'rim'
-          ? `layup from ${Math.max(1, Math.round(e.distFt))} ft`
-          : `2-pt jump shot from ${Math.round(e.distFt)} ft`;
+      // bbref's shot grammar, exactly: "{2,3}-pt {call} {from N ft | at rim}"
+      // with the call vocabulary (layup/dunk/hook/tip-in/jump shot) derived
+      // from event data + shooter athleticism — see narration/src/shotcall.ts
+      // and the Turing baseline's shot-type-monotony tell.
+      const call = shotCall(e, traits?.(e.shooter));
+      const kind = `${e.three ? '3-pt' : '2-pt'} ${call} ${distPhrase(e.distFt)}`;
       if (e.made) {
         const ast = e.assist ? ` (assist by ${name(e.assist)})` : '';
         return `${name(e.shooter)} makes ${kind}${ast}`;
@@ -126,12 +136,17 @@ function simWindows(count: number, winLen: number, seedBase: string, rng: Rng): 
       }
       return ids.get(id)!;
     };
+    // shooter athleticism feeds the layup/dunk call in the renderer
+    const traits = (id: string): ShooterTraits | undefined => {
+      const p = teams.flatMap((t) => t.players).find((x) => x.id === id);
+      return p ? { vertical: p.attr.vertical, finishing: p.attr.finishing } : undefined;
+    };
     // renderable mid-game lines (Q2-Q3)
     const lines: NormPlay[] = [];
     let prev: [number, number] = [0, 0];
     for (const e of r.events) {
       if (e.period < 2 || e.period > 3) { prev = [e.score[0], e.score[1]]; continue; }
-      const text = renderEvent(e, name);
+      const text = renderEvent(e, name, traits);
       if (!text) { prev = [e.score[0], e.score[1]]; continue; }
       const scored = e.score[0] + e.score[1] > prev[0] + prev[1];
       lines.push({ clock: fmtClock(e.period, e.clock), text, score: scored ? `${e.score[0]}-${e.score[1]}` : undefined });

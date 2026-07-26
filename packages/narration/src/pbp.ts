@@ -21,6 +21,7 @@
 
 import { Rng, type GameEvent, type Team, type TeamSide } from '@hoopsh/engine';
 import { ContextTracker, type NarrativeMoment } from './context.js';
+import { shotCall, type ShooterTraits } from './shotcall.js';
 
 export interface NarrationLine {
   t: number;
@@ -36,11 +37,19 @@ interface Lookup {
   last: (id: string) => string;
   teamName: (side: TeamSide) => string;
   abbrev: (side: TeamSide) => string;
+  /** shooter athleticism for the layup/dunk shot call (see shotcall.ts) */
+  traits: (id: string) => ShooterTraits | undefined;
 }
 
 export function makeLookup(teams: [Team, Team]): Lookup {
   const names = new Map<string, string>();
-  for (const t of teams) for (const p of t.players) names.set(p.id, p.name);
+  const traits = new Map<string, ShooterTraits>();
+  for (const t of teams) {
+    for (const p of t.players) {
+      names.set(p.id, p.name);
+      traits.set(p.id, { vertical: p.attr.vertical, finishing: p.attr.finishing });
+    }
+  }
   // disambiguate shared last names ("R. Vance" vs "E. Vance"). Counted
   // across BOTH teams together (not per-team) because two players who share
   // a last name across OPPOSING rosters are just as ambiguous in a line of
@@ -72,7 +81,8 @@ export function makeLookup(teams: [Team, Team]): Lookup {
       return last;
     },
     teamName: (side) => teams[side].name,
-    abbrev: (side) => teams[side].abbrev
+    abbrev: (side) => teams[side].abbrev,
+    traits: (id) => traits.get(id)
   };
 }
 
@@ -302,16 +312,33 @@ function renderShot(
   const who = lk.last(e.shooter);
   const open = e.contest < 0.18 ? 'wide-open ' : e.contest > 0.62 ? 'heavily contested ' : '';
 
+  // the shot's basketball NAME (layup/dunk/hook/tip-in/jump shot) comes from
+  // the shared classifier — the broadcast register then dresses it up by how
+  // the shot was created. This is the shot-type-monotony fix: short attempts
+  // used to all read as generic jumpers/paint shots (Turing baseline tell).
+  const call = shotCall(e, lk.traits(e.shooter));
   const shotDesc =
     e.moveType === 'heave' ? 'desperation heave from way downtown' :
-    e.moveType === 'putback' ? 'putback' :
-    e.moveType === 'drive' ? (e.zone === 'rim' ? 'driving layup' : `running ${DIST(e.distFt)}`) :
-    e.moveType === 'cut_finish' ? 'cutting finish at the rim' :
-    e.moveType === 'post' ? 'post move' :
+    call === 'tip-in' ? 'tip-in' :
+    call === 'dunk' ? (
+      e.moveType === 'putback' ? 'putback slam' :
+      e.moveType === 'drive' ? 'driving dunk' : 'dunk'
+    ) :
+    call === 'hook shot' ? `${DIST(e.distFt)} hook` :
+    call === 'layup' ? (
+      e.moveType === 'putback' ? 'putback layup' :
+      e.moveType === 'drive' ? 'driving layup' :
+      e.moveType === 'cut_finish' ? 'cutting layup' : 'layup'
+    ) :
+    // jump shots, by flavor of creation and range
+    e.moveType === 'post' ? 'turnaround out of the post' :
     e.three ? (e.moveType === 'pull_up' ? `pull-up three from ${Math.round(e.distFt)} feet` : 'catch-and-shoot three') :
-    e.zone === 'rim' ? 'shot at the rim' :
-    e.zone === 'mid' ? `${open ? '' : 'mid-range '}jumper from ${Math.round(e.distFt)} feet` :
-    `${DIST(e.distFt)} in the paint`;
+    e.zone === 'paint' ? (
+      (e.moveType === 'drive' || e.moveType === 'pull_up') && e.distFt <= 10
+        ? `floater from ${Math.round(e.distFt)} feet` // the runner/teardrop range
+        : `${DIST(e.distFt)} in the paint`
+    ) :
+    `${open ? '' : 'mid-range '}jumper from ${Math.round(e.distFt)} feet`;
 
   if (e.blockedBy) {
     return pool.pick('blk', [
