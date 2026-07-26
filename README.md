@@ -33,7 +33,7 @@ npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance 
 npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice booth broadcast script for a game
-npm run broadcast -- --booth latenight   # same game, different narrator personas
+npm run broadcast -- --booth tnt # same game, the alternate announcer pairing
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is

@@ -61,7 +61,7 @@ npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance 
 npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice booth broadcast script for a game
-npm run broadcast -- --booth latenight   # same game, different narrator personas
+npm run broadcast -- --booth tnt # same game, the alternate announcer pairing
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
@@ -1339,19 +1339,61 @@ needs. Templates use `{slot}` tokens filled from the beat + sense snapshot
 (kinds/tags/minimum heat) and a per-game budget; the booth enforces the budget
 so a catchphrase stays an event, not a tic.
 
-Shipped personas are **original homage archetypes** — styles, not imitations
-of named people, and no real broadcaster's trademark call is reproduced:
+Shipped personas are **imitations of real broadcasters** (project decision,
+2026-07, superseding the first draft's invented personas — invented broadcast
+language read as generated text). Every template line is either modeled on a
+verified call from a researched phrase inventory (game transcripts, quote
+compilations, broadcaster interviews), confirmed genre lingua franca ("won't
+go", "in and out", "kicks it out", "and the foul", "checks in for"), or a
+plain factual statement the event stream supports. Nothing is invented for
+color. Imitation is stylistic, for a simulation project; no affiliation is
+implied.
 
-- **Miles Corbin** (pbp) — precision anchor: economical during routine play,
-  a controlled detonation at peak moments. Signature: "COUNT IT!"
-- **Gus Tremaine** (color) — the teacher: fundamentals, numbered points,
-  scouting-report framing, tonight's numbers. High stat affinity.
-- **Dana Boone** (pbp) — the firecracker: kinetic imagery, personal-record
-  volume at peak, still accurate underneath the noise.
+- **Mike Breen** (pbp) — crescendo discipline: terse standard calls in
+  routine play, "It's good! It's good!" doubling at big moments, "BANG!"
+  reserved for big threes (his stated threes-only rule), "BANG! BANG!" at
+  most once a game (real usage: ~11 in a career).
+- **Hubie Brown** (color) — the teaching register from his verified
+  formulas: "you must" directives, conditional second person, "the painted
+  area", plainly cited numbers, "That's it! That's it!" as peak approval,
+  credit to the coaching staff.
+- **Kevin Harlan** (alt pbp) — controlled start, staccato action-word
+  enumeration at peak, "Oh my goodness!" as the bridge, "What a play!" as
+  the tag; the famous calls ("no regard for human life", "climbing the
+  ladder and dropping the sledgehammer", "right between the eyes") under
+  once-a-game budgets with high heat floors.
 
-Booth presets: `classic` (Corbin + Tremaine) and `latenight` (Boone +
-Tremaine). A custom `BoothConfig` with user-authored packs is accepted by the
-same entry point.
+Booth presets: `classic` (Breen + Brown) and `tnt` (Harlan + Brown). A custom
+`BoothConfig` with user-authored packs is accepted by the same entry point.
+
+**The style contract.** Constructions that read as generated text are banned
+from every pack and every booth-composed string:
+
+- contrast frames — "that's not X, that's Y" / "it's not about X";
+- aphoristic kickers and moralizing closers ("Champions close.",
+  "Everything else is noise.", "You teach that.");
+- meta-similes and object personification ("like it owes him money",
+  "the rim says no");
+- audience filler ("folks") and invented imagery in play calls.
+
+Peak energy is carried by the real signature calls and register escalation,
+never by invented metaphor. `test/style.test.ts` enforces the
+machine-checkable subset of this list against all pack strings AND a fully
+rendered script from each preset; the list only ever grows (a review that
+finds a new tell adds a pattern — templates are rewritten, the lint is never
+loosened).
+
+Phrase-inventory sources (verbatim calls and style descriptions):
+awfulannouncing.com (Harlan Q&As 2011/2016; Ayton "sledgehammer" and
+Westbrook dunk call write-ups; Haliburton Finals call), salon.com (the 2008
+LeBron "no regard for human life" call), bostonglobe.com (Harlan's held-back
+Celtics call, "climbing the ladder" note), slamonline.com (Breen profile:
+BANG discipline, crescendo quote), si.com/themirror.com (BANG/double-BANG
+usage counts), 20secondtimeout.blogspot.com and phdhoops.com (Hubie Brown
+verbatim on-air quotes and Hubie-isms), news-herald.com (Hubie's trademarks:
+"the painted area", "you must", "That's it! That's it!"). Formulas the
+research could not verify to a named announcer were used only where they are
+confirmed genre-generic play-by-play language.
 
 ## 8. The booth — turn-taking
 
@@ -1399,10 +1441,12 @@ two-voice script.
 (every made field goal has a play call; no `undefined`, no unfilled `{slot}`);
 non-decreasing `wt`; signature budgets respected; presets actually differ;
 pregame/recap/final segments present; v1 suite untouched and green.
+`test/style.test.ts` additionally rejects the banned style constructions
+(§7) in every pack string and in rendered scripts from both presets.
 
 ## 10. Entry points
 
-- `npm run broadcast [-- --seed S --booth classic|latenight]` — sim + booth
+- `npm run broadcast [-- --seed S --booth classic|tnt]` — sim + booth
   script to `out/broadcast-<seed>.txt` (add `--legacy` for the v1 pipeline).
 - Library: `buildBoothScript` / `formatBoothScript` / `compileBeats` /
   `GameSense` / `BOOTH_PRESETS` from `@hoopsh/narration`.
