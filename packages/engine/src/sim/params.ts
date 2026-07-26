@@ -241,6 +241,14 @@ export interface SimParams {
    * defensive spacing); the sections above shape how attempts RESOLVE.
    */
   ai: {
+    // bounded-rationality concept MASTER SCALES (ai/concepts.ts): each
+    // multiplies every term of one concept, so the sweep can budget entire
+    // concepts instead of nudging their sub-dials one by one. 1.0 = the
+    // sub-dial values apply exactly as written.
+    decisivenessScale: number;   // concept 1 — drilled green-light shots
+    actionCommitScale: number;   // concept 2 — called-action payoff + patience
+    advantageScale: number;      // concept 3 — cutter / swing / hierarchy passes
+    tempoScale: number;          // concept 5 — transition urgency
     // shot selection
     zoneTendBias: number;        // weight of zone shot-diet tendencies
     pullUpBias: number;          // weight of pull-up tendency on pull-ups
@@ -673,6 +681,14 @@ export const defaultParams: SimParams = {
   },
 
   ai: {
+    // Concept master scales (ai/concepts.ts). FEEL — 1.0 by definition at
+    // introduction: the consolidation was proven byte-identical at these
+    // defaults, so each concept's sub-dials carry their historical values
+    // and the master scale is the sweep's budget knob for the whole concept.
+    decisivenessScale: 1,
+    actionCommitScale: 1,
+    advantageScale: 1,
+    tempoScale: 1,
     zoneTendBias: 0.22,
     pullUpBias: 0.18,
     threeApptScale: 0.35,

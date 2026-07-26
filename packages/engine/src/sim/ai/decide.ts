@@ -18,7 +18,8 @@ import { dist, lerp, sub, type V2 } from '../../core/vec.js';
 import { n } from '../../model/derived.js';
 import { agent, attackedRim, onCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
-import { creation, onBallDefender } from './shared.js';
+import { onBallDefender } from './shared.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post' }
@@ -93,36 +94,10 @@ export function decideBall(s: GameState): BallAction {
   if (myShot.zone === 'three') {
     shootBias += (D.threeAppetite - 1) * A.threeApptScale + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
   }
-  // catch-and-shoot decisiveness: a genuinely OPEN three off the catch is
-  // the payoff of ball movement — letting it fly is drilled behavior, and
-  // without this term the continuation value talks every receiver out of
-  // shooting (kicks die in re-swings and creators never earn assists). Two
-  // gates, both from incidents: contest < 0.5 so only the CREATED advantage
-  // fires, not an ordinary swing catch (ungated: pace 133 vs band 95-103);
-  // three-point zone only, because the drilled catch-and-shoot is a JUMP-SHOT
-  // concept — paint catches are finishes the cut machinery already values,
-  // and applying the bonus there flooded the rim and sank 3PA share to 26%.
-  // ...and scaled by the shooter's own three-point appetite, with a hard
-  // floor at tendency 25: the green light belongs to shooters and a true
-  // non-shooter never has it. A sagged-off big is OPEN precisely because the
-  // defense wants him shooting — unscaled, he obliged (bigs chucked ~9% of
-  // their FGA from deep and league 3P% sagged).
-  if (shotMove === 'catch_shoot' && myShot.zone === 'three') {
-    shootBias += A.catchShootBonus * clamp((0.5 - contest.level) / 0.5, 0, 1) * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
-  }
-  // the transition pull-up: before the defense sets, a rhythm three off the
-  // dribble is a drilled shot for shooters — the trailer/early-offense three
-  // a drive-first star actually takes (his halfcourt threes are conceded to
-  // the rim threat). Green-light gated like the catch-and-shoot; without
-  // this the downhill benchmark attempted 0.7 threes against a real 5-7.
-  if (s.poss.phase === 'transition' && shotMove === 'pull_up' && myShot.zone === 'three') {
-    shootBias += A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
-  }
-  // the worked post move: after the backdown the turnaround is the plan —
-  // without this the spray won 8:1 and post scoring never materialized
-  if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
-    shootBias += A.postShotBonus;
-  }
+  // CONCEPT 1: DECISIVENESS — drilled green-light shots (catch-and-shoot
+  // three, transition pull-up, worked post move). The doctrine and every
+  // gate's incident history live in ai/concepts.ts.
+  shootBias += decisiveness(s, h, shotMove, myShot.zone, contest.level, act0);
   // USAGE PRESSURE — the closed loop that makes load an identity. The dial
   // (tend.usage) sets a target share of team offense; the gap between it and
   // the REALIZED share this game biases the self-creation options. An
@@ -140,9 +115,9 @@ export function decideBall(s: GameState): BallAction {
   const contestBrake =
     clamp(contest.level - A.contestBrakeAt, 0, 1) *
     (A.contestBrakeBase + ((h.p.attr.decisions - 50) / 100) * A.contestBrakeIQ);
-  // transition looks are worth extra before the defense sets
-  const transitionTerm = s.poss.phase === 'transition' ? D.transitionBonus : 0;
-  const uShoot = myShot.ev + shootBias + transitionTerm + usagePressure - continuation - contestBrake;
+  // CONCEPT 5: TEMPO — transition looks are worth extra before the defense sets
+  const T = tempo(s);
+  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake;
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
@@ -158,43 +133,23 @@ export function decideBall(s: GameState): BallAction {
     const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest, myDelivery);
     if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
     const risk = passRisk(s, h, m);
-    const cutting = s.t < m.cutUntil;
-    const cutterBonus = cutting ? A.cutterBonus : 0;
-    // a big posted and settled on the block wants the entry — the feed is the
-    // whole point of the action (any current holder may throw it)
-    const entryTarget =
-      act0?.kind === 'post' && act0.phase === 'posting' &&
-      m.p.id === act0.posterId && dist(m.pos, m.target) < 4;
-    const entryBonus = entryTarget ? A.postEntryBonus : 0;
-    // the handoff: once the DHO receiver has sprinted into range, handing it
-    // off IS the play — the catch stuns his trailing defender (passing.ts)
-    const dhoTarget =
-      act0?.kind === 'dho' && act0.hubId === h.p.id &&
-      m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
-    const dhoBonus = dhoTarget ? A.dhoHandoffBonus : 0;
-    const swingBonus =
-      A.swingBase +
-      ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
-      ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
-    // re-initiation: routing the ball UP the creation hierarchy has value
-    // beyond the receiver's own shot — he creates the NEXT action. Relative
-    // and clamped at zero: the primary feels no pull toward lesser handlers,
-    // but passing DOWN is never penalized — a kick-out is judged on shot
-    // merit alone (penalizing it produced a ball-stopping primary). Clock-
-    // scaled: hierarchy is an early-offense concept — as the clock drains,
-    // shot value takes over.
-    const playmakerPull =
-      (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * (sc / full);
+    // CONCEPT 3: ADVANCE THE ADVANTAGE (cutter / swing / hierarchy pull) and
+    // CONCEPT 2: ACTION COMMITMENT (the called action's designed feed) — the
+    // doctrine and incident history live in ai/concepts.ts; components are
+    // added in the original order (floating-point order is part of the
+    // determinism contract).
+    const adv = advantagePass(s, h, m, s.t < m.cutUntil, sc / full);
+    const pay = commitmentPass(s, h, m, act0);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + cutterBonus + swingBonus + playmakerPull + entryBonus + dhoBonus
+      + adv.cutter + adv.swing + adv.pull + pay.entry + pay.dho
       - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,
         u,
-        passKind: dhoTarget ? 'handoff'
-          : entryTarget ? 'entry'
+        passKind: pay.dhoTarget ? 'handoff'
+          : pay.entryTarget ? 'entry'
           : driving ? 'kickout'
           : s.poss.phase === 'transition' ? 'outlet' : 'normal'
       };
@@ -265,54 +220,22 @@ export function decideBall(s: GameState): BallAction {
     // (pace 113, FTA 31, 3PA 26% — both incidents from Stage 2 tuning).
     const driveDiff = collapse - continuation;
     uDrive = usagePressure + handling * (driveDiff >= 0 ? driveDiff : driveDiff * A.driveAbortDiscount)
-      + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
-    // attacking off a live screen: the whole point of calling for it
-    if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase !== 'coming') {
-      uDrive += A.pnrDriveBonus;
-    }
-    // a cleared side is an invitation — the iso call is a commitment to attack
-    if (act0?.kind === 'iso' && act0.handlerId === h.p.id) {
-      uDrive += A.isoDriveBonus;
-    }
+      + tendTerm + T.drive - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
+    // CONCEPT 2: ACTION COMMITMENT (drive payoff) — attack the called action
+    // (live screen, cleared side); doctrine in ai/concepts.ts
+    uDrive += commitmentDrive(s, h.p.id, act0);
   }
 
   // --- utility: hold (keep probing)
   let uHold = s.poss.phase === 'advance' ? A.holdAdvance : A.holdHalfcourt;
-  // mid-drive: keep attacking. The collapse option priced at launch (drive
-  // block above) is still maturing while the dribble is live — without this,
-  // hold falls to the halfcourt baseline one tick after launch and every
-  // drive ends in an instant kick before the help ever commits. Scaled by
-  // remaining drive seconds (capped at 1s) so the boost is strong at launch
-  // and gone by the terminal decision: penetrate first, THEN finish or spray
-  // off the true post-collapse looks. A flat boost instead suppresses the
-  // kick outright and drives die at the rim in contested junk.
-  if (driving) uHold += A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, 1);
-  // a screen is on its way — wait for it instead of swinging the ball away
-  // (audit: without this, the handler passed before 93% of screens arrived)
-  if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase === 'coming') {
-    uHold += A.pnrWaitBoost;
-  }
-  // a DHO is live and mine: hold while the receiver sprints in — same "wait
-  // for the action to arrive" semantics as the screen
-  if (act0?.kind === 'dho' && act0.hubId === h.p.id) {
-    uHold += A.pnrWaitBoost;
-  }
-  // the backdown: a post player who just caught the entry works his position
-  // for a beat before the shoot-or-spray decision (same shape as the drive
-  // hold — the advantage is still maturing while he carves out space)
-  if (postingUp && s.t - act0.postedAt < A.postBackdownSec) {
-    uHold += A.postWorkBoost;
-  }
-  // ...and the self-post walk-down gets the same commitment: he CALLED this
-  // action — without the boost, a high-vision hub passed away mid-dribble
-  // on nearly every self-post and the call never reached the block
-  // (fidelity incident: 1.2 post shots/game for a 92-post-tendency center)
-  if (
-    act0?.kind === 'post' && act0.posterId === h.p.id &&
-    act0.phase === 'posting' && act0.feederId === act0.posterId
-  ) {
-    uHold += A.postWorkBoost;
-  }
+  // CONCEPT 2: ACTION COMMITMENT (patience) — the carrier waits for his
+  // called action to mature (live drive, arriving screen, DHO sprint, the
+  // post backdown). Doctrine and incident history in ai/concepts.ts;
+  // components added in the original order.
+  const pat = commitmentHold(s, h, act0, postingUp, driving);
+  uHold += pat.driveHold;
+  uHold += pat.wait;
+  uHold += pat.postWork;
 
   // SOFTMAX over utilities: usually the best action, sometimes not. The
   // temperature (params.decide.temperature, ~0.06 expected points) is the
