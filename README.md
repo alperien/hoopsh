@@ -126,4 +126,8 @@ broadcast TTS audio · WASM hot path if the perf budget ever demands it.
 
 ## License
 
-Not chosen yet — treat as all-rights-reserved until a license lands.
+MIT licensed — see LICENSE.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
