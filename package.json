@@ -23,6 +23,7 @@
     "oos": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/oos.ts",
     "texture": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/texture.ts",
     "noisefloor": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/noisefloor.ts",
+    "calreport": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/calreport.ts",
     "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",

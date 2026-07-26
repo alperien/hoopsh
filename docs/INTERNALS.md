@@ -134,21 +134,49 @@ out-of-sample roster check in the harness; distributional realism (score
 variance, blowout rate, quarter profiles) is reported but not yet enforced.
 Treat band-locked as "necessary, not sufficient".
 
-**Measured findings** (noise-floor era — magnitudes from `npm run noisefloor`
-at 20+ seed bases, superseding the earlier prose findings; the pre-texture
-FTA-low and 3P%-high residuals now PASS after the texture re-tune):
-- **Pace center sits ON the band floor** (measured 24-game mean 94.98 vs the
-  95.0 floor) and **ORtg center sits ON the band ceiling** (121.0 vs 121.0) —
-  one story: the sim scores ~1% too efficiently on slightly few possessions.
-  The z-gates absorb it; the centering itself is an open calibration item.
-- **Elite-shooter benchmark's assist center runs high**: measured 40-game
-  center 9.13 vs the 4.5-8.5 identity range, after two honest authoring
-  fixes (a real point-forward hub in his cast; passVision 78→72) moved it
-  down from 9.64. Residual cause: relocation-era openness converts his
-  passes at elite-hub rates. Candidate mechanism work, not knob work.
+**Measured findings** (noise-floor era — magnitudes from `npm run noisefloor`;
+positions from `npm run calreport`, which quotes n40 grand-mean centers with
+standard errors — quoting a smaller nested window's mean as "the center" was
+an error the third review caught, twice, in our own write-up. The pre-texture
+FTA-low and 3P%-high residuals PASS after the texture re-tune):
+- **THE FRICTION SIGNATURE** (the review computed it from our own table; the
+  calreport now emits it): friction/volume statistics pin near band FLOORS
+  (pace edge-unresolved at +1.5se, trb/stl/blk/tov hugging at ~1σ gate
+  distance, fta/orbPct at ~2σ) while accuracy/efficiency statistics pin near
+  CEILINGS (ORtg edge-unresolved at +0.6se, 3P% hugging, FG%/FT%/assisted
+  share at ~1.6-1.9σ). Read as ONE defect with a direction: the sim plays
+  frictionless, hyper-efficient basketball at slightly few possessions.
+  Prime mechanical suspect: movement speed (6.55 ft/s vs NBA ~4.2) feeding
+  every spatial computation. **Speed-pin experiment (run 2026-07-26,
+  reviewer-designed): all speeds × 0.64 ≈ NBA-equivalent, every shot/contest
+  constant held fixed → pace 95.3→86.5, FG% 48.0%→50.1%, ORtg 120.8→126.8,
+  blocks 3.8→2.5 at 24 games.** Large moves everywhere = the shooting
+  calibration HAS absorbed the kinematics error (the current constants are
+  fitted to a world where defenders arrive ~1.5× too fast). Consequence,
+  binding on the validation arc: fix movement speed BEFORE fitting shot
+  models to real data, or the absorption gets a citation attached.
+- **Elite-shooter benchmark's assist center runs high**: 9.51 ±0.16se at
+  8×40-game bases vs the 4.5-8.5 identity range. (An earlier 4-draw probe
+  read 9.13 — the sample-size lesson applied to ourselves: quote the floor's
+  larger sample, not a hand probe.) The cast fix (point-forward hub authored
+  in) plus the passVision trim moved the center only 9.64→~9.5 — LITTLE,
+  which sharpens the engine-level audit question the fixture change cannot
+  answer: the decision layer appears to over-generate assists for high-usage
+  shooters regardless of cast structure. Promoted in the audit ranking.
+- **Position updates at 40 league bases**: pace center RESOLVED inside its
+  band (95.42, +3.5se above the 95.0 floor); ORtg center 121.08 ±0.27se —
+  edge-unresolved, leaning just above the 121 ceiling. The friction
+  signature persists (floors: trb/blk/tov ~1σ; ceilings: 3P%/ORtg).
 - **Pass volume runs low**: ~2.3 passes/possession vs the NBA's ~3.2 after
   pass-back damping (baseline was 2.95) — the swing economy thinned; open
   texture item.
+- **Endgame management is missing, distinctly from mid-game coupling** (the
+  review's sharpest cut): conditional on a game being close, OT arrives ~9%
+  of the time vs the league's ~26% (3.3/37 vs ~6/23) — near-ties are played
+  out instead of MANAGED (no timeouts, intentional fouling, hold-for-last,
+  two-for-one, clock burn). Margin sd high (~12 vs 8-9) AND close-game share
+  high (37% vs 20-26%): fat middle, fat tails, missing shoulders — TWO
+  mechanism gaps (mid-game coupling; endgame management), not one.
 
 **Out-of-sample status** (`npm run oos` — generated rosters the sweep never
 saw): re-run at each landing. The texture increment improved the

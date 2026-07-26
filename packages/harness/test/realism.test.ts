@@ -47,6 +47,9 @@ describe('realism regression guard (wide bands)', () => {
   }
   const avgs = finalize(acc);
 
+  // ---- check 1: TRIPWIRE vs band edges (edge ± Z·sd) — "is the sim still
+  // inside acceptable basketball", sensitivity varies with where the center
+  // sits inside its band (a metric mid-band is only caught by gross breakage)
   for (const band of NBA_BANDS) {
     // ratchet bands are declared destinations, not yet enforced floors — the
     // batch report and sweep see them; the regression guard does not (see
@@ -60,6 +63,25 @@ describe('realism regression guard (wide bands)', () => {
       const v = avgs[band.metric]!;
       expect(v).toBeGreaterThanOrEqual(lo);
       expect(v).toBeLessThanOrEqual(hi);
+    });
+  }
+
+  // ---- check 2: DRIFT vs the measured center (|current − mean| ≤ Zd·sd) —
+  // "did the sim move from where the floor measured it", uniform sensitivity
+  // across every metric regardless of band position (third review: without
+  // this, a metric sitting 9σ inside its band is effectively uninstrumented).
+  // Zd = 3.5: 17 simultaneous checks put family-wise false-alarm near 1%.
+  // After an INTENTIONAL re-tune, regenerate the floor (npm run noisefloor) —
+  // the gen-file diff is the accepted-drift record.
+  const Zd = 3.5;
+  for (const band of NBA_BANDS) {
+    if (band.ratchet) continue;
+    const floor = (NOISE_FLOOR.league as Record<string, { n24: { mean: number; sd: number } }>)[band.metric];
+    if (!floor) continue;
+    const { mean, sd } = floor.n24;
+    it(`${band.label}: within ${Zd}σ of measured center ${mean.toFixed(2)}`, () => {
+      const v = avgs[band.metric]!;
+      expect(Math.abs(v - mean)).toBeLessThanOrEqual(Zd * sd);
     });
   }
 });
