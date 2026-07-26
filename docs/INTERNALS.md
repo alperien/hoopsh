@@ -54,7 +54,7 @@ event `wt` key on it). Do not mix them.
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (schemas,
 validation, archetypes, sample packs), `narration/` (frozen demo layer),
-`harness/` (batch runner, bands, sweep, benchmarks), `packages/viewer/` (prototype).
+`harness/` (batch runner, bands, sweep, fidelity benchmarks, inverse solver), `packages/viewer/` (prototype).
 
 ## Design rules that maintain consistency across this codebase
 
