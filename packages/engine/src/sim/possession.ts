@@ -460,7 +460,8 @@ export function tickScramble(s: GameState, dt: number): void {
  * `tickScramble`, `tickFreeThrows` all check for it and route here) — the
  * single point where "the horn sounds" is handled. Ends the possession, and
  * if this was the last scheduled period with a clear winner, ends the game;
- * otherwise advances to the next period/overtime, resets team fouls, and
+ * otherwise advances to the next period/overtime, resets team fouls (unless
+ * the rule pack carries them into OT — teamFoulsCarryToOT), and
  * queues the next period's opening dead ball.
  */
 export function endPeriod(s: GameState): void {
@@ -482,7 +483,13 @@ export function endPeriod(s: GameState): void {
   s.period += 1;
   const isOT = s.period > s.rules.periods;
   s.clock = (isOT ? s.rules.otMinutes : s.rules.periodMinutes) * 60;
-  s.teamFoulsPeriod = [0, 0]; // team-foul bonus count resets each period, personals don't
+  // Team-foul bonus counts reset each regulation period (personals never
+  // do) — but a league with teamFoulsCarryToOT keeps the count through EVERY
+  // overtime: NCAA men reset only at the end of the first half, so OT
+  // continues the second half's count (and a 2nd OT continues the 1st's);
+  // FIBA/EuroLeague treat extra periods as an extension of the 4th. The NBA
+  // resets here like any other period (rules/rulepack.ts field doc).
+  if (!(isOT && s.rules.teamFoulsCarryToOT)) s.teamFoulsPeriod = [0, 0];
   emit(s, { type: 'period_start' });
 
   let team: TeamSide;
