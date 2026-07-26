@@ -1,5 +1,5 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "kind": "team",
   "team": {
     "id": "monarchs",
@@ -51,7 +51,8 @@
           "crashOffReb": 8,
           "gambleSteal": 45,
           "foulAggr": 28,
-          "pushPace": 74
+          "pushPace": 74,
+          "usage": 46
         }
       },
       {
@@ -99,7 +100,8 @@
           "crashOffReb": 14,
           "gambleSteal": 40,
           "foulAggr": 34,
-          "pushPace": 55
+          "pushPace": 55,
+          "usage": 58
         }
       },
       {
@@ -147,7 +149,8 @@
           "crashOffReb": 30,
           "gambleSteal": 62,
           "foulAggr": 42,
-          "pushPace": 45
+          "pushPace": 45,
+          "usage": 40
         }
       },
       {
@@ -195,7 +198,8 @@
           "crashOffReb": 78,
           "gambleSteal": 20,
           "foulAggr": 50,
-          "pushPace": 30
+          "pushPace": 30,
+          "usage": 62
         }
       },
       {
@@ -243,7 +247,8 @@
           "crashOffReb": 92,
           "gambleSteal": 18,
           "foulAggr": 58,
-          "pushPace": 35
+          "pushPace": 35,
+          "usage": 34
         }
       },
       {
@@ -291,7 +296,8 @@
           "crashOffReb": 12,
           "gambleSteal": 44,
           "foulAggr": 36,
-          "pushPace": 60
+          "pushPace": 60,
+          "usage": 70
         }
       },
       {
@@ -333,13 +339,14 @@
           "pullUp": 58,
           "drive": 74,
           "passOut": 42,
-          "iso": 60,
+          "iso": 78,
           "post": 12,
           "offBallMotion": 58,
           "crashOffReb": 22,
           "gambleSteal": 38,
           "foulAggr": 36,
-          "pushPace": 55
+          "pushPace": 55,
+          "usage": 72
         }
       },
       {
@@ -387,7 +394,8 @@
           "crashOffReb": 14,
           "gambleSteal": 40,
           "foulAggr": 34,
-          "pushPace": 55
+          "pushPace": 55,
+          "usage": 58
         }
       },
       {
@@ -435,7 +443,8 @@
           "crashOffReb": 86,
           "gambleSteal": 16,
           "foulAggr": 62,
-          "pushPace": 28
+          "pushPace": 28,
+          "usage": 30
         }
       },
       {
@@ -483,7 +492,8 @@
           "crashOffReb": 52,
           "gambleSteal": 30,
           "foulAggr": 44,
-          "pushPace": 42
+          "pushPace": 42,
+          "usage": 30
         }
       }
     ],
