@@ -92,7 +92,14 @@ export function decideBall(s: GameState): BallAction {
   let shootBias = ((zoneTend - 50) / 100) * A.zoneTendBias;
   if (shotMove === 'pull_up') shootBias += ((h.p.tend.pullUp - 50) / 100) * A.pullUpBias;
   if (myShot.zone === 'three') {
-    shootBias += (D.threeAppetite - 1) * A.threeApptScale + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
+    // The ERA appetite expresses through the PLAYER's tendency (t/50: neutral
+    // at 50, doubled for a 99, faded for a 20): a three-happy era hands its
+    // green light to SHOOTERS — it does not turn hubs and rim-runners into
+    // volume bombers. Flat, the texture re-tune's appetite=1.3 dragged the
+    // hub benchmark to 5.9 threes (cap 5.5) and diluted his FG%, while the
+    // elite shooter's SHARE of team threes was crowded out (fidelity
+    // incident, texture increment).
+    shootBias += (D.threeAppetite - 1) * A.threeApptScale * (h.p.tend.shotThree / 50) + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
   }
   // CONCEPT 1: DECISIVENESS — drilled green-light shots (catch-and-shoot
   // three, transition pull-up, worked post move). The doctrine and every

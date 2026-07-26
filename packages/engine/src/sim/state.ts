@@ -53,6 +53,8 @@ export interface Agent {
   teamPossOnCourt: number;
   driveUntil: number;          // t until which a drive commitment holds
   cutUntil: number;
+  /** live purposeful-relocation window (shake off a bending defense) — target holds until this expires */
+  relocUntil: number;
   screenStunUntil: number;     // defender fighting through a screen
   navUnderUntil: number;       // defender ducking under a screen (concedes pull-up space)
 }

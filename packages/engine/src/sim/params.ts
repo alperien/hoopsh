@@ -259,6 +259,9 @@ export interface SimParams {
     tempoScale: number;          // concept 5 — transition urgency
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
+    relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
+    relocateDriftFt: number;     // how far the shake drifts away from the defender
+    relocDurationSec: number;    // how long the relocated ground is held
     // shot selection
     zoneTendBias: number;        // weight of zone shot-diet tendencies
     pullUpBias: number;          // weight of pull-up tendency on pull-ups
@@ -398,7 +401,7 @@ export const defaultParams: SimParams = {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
     baseRim: 0.5714,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.3216,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    basePaint: -0.3574,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.955,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
@@ -490,8 +493,8 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.4183,
-    shootPaint: 0.1,
+    shootRim: 0.3916,
+    shootPaint: 0.1152,
     shootMid: 0.05,
     shootThree: 0.012,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
@@ -499,7 +502,7 @@ export const defaultParams: SimParams = {
     contestFactor: 1.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0164,
+    reachInPerSec: 0.0172,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
@@ -515,7 +518,7 @@ export const defaultParams: SimParams = {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.1909,
+    riskBase: -4.2524,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -603,7 +606,7 @@ export const defaultParams: SimParams = {
     // collapse pricing + catch-and-shoot decisiveness shifted the patience
     // equilibrium; two sweeps could not escape the old basin) — then
     // sweep-polished from this start point
-    continuationMax: 1.489,
+    continuationMax: 1.4714,
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
@@ -614,8 +617,8 @@ export const defaultParams: SimParams = {
     // ERA KNOBS. Global multipliers on three-point and drive appetite —
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
-    threeAppetite: 0.9618,
-    driveAppetite: 0.9,
+    threeAppetite: 1.15,
+    driveAppetite: 0.7864,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.05,
@@ -730,6 +733,16 @@ export const defaultParams: SimParams = {
     // FEEL — malus decays linearly across the window.
     passBackWindowSec: 2.5,
     passBackMalus: 0.22,
+    // Purposeful relocation — the second half of stillness-as-default.
+    // Spacing is HELD until the ball bends the defense; THEN shooters shake.
+    // While a drive is live, a shooter drifts away from his defender,
+    // restoring the open catch. Without this, stillness strangled the
+    // catch-and-shoot economy: 3PA share pinned at ~24% and the sweep
+    // refused more volume because contested 3P% would sink through its
+    // floor (texture-increment finding). FEEL.
+    relocateRatePerTick: 0.06,
+    relocateDriftFt: 4,
+    relocDurationSec: 1.6,
     zoneTendBias: 0.22,
     pullUpBias: 0.18,
     threeApptScale: 0.35,
@@ -738,7 +751,7 @@ export const defaultParams: SimParams = {
     contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.0132,
+    holdHalfcourt: 0.0389,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -761,7 +774,7 @@ export const defaultParams: SimParams = {
     playmakerScale: 0.18,
     passContinuationScale: 0.9,
     catchContestScale: 0.72,
-    cutRateScale: 0.0034,
+    cutRateScale: 0.003,
     cutDurationSec: 1.6,
     crashBase: 0.15,
     crashTendScale: 0.6,

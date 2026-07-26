@@ -6,6 +6,7 @@
  */
 
 import { dist, lerp, norm, scale, sub, add } from '../../core/vec.js';
+import { clamp } from '../../core/rng.js';
 import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, onCourt, other, type GameState } from '../state.js';
@@ -116,6 +117,8 @@ export function offenseOffBallTick(s: GameState): void {
 
   actionTick(s);
   const act = s.poss.action;
+  const holderId = s.ball.holderId;
+  const holder = holderId ? agent(s, holderId) : null;
 
   for (const a of onCourt(s, side)) {
     if (a.fouledOut || a.p.id === s.ball.holderId) continue;
@@ -178,6 +181,38 @@ export function offenseOffBallTick(s: GameState): void {
     ) {
       a.cutUntil = s.t + s.params.ai.cutDurationSec;
       continue;
+    }
+
+    // PURPOSEFUL RELOCATION — the second half of stillness-as-default.
+    // Spacing is held until the ball bends the defense; then a shooter
+    // SHAKES: while a drive is live he drifts away from his defender,
+    // restoring the open catch-and-shoot that pure stillness strangled
+    // (3PA share pinned at ~24% without it — see params provenance).
+    if (s.t < a.relocUntil) {
+      // hold the relocated ground while the window lasts (the spot branch
+      // below would otherwise walk him straight back and undo the shake)
+      a.intent = 'spot';
+      a.sprinting = false;
+      continue;
+    }
+    if (
+      holder && s.t < holder.driveUntil && s.poss.phase === 'halfcourt' &&
+      a.spotKey !== 'dunker' &&
+      gravity(s, a) > s.params.ai.dunkerGravityThreshold &&
+      s.rng.chance(s.params.ai.relocateRatePerTick)
+    ) {
+      const dfd = assignedDefender(s, a);
+      if (dfd) {
+        const away = norm(sub(a.pos, dfd.pos));
+        a.target = {
+          x: clamp(a.pos.x + away.x * s.params.ai.relocateDriftFt, 2, s.court.length - 2),
+          y: clamp(a.pos.y + away.y * s.params.ai.relocateDriftFt, 2, s.court.width - 2)
+        };
+        a.relocUntil = s.t + s.params.ai.relocDurationSec;
+        a.intent = 'spot';
+        a.sprinting = false;
+        continue;
+      }
     }
 
     a.intent = 'spot';
