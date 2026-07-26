@@ -45,7 +45,7 @@ const curry: Player = {
     shotRim: 26, shotMid: 20, shotThree: 86, pullUp: 66,
     drive: 38, passOut: 62, iso: 55, post: 3,
     offBallMotion: 96, crashOffReb: 8,
-    gambleSteal: 55, foulAggr: 25, pushPace: 70
+    gambleSteal: 55, foulAggr: 25, pushPace: 70, usage: 88
   }
 };
 
@@ -68,7 +68,7 @@ const lebron: Player = {
     shotRim: 60, shotMid: 26, shotThree: 68, pullUp: 40,
     drive: 92, passOut: 70, iso: 60, post: 35,
     offBallMotion: 45, crashOffReb: 42,
-    gambleSteal: 45, foulAggr: 40, pushPace: 75
+    gambleSteal: 45, foulAggr: 40, pushPace: 75, usage: 90
   }
 };
 
@@ -93,7 +93,7 @@ const jokic: Player = {
     shotRim: 62, shotMid: 58, shotThree: 56, pullUp: 42,
     drive: 25, passOut: 75, iso: 40, post: 92,
     offBallMotion: 30, crashOffReb: 55,
-    gambleSteal: 40, foulAggr: 30, pushPace: 45
+    gambleSteal: 40, foulAggr: 30, pushPace: 45, usage: 92
   }
 };
 

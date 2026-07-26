@@ -117,6 +117,10 @@ export function resolvePassArrival(s: GameState): void {
     type: 'pass', team: passer.side, from, to: to.p.id, kind: f.passKind ?? 'normal'
   });
   s.poss.lastPass = { from, t: s.t }; // feeds assist-window checks in shooting.ts (catch-to-shot timing)
+  // delivery quality rides the catch: a pass into the shooting pocket from an
+  // elite passer makes the receiver's rise easier (consumed by shotMakeP for
+  // catch-and-shoot attempts only — the window gates it naturally)
+  to.catchQuality = n((passer.p.attr.passAcc + passer.p.attr.passVision) / 2);
   // a handoff catch stuns the receiver's trailing defender — the hub's body
   // is the screen. This is the whole payoff of the DHO action: the receiver
   // rises into a catch-and-shoot with the contest wiped, or attacks downhill.
@@ -218,6 +222,7 @@ export function attemptReachIn(s: GameState, dt: number): void {
   } else {
     const { inBonus } = recordFoul(s, d, 'reach', h);
     if (inBonus) {
+      h.usedPoss++; // a bonus trip uses the possession (usage bookkeeping)
       enterFreeThrows(s, h, s.rules.bonusFreeThrows);
     } else {
       // not in the bonus: no free throws, offense just keeps the ball —

@@ -56,7 +56,7 @@ export function eliteShooter(who: Named): Player {
       shotRim: 34, shotMid: 22, shotThree: 92, pullUp: 82,
       drive: 44, passOut: 60, iso: 45, post: 4,
       offBallMotion: 90, crashOffReb: 12,
-      gambleSteal: 40, foulAggr: 30, pushPace: 62
+      gambleSteal: 40, foulAggr: 30, pushPace: 62, usage: 80
     }
   });
 }
@@ -89,7 +89,7 @@ export function rimRunner(who: Named): Player {
       shotRim: 96, shotMid: 5, shotThree: 1, pullUp: 4,
       drive: 20, passOut: 35, iso: 5, post: 45,
       offBallMotion: 55, crashOffReb: 92,
-      gambleSteal: 18, foulAggr: 58, pushPace: 35
+      gambleSteal: 18, foulAggr: 58, pushPace: 35, usage: 34
     }
   });
 }
@@ -120,7 +120,7 @@ export function floorGeneral(who: Named): Player {
       shotRim: 55, shotMid: 30, shotThree: 38, pullUp: 40,
       drive: 72, passOut: 92, iso: 30, post: 6,
       offBallMotion: 40, crashOffReb: 8,
-      gambleSteal: 45, foulAggr: 28, pushPace: 74
+      gambleSteal: 45, foulAggr: 28, pushPace: 74, usage: 46
     }
   });
 }
@@ -151,7 +151,7 @@ export function threeAndD(who: Named): Player {
       shotRim: 30, shotMid: 12, shotThree: 84, pullUp: 12,
       drive: 28, passOut: 62, iso: 6, post: 4,
       offBallMotion: 50, crashOffReb: 30,
-      gambleSteal: 62, foulAggr: 42, pushPace: 45
+      gambleSteal: 62, foulAggr: 42, pushPace: 45, usage: 40
     }
   });
 }
@@ -182,7 +182,7 @@ export function scoringWing(who: Named): Player {
       shotRim: 62, shotMid: 42, shotThree: 52, pullUp: 58,
       drive: 74, passOut: 42, iso: 78, post: 12,
       offBallMotion: 58, crashOffReb: 22,
-      gambleSteal: 38, foulAggr: 36, pushPace: 55
+      gambleSteal: 38, foulAggr: 36, pushPace: 55, usage: 72
     }
   });
 }
@@ -213,7 +213,7 @@ export function postAnchor(who: Named): Player {
       shotRim: 78, shotMid: 34, shotThree: 8, pullUp: 12,
       drive: 26, passOut: 48, iso: 26, post: 78,
       offBallMotion: 35, crashOffReb: 78,
-      gambleSteal: 20, foulAggr: 50, pushPace: 30
+      gambleSteal: 20, foulAggr: 50, pushPace: 30, usage: 62
     }
   });
 }
@@ -244,7 +244,7 @@ export function comboGuard(who: Named): Player {
       shotRim: 42, shotMid: 30, shotThree: 62, pullUp: 42,
       drive: 48, passOut: 60, iso: 20, post: 4,
       offBallMotion: 60, crashOffReb: 14,
-      gambleSteal: 40, foulAggr: 34, pushPace: 55
+      gambleSteal: 40, foulAggr: 34, pushPace: 55, usage: 58
     }
   });
 }
@@ -275,7 +275,7 @@ export function glueForward(who: Named): Player {
       shotRim: 52, shotMid: 22, shotThree: 48, pullUp: 14,
       drive: 32, passOut: 58, iso: 8, post: 22,
       offBallMotion: 48, crashOffReb: 52,
-      gambleSteal: 30, foulAggr: 44, pushPace: 42
+      gambleSteal: 30, foulAggr: 44, pushPace: 42, usage: 30
     }
   });
 }
@@ -307,7 +307,7 @@ export function benchBig(who: Named): Player {
       shotRim: 92, shotMid: 6, shotThree: 1, pullUp: 2,
       drive: 12, passOut: 40, iso: 4, post: 38,
       offBallMotion: 40, crashOffReb: 86,
-      gambleSteal: 16, foulAggr: 62, pushPace: 28
+      gambleSteal: 16, foulAggr: 62, pushPace: 28, usage: 30
     }
   });
 }
@@ -338,7 +338,7 @@ export function benchScorer(who: Named): Player {
       shotRim: 48, shotMid: 44, shotThree: 66, pullUp: 68,
       drive: 58, passOut: 28, iso: 52, post: 4,
       offBallMotion: 64, crashOffReb: 12,
-      gambleSteal: 44, foulAggr: 36, pushPace: 60
+      gambleSteal: 44, foulAggr: 36, pushPace: 60, usage: 70
     }
   });
 }
@@ -371,7 +371,7 @@ export function stretchBig(who: Named): Player {
       shotRim: 58, shotMid: 12, shotThree: 78, pullUp: 22,
       drive: 24, passOut: 44, iso: 8, post: 8,
       offBallMotion: 62, crashOffReb: 48,
-      gambleSteal: 22, foulAggr: 48, pushPace: 40
+      gambleSteal: 22, foulAggr: 48, pushPace: 40, usage: 45
     }
   });
 }

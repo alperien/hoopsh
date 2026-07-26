@@ -134,7 +134,11 @@ export function shotMakeP(
   zone: ShotZone,
   distFt: number,
   moveType: ShotMoveType,
-  contest: Contest
+  contest: Contest,
+  /** prospective delivery quality (n-space) — decideBall passes the HOLDER's
+   *  own delivery when valuing a pass; resolution omits it and the shooter's
+   *  actual catchQuality (stamped at the catch) is used */
+  catchQ?: number
 ): number {
   const P = s.params.shot;
   const base =
@@ -174,7 +178,16 @@ export function shotMakeP(
 
   const fatigue = P.fatigueCoef * (1 - shooter.energy / 100);
 
-  return sigmoid(base + skill + contestTerm + moveAdj + distAdj + heightTerm + fatigue);
+  // "on time, on target": a catch-and-shoot rides the DELIVERY — an elite
+  // passer's ball arrives in the shooting pocket and the rise is easier.
+  // This is what routes assists toward passing QUALITY (a table-setter's
+  // kicks convert; a swing hub's do not) and why teammates measurably shoot
+  // better next to a great passer. Self-created shots get zero by moveType.
+  const passQ = moveType === 'catch_shoot'
+    ? P.passQualityCoef * (catchQ ?? shooter.catchQuality)
+    : 0;
+
+  return sigmoid(base + skill + contestTerm + moveAdj + distAdj + heightTerm + fatigue + passQ);
 }
 
 /** expected points for a shot from here, including free-throw EV — used by the AI */
@@ -183,11 +196,12 @@ export function shotEV(
   shooter: Agent,
   pos: V2,
   moveType: ShotMoveType,
-  contest: Contest
+  contest: Contest,
+  catchQ?: number
 ): { ev: number; p: number; zone: ShotZone; three: boolean; distFt: number } {
   const rim = attackedRim(s, shooter.side);
   const loc = classifyShot(s.rules, s.court, rim, pos);
-  const p = shotMakeP(s, shooter, loc.zone, loc.distFt, moveType, contest);
+  const p = shotMakeP(s, shooter, loc.zone, loc.distFt, moveType, contest, catchQ);
   const pts = loc.three ? 3 : 2;
   const pFoul = shootingFoulP(s, shooter, loc.zone, contest);
   const ftP = freeThrowP(s, shooter);

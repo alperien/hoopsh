@@ -73,6 +73,8 @@ export interface SimParams {
     moveHeave: number;
     /** rim finishing bonus per foot of height advantage over contester */
     rimHeightCoef: number;
+    /** catch-and-shoot logit bonus per unit of delivery quality n(passAcc/vision avg) */
+    passQualityCoef: number;
     /** logit penalty at zero energy */
     fatigueCoef: number;
     /** free throws: percentage-space base at rating 50 and swing to rating 100 */
@@ -292,6 +294,10 @@ export interface SimParams {
     dhoDurationSec: number;      // action lifetime
     dhoHandoffBonus: number;     // pass-utility bonus for the handoff itself
     blitzBeyondFt: number;       // blitz an extreme-gravity HOLDER beyond this range
+    // closed-loop usage pressure
+    usageShareSwing: number;     // target share = 0.20 + n-ish swing (usage 90 -> ~30%)
+    usageGainEV: number;         // EV pressure per 100% of target-vs-realized share gap
+    usagePriorPoss: number;      // Bayesian prior possessions (kills cold-start spikes)
   };
 }
 
@@ -306,11 +312,11 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5481,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    baseRim: 0.5714,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.2759,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
-    baseMid: -0.5228,     // ≈ 35% mid-range before skill (NBA ~40%, but the
+    baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
-    baseThree: -0.9089,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
+    baseThree: -0.932,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
     // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
     // means an elite finisher gains ~+12 percentage points at the rim.
     // Three's coef is LOWER than the others on purpose: real three-point
@@ -324,7 +330,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.1082,
+    contestCoef: -1.06,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -341,6 +347,10 @@ export const defaultParams: SimParams = {
     // contester. A 7-footer finishing over a guard gains real percentage;
     // clamped to ±1.5 ft in the model so it can't run away. FEEL.
     rimHeightCoef: 0.35,
+    // REAL — "on time, on target": teammates of elite passers measurably
+    // shoot better; a 94-delivery passer adds ~+0.25 logit (~5-6 points of
+    // make% on an open three) vs a neutral one
+    passQualityCoef: 0.18,
     // Legs at empty (energy 0) vs fresh: ~-8 points of FG%. Tired players
     // shoot worse, which is why rotations matter. FEEL.
     fatigueCoef: -0.35,
@@ -350,7 +360,7 @@ export const defaultParams: SimParams = {
     // originally 0.12 (an 83% ceiling), which failed the fidelity harness's
     // 99-rated benchmark at 79% — league mean is preserved by re-centering
     // the base (the fidelity phase widens SPREADS; bands still own the mean).
-    ftBasePct: 0.652,
+    ftBasePct: 0.674,
     ftSkillSwing: 0.19,
     // REAL — the elite tail: +5.5% at rating 100, zero below 80; rating 99
     // lands ~90%, matching the 88-91% real elite band
@@ -358,7 +368,7 @@ export const defaultParams: SimParams = {
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
-    blockBase: 0.3,
+    blockBase: 0.2838,
     blockSkillCoef: 0.5,
     // WINDUP = seconds between "decides to shoot" and release. This is the
     // engine's signature mechanic: it creates the catch-and-shoot vs closeout
@@ -380,7 +390,7 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.4,
+    shootRim: 0.4183,
     shootPaint: 0.1,
     shootMid: 0.05,
     shootThree: 0.012,
@@ -389,7 +399,7 @@ export const defaultParams: SimParams = {
     contestFactor: 1.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0161,
+    reachInPerSec: 0.0164,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
@@ -405,7 +415,7 @@ export const defaultParams: SimParams = {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.02,
+    riskBase: -4.1909,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -423,7 +433,7 @@ export const defaultParams: SimParams = {
     // The offense is at a structural disadvantage on the glass (it is
     // retreating, the defense is between man and rim), so offensive rebound
     // weights are discounted. This is THE lever on ORB% (band 20-30%). SWEPT.
-    offWeightMult: 0.78,
+    offWeightMult: 0.9164,
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
@@ -442,7 +452,7 @@ export const defaultParams: SimParams = {
     // Seconds between ball-handler decision evaluations (jittered ±25% at the
     // call site). Roughly "how often a player re-reads the floor" — the main
     // lever on how many actions fit in a possession. SWEPT.
-    intervalSec: 0.6538,
+    intervalSec: 0.6571,
     // Softmax temperature over action utilities, in expected-points units.
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
@@ -464,7 +474,7 @@ export const defaultParams: SimParams = {
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
-    continuationCurve: 0.181,
+    continuationCurve: 0.1615,
     // Inside this many shot-clock seconds, urgency scales the continuation
     // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
@@ -475,7 +485,7 @@ export const defaultParams: SimParams = {
     driveAppetite: 0.9,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
-    transitionBonus: 0.02
+    transitionBonus: 0.05
   },
 
   move: {
@@ -539,7 +549,7 @@ export const defaultParams: SimParams = {
     contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.0273,
+    holdHalfcourt: 0.0132,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -562,9 +572,9 @@ export const defaultParams: SimParams = {
     playmakerScale: 0.18,
     passContinuationScale: 0.9,
     catchContestScale: 0.72,
-    cutRateScale: 0.0044,
+    cutRateScale: 0.0034,
     cutDurationSec: 1.6,
-    crashBase: 0.1978,
+    crashBase: 0.1574,
     crashTendScale: 0.6,
     guardDistBase: 2.8,
     guardDistOpen: 4.5,
@@ -648,7 +658,17 @@ export const defaultParams: SimParams = {
     dhoHandoffBonus: 0.5,
     // FEEL — the blitz: extreme-gravity holders get a second body beyond the
     // arc (what actually caps an elite shooter's pull-up volume)
-    blitzBeyondFt: 20
+    blitzBeyondFt: 20,
+    // REAL — usage tendency maps to USG%: 50 = 20% (exactly 1/5 of the
+    // offense), each 10 points of tendency = 2.4% of share; the observed NBA
+    // spread (10-34%) fits inside the dial's range
+    usageShareSwing: 0.24,
+    // FEEL — pressure scale: a star fed 15% against a 29% target feels
+    // ~+0.2 EV of hunger on his shooting options
+    usageGainEV: 1.5,
+    // FEEL — realized share is smoothed with this many prior possessions at
+    // target, so the first minutes don't produce wild pressure swings
+    usagePriorPoss: 6
   }
 };
 

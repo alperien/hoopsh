@@ -105,6 +105,16 @@ export interface Tendencies {
   // pace
   /** STAGED — consumed by the team-pace layer (Stage 2); see docs/INTERNALS.md */
   pushPace: number;
+
+  // load
+  /** share of team offense this player is wired to consume — maps directly
+   *  to real USG%: 50 ≈ 20% (league average), 90 ≈ 30% (superstar load),
+   *  10 ≈ 10% (screener/finisher). Applied as CLOSED-LOOP pressure in
+   *  ai.ts decideBall: the gap between this target and the realized in-game
+   *  share biases shoot/drive vs pass — an under-fed star hunts, an over-fed
+   *  one defers. Orthogonal to creation by design (a deferential genius and
+   *  a low-skill chucker are both expressible). */
+  usage: number;
 }
 
 export interface Player {
@@ -172,7 +182,8 @@ const DEFAULT_TEND: Tendencies = {
   drive: 45, passOut: 50, iso: 25, post: 15,
   offBallMotion: 45, crashOffReb: 40,
   gambleSteal: 35, foulAggr: 40,
-  pushPace: 45
+  pushPace: 45,
+  usage: 50
 };
 
 let anonCounter = 0;

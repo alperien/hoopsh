@@ -145,6 +145,10 @@ export function endPossession(
   // depend on this invariant)
   if (s.poss.ended) return;
   s.poss.ended = true;
+  // usage bookkeeping: every offensive player on court consumed a share of
+  // this possession's opportunity — the denominator of realized usage share
+  // (rides the exactly-once guard above, so it can't double-count)
+  for (const a of onCourt(s, s.poss.team)) a.teamPossOnCourt++;
   emit(s, { type: 'possession_end', team: s.poss.team, outcome });
 }
 
@@ -331,6 +335,7 @@ export function tickScramble(s: GameState, dt: number): void {
         .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0]!;
       const { inBonus } = recordFoul(s, fouler, 'loose_ball', victim);
       if (inBonus) {
+        victim.usedPoss++; // bonus trip = possession used (usage bookkeeping)
         enterFreeThrows(s, victim, s.rules.bonusFreeThrows);
       } else {
         // side out, offense keeps it: shot clock can't have ticked below 14

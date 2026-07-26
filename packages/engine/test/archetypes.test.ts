@@ -9,7 +9,7 @@ import { simulateGame } from '@hoopsh/engine';
 import { boxScore, type PlayerLine } from '@hoopsh/stats';
 import { sampleMatchup } from '@hoopsh/data';
 
-const GAMES = 16;
+const GAMES = 24; // thin structural margins (assist leadership) need the power
 
 function seasonLines(): Map<string, PlayerLine & { games: number }> {
   const totals = new Map<string, PlayerLine & { games: number }>();

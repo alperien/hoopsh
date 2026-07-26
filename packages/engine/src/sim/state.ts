@@ -40,6 +40,17 @@ export interface Agent {
   dribblesSinceCatch: number;
   dribbleAcc: number;          // accumulator converting hold-time to dribbles
   catchT: number;              // t when this agent received the ball
+  /** delivery quality of the LAST pass caught, n-space [-1,1] — set on every
+   *  catch from the passer's passAcc/passVision; feeds the catch-and-shoot
+   *  make model ("on time, on target" — teammates shoot better next to a
+   *  great passer, which is also what routes assists to passing QUALITY) */
+  catchQuality: number;
+  /** possessions this agent has USED this game (shot attempts; the numerator
+   *  of the closed-loop usage share — see decideBall's usage pressure) */
+  usedPoss: number;
+  /** team offensive possessions completed while this agent was on court (the
+   *  denominator of realized usage share) */
+  teamPossOnCourt: number;
   driveUntil: number;          // t until which a drive commitment holds
   cutUntil: number;
   screenStunUntil: number;     // defender fighting through a screen

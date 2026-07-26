@@ -28,7 +28,7 @@
 import { clamp } from '../core/rng.js';
 import { dist, lerp, norm, scale, sub, add, type V2 } from '../core/vec.js';
 import { spacingSpots } from '../geometry/court.js';
-import { lateralSpeed } from '../model/derived.js';
+import { lateralSpeed, n } from '../model/derived.js';
 import type { TeamSide } from '../core/events.js';
 import {
   agent, attackedRim, onCourt, other,
@@ -141,13 +141,26 @@ export function decideBall(s: GameState): BallAction {
   if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     shootBias += A.postShotBonus;
   }
+  // USAGE PRESSURE — the closed loop that makes load an identity. The dial
+  // (tend.usage) sets a target share of team offense; the gap between it and
+  // the REALIZED share this game biases the self-creation options. An
+  // under-fed star hunts, an over-fed one defers, a hot role player cools
+  // off. This is what EV alone can't express: a 99-vision hub's passes
+  // always out-value his shots, yet the real player takes 17 a game because
+  // consuming offense IS his role (fidelity incident: 9 FGA vs 17 target).
+  const usageTarget = 0.2 + ((h.p.tend.usage - 50) / 100) * A.usageShareSwing;
+  const usageRealized =
+    (h.usedPoss + A.usagePriorPoss * usageTarget) /
+    (h.teamPossOnCourt + A.usagePriorPoss);
+  const usagePressure = clamp(usageTarget - usageRealized, -0.25, 0.25) * A.usageGainEV;
+
   // shooting over a contest is a bad habit; smart players pass out of it
   const contestBrake =
     clamp(contest.level - A.contestBrakeAt, 0, 1) *
     (A.contestBrakeBase + ((h.p.attr.decisions - 50) / 100) * A.contestBrakeIQ);
   // transition looks are worth extra before the defense sets
   const transitionTerm = s.poss.phase === 'transition' ? D.transitionBonus : 0;
-  const uShoot = myShot.ev + shootBias + transitionTerm - continuation - contestBrake;
+  const uShoot = myShot.ev + shootBias + transitionTerm + usagePressure - continuation - contestBrake;
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
@@ -156,7 +169,11 @@ export function decideBall(s: GameState): BallAction {
     if (m.p.id === h.p.id || m.fouledOut) continue;
     const o = openness(s, m);
     const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
-    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest);
+    // value the pass WITH my own delivery quality — the same term the make
+    // model applies at resolution (self-consistency: chooser and outcome
+    // share one belief about what my pass is worth to his shot)
+    const myDelivery = n((h.p.attr.passAcc + h.p.attr.passVision) / 2);
+    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest, myDelivery);
     if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
     const risk = passRisk(s, h, m);
     const cutting = s.t < m.cutUntil;
@@ -265,7 +282,7 @@ export function decideBall(s: GameState): BallAction {
     // freed every mid-tendency role player to drive and the paint flooded
     // (pace 113, FTA 31, 3PA 26% — both incidents from Stage 2 tuning).
     const driveDiff = collapse - continuation;
-    uDrive = handling * (driveDiff >= 0 ? driveDiff : driveDiff * A.driveAbortDiscount)
+    uDrive = usagePressure + handling * (driveDiff >= 0 ? driveDiff : driveDiff * A.driveAbortDiscount)
       + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
     // attacking off a live screen: the whole point of calling for it
     if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase !== 'coming') {

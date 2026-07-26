@@ -35,7 +35,9 @@ import type { Attributes, Player, Team, Tendencies } from '@hoopsh/engine';
 // checks it exactly (`!==`), not >=, so old packs fail loudly and explicitly
 // ("expected 1") rather than partially validating against a newer shape they
 // were never written for.
-export const DATA_PACK_VERSION = 1;
+// v2: tend.usage joined the player model (closed-loop share of offense) —
+// v1 packs fail validation and need the field added (default 50 = neutral)
+export const DATA_PACK_VERSION = 2;
 
 export interface TeamPack {
   formatVersion: number;
@@ -66,7 +68,7 @@ const ATTR_KEYS: (keyof Attributes)[] = [
 const TEND_KEYS: (keyof Tendencies)[] = [
   'shotRim', 'shotMid', 'shotThree', 'pullUp',
   'drive', 'passOut', 'iso', 'post',
-  'offBallMotion', 'crashOffReb', 'gambleSteal', 'foulAggr', 'pushPace'
+  'offBallMotion', 'crashOffReb', 'gambleSteal', 'foulAggr', 'pushPace', 'usage'
 ];
 
 // Every rating in this engine — attribute or tendency alike — lives on the

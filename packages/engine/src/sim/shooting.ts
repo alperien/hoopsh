@@ -36,6 +36,10 @@ export function startShot(
   moveType: ShotMoveType,
   contest0?: number
 ): void {
+  // usage bookkeeping: a shot attempt uses the possession (v1 counts FGA
+  // only — FT trips and turnovers are omitted, which slightly undercounts
+  // foul-drawing stars; acceptable bias, noted)
+  shooter.usedPoss++;
   const rim = attackedRim(s, shooter.side);
   const contest = contestAt(s, shooter, shooter.pos);
   if (contest0 !== undefined) {

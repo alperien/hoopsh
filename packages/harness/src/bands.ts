@@ -60,10 +60,9 @@ export const NBA_BANDS: Band[] = [
   { metric: 'pf', label: 'Fouls per game', lo: 16, hi: 22.5 },
   { metric: 'ortg', label: 'Offensive rating', lo: 106, hi: 121 },
   // REAL — NBA assisted share of made FGs runs ~54-62% across 2015-2025
-  // (recent seasons ~56-59%). The engine sits ~50%: unassisted pull-ups,
-  // drives, and worked post-ups out-volume real basketball's catch-and-shoot
-  // economy. RATCHET: the fidelity phase owns closing this (it gates
-  // playmaker assist totals — a 9-apg season is unreachable at 50% share);
-  // flip `ratchet` off once the gap's mechanics land and the sweep re-locks.
-  { metric: 'astdShare', label: 'Assisted share of FGM', lo: 0.54, hi: 0.62, pct: true, ratchet: true }
+  // (recent seasons ~56-59%). Opened as a ratchet at ~50%; the fidelity
+  // phase closed it (usage pressure + delivery quality + DHO/backdoor
+  // conversion) — now ENFORCED like every other band. The mechanism trail
+  // lives in the fidelity-phase commits.
+  { metric: 'astdShare', label: 'Assisted share of FGM', lo: 0.54, hi: 0.62, pct: true }
 ];

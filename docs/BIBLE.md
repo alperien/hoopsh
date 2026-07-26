@@ -404,7 +404,7 @@ event `wt` key on it). Do not mix them.
 | `core/rng.ts` | seeded sfc32 + distributions | never use Math.random |
 | `geometry/court.ts` | court build, shot zones, spacing spots | three-point geometry |
 | `rules/rulepack.ts` | league packs (NBA/NCAA/EURO) | league differences |
-| `model/player.ts` | attributes & tendencies (the 37 dials) | the editable surface |
+| `model/player.ts` | attributes & tendencies (the 38 dials) | the editable surface |
 | `model/derived.ts` | rating → physical-unit curves | what "90 speed" means |
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
 
@@ -462,12 +462,9 @@ invariant.**
 
 Simplified inbounds (timed reset, no inbound passer) · no timeouts · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
-league assists run ~1 under the band floor (the sole Stage 2 calibration
-residual — 45/48 checks at 40 games x 3 seeds; unassisted post twos and
-live-ball strips replaced some assisted catch-and-shoot volume, and the
-underlying assisted-share gap below is the real fix) ·
-league assisted-share ~46-50% of makes vs NBA ~58% (no acceptance band constrains
-it yet; gates the floor-general 6+ apg level ratchet in archetypes.test.ts) ·
+(the Stage 2 assists/assisted-share gaps are CLOSED: usage pressure,
+delivery quality, and DHO conversion brought assisted share to ~57-61% and
+the band is now enforced like any other — see the fidelity-phase commits) ·
 man-to-man with drop coverage, plus top-lock denial of extreme-gravity shooters (and its backdoor-cut counter) ·
 bench-exhausted foul-outs play on (NBA rule analog: a fouled-out player remains
 when no substitute exists — reachable only with short/foul-storm rosters; the
