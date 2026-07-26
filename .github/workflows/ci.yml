@@ -26,12 +26,11 @@ jobs:
           node-version: 24
       - name: test suite (invariants, archetypes, wide-band guard, fidelity gate)
         run: npm test
-      - name: acceptance bands (24 games, gated — exits nonzero below the ratchet floor)
-        # 24 games is the minimum n where band noise stops dominating (an
-        # 8-game run loses 3-4 bands to variance alone; see REFACTOR.md).
-        # The pass/fail floor lives in cli.ts as RATCHET_FLOOR next to the
-        # measurements that justify it.
-        run: npm run batch -- --games 24
+      - name: acceptance bands (48 games, gated — exits nonzero below the ratchet floor)
+        # 48 games is where the band count is stable (at 24 several boundary
+        # bands flicker; see REFACTOR.md). The pass/fail floor lives in cli.ts
+        # as RATCHET_FLOOR next to the measurements that justify it.
+        run: npm run batch -- --games 48
       - name: golden fingerprint corpus (24 seeds, events+frames byte-identical)
         run: npm run fingerprint
       - name: fingerprint determinism (two runs must match)

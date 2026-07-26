@@ -159,6 +159,16 @@ export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] 
     { key: 'top', pos: spot(26, cy) },
     { key: 'wing_l', pos: spot(21, cy - 15.5) },
     { key: 'wing_r', pos: spot(21, cy + 15.5) },
+    // Corner spot at 21.5 ft lateral — DELIBERATELY just inside the 22 ft
+    // corner-three line (classifyShot cornerDistFt). Moving it behind the line
+    // (tried 22.4/22.5) does eliminate the ~1% junk corner-2s the review
+    // flagged, but it also routes moderate-gravity BIGS assigned to a corner
+    // into a heavy three diet — the Jokic fidelity benchmark's 3PA blew past
+    // his real-NBA identity (>9 vs ~3-4) and his post volume collapsed. The
+    // junk-2 rate is minor and self-corrects as off-ball motion drifts players
+    // out; the hub-identity break is not. The real fix is gravity-aware corner
+    // assignment (only true shooters get the behind-the-line corner), which is
+    // future work — see REFACTOR.md D3. Left at 21.5 until then.
     { key: 'corner_l', pos: { x: baselineX + dir * 4, y: cy - 21.5 } },
     { key: 'corner_r', pos: { x: baselineX + dir * 4, y: cy + 21.5 } },
     { key: 'dunker', pos: spot(4, cy + 9) },

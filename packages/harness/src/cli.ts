@@ -24,16 +24,20 @@ import { flagNumber, flagValue } from './args.js';
  * RATCHET FLOOR — the minimum number of passing bands for a zero exit code.
  *
  * This is a ratchet, not an aspiration: it is set to what main actually
- * achieves at n >= 24 games so CI fails on REGRESSION immediately, without
- * pretending the known calibration debt doesn't exist. Current honest state
- * (measured at 24/32/48 games, see REFACTOR.md): 16 of NBA_BANDS.length pass;
- * assisted-share is the one persistent miss. Raise this to NBA_BANDS.length
- * when that debt is paid — never lower it to make a red run green.
+ * achieves so CI fails on REGRESSION immediately, without pretending the known
+ * calibration debt doesn't exist. Current honest state (stable at 48 games
+ * across seed bases, see REFACTOR.md): 16 of NBA_BANDS.length pass; the one
+ * persistent miss is assisted-share (~63-66% vs the 54-62% band), a structural
+ * gap the review flagged and an assist-window sweep confirmed a knob can't
+ * close (<2% leverage). Raise this to NBA_BANDS.length when that debt is paid
+ * — never lower it to make a red run green.
  *
- * Gating needs sample size: below ~24 games, band noise dominates (an 8-game
- * run loses 3-4 bands to variance alone). The gate therefore only bites when
- * the run is big enough to mean something; smaller runs stay report-only and
- * say so. `--min-bands N` overrides; `--min-bands 0` disables.
+ * Gating needs sample size: below ~24 games band noise dominates (an 8-game
+ * run loses 3-4 bands to variance alone), and even at 24 several boundary
+ * bands (3P%, FTA) flicker in and out. CI runs 48 games, where the count is
+ * a stable 16/17. The gate only bites at n >= GATE_MIN_GAMES; smaller runs
+ * stay report-only and say so. `--min-bands N` overrides; `--min-bands 0`
+ * disables.
  */
 const RATCHET_FLOOR = 16;
 const GATE_MIN_GAMES = 24;
