@@ -653,25 +653,36 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
     'STAGED dial; a season average carries no game-to-game variance info');
 
   // ---- tendencies ----
+  // drives are a guard/wing rim-pressure mechanism — a big's rim diet comes
+  // from rolls, cuts, putbacks and post-ups, so the rim-share evidence is
+  // capped and bigs are hard-capped low (their drive dial is also mostly
+  // inert in-engine: ai.driveMinDistFt excludes dunker-spot positions).
+  // Computed BEFORE the zone tendencies: shotThree needs it (see below).
+  const driveRaw = 18 + Math.min(rates.mix.rim, 0.45) * 95 + rates.ftaRate * 50
+    - rates.share3 * 25 + (P.big ? -(line.pos === 'C' ? 30 : 15) : 8);
+  t.drive = F('drive', Math.min(driveRaw, line.pos === 'C' ? 45 : line.pos === 'PF' ? 60 : 99), 'formula',
+    'min(rim-FGA share, .45)·95 + FTA rate·50 − 3PA share·25 ± position (bigs capped: they roll/post, not drive)');
+
   const zt = zoneTendencies(rates);
   t.shotRim = F('shotRim', zt.shotRim, 'formula',
     `default·(rim+paint share ${(rates.mix.rim + rates.mix.paint).toFixed(2)} / league 0.44)^1.25 + usage`);
   t.shotMid = F('shotMid', zt.shotMid, 'formula',
     `default·(mid share ${rates.mix.mid.toFixed(2)} / league 0.18)^1.25 + usage`);
-  t.shotThree = F('shotThree', zt.shotThree, 'formula',
-    `default·(3PA share ${rates.share3.toFixed(2)} / league 0.38)^1.25 + usage`);
+  // OPPORTUNITY CORRECTION on shotThree: zone tendencies bias per-DECISION,
+  // and a heavy driver's decision points cluster near the rim, so realizing
+  // a given 3PA SHARE requires a larger per-opportunity three bias. Centered
+  // on the league-average line's own drive output (55 — the fixpoint test
+  // pins it) at 0.6 dial points per drive point; anchored on the LeBron
+  // fixture, which needs shotThree 76 to realize a ~0.16 share in-sim for a
+  // drive-84 profile (and still carries fidelity.ts's documented 3PA ratchet).
+  const driveOppAdj = Math.max(0, t.drive - 55) * 0.6;
+  t.shotThree = F('shotThree', zt.shotThree + driveOppAdj, 'formula',
+    `default·(3PA share ${rates.share3.toFixed(2)} / league 0.38)^1.25 + usage` +
+    (driveOppAdj > 0.5 ? ` + drive-opportunity ${driveOppAdj.toFixed(0)}` : ''));
   t.pullUp = F('pullUp', 30 + line.tpa * 3 + (line.ast >= 6 && line.tpa >= 4 ? 8 : 0), 'formula',
     '30 + 3PA·3 (+8 for high-AST high-3PA creators) — volume threes are pulled, not caught');
   t.usage = F('usage', usageDial(rates.usgPct), 'formula',
     `usage dial IS a USG% scale (decide.ts): USG=${(rates.usgPct * 100).toFixed(1)}%`);
-  // drives are a guard/wing rim-pressure mechanism — a big's rim diet comes
-  // from rolls, cuts, putbacks and post-ups, so the rim-share evidence is
-  // capped and bigs are hard-capped low (their drive dial is also mostly
-  // inert in-engine: ai.driveMinDistFt excludes dunker-spot positions)
-  const driveRaw = 18 + Math.min(rates.mix.rim, 0.45) * 95 + rates.ftaRate * 50
-    - rates.share3 * 25 + (P.big ? -(line.pos === 'C' ? 30 : 15) : 8);
-  t.drive = F('drive', Math.min(driveRaw, line.pos === 'C' ? 45 : line.pos === 'PF' ? 60 : 99), 'formula',
-    'min(rim-FGA share, .45)·95 + FTA rate·50 − 3PA share·25 ± position (bigs capped: they roll/post, not drive)');
   t.post = F('post',
     4 + (line.pos === 'C' ? 30 : line.pos === 'PF' ? 22 : line.pos === 'SF' ? 8 : 0)
     + rates.mix.mid * 60 + (usg - 20) * (P.big ? 1.2 : 0.3) - rates.share3 * 20, 'formula',
@@ -721,11 +732,11 @@ export const DEFAULT_FIT_OPTIONS: FitOptions = {
 /** targets the objective scores, with "one noticeable unit" scales
  *  (solve.ts convention, extended to the full line) */
 interface Achieved {
-  pts: number; ast: number; trb: number; tpa: number; fga: number;
+  pts: number; ast: number; trb: number; tpa: number; fga: number; fta: number;
   tpPct: number; ftPct: number; fgPct: number; stl: number; blk: number; tov: number;
 }
 const SCALES: Record<keyof Achieved, number> = {
-  pts: 2.5, ast: 1.1, trb: 1.1, tpa: 1.2, fga: 2.0,
+  pts: 2.5, ast: 1.1, trb: 1.1, tpa: 1.2, fga: 2.0, fta: 0.9,
   tpPct: 0.02, ftPct: 0.025, fgPct: 0.02, stl: 0.5, blk: 0.45, tov: 0.8
 };
 
@@ -733,7 +744,7 @@ function lineOf(agg: AggLine): Achieved {
   const g = Math.max(1, agg.games);
   return {
     pts: agg.pts / g, ast: agg.ast / g, trb: agg.trb / g, tpa: agg.tpa / g,
-    fga: agg.fga / g,
+    fga: agg.fga / g, fta: agg.fta / g,
     tpPct: agg.tpm / Math.max(1, agg.tpa), ftPct: agg.ftm / Math.max(1, agg.fta),
     fgPct: agg.fgm / Math.max(1, agg.fga),
     stl: agg.stl / g, blk: agg.blk / g, tov: agg.tov / g
@@ -743,29 +754,52 @@ function lineOf(agg: AggLine): Achieved {
 function targetsOf(line: SeasonLine): Achieved {
   return {
     pts: line.pts, ast: line.ast, trb: line.reb, tpa: line.tpa, fga: line.fga,
-    tpPct: line.tpPct, ftPct: line.ftPct, fgPct: line.fgPct,
+    fta: line.fta, tpPct: line.tpPct, ftPct: line.ftPct, fgPct: line.fgPct,
     stl: line.stl, blk: line.blk, tov: line.tov
   };
 }
 
+/**
+ * Weighted normalized squared error. Percentage stats get ATTEMPT-AWARE
+ * weights: 3P% measured on ~1 attempt/game over a short slate is pure noise,
+ * and letting it dominate the objective makes the search sacrifice real
+ * dials chasing a coin flip (observed: a low-3PA forward's fit trashed its
+ * rebounding to chase an unhittable small-sample 3P%). Weight = sqrt of the
+ * target's share of a "trustworthy" attempt volume (8 3PA / 6 FTA per game)
+ * — a standard-error-style shrink — capped at 1.
+ */
 function scoreLine(a: Achieved, target: Achieved): number {
+  const pctWeight: Partial<Record<keyof Achieved, number>> = {
+    tpPct: clamp(Math.sqrt(target.tpa / 8), 0, 1),
+    ftPct: clamp(Math.sqrt(target.fta / 6), 0, 1)
+  };
   let err = 0;
   for (const k of Object.keys(SCALES) as (keyof Achieved)[]) {
-    const d = (a[k] - target[k]) / SCALES[k];
+    const w = pctWeight[k] ?? 1;
+    const d = ((a[k] - target[k]) / SCALES[k]) * w;
     err += d * d;
   }
   return err;
 }
 
-/** league-neutral supporting cast — the fidelity-benchmark/solve.ts
- *  convention (duplicated from solve.ts, which is a CLI script whose import
- *  would execute its main). The star carries his real minutes load. */
+/**
+ * League-neutral supporting cast — the fidelity-benchmark/solve.ts
+ * convention (duplicated from solve.ts, which is a CLI script whose import
+ * would execute its main). POSITION-AWARE starters: the star fills his own
+ * slot and the cast fills the other four — starting a rimRunner center next
+ * to a fitted center made twin towers that ATE the fitted big's boards
+ * (observed: a 12-board center fitting to 8.5), which no fidelity cast does
+ * either. The star carries his real minutes load.
+ */
 export function hostTeam(star: Player, mpg: number): Team {
-  const cast = [
-    comboGuard({ id: 'fit-2', name: 'Cast Two', pos: 'PG' }),
-    threeAndD({ id: 'fit-3', name: 'Cast Three', pos: 'SG' }),
-    glueForward({ id: 'fit-4', name: 'Cast Four', pos: 'PF' }),
-    rimRunner({ id: 'fit-5', name: 'Cast Five', pos: 'C' }),
+  const starterMk: Record<Position, (w: { id: string; name: string; pos: Position }) => Player> = {
+    PG: comboGuard, SG: threeAndD, SF: threeAndD, PF: glueForward, C: rimRunner
+  };
+  const starterSlots = (['PG', 'SG', 'SF', 'PF', 'C'] as Position[])
+    .filter((pos) => pos !== star.pos);
+  const starters = starterSlots.map((pos, i) =>
+    starterMk[pos]({ id: `fit-${i + 2}`, name: `Cast ${i + 2}`, pos }));
+  const bench = [
     benchScorer({ id: 'fit-6', name: 'Cast Six', pos: 'SG' }),
     threeAndD({ id: 'fit-7', name: 'Cast Seven', pos: 'SF' }),
     benchBig({ id: 'fit-8', name: 'Cast Eight', pos: 'C' }),
@@ -774,8 +808,8 @@ export function hostTeam(star: Player, mpg: number): Team {
   ];
   return {
     id: 'fit-host', name: 'Fitter Hosts', abbrev: 'FIT',
-    players: [star, ...cast],
-    starters: [star.id, 'fit-2', 'fit-3', 'fit-4', 'fit-5'],
+    players: [star, ...starters, ...bench],
+    starters: [star.id, ...starters.map((p) => p.id)],
     tactics: { pace: 50, threeBias: 50, helpAggr: 50 },
     rotationMinutes: { [star.id]: Math.round(clamp(mpg, 12, 40)) }
   };
@@ -799,8 +833,23 @@ const SEARCH_DIALS: { path: 'attr' | 'tend'; key: string }[] = [
 ];
 
 /** refinement may not drift a dial further than this from the analytic
- *  prior — keeps layer 1 primary and layer 2 an interaction-corrector */
+ *  prior — keeps layer 1 primary and layer 2 an interaction-corrector.
+ *  Dials whose analytic inversion is EXACT algebra get a tighter leash than
+ *  heuristic ones: freeThrowP inverts exactly (±6 covers rounding + FT-count
+ *  noise), the three-point inverse only carries reference-condition
+ *  uncertainty (±12), while emergent-quantity dials (tendencies, counting-
+ *  stat anchors) get the full ±20. */
 export const TRUST_REGION = 20;
+const TRUST_REGION_BY_DIAL: Record<string, number> = {
+  'attr.freeThrow': 6,
+  'attr.three': 12
+};
+
+/** CRN noise guard: a candidate must beat the incumbent by this relative
+ *  margin to be accepted — with 4-game evaluations the percentage stats are
+ *  noisy enough that accepting every hairline "improvement" chases seed
+ *  luck instead of signal. */
+export const ACCEPT_MARGIN = 0.03;
 
 export interface RefineResult {
   player: Player;
@@ -808,8 +857,24 @@ export interface RefineResult {
   finalLine: Achieved;
   seedErr: number;
   finalErr: number;
+  /** held-out re-evaluation of the refined player on FRESH seeds — the
+   *  honest number to quote (finalLine is in-sample by construction) */
+  verifyLine: Achieved | null;
+  verifyErr: number | null;
   itersRun: number;
   gamesSimulated: number;
+}
+
+/** score ANY player against a season line under the fitter's evaluation
+ *  protocol (league-neutral host, star minutes, season-line objective) —
+ *  used to put the hand-built fidelity fixtures on the same yardstick as
+ *  the fitted profiles */
+export function evaluateAgainstLine(
+  p: Player, line: SeasonLine, games: number, seedBase: string
+): { err: number; line: Achieved } {
+  const agg = runBenchmark(hostTeam(p, line.mpg), p.id, games, seedBase);
+  const l = lineOf(agg);
+  return { err: scoreLine(l, targetsOf(line)), line: l };
 }
 
 export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions): RefineResult {
@@ -828,19 +893,22 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
   // common random numbers: runBenchmark's seeds are `${seedBase}-${starId}-${i}`,
   // so every evaluation of this player replays the identical game seeds and
   // candidates compare fairly (solve.ts convention)
-  const evaluate = (p: Player): { score: number; line: Achieved } => {
-    const agg = runBenchmark(hostTeam(p, line.mpg), p.id, evalGames, opts.seedBase);
-    gamesSimulated += evalGames;
+  const evaluate = (p: Player, seedBase: string, games: number): { score: number; line: Achieved } => {
+    const agg = runBenchmark(hostTeam(p, line.mpg), p.id, games, seedBase);
+    gamesSimulated += games;
     const l = lineOf(agg);
     return { score: scoreLine(l, target), line: l };
   };
 
   let best = structuredClone(seedPlayer);
-  let bestEval = evaluate(best);
+  let bestEval = evaluate(best, opts.seedBase, evalGames);
   const seedLine = bestEval.line;
   const seedErr = bestEval.score;
   if (!opts.refine) {
-    return { player: best, seedLine, finalLine: seedLine, seedErr, finalErr: seedErr, itersRun: 0, gamesSimulated };
+    return {
+      player: best, seedLine, finalLine: seedLine, seedErr, finalErr: seedErr,
+      verifyLine: null, verifyErr: null, itersRun: 0, gamesSimulated
+    };
   }
 
   const bounds = new Map<string, { lo: number; hi: number }>();
@@ -849,7 +917,8 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
       ? (seedPlayer.attr as unknown as Record<string, number>)
       : (seedPlayer.tend as unknown as Record<string, number>);
     const v = bag[d.key]!;
-    bounds.set(`${d.path}.${d.key}`, { lo: clamp(v - TRUST_REGION, 1, 99), hi: clamp(v + TRUST_REGION, 1, 99) });
+    const region = TRUST_REGION_BY_DIAL[`${d.path}.${d.key}`] ?? TRUST_REGION;
+    bounds.set(`${d.path}.${d.key}`, { lo: clamp(v - region, 1, 99), hi: clamp(v + region, 1, 99) });
   }
 
   const rng = new Rng(`${opts.seedBase}-refine-${seedPlayer.id}`);
@@ -868,17 +937,22 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
         const b = bounds.get(`${d.path}.${d.key}`)!;
         bag[d.key] = Math.round(clamp(bag[d.key]! + (rng.float() * 2 - 1) * step, b.lo, b.hi));
       }
-      const ev = evaluate(cand);
-      if (ev.score < bestEval.score) {
+      const ev = evaluate(cand, opts.seedBase, evalGames);
+      if (ev.score < bestEval.score * (1 - ACCEPT_MARGIN)) {
         best = cand;
         bestEval = ev;
       }
     }
     step = Math.max(3, step * 0.85);
   }
+  // held-out verification: fresh seeds, one budget-cap slate — finalLine is
+  // by construction the line the search optimized, so it flatters the fit
+  const verify = evaluate(best, `${opts.seedBase}-verify`, MAX_GAMES_PER_ITER);
   return {
     player: best, seedLine, finalLine: bestEval.line,
-    seedErr, finalErr: bestEval.score, itersRun, gamesSimulated
+    seedErr, finalErr: bestEval.score,
+    verifyLine: verify.line, verifyErr: verify.score,
+    itersRun, gamesSimulated
   };
 }
 
@@ -1020,10 +1094,17 @@ if (import.meta.main) {
     if (refine) {
       console.log(`  refined     ${fmtLine(result.finalLine)}   err ${result.finalErr.toFixed(2)}  ` +
         `(${result.itersRun} iters, ${result.gamesSimulated} games)`);
+      if (result.verifyLine) {
+        console.log(`  verify      ${fmtLine(result.verifyLine)}   err ${result.verifyErr!.toFixed(2)}  (fresh seeds, ${MAX_GAMES_PER_ITER} games)`);
+      }
     }
     if (compareFixtures && line.fixtureId) {
       const fixture = fixtureById.get(line.fixtureId);
       if (fixture) {
+        // the fair yardstick for the verify error: the HAND-BUILT fixture,
+        // run through the exact same host/games/objective protocol
+        const fixEval = evaluateAgainstLine(fixture, line, MAX_GAMES_PER_ITER, `${opts.seedBase}-verify`);
+        console.log(`  fixture     ${fmtLine(fixEval.line)}   err ${fixEval.err.toFixed(2)}  (hand-built ${line.fixtureId}, same protocol)`);
         console.log(`  vs fidelity fixture ${line.fixtureId} (fitted − fixture):`);
         const rows = compareToFixture(result.player, fixture);
         const big = rows.filter((r) => Math.abs(r.delta) >= 12);
