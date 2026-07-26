@@ -75,6 +75,8 @@ export interface SimParams {
     rimHeightCoef: number;
     /** catch-and-shoot logit bonus per unit of delivery quality n(passAcc/vision avg) */
     passQualityCoef: number;
+    /** league-typical delivery in n-space — the zero point of the term above */
+    passQualityCenter: number;
     /** logit penalty at zero energy */
     fatigueCoef: number;
     /** free throws: percentage-space base at rating 50 and swing to rating 100 */
@@ -318,7 +320,7 @@ export const defaultParams: SimParams = {
     basePaint: -0.2759,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
-    baseThree: -0.94,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
+    baseThree: -0.955,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
     // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
     // means an elite finisher gains ~+12 percentage points at the rim.
     // Three's coef is LOWER than the others on purpose: real three-point
@@ -353,6 +355,9 @@ export const defaultParams: SimParams = {
     // shoot better; a 94-delivery passer adds ~+0.25 logit (~5-6 points of
     // make% on an open three) vs a neutral one
     passQualityCoef: 0.22,
+    // REAL — volume-weighted league delivery sits near rating 57 (n ≈ 0.15);
+    // centering there makes the term mean-neutral at league scale
+    passQualityCenter: 0.15,
     // Legs at empty (energy 0) vs fresh: ~-8 points of FG%. Tired players
     // shoot worse, which is why rotations matter. FEEL.
     fatigueCoef: -0.35,
@@ -362,7 +367,7 @@ export const defaultParams: SimParams = {
     // originally 0.12 (an 83% ceiling), which failed the fidelity harness's
     // 99-rated benchmark at 79% — league mean is preserved by re-centering
     // the base (the fidelity phase widens SPREADS; bands still own the mean).
-    ftBasePct: 0.674,
+    ftBasePct: 0.666,
     ftSkillSwing: 0.19,
     // REAL — the elite tail: +5.5% at rating 100, zero below 80; rating 99
     // lands ~90%, matching the 88-91% real elite band

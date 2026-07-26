@@ -183,8 +183,14 @@ export function shotMakeP(
   // This is what routes assists toward passing QUALITY (a table-setter's
   // kicks convert; a swing hub's do not) and why teammates measurably shoot
   // better next to a great passer. Self-created shots get zero by moveType.
+  // ...CENTERED on league-typical delivery: an average pass neither helps
+  // nor hurts, an elite one arrives in the pocket, a sloppy one costs the
+  // catch. Uncentered, the term added a positive league-wide offset (typical
+  // deliverers sit at n ≈ +0.15) and heated every catch-and-shoot in the
+  // league — which forced the coefficient down and erased the passer spread
+  // the term exists to create (mean belongs to the bands; spread to skills).
   const passQ = moveType === 'catch_shoot'
-    ? P.passQualityCoef * (catchQ ?? shooter.catchQuality)
+    ? P.passQualityCoef * ((catchQ ?? shooter.catchQuality) - P.passQualityCenter)
     : 0;
 
   return sigmoid(base + skill + contestTerm + moveAdj + distAdj + heightTerm + fatigue + passQ);
