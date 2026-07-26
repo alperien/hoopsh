@@ -42,12 +42,12 @@ onto it, press space. Watch a full possession. Scrub around a free throw.
 follow one possession end to end:
 
 1. **A possession begins** — `sim/possession.ts#startPossession`: shot clock reset,
-   spots assigned (`ai.ts#assignSpots` — best handler top, shooters to the wings by
+   spots assigned (`ai/offense.ts#assignSpots` — best handler top, shooters to the wings by
    gravity, non-shooter to the dunker spot), matchups assigned, stale timers cleared.
 2. **The clock ticks** — `sim/game.ts#tick` → `tickLive`: wall clock first, then
    `movement.ts#advanceClock` (game clock; the ONLY place `t` moves), flight
    resolution, shot-clock check, period-expiry check.
-3. **The handler thinks** — `ai.ts#decideBall` every ~0.66s: computes the
+3. **The handler thinks** — `ai/decide.ts#decideBall` every ~0.66s: computes the
    **continuation value** (what "keep working" is worth), then utilities for
    shoot / drive / pass(×4) / hold — all in expected points — and softmaxes.
    This is the engine's central decision function.
@@ -69,8 +69,8 @@ Keep the viewer open on the same seed while tracing: the windup pause before a s
 the closeout sprint, and the scramble are all visible in the replay.
 
 **2. Read the emergence machinery** (~30 min):
-`resolve.ts#gravity` (why shooters warp defenses) → `ai.ts#defenseTick` (gap,
-sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then re-read
+`resolve.ts#gravity` (why shooters warp defenses) → `ai/defense.ts#defenseTick` (gap,
+sag, help selection) → `ai/actions.ts#actionTick` (screens as thin scaffolding). Then re-read
 `ARCHITECTURE.md §5` with the traced possession as context.
 
 **3. First-change exercises** (~45 min, pick one, throwaway — do not commit):

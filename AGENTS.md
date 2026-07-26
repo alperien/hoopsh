@@ -108,7 +108,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 
 | You are changing… | It belongs in… |
 |---|---|
-| What a player decides to do | `sim/ai.ts` (utilities) |
+| What a player decides to do | `sim/ai/` (utilities; `ai.ts` is the barrel) |
 | Whether an attempt succeeds | `sim/resolve.ts` (probability models) |
 | A tunable constant | `sim/params.ts` (+ `harness/knobs.ts` range) |
 | Phase flow / possession lifecycle | `sim/possession.ts`, dispatched from `sim/game.ts` |

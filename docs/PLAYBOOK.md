@@ -81,7 +81,7 @@ at 50 via a multiplier), and the field comments in `model/player.ts`.
 1. `model/player.ts` — add to `Attributes`/`Tendencies` interface, with a comment
    citing the consumer; add to `DEFAULT_ATTR`/`DEFAULT_TEND` (50 unless the modern-
    baseline argument says otherwise — see the DEFAULT_TEND comment).
-2. The consumer — `sim/resolve.ts` (resolution) or `sim/ai.ts` (decision), through
+2. The consumer — `sim/resolve.ts` (resolution) or `sim/ai/` (decision), through
    the `n(rating)` bridge so 50 is neutral.
 3. `sim/params.ts` — any new coefficient the rating multiplies (provenance-tagged).
 4. `harness/src/knobs.ts` — range entry, if the coefficient is a calibration lever.
@@ -106,13 +106,13 @@ default, added together with its consumer).
 
 ### Recipe C — a new AI action (a play pattern, like pick-and-roll)
 **Exemplar:** the PnR implementation — `PnrAction` in `sim/state.ts`, `pnrTick` +
-screener branch + drive bonus in `sim/ai.ts`, drop coverage in `defenseTick`,
+screener branch + drive bonus in `sim/ai/`, drop coverage in `defenseTick`,
 `ai.pnr*` params block.
 1. `sim/state.ts` — action type on `Possession.action` (extend the union), fields
    for phase/until/actors.
 2. `sim/possession.ts#startPossession` — ensure the action resets (`action: null`
    is already there; new per-agent timers must be cleared in the stale-timer block).
-3. `sim/ai.ts` — a lifecycle function (trigger conditions, phase transitions,
+3. `sim/ai/actions.ts` — a lifecycle function (trigger conditions, phase transitions,
    expiry), integration into `offenseOffBallTick` (actor movement) and `decideBall`
    (utility nudges), defensive response in `defenseTick`.
 4. **Staleness guards are mandatory**: the action must self-clear when an actor is

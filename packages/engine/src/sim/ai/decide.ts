@@ -1,0 +1,363 @@
+/**
+ * The ball-handler's brain. Everything in `decideBall` is denominated in
+ * EXPECTED POINTS. Each candidate action gets a utility; a softmax over those
+ * utilities picks one. So:
+ *   • a term of +0.1 means "worth a tenth of a point"
+ *   • the yardstick every action is measured against is `continuation` — the
+ *     expected points of NOT acting yet (keep working the possession)
+ *   • all weights come from SimParams.ai so the sweep can reach them
+ *
+ * Behavior EMERGES from utility comparisons fed by the same probability
+ * models that resolve outcomes. Drive-and-kick isn't scripted — help
+ * convergence lowers the drive EV and raises the kickout EV, so the pass
+ * happens. Tendencies bias utilities; attributes change the underlying EVs.
+ */
+
+import { clamp } from '../../core/rng.js';
+import { dist, lerp, sub, type V2 } from '../../core/vec.js';
+import { n } from '../../model/derived.js';
+import { agent, attackedRim, onCourt, other, type Agent, type GameState } from '../state.js';
+import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
+import { creation, onBallDefender } from './shared.js';
+
+export type BallAction =
+  | { kind: 'shoot'; moveType: 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post' }
+  | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' }
+  | { kind: 'drive' }
+  | { kind: 'hold' };
+
+/** the ball-handler's decision — evaluated every params.decide.intervalSec */
+export function decideBall(s: GameState): BallAction {
+  const holderId = s.ball.holderId;
+  if (!holderId) return { kind: 'hold' };
+  const h = agent(s, holderId);
+  const D = s.params.decide;
+  const A = s.params.ai;
+  const rim = attackedRim(s, h.side);
+  const distToRim = dist(h.pos, rim);
+  const tactics = s.teams[h.side].tactics;
+
+  // CONTINUATION VALUE — the yardstick for every decision below.
+  // "What are the remaining seconds of this possession worth if I don't act?"
+  // Decays as the shot clock drains, then collapses linearly inside the
+  // urgency window (any shot beats a violation). This single curve is what
+  // produces patient early-clock offense and desperate late-clock heaves.
+  const full = s.rules.shotClockSec;
+  const sc = Math.max(0, s.poss.shotClock);
+  let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
+  if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
+
+  // Desperation heave: with <1.2s of shot clock (or a period expiring inside
+  // 2.5s) and no chance to get closer than 32 ft, just launch it. Bypasses the
+  // whole utility comparison — no shot is "good", but a violation is worse.
+  const periodExpiring = s.clock < 2.5 && s.clock < sc;
+  if ((sc < 1.2 || periodExpiring) && distToRim > 32) {
+    return { kind: 'shoot', moveType: 'heave' };
+  }
+
+  // Which KIND of shot this would be — drives the difficulty adjustment and
+  // the windup length. The catch-and-shoot window is 0.9s and zero dribbles:
+  // rise up immediately off the catch, or it becomes a (harder) pull-up.
+  const driving = s.t < h.driveUntil;
+  const sinceCatch = s.t - h.catchT;
+  const act0 = s.poss.action;
+  // working the block: shots from a live post-up resolve as post moves
+  // (windupPost + movePost in the shot model) instead of hurried pull-ups
+  const postingUp = act0?.kind === 'post' && act0.posterId === h.p.id && act0.phase === 'working';
+  const shotMove: Extract<BallAction, { kind: 'shoot' }>['moveType'] =
+    // post-shot zone boundary — 14 ft from the rim is the outer edge of the
+    // traditional post area. FEEL — same numerical value as move.nearRimFt
+    // (the contest model's interior boundary) but a distinct physical concept:
+    // this gates the SHOT TYPE (post vs pull-up), not the defensive role blend.
+    postingUp && distToRim < 14 ? 'post'
+      : driving && distToRim < 12 ? 'drive'
+      : sinceCatch < 0.9 && h.dribblesSinceCatch === 0 ? 'catch_shoot'
+      : 'pull_up';
+
+  // judge the shot against the contest expected AT RELEASE, not right now —
+  // a defender sprinting into a closeout makes the look worse than it seems
+  const W = s.params.shot;
+  const windup =
+    shotMove === 'catch_shoot' ? W.windupCatchShoot :
+    shotMove === 'pull_up' ? W.windupPullUp :
+    shotMove === 'post' ? W.windupPost : W.windupDrive;
+  const contest = anticipatedContest(s, h, h.pos, windup);
+  const myShot = shotEV(s, h, h.pos, shotMove, contest);
+
+  // --- utility: shoot
+  const zoneTend =
+    myShot.zone === 'rim' || myShot.zone === 'paint' ? h.p.tend.shotRim :
+    myShot.zone === 'mid' ? h.p.tend.shotMid : h.p.tend.shotThree;
+  let shootBias = ((zoneTend - 50) / 100) * A.zoneTendBias;
+  if (shotMove === 'pull_up') shootBias += ((h.p.tend.pullUp - 50) / 100) * A.pullUpBias;
+  if (myShot.zone === 'three') {
+    shootBias += (D.threeAppetite - 1) * A.threeApptScale + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
+  }
+  // catch-and-shoot decisiveness: a genuinely OPEN three off the catch is
+  // the payoff of ball movement — letting it fly is drilled behavior, and
+  // without this term the continuation value talks every receiver out of
+  // shooting (kicks die in re-swings and creators never earn assists). Two
+  // gates, both from incidents: contest < 0.5 so only the CREATED advantage
+  // fires, not an ordinary swing catch (ungated: pace 133 vs band 95-103);
+  // three-point zone only, because the drilled catch-and-shoot is a JUMP-SHOT
+  // concept — paint catches are finishes the cut machinery already values,
+  // and applying the bonus there flooded the rim and sank 3PA share to 26%.
+  // ...and scaled by the shooter's own three-point appetite, with a hard
+  // floor at tendency 25: the green light belongs to shooters and a true
+  // non-shooter never has it. A sagged-off big is OPEN precisely because the
+  // defense wants him shooting — unscaled, he obliged (bigs chucked ~9% of
+  // their FGA from deep and league 3P% sagged).
+  if (shotMove === 'catch_shoot' && myShot.zone === 'three') {
+    shootBias += A.catchShootBonus * clamp((0.5 - contest.level) / 0.5, 0, 1) * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+  }
+  // the transition pull-up: before the defense sets, a rhythm three off the
+  // dribble is a drilled shot for shooters — the trailer/early-offense three
+  // a drive-first star actually takes (his halfcourt threes are conceded to
+  // the rim threat). Green-light gated like the catch-and-shoot; without
+  // this the downhill benchmark attempted 0.7 threes against a real 5-7.
+  if (s.poss.phase === 'transition' && shotMove === 'pull_up' && myShot.zone === 'three') {
+    shootBias += A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+  }
+  // the worked post move: after the backdown the turnaround is the plan —
+  // without this the spray won 8:1 and post scoring never materialized
+  if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
+    shootBias += A.postShotBonus;
+  }
+  // USAGE PRESSURE — the closed loop that makes load an identity. The dial
+  // (tend.usage) sets a target share of team offense; the gap between it and
+  // the REALIZED share this game biases the self-creation options. An
+  // under-fed star hunts, an over-fed one defers, a hot role player cools
+  // off. This is what EV alone can't express: a 99-vision hub's passes
+  // always out-value his shots, yet the real player takes 17 a game because
+  // consuming offense IS his role (fidelity incident: 9 FGA vs 17 target).
+  const usageTarget = 0.2 + ((h.p.tend.usage - 50) / 100) * A.usageShareSwing;
+  const usageRealized =
+    (h.usedPoss + A.usagePriorPoss * usageTarget) /
+    (h.teamPossOnCourt + A.usagePriorPoss);
+  const usagePressure = clamp(usageTarget - usageRealized, -0.25, 0.25) * A.usageGainEV;
+
+  // shooting over a contest is a bad habit; smart players pass out of it
+  const contestBrake =
+    clamp(contest.level - A.contestBrakeAt, 0, 1) *
+    (A.contestBrakeBase + ((h.p.attr.decisions - 50) / 100) * A.contestBrakeIQ);
+  // transition looks are worth extra before the defense sets
+  const transitionTerm = s.poss.phase === 'transition' ? D.transitionBonus : 0;
+  const uShoot = myShot.ev + shootBias + transitionTerm + usagePressure - continuation - contestBrake;
+
+  // --- utility: pass to each teammate
+  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
+  let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
+  for (const m of onCourt(s, h.side)) {
+    if (m.p.id === h.p.id || m.fouledOut) continue;
+    const o = openness(s, m);
+    const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
+    // value the pass WITH my own delivery quality — the same term the make
+    // model applies at resolution (self-consistency: chooser and outcome
+    // share one belief about what my pass is worth to his shot)
+    const myDelivery = n((h.p.attr.passAcc + h.p.attr.passVision) / 2);
+    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest, myDelivery);
+    if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
+    const risk = passRisk(s, h, m);
+    const cutting = s.t < m.cutUntil;
+    const cutterBonus = cutting ? A.cutterBonus : 0;
+    // a big posted and settled on the block wants the entry — the feed is the
+    // whole point of the action (any current holder may throw it)
+    const entryTarget =
+      act0?.kind === 'post' && act0.phase === 'posting' &&
+      m.p.id === act0.posterId && dist(m.pos, m.target) < 4;
+    const entryBonus = entryTarget ? A.postEntryBonus : 0;
+    // the handoff: once the DHO receiver has sprinted into range, handing it
+    // off IS the play — the catch stuns his trailing defender (passing.ts)
+    const dhoTarget =
+      act0?.kind === 'dho' && act0.hubId === h.p.id &&
+      m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
+    const dhoBonus = dhoTarget ? A.dhoHandoffBonus : 0;
+    const swingBonus =
+      A.swingBase +
+      ((h.p.tend.passOut - 50) / 100) * A.swingPassOutScale +
+      ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
+    // re-initiation: routing the ball UP the creation hierarchy has value
+    // beyond the receiver's own shot — he creates the NEXT action. Relative
+    // and clamped at zero: the primary feels no pull toward lesser handlers,
+    // but passing DOWN is never penalized — a kick-out is judged on shot
+    // merit alone (penalizing it produced a ball-stopping primary). Clock-
+    // scaled: hierarchy is an early-offense concept — as the clock drains,
+    // shot value takes over.
+    const playmakerPull =
+      (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * (sc / full);
+    const u =
+      theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
+      + cutterBonus + swingBonus + playmakerPull + entryBonus + dhoBonus
+      - continuation * A.passContinuationScale;
+    if (bestPass === null || u > bestPass.u) {
+      bestPass = {
+        toId: m.p.id,
+        u,
+        passKind: dhoTarget ? 'handoff'
+          : entryTarget ? 'entry'
+          : driving ? 'kickout'
+          : s.poss.phase === 'transition' ? 'outlet' : 'normal'
+      };
+    }
+  }
+
+  // --- utility: drive
+  let uDrive = -Infinity;
+  if (!driving && distToRim > A.driveMinDistFt && s.poss.phase !== 'advance') {
+    const onBall = onBallDefender(s, h);
+    const gap = onBall ? dist(onBall.pos, h.pos) : 8;
+    const laneCrowd = defendersInLane(s, h, rim);
+    // Where the drive would END: 5 ft short of the rim (a layup/floater spot,
+    // not the rim itself — nobody finishes AT the center of the hoop).
+    const projected = lerp(h.pos, rim, clamp((distToRim - 5) / distToRim, 0, 1));
+    const projContest = {
+      level: clamp(A.driveProjContestBase + laneCrowd * A.driveProjContestCrowd, 0, 1),
+      by: null,
+      heightAdvFt: 0
+    };
+    const driveShot = shotEV(s, h, projected, 'drive', projContest);
+    // P(actually get downhill) — the matchup at the point of attack:
+    //   base 0.55, ± the ballHandle-vs-lateral-quickness gap, ± the cushion
+    //   the defender is giving (a 9 ft gap is an invitation; 2 ft is a wall).
+    //   Clamped [0.2, 0.95]: nobody is uncontainable, nobody is helpless.
+    // containment = physical mirror (lateral) blended with point-of-attack
+    // craft (perimeterD) per ai.containDBlend
+    const contain = onBall
+      ? onBall.p.attr.lateral * (1 - A.containDBlend) + onBall.p.attr.perimeterD * A.containDBlend
+      : 50;
+    const handling = clamp(
+      A.handlingBase +
+        (h.p.attr.ballHandle - contain) / A.handlingSkillDiv +
+        (gap - 4) / A.handlingGapDiv,
+      0.2, 0.95
+    );
+    const tendTerm = ((h.p.tend.drive - A.driveTendOffset) / 100) * A.driveTendScale * D.driveAppetite;
+    // a live drive is worth the BETTER of finishing at the rim or the
+    // paint-touch-and-spray: penetration collapses the help defense and
+    // manufactures an open look for the best-positioned teammate
+    // (driveKickBoost = the extra openness the collapse buys him). The kick
+    // premium is gated by the lane crowd — an EMPTY lane creates no spray
+    // (nobody helped; its value is already in the high finish EV), a crowded
+    // lane is where the kick lives. Ungated, every drive carried a phantom
+    // kick premium and the paint flooded league-wide (rim share 86%, 3PA 13%).
+    // Without the option term entirely, the rim attempt alone rarely beats
+    // the continuation value and drives never launch (Stage 2 probe: 2 drive
+    // wins in 657 decisions for the league's best handler). A stalled drive
+    // still just resets to the continuation value.
+    // ...and the premium scales with the DRIVER's vision: drive-and-kick is
+    // a passing skill. An elite creator prices the spray option in full; a
+    // low-vision wing driving into a crowd has no spray option (he cannot
+    // deliver that pass), so his drive is finish-or-bust and the continuation
+    // bar correctly rejects it. This is what routes drive volume — and the
+    // assists it creates — through the creation hierarchy without a single
+    // special case.
+    const kickPremium = A.driveKickBoost * Math.min(1, laneCrowd) * (h.p.attr.passVision / 100);
+    const collapse = bestCatchEv > -Infinity
+      ? Math.max(driveShot.ev, bestCatchEv + kickPremium)
+      : driveShot.ev;
+    // the negative branch is discounted, not charged in full: a drive is
+    // closer to an option than a commitment — a handler whose downhill
+    // outcome trails the reset mostly aborts back to the offense (at the
+    // cost of a beat of clock), he does not cash the bad branch. Charged in
+    // full, the negative diff scaled WITH handling skill and punished elite
+    // handlers hardest, burying the drive tendency dial; zeroed entirely, it
+    // freed every mid-tendency role player to drive and the paint flooded
+    // (pace 113, FTA 31, 3PA 26% — both incidents from Stage 2 tuning).
+    const driveDiff = collapse - continuation;
+    uDrive = usagePressure + handling * (driveDiff >= 0 ? driveDiff : driveDiff * A.driveAbortDiscount)
+      + tendTerm + transitionTerm * A.driveTransitionMult - laneCrowd * A.laneCrowdPenalty + A.driveFlat;
+    // attacking off a live screen: the whole point of calling for it
+    if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase !== 'coming') {
+      uDrive += A.pnrDriveBonus;
+    }
+    // a cleared side is an invitation — the iso call is a commitment to attack
+    if (act0?.kind === 'iso' && act0.handlerId === h.p.id) {
+      uDrive += A.isoDriveBonus;
+    }
+  }
+
+  // --- utility: hold (keep probing)
+  let uHold = s.poss.phase === 'advance' ? A.holdAdvance : A.holdHalfcourt;
+  // mid-drive: keep attacking. The collapse option priced at launch (drive
+  // block above) is still maturing while the dribble is live — without this,
+  // hold falls to the halfcourt baseline one tick after launch and every
+  // drive ends in an instant kick before the help ever commits. Scaled by
+  // remaining drive seconds (capped at 1s) so the boost is strong at launch
+  // and gone by the terminal decision: penetrate first, THEN finish or spray
+  // off the true post-collapse looks. A flat boost instead suppresses the
+  // kick outright and drives die at the rim in contested junk.
+  if (driving) uHold += A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, 1);
+  // a screen is on its way — wait for it instead of swinging the ball away
+  // (audit: without this, the handler passed before 93% of screens arrived)
+  if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase === 'coming') {
+    uHold += A.pnrWaitBoost;
+  }
+  // a DHO is live and mine: hold while the receiver sprints in — same "wait
+  // for the action to arrive" semantics as the screen
+  if (act0?.kind === 'dho' && act0.hubId === h.p.id) {
+    uHold += A.pnrWaitBoost;
+  }
+  // the backdown: a post player who just caught the entry works his position
+  // for a beat before the shoot-or-spray decision (same shape as the drive
+  // hold — the advantage is still maturing while he carves out space)
+  if (postingUp && s.t - act0.postedAt < A.postBackdownSec) {
+    uHold += A.postWorkBoost;
+  }
+  // ...and the self-post walk-down gets the same commitment: he CALLED this
+  // action — without the boost, a high-vision hub passed away mid-dribble
+  // on nearly every self-post and the call never reached the block
+  // (fidelity incident: 1.2 post shots/game for a 92-post-tendency center)
+  if (
+    act0?.kind === 'post' && act0.posterId === h.p.id &&
+    act0.phase === 'posting' && act0.feederId === act0.posterId
+  ) {
+    uHold += A.postWorkBoost;
+  }
+
+  // SOFTMAX over utilities: usually the best action, sometimes not. The
+  // temperature (params.decide.temperature, ~0.06 expected points) is the
+  // engine's "IQ dial" — near zero makes every player a perfect optimizer,
+  // higher values produce human noise and bad shots.
+  const actions: { a: BallAction; u: number }[] = [
+    { a: { kind: 'shoot', moveType: shotMove }, u: uShoot },
+    { a: { kind: 'hold' }, u: uHold }
+  ];
+  if (uDrive > -Infinity) actions.push({ a: { kind: 'drive' }, u: uDrive });
+  if (bestPass) actions.push({ a: { kind: 'pass', toId: bestPass.toId, passKind: bestPass.passKind }, u: bestPass.u });
+
+  const temp = Math.max(0.02, s.params.decide.temperature);
+  const maxU = Math.max(...actions.map((x) => x.u));
+  const weights = actions.map((x) => Math.exp((x.u - maxU) / temp));
+  const idx = s.rng.weighted(weights);
+  return actions[idx]!.a;
+}
+
+/**
+ * How crowded the drive lane is: a soft count of defenders sitting between the
+ * handler and the rim. Feeds both the projected contest on a drive and a
+ * direct utility penalty — this is what makes a packed paint deter drives and
+ * (via the kickout branch) makes help defense produce open shooters.
+ *
+ * t ∈ (0.15, 0.95): ignore defenders standing on top of the handler (that's
+ * the on-ball matchup, handled separately) and those already under the rim.
+ * lat < 5 ft: within a body's width of the driving line, weighted linearly.
+ */
+function defendersInLane(s: GameState, h: Agent, rim: V2): number {
+  let count = 0;
+  for (const d of onCourt(s, other(h.side))) {
+    if (d.fouledOut) continue;
+    const t = laneT(h.pos, rim, d.pos);
+    if (t > 0.15 && t < 0.95) {
+      const lat = dist(d.pos, lerp(h.pos, rim, t));
+      if (lat < 5) count += 1 - lat / 5;
+    }
+  }
+  return count;
+}
+
+function laneT(a: V2, b: V2, p: V2): number {
+  const ab = sub(b, a);
+  const l2 = ab.x * ab.x + ab.y * ab.y;
+  if (l2 < 1e-9) return 0;
+  return clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / l2, 0, 1);
+}

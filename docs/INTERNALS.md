@@ -40,7 +40,12 @@ event `wt` key on it). Do not mix them.
 | `sim/fouls.ts` | foul bookkeeping, bonus, FT sequences | whistle rules |
 | `sim/subs.ts` | lineup swaps, fatigue rotation, foul-out replacement | rotations |
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
-| `sim/ai.ts` | decideBall utilities, spacing/cuts, pick-and-roll, man defense | **all basketball behavior** |
+| `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
+| `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
+| `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
+| `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
+| `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
+| `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |

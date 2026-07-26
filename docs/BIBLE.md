@@ -416,7 +416,12 @@ event `wt` key on it). Do not mix them.
 | `sim/fouls.ts` | foul bookkeeping, bonus, FT sequences | whistle rules |
 | `sim/subs.ts` | lineup swaps, fatigue rotation, foul-out replacement | rotations |
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
-| `sim/ai.ts` | decideBall utilities, spacing/cuts, pick-and-roll, man defense | **all basketball behavior** |
+| `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
+| `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
+| `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
+| `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
+| `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
+| `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
@@ -645,7 +650,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 
 | You are changing… | It belongs in… |
 |---|---|
-| What a player decides to do | `sim/ai.ts` (utilities) |
+| What a player decides to do | `sim/ai/` (utilities; `ai.ts` is the barrel) |
 | Whether an attempt succeeds | `sim/resolve.ts` (probability models) |
 | A tunable constant | `sim/params.ts` (+ `harness/knobs.ts` range) |
 | Phase flow / possession lifecycle | `sim/possession.ts`, dispatched from `sim/game.ts` |
@@ -846,7 +851,7 @@ at 50 via a multiplier), and the field comments in `model/player.ts`.
 1. `model/player.ts` — add to `Attributes`/`Tendencies` interface, with a comment
    citing the consumer; add to `DEFAULT_ATTR`/`DEFAULT_TEND` (50 unless the modern-
    baseline argument says otherwise — see the DEFAULT_TEND comment).
-2. The consumer — `sim/resolve.ts` (resolution) or `sim/ai.ts` (decision), through
+2. The consumer — `sim/resolve.ts` (resolution) or `sim/ai/` (decision), through
    the `n(rating)` bridge so 50 is neutral.
 3. `sim/params.ts` — any new coefficient the rating multiplies (provenance-tagged).
 4. `harness/src/knobs.ts` — range entry, if the coefficient is a calibration lever.
@@ -871,13 +876,13 @@ default, added together with its consumer).
 
 ### Recipe C — a new AI action (a play pattern, like pick-and-roll)
 **Exemplar:** the PnR implementation — `PnrAction` in `sim/state.ts`, `pnrTick` +
-screener branch + drive bonus in `sim/ai.ts`, drop coverage in `defenseTick`,
+screener branch + drive bonus in `sim/ai/`, drop coverage in `defenseTick`,
 `ai.pnr*` params block.
 1. `sim/state.ts` — action type on `Possession.action` (extend the union), fields
    for phase/until/actors.
 2. `sim/possession.ts#startPossession` — ensure the action resets (`action: null`
    is already there; new per-agent timers must be cleared in the stale-timer block).
-3. `sim/ai.ts` — a lifecycle function (trigger conditions, phase transitions,
+3. `sim/ai/actions.ts` — a lifecycle function (trigger conditions, phase transitions,
    expiry), integration into `offenseOffBallTick` (actor movement) and `decideBall`
    (utility nudges), defensive response in `defenseTick`.
 4. **Staleness guards are mandatory**: the action must self-clear when an actor is
@@ -1078,12 +1083,12 @@ onto it, press space. Watch a full possession. Scrub around a free throw.
 follow one possession end to end:
 
 1. **A possession begins** — `sim/possession.ts#startPossession`: shot clock reset,
-   spots assigned (`ai.ts#assignSpots` — best handler top, shooters to the wings by
+   spots assigned (`ai/offense.ts#assignSpots` — best handler top, shooters to the wings by
    gravity, non-shooter to the dunker spot), matchups assigned, stale timers cleared.
 2. **The clock ticks** — `sim/game.ts#tick` → `tickLive`: wall clock first, then
    `movement.ts#advanceClock` (game clock; the ONLY place `t` moves), flight
    resolution, shot-clock check, period-expiry check.
-3. **The handler thinks** — `ai.ts#decideBall` every ~0.66s: computes the
+3. **The handler thinks** — `ai/decide.ts#decideBall` every ~0.66s: computes the
    **continuation value** (what "keep working" is worth), then utilities for
    shoot / drive / pass(×4) / hold — all in expected points — and softmaxes.
    This is the engine's central decision function.
@@ -1105,8 +1110,8 @@ Keep the viewer open on the same seed while tracing: the windup pause before a s
 the closeout sprint, and the scramble are all visible in the replay.
 
 **2. Read the emergence machinery** (~30 min):
-`resolve.ts#gravity` (why shooters warp defenses) → `ai.ts#defenseTick` (gap,
-sag, help selection) → `ai.ts#pnrTick` (screens as thin scaffolding). Then re-read
+`resolve.ts#gravity` (why shooters warp defenses) → `ai/defense.ts#defenseTick` (gap,
+sag, help selection) → `ai/actions.ts#actionTick` (screens as thin scaffolding). Then re-read
 `ARCHITECTURE.md §5` with the traced possession as context.
 
 **3. First-change exercises** (~45 min, pick one, throwaway — do not commit):
