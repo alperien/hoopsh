@@ -100,6 +100,12 @@ frames, and a physical teleport ceiling on player movement. **Policy: if a chang
 the engine makes an invariant fail, the change is treated as wrong — never the
 invariant.**
 
+`packages/engine/test/adversarial.test.ts` pins the input contract: non-finite
+ratings throw at the `simulateGame` boundary (tier 'finite', always on),
+`validate: 'strict'` additionally enforces the data-pack ranges, a stalled
+game throws instead of faking a `game_end`, and extreme-but-finite rosters
+complete with invariants intact.
+
 ## Calibration workflow
 
 1. Change mechanics → `npm test` (invariants + wide guard must stay green).

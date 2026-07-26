@@ -49,6 +49,19 @@ describe('adversarial input', () => {
     expect(() => rng.weighted([Infinity, 1])).toThrow(/non-finite weight/);
   });
 
+  it("validate:'strict' enforces the pack contract that the default tier deliberately does not", () => {
+    // the same 999 that is LEGAL input below is rejected when the caller
+    // opts into the strict tier — "valid but unusual" vs "invalid" is a
+    // caller choice, formalized (second external review).
+    const { home, away } = poisoned('attr', 'three', 999);
+    expect(() => simulateGame({ seed: 'adv-strict', home, away, collectFrames: false, validate: 'strict' }))
+      .toThrow(/out of range/);
+    // and a clean pack passes strict untouched
+    const clean = sampleMatchup();
+    const r = simulateGame({ seed: 'adv-strict-ok', home: clean.home, away: clean.away, collectFrames: false, validate: 'strict' });
+    expect(r.events[r.events.length - 1]!.type).toEqual('game_end');
+  });
+
   it('extreme-but-finite ratings are legal input: the game completes and core invariants hold', () => {
     const { home, away } = sampleMatchup();
     const extreme = structuredClone(home);

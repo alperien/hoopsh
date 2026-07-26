@@ -66,6 +66,10 @@ made/missed shot splashes.
 Dependency rule: **`engine` imports nothing; everything else imports `engine`.**
 The typed event stream is the public contract — stats, narration, and viewers are pure
 consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
+Input contract: `simulateGame` always rejects non-finite ratings loudly; pass
+`validate: 'strict'` to also enforce the data-pack ranges (ratings 0-100) when
+rosters come from untrusted sources — the default tier deliberately admits
+out-of-range finite values for custom content and stress tests.
 
 **All documentation → [docs/README.md](./docs/README.md)** (the library hub: every
 document, reading paths by role, which doc answers which question). The short list:

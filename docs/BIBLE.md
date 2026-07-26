@@ -93,6 +93,10 @@ made/missed shot splashes.
 Dependency rule: **`engine` imports nothing; everything else imports `engine`.**
 The typed event stream is the public contract — stats, narration, and viewers are pure
 consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
+Input contract: `simulateGame` always rejects non-finite ratings loudly; pass
+`validate: 'strict'` to also enforce the data-pack ranges (ratings 0-100) when
+rosters come from untrusted sources — the default tier deliberately admits
+out-of-range finite values for custom content and stress tests.
 
 **All documentation → [docs/README.md](./docs/README.md)** (the library hub: every
 document, reading paths by role, which doc answers which question). The short list:
@@ -469,6 +473,12 @@ off-court or fouled-out actors, team-foul monotonicity, strictly monotonic repla
 frames, and a physical teleport ceiling on player movement. **Policy: if a change to
 the engine makes an invariant fail, the change is treated as wrong — never the
 invariant.**
+
+`packages/engine/test/adversarial.test.ts` pins the input contract: non-finite
+ratings throw at the `simulateGame` boundary (tier 'finite', always on),
+`validate: 'strict'` additionally enforces the data-pack ranges, a stalled
+game throws instead of faking a `game_end`, and extreme-but-finite rosters
+complete with invariants intact.
 
 ## Calibration workflow
 
