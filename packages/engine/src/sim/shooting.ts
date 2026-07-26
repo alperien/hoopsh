@@ -70,13 +70,21 @@ export function startShot(
     };
   }
 
-  // assist bookkeeping
+  // assist bookkeeping — the "direct scoring move" rule. The dribble
+  // allowance is ZONE-AWARE (see params.ai.assistMaxDribbles*): a jumper
+  // taken off the bounce is self-created and earns the passer nothing,
+  // while an interior finish keeps its gather dribble. A uniform allowance
+  // credited self-created pull-ups league-wide (debt D1).
   let assist: string | undefined;
   const lp = s.poss.lastPass;
+  const interiorFinish = loc.zone === 'rim' || loc.zone === 'paint';
+  const dribbleAllowance = interiorFinish
+    ? s.params.ai.assistMaxDribblesInterior
+    : s.params.ai.assistMaxDribbles;
   if (
     made && lp &&
     s.t - shooter.catchT <= s.params.ai.assistWindowSec &&
-    shooter.dribblesSinceCatch <= s.params.ai.assistMaxDribbles &&
+    shooter.dribblesSinceCatch <= dribbleAllowance &&
     lp.from !== shooter.p.id &&
     // the passer can be substituted at a continuation dead ball between his
     // pass and this shot — no assists from the bench

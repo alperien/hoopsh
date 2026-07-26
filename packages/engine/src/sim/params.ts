@@ -414,7 +414,10 @@ export interface SimParams {
     assignLeashFt: number;       // a defender within this of his man still counts as assigned to him
     // bookkeeping
     assistWindowSec: number;     // catch-to-shot window for assist credit
+    /** dribbles allowed before a jumper stops counting as assisted */
     assistMaxDribbles: number;
+    /** dribbles allowed before an INTERIOR finish stops counting as assisted */
+    assistMaxDribblesInterior: number;
     // pick-and-roll
     pnrRatePerTick: number;      // base chance per eligible halfcourt tick to call a screen
     pnrUsageFloor: number;       // action-rate share the lineup's weakest creator keeps
@@ -1050,12 +1053,28 @@ export const defaultParams: SimParams = {
     // is still his man; small enough that a full rotation resets assignment.
     // Distinct from onBallRadiusFt (who counts as "on the ball").
     assignLeashFt: 16,
-    // REAL — NBA scorekeeping credits a pass leading to a score through
-    // roughly two seconds / two dribbles of a "direct scoring move"; at
-    // 1.6s/1 dribble the engine's assisted-FGM share ran 46% vs the NBA's
-    // ~58% (Stage 2 measurement)
+    // REAL — NBA scorekeeping credits a pass only when it leads to a DIRECT
+    // SCORING MOVE, and the allowance is not uniform across the floor: a
+    // catch-and-rise jumper is the passer's shot, while the same catch
+    // followed by dribbles into a pull-up is the SHOOTER's shot. Interior
+    // finishes get one extra beat because the gather/drop-step off a feed
+    // is still the pass's basket.
+    //
+    // Measured against six real 2025-26 games (parsed play-by-play, same
+    // definitions): real assisted share by zone is three 87% / rim 51% /
+    // paint 46% / mid 32%. Under the old uniform 2-dribble allowance the
+    // engine credited three 97% / rim 66% / mid 57% — it was crediting
+    // SELF-CREATED shots, which is exactly what a "direct scoring move"
+    // rule exists to exclude, and it put league assisted share at 63-65%
+    // against the 54-62% band (debt D1) while inflating star assist totals
+    // past their real identities.
     assistWindowSec: 2.0,
-    assistMaxDribbles: 2,
+    /** perimeter/jumper allowance: the catch-and-rise is the pass's shot;
+     *  put it on the floor first and it becomes the shooter's */
+    assistMaxDribbles: 0,
+    /** interior (rim/paint) allowance: one gather/drop-step dribble off a
+     *  feed still reads as the pass's basket to a real scorekeeper */
+    assistMaxDribblesInterior: 1,
     // FEEL — base action-call rate; raised from 0.022 when usage-rank gating
     // landed so league screen volume held (redistribution, not reduction)
     pnrRatePerTick: 0.03,

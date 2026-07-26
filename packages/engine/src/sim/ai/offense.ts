@@ -76,11 +76,8 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const eligible = liveOnCourt(s, side);
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
 
-  // ball handler (best handle) takes the top; shooters fill wings/corners;
-  // the worst shooter lives at the dunker spot
   // Best handler initiates from the top; everyone else fills by gravity —
-  // shooters get the wings and corners (where their gravity stretches the
-  // defense), the lowest-gravity big goes to the dunker spot.
+  // shooters get the wings and corners, the lowest-gravity big the dunker.
   const sorted = [...players].sort((a, b) => b.p.attr.ballHandle - a.p.attr.ballHandle);
   const handler = sorted[0]!;
   const rest = sorted.slice(1).sort((a, b) => gravity(s, b) - gravity(s, a));
@@ -88,16 +85,12 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const map = s.poss.spotMap;
   map.clear();
   map.set(handler.p.id, 'top');
-  // ball handler (best handle) takes the top; shooters fill wings/corners;
-  // the worst shooter lives at the dunker spot
-  // Best handler initiates from the top; everyone else fills by gravity —
-  // shooters get the wings and corners (where their gravity stretches the
-  // defense), the lowest-gravity big goes to the dunker spot.
-  // NOTE (M1 evidence, REFACTOR.md D3): a best-fit assignment model
-  // (appetite-ranked corners, interior-identity block stationing) was built
-  // and validated per-metric here, but is reverted until the D1 assist-
-  // economy fix lands — behind-the-line corners inflate kick EV and blow
-  // star assist identities (Curry 14.5 apg). Restore it from the D3 trail.
+  // NOTE (D3, REFACTOR.md): a best-fit assignment model (appetite-ranked
+  // corners + interior block stationing) is built and validated per-metric
+  // in the D3 trail, but stays reverted — the D1 assist-crediting fix did
+  // NOT unblock it. Behind-the-line corners change the offense globally
+  // (catch-and-shoot share 58% -> 67%, bands 16/17 -> 7/17), so D3 needs
+  // its own re-sweep, not a knob.
   const shooterKeys = ['wing_l', 'wing_r', 'corner_l', 'corner_r'];
   rest.forEach((a, i) => {
     if (i < 3) {
