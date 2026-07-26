@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { simulateGame } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import {
-  BOONE, BOOTH_PRESETS, buildBoothScript, CORBIN, formatBoothScript, TREMAINE,
+  BOOTH_PRESETS, BREEN, buildBoothScript, formatBoothScript, HARLAN, HUBIE,
   type BoothCue, type VoicePack
 } from '@hoopsh/narration';
 
@@ -47,14 +47,14 @@ describe('booth', () => {
   });
 
   it('respects every signature call budget', () => {
-    const packs: VoicePack[] = [CORBIN, TREMAINE, BOONE];
+    const packs: VoicePack[] = [BREEN, HUBIE, HARLAN];
     const countSig = (all: BoothCue[], voiceId: string, sigId: string): number =>
       all.filter((c) => c.voice === voiceId && c.sig === sigId).length;
-    const latenight = buildBoothScript(result.events, [home, away], { seed: 'booth-1', booth: 'latenight' });
+    const tnt = buildBoothScript(result.events, [home, away], { seed: 'booth-1', booth: 'tnt' });
     for (const pack of packs) {
       for (const s of pack.signatures) {
         expect(countSig(cues, pack.id, s.id)).toBeLessThanOrEqual(s.perGame);
-        expect(countSig(latenight, pack.id, s.id)).toBeLessThanOrEqual(s.perGame);
+        expect(countSig(tnt, pack.id, s.id)).toBeLessThanOrEqual(s.perGame);
       }
     }
   });
@@ -89,20 +89,20 @@ describe('booth', () => {
   });
 
   it('sounds different in a different booth', () => {
-    const latenight = buildBoothScript(result.events, [home, away], { seed: 'booth-1', booth: 'latenight' });
-    expect(latenight.length).toBeGreaterThan(300);
+    const tnt = buildBoothScript(result.events, [home, away], { seed: 'booth-1', booth: 'tnt' });
+    expect(tnt.length).toBeGreaterThan(300);
     const classicText = cues.map((c) => c.text).join('\n');
-    const latenightText = latenight.map((c) => c.text).join('\n');
-    expect(classicText === latenightText).toBe(false);
+    const tntText = tnt.map((c) => c.text).join('\n');
+    expect(classicText === tntText).toBe(false);
     // both voices actually speak in both booths
-    expect(latenight.some((c) => c.voice === BOONE.id)).toBe(true);
-    expect(latenight.some((c) => c.voice === TREMAINE.id)).toBe(true);
+    expect(tnt.some((c) => c.voice === HARLAN.id)).toBe(true);
+    expect(tnt.some((c) => c.voice === HUBIE.id)).toBe(true);
   });
 
   it('formats a printable two-voice script', () => {
     const script = formatBoothScript(cues, BOOTH_PRESETS.classic);
-    expect(script).toContain('CORBIN:');
-    expect(script).toContain('TREMAINE:');
+    expect(script).toContain('BREEN:');
+    expect(script).toContain('BROWN:');
     expect(script.split('\n').length).toEqual(cues.length);
   });
 });
