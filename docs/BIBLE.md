@@ -451,6 +451,14 @@ Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (sch
 validation, archetypes, sample packs), `narration/` (frozen demo layer),
 `harness/` (batch runner, bands, sweep, fidelity benchmarks, inverse solver), `packages/viewer/` (prototype).
 
+Roster-authoring tooling (`tools/gen-schema.mjs`, `roster-new.mjs`,
+`roster-validate.mjs` — `npm run schema:gen` / `roster:new` / `roster:validate`)
+sits outside the packages: it consumes `@hoopsh/data`'s exported schema
+definitions and archetypes, and emits/validates the hand-edited packs. The
+editor JSON Schema at `data/schema/team-pack.schema.json` is GENERATED — see
+`docs/ROSTERS.md` for the authoring loop and `packages/data/src/schema.ts` for
+the single source of truth it derives from.
+
 ## Design rules that maintain consistency across this codebase
 
 1. **One probability form.** Every resolution is `sigmoid(base + Σ terms)`; every
