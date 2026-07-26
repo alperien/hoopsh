@@ -62,14 +62,16 @@ describe('known-answer round-trips (forward model -> line -> inverted rating)', 
   });
 
   it('synthetic star: shooting dials constructed at known ratings invert back', () => {
-    // tpa 7 -> deriveRates pullUpShare = 0.15 + 4*0.05 = 0.35 (documented)
     const truthThree = 84;
     const truthFt = 90;
+    // pullUpShare depends only on tpa+ast, never tpPct — so deriving it
+    // first and constructing tpPct from it is a legitimate round-trip
+    const base = line({ pos: 'SG', tpa: 7, fga: 16, pts: 22 });
+    const pus = deriveRates(base).pullUpShare;
     const l = line({
-      pos: 'SG', tpa: 7, tpPct: forwardThreePct(truthThree, 0.35),
-      ftPct: forwardFtPct(truthFt), fga: 16, pts: 22
+      ...base, tpa: 7, tpPct: forwardThreePct(truthThree, pus),
+      ftPct: forwardFtPct(truthFt)
     });
-    expect(Math.abs(deriveRates(l).pullUpShare - 0.35)).toBeLessThan(1e-9);
     const fit = analyticFit(l);
     expect(Math.abs(fit.player.attr.three - truthThree)).toBeLessThanOrEqual(1);
     expect(Math.abs(fit.player.attr.freeThrow - truthFt)).toBeLessThanOrEqual(1);

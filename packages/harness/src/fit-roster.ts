@@ -294,8 +294,13 @@ export function deriveRates(line: SeasonLine): Rates {
 
   // Self-created share of threes: catch-and-shoot diets cap around 5-6
   // attempts a game (you only get so many kickouts); volume beyond that is
-  // pulled up. Anchors: 3 attempts → 0.15 (spot-up), 11+ → ~0.55 (heliocentric).
-  const pullUpShare = clamp(0.15 + (line.tpa - 3) * 0.05, 0.12, 0.6);
+  // pulled up. Anchors: 3 attempts → 0.15 (spot-up), 11+ → ~0.55
+  // (heliocentric). Scaled by a CREATOR factor — pull-ups are a creator's
+  // shot, and AST volume is the box line's creator signal: a 5.6-3PA 3&D
+  // wing (1.8 AST) is a spot-up shooter, not a 28% pull-up shooter, while
+  // the same 3PA on a lead guard is heavily self-created.
+  const creator = clamp(0.5 + line.ast * 0.12, 0.6, 1.4);
+  const pullUpShare = clamp((0.15 + (line.tpa - 3) * 0.05) * creator, 0.1, 0.65);
 
   // USG%: possessions used / team plays while on court. Standard estimate
   // when team totals are unknown; PLAYS_PER_MIN documented above.
@@ -662,6 +667,10 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
     - rates.share3 * 25 + (P.big ? -(line.pos === 'C' ? 30 : 15) : 8);
   t.drive = F('drive', Math.min(driveRaw, line.pos === 'C' ? 45 : line.pos === 'PF' ? 60 : 99), 'formula',
     'min(rim-FGA share, .45)·95 + FTA rate·50 − 3PA share·25 ± position (bigs capped: they roll/post, not drive)');
+  t.post = F('post',
+    4 + (line.pos === 'C' ? 30 : line.pos === 'PF' ? 22 : line.pos === 'SF' ? 8 : 0)
+    + rates.mix.mid * 60 + (usg - 20) * (P.big ? 1.2 : 0.3) - rates.share3 * 20, 'formula',
+    'WEAK signal: position base + mid-share·60 + usage — play-type data would identify this (gap list)');
 
   const zt = zoneTendencies(rates);
   t.shotRim = F('shotRim', zt.shotRim, 'formula',
@@ -669,13 +678,15 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   t.shotMid = F('shotMid', zt.shotMid, 'formula',
     `default·(mid share ${rates.mix.mid.toFixed(2)} / league 0.18)^1.25 + usage`);
   // OPPORTUNITY CORRECTION on shotThree: zone tendencies bias per-DECISION,
-  // and a heavy driver's decision points cluster near the rim, so realizing
-  // a given 3PA SHARE requires a larger per-opportunity three bias. Centered
-  // on the league-average line's own drive output (55 — the fixpoint test
-  // pins it) at 0.6 dial points per drive point; anchored on the LeBron
-  // fixture, which needs shotThree 76 to realize a ~0.16 share in-sim for a
-  // drive-84 profile (and still carries fidelity.ts's documented 3PA ratchet).
-  const driveOppAdj = Math.max(0, t.drive - 55) * 0.6;
+  // and an inside-clustered player's decision points are rarely threes, so
+  // realizing a given 3PA SHARE requires a larger per-opportunity bias.
+  // "Inside-clustered" = max(drive, post): drivers AND post hubs both live
+  // off inside decision points. Centered on the league-average line's own
+  // drive output (55 — the fixpoint test pins it) at 0.6 dial points per
+  // point; anchored on the LeBron fixture, which needs shotThree 76 to
+  // realize a ~0.16 share in-sim for a drive-84 profile (and still carries
+  // fidelity.ts's documented 3PA ratchet).
+  const driveOppAdj = Math.max(0, Math.max(t.drive, t.post) - 55) * 0.6;
   t.shotThree = F('shotThree', zt.shotThree + driveOppAdj, 'formula',
     `default·(3PA share ${rates.share3.toFixed(2)} / league 0.38)^1.25 + usage` +
     (driveOppAdj > 0.5 ? ` + drive-opportunity ${driveOppAdj.toFixed(0)}` : ''));
@@ -683,10 +694,6 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
     '30 + 3PA·3 (+8 for high-AST high-3PA creators) — volume threes are pulled, not caught');
   t.usage = F('usage', usageDial(rates.usgPct), 'formula',
     `usage dial IS a USG% scale (decide.ts): USG=${(rates.usgPct * 100).toFixed(1)}%`);
-  t.post = F('post',
-    4 + (line.pos === 'C' ? 30 : line.pos === 'PF' ? 22 : line.pos === 'SF' ? 8 : 0)
-    + rates.mix.mid * 60 + (usg - 20) * (P.big ? 1.2 : 0.3) - rates.share3 * 20, 'formula',
-    'WEAK signal: position base + mid-share·60 + usage — play-type data would identify this (gap list)');
   t.iso = F('iso', 18 + (usg - 20) * 1.9, 'formula',
     'WEAK signal: 18 + (USG−20)·1.9 — self-creation load proxies iso appetite (gap list)');
   t.passOut = F('passOut', 34 + line.ast * 4.4 - (usg - 20) * 0.5, 'formula',
@@ -726,7 +733,9 @@ export interface FitOptions {
 }
 
 export const DEFAULT_FIT_OPTIONS: FitOptions = {
-  iters: 8, cands: 2, games: 4, refine: true, seedBase: 'fit'
+  // 7 iters × (2 cands × 4 games) = 56 refinement games, + 4 seed-eval +
+  // 16 verify-gate games = 76 total per player, inside the 10×8 hard cap
+  iters: 7, cands: 2, games: 4, refine: true, seedBase: 'fit'
 };
 
 /** targets the objective scores, with "one noticeable unit" scales
@@ -857,10 +866,15 @@ export interface RefineResult {
   finalLine: Achieved;
   seedErr: number;
   finalErr: number;
-  /** held-out re-evaluation of the refined player on FRESH seeds — the
+  /** held-out re-evaluation of the SELECTED player on FRESH seeds — the
    *  honest number to quote (finalLine is in-sample by construction) */
   verifyLine: Achieved | null;
   verifyErr: number | null;
+  /** the analytic seed's own held-out error (the verify-gate's yardstick) */
+  seedVerifyErr: number | null;
+  /** false = the refinement failed the verify gate and the analytic seed
+   *  was kept (refinement is SAFE: it can only ship a held-out improvement) */
+  keptRefinement: boolean;
   itersRun: number;
   gamesSimulated: number;
 }
@@ -907,7 +921,8 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
   if (!opts.refine) {
     return {
       player: best, seedLine, finalLine: seedLine, seedErr, finalErr: seedErr,
-      verifyLine: null, verifyErr: null, itersRun: 0, gamesSimulated
+      verifyLine: null, verifyErr: null, seedVerifyErr: null,
+      keptRefinement: false, itersRun: 0, gamesSimulated
     };
   }
 
@@ -945,14 +960,23 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
     }
     step = Math.max(3, step * 0.85);
   }
-  // held-out verification: fresh seeds, one budget-cap slate — finalLine is
-  // by construction the line the search optimized, so it flatters the fit
-  const verify = evaluate(best, `${opts.seedBase}-verify`, MAX_GAMES_PER_ITER);
+  // THE VERIFY GATE: finalLine is by construction the line the search
+  // optimized (in-sample), and a stochastic hill-climb on 4-game evals can
+  // ship a seed-luck profile. Both the analytic seed and the refined
+  // candidate are re-evaluated on FRESH seeds; the refinement is kept only
+  // if it wins held-out by a real margin. Refinement can therefore never
+  // make the fit worse than the analytic layer — it is strictly additive.
+  const seedVerify = evaluate(seedPlayer, `${opts.seedBase}-verify`, MAX_GAMES_PER_ITER);
+  const bestVerify = evaluate(best, `${opts.seedBase}-verify`, MAX_GAMES_PER_ITER);
+  const keptRefinement = bestVerify.score < seedVerify.score * 0.9;
+  const selected = keptRefinement ? best : structuredClone(seedPlayer);
+  const verify = keptRefinement ? bestVerify : seedVerify;
   return {
-    player: best, seedLine, finalLine: bestEval.line,
+    player: selected, seedLine, finalLine: bestEval.line,
     seedErr, finalErr: bestEval.score,
     verifyLine: verify.line, verifyErr: verify.score,
-    itersRun, gamesSimulated
+    seedVerifyErr: seedVerify.score,
+    keptRefinement, itersRun, gamesSimulated
   };
 }
 
@@ -1093,9 +1117,12 @@ if (import.meta.main) {
     console.log(`  analytic    ${fmtLine(result.seedLine)}   err ${result.seedErr.toFixed(2)}`);
     if (refine) {
       console.log(`  refined     ${fmtLine(result.finalLine)}   err ${result.finalErr.toFixed(2)}  ` +
-        `(${result.itersRun} iters, ${result.gamesSimulated} games)`);
+        `(${result.itersRun} iters, ${result.gamesSimulated} games, in-sample)`);
       if (result.verifyLine) {
-        console.log(`  verify      ${fmtLine(result.verifyLine)}   err ${result.verifyErr!.toFixed(2)}  (fresh seeds, ${MAX_GAMES_PER_ITER} games)`);
+        const gate = result.keptRefinement
+          ? `KEPT refinement (seed held-out err ${result.seedVerifyErr!.toFixed(2)})`
+          : `REVERTED to analytic seed (refined held-out did not beat ${result.seedVerifyErr!.toFixed(2)} by 10%)`;
+        console.log(`  verify      ${fmtLine(result.verifyLine)}   err ${result.verifyErr!.toFixed(2)}  (fresh seeds, ${MAX_GAMES_PER_ITER} games) — ${gate}`);
       }
     }
     if (compareFixtures && line.fixtureId) {
