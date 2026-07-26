@@ -42,6 +42,23 @@ export function midGreenLight(a: Agent): number {
   return clamp((a.p.tend.shotMid - 25) / 50, 0, 1);
 }
 
+/**
+ * The PULL-UP half of the mid green light: joint gate over the mid appetite
+ * and the off-dribble appetite, as a geometric mean — both are REQUIRED
+ * (either at/below its floor vetoes the light entirely: a post big with no
+ * dribble game never snakes, a pull-up three hunter with no mid appetite
+ * never stops short), but multiplying two sub-1 gates would double-count
+ * moderation (a 44-shotMid/68-pullUp microwave scorer fell to a 0.33 light
+ * and never fired; the mean keeps him at 0.57). One definition read by the
+ * mid-range decisiveness term (concepts.ts — taking the pull-up) and the
+ * drive stop-short (game.ts — attacking TO the pull-up spot), so the player
+ * who snakes to the elbow and the player who rises once there are always
+ * the same player.
+ */
+export function midPullUpLight(a: Agent): number {
+  return Math.sqrt(midGreenLight(a) * clamp((a.p.tend.pullUp - 25) / 50, 0, 1));
+}
+
 /** the defender ASSIGNED to this player (falls back to nearest on-ball man) */
 export function assignedDefender(s: GameState, man: Agent): Agent | null {
   for (const d of liveOnCourt(s, other(man.side))) {

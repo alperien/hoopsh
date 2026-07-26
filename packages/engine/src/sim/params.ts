@@ -567,6 +567,8 @@ export interface SimParams {
     midGreenMaxFt: number;       // distance ceiling of the mid green light — real mid-range, not long 2s
     midPopShotBonus: number;     // shoot bias on the worked pop catch at the elbow (kin of postShotBonus)
     midContestCeil: number;      // contest ceiling of the mid green light (the middy lives vs drop coverage)
+    driveMidStopChance: number;  // snake stop-short rate at full midPullUpLight (game.ts drive commit)
+    driveMidStopFt: number;      // rim distance where a stop-short drive ends — the pull-up spot
     pnrDurationSec: number;      // action lifetime
     pnrScreenSetDistFt: number;  // screener-to-defender distance that counts as contact
     pnrStunOverSec: number;      // defender delay when fighting over the screen
@@ -1366,7 +1368,7 @@ export const defaultParams: SimParams = {
     // an elite mid-range identity fire mid-clock — while fixture-level
     // identities (shotMid 34-44) get a scaled fraction and fire in the
     // 5-10 s window, matching the late-clock skew of real mid attempts.
-    midRangeBonus: 0.65,
+    midRangeBonus: 0.7,
     // REAL — 19.5 ft: the analytic boundary between the mid-range game and
     // the long 2 (the 14-19.5 ft band is the real-corpus reference: ~6.8%
     // of NBA FGA). The green light stops here on purpose: the 20-23 ft
@@ -1401,6 +1403,21 @@ export const defaultParams: SimParams = {
     // which looks a mid-range IDENTITY is willing to take. Above it, the
     // contestBrake's judgment stands: that is a bad shot for anyone.
     midContestCeil: 0.65,
+    // FEEL — the snake stop-short (game.ts drive commit): at FULL
+    // midPullUpLight roughly a third of a mid-range artist's drives attack
+    // to the pull-up spot instead of the rim; scaled by the light, the
+    // benchScorer-shaped fixture (light 0.57) snakes about one drive in
+    // five, and everyone without the joint light never does. Kept well
+    // under 1.0 on purpose: the rim drive must stay the default or the
+    // player stops pressuring the basket and the defense stops dropping —
+    // which is the very coverage that makes the middy available.
+    driveMidStopChance: 0.4,
+    // REAL — 16 ft: the canonical pull-up spot, a step behind the
+    // free-throw line's 13.75 ft rim distance and the center of the
+    // 14-19.5 ft real-mid band. Matches the elbow spot's radial distance
+    // (geometry/court.ts) so the snake and the station describe the same
+    // piece of floor.
+    driveMidStopFt: 16,
     pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
     pnrStunOverSec: 0.65,

@@ -154,7 +154,8 @@ export const SWEEPABLE: Knob[] = [
   // player IS — and stays off the sweep surface, same doctrine as
   // pnrRollGravityCut and dunkerGravityThreshold.
   { path: 'ai.midRangeBonus', lo: 0.25, hi: 0.9 },
-  { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 }
+  { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 },
+  { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 }
 ];
 
 /** set a dot-path on a nested object (mutates) */

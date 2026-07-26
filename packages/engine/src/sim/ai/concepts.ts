@@ -50,7 +50,7 @@ import { dist } from '../../core/vec.js';
 import { other, type Agent, type GameState } from '../state.js';
 import type { TeamSide } from '../../core/events.js';
 import { hurriedness } from '../endgame.js';
-import { creation, midGreenLight } from './shared.js';
+import { creation, midGreenLight, midPullUpLight } from './shared.js';
 
 type Action = GameState['poss']['action'];
 type ShotMove = 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post';
@@ -145,15 +145,12 @@ export function decisiveness(
     zone === 'mid' && distFt <= A.midGreenMaxFt &&
     (shotMove === 'pull_up' || shotMove === 'catch_shoot')
   ) {
-    // joint identity gate: a pull-up needs BOTH the mid appetite and the
-    // off-dribble appetite — as a geometric mean, because multiplying two
-    // sub-1 gates double-counts moderation (a 44-shotMid/68-pullUp
-    // microwave scorer fell to a 0.33 light and never fired; the mean
-    // keeps him at 0.57 while preserving the zero-veto: either appetite
-    // at/below the floor still kills the light entirely).
-    const moveGate = shotMove === 'pull_up'
-      ? Math.sqrt(midGreenLight(h) * clamp((h.p.tend.pullUp - 25) / 50, 0, 1))
-      : midGreenLight(h);
+    // joint identity gate for pull-ups (midPullUpLight — the doctrine and
+    // the zero-veto/geometric-mean reasoning live on the helper in
+    // ai/shared.ts, shared with the drive stop-short so the snake and the
+    // rise belong to the same player); catches gate on the mid appetite
+    // alone.
+    const moveGate = shotMove === 'pull_up' ? midPullUpLight(h) : midGreenLight(h);
     term = A.midRangeBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1) * moveGate;
   }
   return term * A.decisivenessScale;
