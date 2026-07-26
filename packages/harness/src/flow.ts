@@ -281,6 +281,12 @@ if (isMain) {
   for (const [name, sim, ref, grade] of rows) {
     console.log(`  ${name.padEnd(26)} sim ${sim.padEnd(18)} real ${ref.padEnd(34)} [${grade}]`);
   }
-  console.log('\nKnown gaps expected until the endgame layer lands (REFACTOR.md M4): clutch FT share,');
-  console.log('comeback texture, and anything downstream of timeouts/intentional fouling.');
+  if (endgame) {
+    console.log('\nEndgame layer ON (GameConfig.endgame): clutch FT share, timeouts, and the foul');
+    console.log('parade are live — compare against a flag-off run of the same seeds/games.');
+  } else {
+    console.log('\nKnown gaps expected while the endgame layer ships flag-OFF (GameConfig.endgame,');
+    console.log('REFACTOR.md M4): clutch FT share, comeback texture, and everything downstream of');
+    console.log('timeouts/intentional fouling. Re-run with --endgame for the layer-on numbers.');
+  }
 }
