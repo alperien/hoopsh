@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../data/schema/team-pack.schema.json",
   "formatVersion": 2,
   "kind": "team",
   "team": {
