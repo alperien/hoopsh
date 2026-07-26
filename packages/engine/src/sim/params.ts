@@ -226,6 +226,10 @@ export interface SimParams {
     offBallWalkMult: number;
     /** the ball-handler's bring-up is a dribble-JOG (share of max), not a sprint */
     advanceJogMult: number;
+    /** the retreat after a score/shot is a JOG (share of max) — nobody sprints back unpressured */
+    getbackJogMult: number;
+    /** non-sprint crash/boxout repositioning speed (share of max) — short, quick, not a dash */
+    crashWorkMult: number;
   };
 
   fatigue: {
@@ -454,7 +458,7 @@ export const defaultParams: SimParams = {
     // originally 0.12 (an 83% ceiling), which failed the fidelity harness's
     // 99-rated benchmark at 79% — league mean is preserved by re-centering
     // the base (the fidelity phase widens SPREADS; bands still own the mean).
-    ftBasePct: 0.666,
+    ftBasePct: 0.69,
     ftSkillSwing: 0.19,
     // REAL — the elite tail: +5.5% at rating 100, zero below 80; rating 99
     // lands ~90%, matching the 88-91% real elite band
@@ -514,7 +518,7 @@ export const defaultParams: SimParams = {
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.031
+    looseBallPerReb: 0.0365
   },
 
   pass: {
@@ -550,7 +554,7 @@ export const defaultParams: SimParams = {
     // The offense is at a structural disadvantage on the glass (it is
     // retreating, the defense is between man and rim), so offensive rebound
     // weights are discounted. This is THE lever on ORB% (band 20-30%). SWEPT.
-    offWeightMult: 0.7328,
+    offWeightMult: 0.6,
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
@@ -692,7 +696,16 @@ export const defaultParams: SimParams = {
     // experiment: the shooting calibration absorbs kinematics errors, so
     // this fix forces a re-fit by design). A real bring-up is a dribble-jog;
     // transition still sprints via the sprinting flag. FEEL.
-    advanceJogMult: 0.42
+    advanceJogMult: 0.42,
+    // THE CRUISE FALLTHROUGH (frame-attribution probe, speed-fix branch):
+    // moveSpeed's offense branch gave every non-defend/non-spot/non-advance
+    // intent the 0.72 cruise — so all five defenders crossed the court at
+    // ~13.7 ft/s after EVERY score (intent 'getback'), and non-sprint
+    // crashers boxed out at the same. 'early' possession windows owned 42%
+    // of all fast frames and scrambles another 20% before these dials.
+    // Real players jog back (~8 ft/s) and work the boxout, not dash it. FEEL.
+    getbackJogMult: 0.45,
+    crashWorkMult: 0.5
   },
 
   fatigue: {
@@ -767,7 +780,7 @@ export const defaultParams: SimParams = {
     contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.0389,
+    holdHalfcourt: 0.0248,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,

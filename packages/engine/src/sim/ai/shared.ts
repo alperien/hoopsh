@@ -59,9 +59,12 @@ export function moveSpeed(s: GameState, a: Agent): number {
   // crashes). Off-ball spacing moves are WALKED (offBallWalkMult) — a spot
   // is held, not chased; the ball-holder keeps the faster cruise.
   const offBall = a.p.id !== s.ball.holderId;
+  const M = s.params.move;
   const mult = a.sprinting ? 1
-    : offBall && a.intent === 'spot' ? s.params.move.offBallWalkMult
-    : a.intent === 'advance' ? s.params.move.advanceJogMult // the bring-up is a jog
-    : s.params.move.halfcourtSpeedMult;
+    : offBall && a.intent === 'spot' ? M.offBallWalkMult
+    : a.intent === 'advance' ? M.advanceJogMult   // the bring-up is a jog
+    : a.intent === 'getback' ? M.getbackJogMult   // the retreat is a jog
+    : a.intent === 'crash' ? M.crashWorkMult      // boxout work, not a dash
+    : M.halfcourtSpeedMult;
   return max * mult;
 }
