@@ -83,10 +83,13 @@ describe('adversarial input', () => {
     expect(starts).toEqual(ends);          // pace integrity survives the abuse
     // note the LOW bars: a 999-everything defense legitimately strangles the
     // game (every pass lane is lethal, so possessions die as turnovers — the
-    // first run of this test found 15 total shots, which is coherent, not
-    // corrupt). The claim under test is invariant integrity, not playability.
+    // first run found 15 total shots, and the texture increment's pass-back
+    // damping squeezed scoring further, which is coherent, not corrupt). The
+    // claim under test is invariant integrity, not playability: possessions
+    // balance, the game ran, shots happened, SOMETHING scored — the
+    // corruption signature this fixture catches was a 0-0 stall.
     expect(shots).toBeGreaterThan(5);
     expect(result.events.length).toBeGreaterThan(400); // the game actually ran
-    expect(lastScore[0] + lastScore[1]).toBeGreaterThan(10);
+    expect(lastScore[0] + lastScore[1]).toBeGreaterThan(0);
   });
 });

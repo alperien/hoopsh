@@ -6,6 +6,7 @@
  */
 
 import { dist, lerp, norm, scale, sub, add } from '../../core/vec.js';
+import { clamp } from '../../core/rng.js';
 import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, onCourt, other, type GameState } from '../state.js';
@@ -116,6 +117,8 @@ export function offenseOffBallTick(s: GameState): void {
 
   actionTick(s);
   const act = s.poss.action;
+  const holderId = s.ball.holderId;
+  const holder = holderId ? agent(s, holderId) : null;
 
   for (const a of onCourt(s, side)) {
     if (a.fouledOut || a.p.id === s.ball.holderId) continue;
@@ -180,10 +183,70 @@ export function offenseOffBallTick(s: GameState): void {
       continue;
     }
 
+    // PURPOSEFUL RELOCATION — the second half of stillness-as-default.
+    // Spacing is held until the ball bends the defense; then a shooter
+    // SHAKES: while a drive is live he drifts away from his defender,
+    // restoring the open catch-and-shoot that pure stillness strangled
+    // (3PA share pinned at ~24% without it — see params provenance).
+    if (s.t < a.relocUntil) {
+      // hold the relocated ground while the window lasts (the spot branch
+      // below would otherwise walk him straight back and undo the shake).
+      // sprinting is preserved from the trigger: a drift walks, a baseline
+      // escape RUNS.
+      a.intent = 'spot';
+      continue;
+    }
+    if (
+      holder && s.poss.phase === 'halfcourt' &&
+      a.spotKey !== 'dunker' &&
+      gravity(s, a) > s.params.ai.dunkerGravityThreshold &&
+      // ordinary shooters shake when a DRIVE bends the defense; a DENIED
+      // shooter (top-locked) works on his own schedule — motion is his
+      // whole counter, the one player whose perpetual movement is correct
+      (s.t < holder.driveUntil || gravity(s, a) > s.params.ai.denyGravityCut) &&
+      s.rng.chance(
+        gravity(s, a) > s.params.ai.denyGravityCut && s.t >= holder.driveUntil
+          ? s.params.ai.relocDeniedRatePerTick // self-scheduled escape: rarer
+          : s.params.ai.relocateRatePerTick    // drive-triggered shake
+      )
+    ) {
+      const dfd = assignedDefender(s, a);
+      if (dfd) {
+        if (gravity(s, a) > s.params.ai.denyGravityCut) {
+          // THE TOP-LOCK COUNTER: a denied shooter doesn't drift — he RUNS
+          // THE BASELINE to the corner his denier can't shade without
+          // losing the ball side. The backdoor CUT (denyCutMult above) is
+          // the rim half of the deny answer; this is the relocation half.
+          // Without it, denial + stillness crowded the elite benchmark out
+          // of his own three-point diet (3PA share 40% vs the 50%+
+          // identity gate — fidelity incident, texture increment).
+          const cl = byKey.get('corner_l');
+          const cr = byKey.get('corner_r');
+          const corner = cl && cr ? (dist(cl, dfd.pos) > dist(cr, dfd.pos) ? cl : cr) : (cl ?? cr);
+          if (corner) a.target = { ...corner };
+          a.sprinting = true;
+        } else {
+          const away = norm(sub(a.pos, dfd.pos));
+          a.target = {
+            x: clamp(a.pos.x + away.x * s.params.ai.relocateDriftFt, 2, s.court.length - 2),
+            y: clamp(a.pos.y + away.y * s.params.ai.relocateDriftFt, 2, s.court.width - 2)
+          };
+          a.sprinting = false;
+        }
+        a.relocUntil = s.t + s.params.ai.relocDurationSec;
+        a.intent = 'spot';
+        continue;
+      }
+    }
+
     a.intent = 'spot';
-    a.sprinting = s.poss.phase !== 'halfcourt';
+    // sprint belongs to TRANSITION; the advance is brought up at a jog
+    // (sprinting the advance was half of the perpetual-motion texture bug)
+    a.sprinting = s.poss.phase === 'transition';
     const key = a.spotKey ?? 'corner_l';
     const spot = byKey.get(key);
-    if (spot) a.target = spot;
+    // stillness-as-default: at the spot means AT the spot — hold the ground,
+    // don't micro-chase the pixel (the other half of perpetual motion)
+    if (spot) a.target = dist(a.pos, spot) < s.params.move.arrivalDeadbandFt ? a.pos : spot;
   }
 }

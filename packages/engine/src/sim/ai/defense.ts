@@ -56,7 +56,10 @@ export function defenseTick(s: GameState): void {
 
   // the blitz: an extreme-gravity HOLDER beyond the arc draws a second body —
   // denial's on-ball sibling, and what actually caps elite pull-up volume
-  // (the fidelity benchmark kept 15+ deep attempts against single coverage)
+  // (the fidelity benchmark kept 15+ deep attempts against single coverage).
+  // Probed and rejected: gating this on a live dribble (trap the action,
+  // not the reception) was a bit-identical no-op — by the time the helper
+  // arrives, the holder has always started his dribble anyway.
   const blitz =
     holder !== null && gravity(s, holder) > A.denyGravityCut &&
     dist(holder.pos, rim) > A.blitzBeyondFt;
@@ -200,7 +203,12 @@ function positionOffBall(s: GameState, d: Agent, man: Agent, rim: V2, helpAggr: 
   const sag = clamp((ballDist - A.sagStartFt) / A.sagRangeFt, 0, A.sagMax)
     * (1 - g * A.sagGravityCut) * (0.6 + helpAggr * 0.6);
   const helpSpot = lerp(rim, s.ball.pos, A.helpSpotPull);
-  d.target = lerp(basePoint, helpSpot, sag);
+  const ideal = lerp(basePoint, helpSpot, sag);
+  // stillness-as-default: the sag point drifts a little with every ball
+  // movement — inside the deadband a defender HOLDS his stance instead of
+  // shuffling after a moving pixel (denial and on-ball work stay live;
+  // this only quiets settled off-ball positioning)
+  d.target = dist(d.pos, ideal) < s.params.move.defDeadbandFt ? d.pos : ideal;
 }
 
 function defendedRimOf(s: GameState, defSide: TeamSide): V2 {

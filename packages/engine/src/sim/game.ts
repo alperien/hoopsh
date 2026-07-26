@@ -114,6 +114,7 @@ function initState(cfg: GameConfig): GameState {
         teamPossOnCourt: 0,
         driveUntil: -99,
         cutUntil: -99,
+        relocUntil: -99,
         screenStunUntil: -99,
         navUnderUntil: -99
       });

@@ -154,13 +154,18 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 
 ### 4.4 Calibration etiquette
 - The NBA bands (`harness/src/bands.ts`) are the gate — count them there, never
-  from memory (the list grows). "Locked" means: across the three seed bases at
-  40+ games, at most a small handful of checks miss, each within ~1-2% of a band
-  edge, WITH THE MISSING EDGES DRIFTING BETWEEN SEEDS — that drift is the
-  **noise floor** (sampling variance). A miss that repeats on the SAME band
-  across seeds is systematic, not noise, and belongs in INTERNALS' findings.
-  Do not chase either kind with hand-nudges — use the sweep. Never quote a
-  stale pass-rate in docs; state where to measure it instead.
+  from memory (the list grows). The noise floor is MEASURED, not guessed:
+  `npm run noisefloor` samples every gated statistic across independent seed
+  bases at the gates' sample sizes and writes `noise-floor.gen.ts`; the
+  permanent gates derive their widths from it (edge ± z·sd, z=3), so a gate
+  failure means "the sim changed", not "the seed changed". "Locked" means:
+  at 40+ games, every band's measured CENTER sits inside its band. A center
+  sitting on or outside an edge is a systematic finding for INTERNALS even
+  while the z-gate passes. Never adjudicate anything from one or two draws —
+  that is chasing noise (measure more bases instead); never hand-nudge what
+  the sweep owns; never quote a stale pass-rate in docs — state where to
+  measure it instead. Regenerate the floor after mechanics changes: its diff
+  is the drift record.
 - After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
   precision), then re-verify with `--iters 0`.
 

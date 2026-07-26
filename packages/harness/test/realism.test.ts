@@ -8,13 +8,14 @@
  * a tripwire that cries wolf gets deleted, a tripwire that never fires is
  * decoration.
  *
- * Calibration of the tripwire itself: bands are widened 30% of their width
- * on each side, at 24 deterministic games. Why 30 and not tighter: the two
- * RECORDED systematic residuals (FTA runs low, 3P% runs high — see
- * docs/INTERNALS.md findings) sit up to ~20% of band-width outside the true
- * band on some seed bases, so a widening much below ~30% would alarm on
- * known, documented state rather than on drift. If those findings get fixed,
- * tighten this widening in the same commit — that's the ratchet.
+ * Calibration of the tripwire itself: widths are DERIVED from the measured
+ * noise floor (noise-floor.gen.ts — regenerate with `npm run noisefloor`):
+ * each band edge extends by z·sd of the 24-game sampling distribution under
+ * the null. At z=3 a failure means "the sim changed", not "the seed
+ * changed" — the distinction feel-widened percentages could never make
+ * (third external review). Where the sim's true center sits ON a band edge
+ * (measured: pace at the 95 floor, ORtg at the 121 ceiling), that is a
+ * standing calibration finding for INTERNALS, not gate noise.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,6 +24,11 @@ import { boxScore } from '@hoopsh/stats';
 import { sampleMatchup } from '@hoopsh/data';
 import { accumulate, emptyAcc, finalize } from '../src/aggregate.js';
 import { NBA_BANDS } from '../src/bands.js';
+import { NOISE_FLOOR } from '../src/noise-floor.gen.js';
+
+// tripwire z: under the null (measured sampling sd) a z=3 excursion is a
+// ~0.3% event per check — a fired gate means the engine moved.
+const Z = 3;
 
 const GAMES = 24;
 
@@ -46,9 +52,10 @@ describe('realism regression guard (wide bands)', () => {
     // batch report and sweep see them; the regression guard does not (see
     // bands.ts Band.ratchet)
     if (band.ratchet) continue;
-    const width = band.hi - band.lo;
-    const lo = band.lo - width * 0.30;
-    const hi = band.hi + width * 0.30;
+    const floor = (NOISE_FLOOR.league as Record<string, { n24: { sd: number } }>)[band.metric];
+    const sd = floor ? floor.n24.sd : (band.hi - band.lo) * 0.15; // fallback: regenerate the floor
+    const lo = band.lo - Z * sd;
+    const hi = band.hi + Z * sd;
     it(`${band.label}: inside wide band [${lo.toFixed(2)} .. ${hi.toFixed(2)}]`, () => {
       const v = avgs[band.metric]!;
       expect(v).toBeGreaterThanOrEqual(lo);

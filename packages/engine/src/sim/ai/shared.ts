@@ -48,13 +48,19 @@ export function onBallDefender(s: GameState, holder: Agent): Agent | null {
 export function moveSpeed(s: GameState, a: Agent): number {
   const max = currentMaxSpeed(s, a);
   if (a.intent === 'defend') {
-    const lat = lateralSpeed(a.p.attr) * (a.sprinting ? 1.15 : 1);
+    // in his stance a defender SHUFFLES (stanceSpeedMult); sprints (1.15x)
+    // belong to closeouts, help rotations, and blitzes. Capped by LATERAL
+    // speed, which is why quick-footed guards contain drives better than
+    // fast straight-line runners.
+    const lat = lateralSpeed(a.p.attr) * (a.sprinting ? 1.15 : s.params.move.stanceSpeedMult);
     return Math.min(max, lat);
   }
-  // Offense/off-ball: sprint only when the situation demands it (transition,
-  // cuts, crashes); otherwise cruise. Defenders are capped by LATERAL speed
-  // above, which is why quick-footed guards contain drives better than fast
-  // straight-line runners.
-  const mult = a.sprinting ? 1 : s.params.move.halfcourtSpeedMult;
+  // Offense: sprint only when the situation demands it (transition, cuts,
+  // crashes). Off-ball spacing moves are WALKED (offBallWalkMult) — a spot
+  // is held, not chased; the ball-holder keeps the faster cruise.
+  const offBall = a.p.id !== s.ball.holderId;
+  const mult = a.sprinting ? 1
+    : offBall && a.intent === 'spot' ? s.params.move.offBallWalkMult
+    : s.params.move.halfcourtSpeedMult;
   return max * mult;
 }
