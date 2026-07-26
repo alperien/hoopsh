@@ -67,6 +67,11 @@ export interface GameTaskResults {
   batch: TeamGameSummary;
   /** per-game flow metrics — reduce with flow-metrics.ts's reduceFlows() */
   flow: GameFlow;
+  /** same as `flow`, but simulated with the endgame layer ON — the off/on
+   *  comparison for its target metrics (clutch FT share, Q4 shape, tails).
+   *  A separate TASK rather than an option so worker payloads stay a plain
+   *  (task, seedBase, slice) triple and slice invariance is unaffected. */
+  flowEndgame: GameFlow;
 }
 export type GameTaskName = keyof GameTaskResults;
 
@@ -79,11 +84,11 @@ export type GameTaskName = keyof GameTaskResults;
  * for slice invariance, since a worker starting at game 12 has no way to
  * share object state with games 0-11 (and must not need to).
  */
-function playGame(seed: string, flip: boolean): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
+function playGame(seed: string, flip: boolean, endgame = false): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
   const def = sampleMatchup();
   const home = flip ? def.away : def.home;
   const away = flip ? def.home : def.away;
-  const result = simulateGame({ seed, home, away, collectFrames: false });
+  const result = simulateGame({ seed, home, away, collectFrames: false, endgame });
   return { events: result.events, teams: [home, away] };
 }
 
@@ -98,7 +103,8 @@ const GAME_TASKS: GameTaskFns = {
     // just needlessly large)
     return { teams: box.teams, pace: box.pace };
   },
-  flow: (seed, flip) => gameFlow(playGame(seed, flip).events)
+  flow: (seed, flip) => gameFlow(playGame(seed, flip).events),
+  flowEndgame: (seed, flip) => gameFlow(playGame(seed, flip, true).events)
 };
 
 export const GAME_TASK_NAMES = Object.keys(GAME_TASKS) as GameTaskName[];

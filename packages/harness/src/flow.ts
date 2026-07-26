@@ -39,7 +39,9 @@
  * are distributed across worker subprocesses by parallel.ts — bit-identical
  * results for any --workers value, --workers 1 = plain single process.
  *
- * Run: npm run flow [-- --games 48 --seed flow --workers N]
+ * Run: npm run flow [-- --games 48 --seed flow --workers N --endgame]
+ * (--endgame simulates with GameConfig.endgame ON — the off/on comparison
+ *  for the endgame layer's target metrics: clutch FT share, Q4 shape.)
  */
 
 import { flagNumber, flagValue } from './args.js';
@@ -77,9 +79,10 @@ async function main(): Promise<void> {
   const games = flagNumber(process.argv, '--games', 48);
   const seedBase = flagValue(process.argv, '--seed', 'flow');
   const workers = resolveWorkerCount(flagValue(process.argv, '--workers', 'auto'));
-  console.log(`Measuring game flow over ${games} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'})...\n`);
+  const endgame = process.argv.includes('--endgame');
+  console.log(`Measuring game flow over ${games} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'}${endgame ? ', endgame ON' : ''})...\n`);
   const t0 = performance.now();
-  const flows = await runGames({ task: 'flow', games, seedBase, workers });
+  const flows = await runGames({ task: endgame ? 'flowEndgame' : 'flow', games, seedBase, workers });
   const m = reduceFlows(flows);
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)}s)\n`);
 
