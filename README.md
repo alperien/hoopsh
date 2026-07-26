@@ -33,8 +33,10 @@ npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice broadcast script for a game
 ```
 
-Optional dev tooling (`typescript`, `vitest`, `tsx`) layers on with a normal
-`npm i -D typescript vitest tsx @types/node` — but nothing requires it.
+Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
+declared in `devDependencies` so one plain `npm install` reproduces the full
+dev environment (`npm run typecheck`, `npm run test:vitest`) — but nothing at
+runtime requires it; every command above works on a bare clone.
 Note for readers of the test files: they import from `'vitest'`, which is NOT
 installed — `tools/hooks.mjs` resolves that specifier to a `node:test`-backed
 shim (`tools/shims/vitest.ts`), so `npm test` runs the whole suite with zero
