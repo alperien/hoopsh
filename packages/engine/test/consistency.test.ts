@@ -37,7 +37,7 @@ describe('box score internal consistency', () => {
 
   it('team minutes ≈ 5 × game length', () => {
     const periods = box.periods;
-    const expected = periods >= 4 ? 5 * 48 : 5 * 48; // regulation minimum
+    const expected = periods >= 4 ? 5 * 48 : 5 * 40; // regulation minimum (NBA quarters vs NCAA halves)
     for (const side of [0, 1] as const) {
       const minutes = box.players.filter((p) => p.team === side).reduce((a, p) => a + p.min, 0);
       expect(minutes).toBeGreaterThanOrEqual(expected - 3);

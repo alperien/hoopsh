@@ -61,6 +61,33 @@ class Expectation {
     this.assert(Object.is(this.actual, expected), `expected toBe ${safe(expected)}`);
   }
 
+  /** vitest-compat: actual must be a function; asserts it throws, optionally
+   *  matching a string/RegExp against the error message */
+  toThrow(pattern?: string | RegExp): void {
+    if (typeof this.actual !== 'function') {
+      this.assert(false, 'toThrow expects a function');
+      return;
+    }
+    let threw = false;
+    let message = '';
+    try {
+      (this.actual as () => unknown)();
+    } catch (err) {
+      threw = true;
+      message = err instanceof Error ? err.message : String(err);
+    }
+    if (!threw) {
+      this.assert(false, `expected function to throw${pattern ? ` matching ${safe(pattern)}` : ''}`);
+      return;
+    }
+    if (pattern !== undefined) {
+      const ok = typeof pattern === 'string' ? message.includes(pattern) : pattern.test(message);
+      this.assert(ok, `expected thrown message ${safe(message)} to match ${safe(pattern)}`);
+    } else {
+      this.assert(true, '');
+    }
+  }
+
   // Deep structural equality (objects/arrays compared by contents, not
   // reference) — this is the one the suites reach for when comparing event
   // arrays or frame rows, where two separately-built values need to match

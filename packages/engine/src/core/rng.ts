@@ -73,7 +73,16 @@ export class Rng {
   /** index sampled proportionally to non-negative weights (all-zero -> uniform) */
   weighted(weights: readonly number[]): number {
     let total = 0;
-    for (const w of weights) total += Math.max(0, w);
+    for (const w of weights) {
+      // fail loudly on corrupt weights: a NaN here used to fall through to
+      // the last index and an Infinity starved every other entry — both
+      // silently (independent-review finding). Any non-finite weight means
+      // an upstream utility computation is already broken.
+      if (!Number.isFinite(w)) {
+        throw new Error(`Rng.weighted: non-finite weight ${String(w)} in [${weights.join(', ')}]`);
+      }
+      total += Math.max(0, w);
+    }
     if (total <= 0) return this.int(weights.length);
     let roll = this.float() * total;
     for (let i = 0; i < weights.length; i++) {

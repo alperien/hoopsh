@@ -394,7 +394,37 @@ function holderSlot(s: GameState): number {
 
 // -------------------------------------------------------------------- main
 
+/**
+ * Reject non-finite ratings at the boundary. A single NaN poisons every
+ * sigmoid downstream, the softmax weights all go NaN, Rng.weighted falls
+ * through, and the game stalls at 0-0 until the safety cap emits a
+ * legitimate-looking (fake) game_end — an independent review demonstrated
+ * exactly this silent-corruption chain. The engine deliberately tolerates
+ * out-of-RANGE finite ratings (a 999 just saturates the curves; custom
+ * content is legal input), but non-finite input is always a caller bug and
+ * must fail loudly here, not 48 simulated minutes later.
+ */
+function assertFiniteRatings(team: Team, side: string): void {
+  for (const p of team.players) {
+    for (const [bagName, bag] of [['attr', p.attr], ['tend', p.tend]] as const) {
+      for (const [k, v] of Object.entries(bag)) {
+        if (typeof v !== 'number' || !Number.isFinite(v)) {
+          throw new Error(
+            `simulateGame: non-finite rating ${side}/${p.id}.${bagName}.${k} = ${String(v)} — ` +
+            `validate rosters (see @hoopsh/data loadTeamPack) before simulating`
+          );
+        }
+      }
+    }
+    if (!Number.isFinite(p.heightIn) || !Number.isFinite(p.weightLb)) {
+      throw new Error(`simulateGame: non-finite body measurement on ${side}/${p.id}`);
+    }
+  }
+}
+
 export function simulateGame(cfg: GameConfig): GameResult {
+  assertFiniteRatings(cfg.home, 'home');
+  assertFiniteRatings(cfg.away, 'away');
   const s = initState(cfg);
 
   emit(s, {
