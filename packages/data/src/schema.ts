@@ -128,6 +128,13 @@ function validatePlayer(p: unknown, path: string, issues: ValidationIssue[]): vo
   if (typeof pl.weightLb !== 'number' || !Number.isFinite(pl.weightLb)) {
     issues.push({ path: `${path}.weightLb`, message: 'weightLb must be a finite number' });
   }
+  // wingspanIn is optional (derived.ts falls back to heightIn + 2), but a
+  // present-and-non-numeric value doesn't trigger that fallback — it flows
+  // into the standing-reach formula and NaNs every contest that player is
+  // involved in. Absent is fine; present means finite.
+  if (pl.wingspanIn !== undefined && (typeof pl.wingspanIn !== 'number' || !Number.isFinite(pl.wingspanIn))) {
+    issues.push({ path: `${path}.wingspanIn`, message: 'wingspanIn, when present, must be a finite number' });
+  }
   if (!POSITIONS.includes(pl.pos as string)) {
     issues.push({ path: `${path}.pos`, message: `invalid position ${String(pl.pos)}` });
   }

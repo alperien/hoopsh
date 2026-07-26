@@ -36,18 +36,20 @@ describe('data pack schema', () => {
     const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
       team: {
         name?: string; abbrev?: string;
-        players: { weightLb?: number }[];
+        players: { weightLb?: number; wingspanIn?: unknown }[];
         rotationMinutes?: Record<string, unknown>;
       };
     };
     delete bad.team.name;                       // "undefined 98" narration
     delete bad.team.abbrev;                     // "undefined are in the bonus"
     delete bad.team.players[0]!.weightLb;       // simulateGame throws non-finite body measurement
+    bad.team.players[1]!.wingspanIn = 'long';   // NaN standing reach in derived.ts
     bad.team.rotationMinutes = { 'brk-mercer': 'lots' }; // NaN minutes-pace leash in subs.ts
     const issues = validateTeamPack(bad);
     expect(issues.some((i) => i.path === '$.team.name')).toBe(true);
     expect(issues.some((i) => i.path === '$.team.abbrev')).toBe(true);
     expect(issues.some((i) => i.path === '$.team.players[0].weightLb')).toBe(true);
+    expect(issues.some((i) => i.path === '$.team.players[1].wingspanIn')).toBe(true);
     expect(issues.some((i) => i.path === '$.team.rotationMinutes.brk-mercer')).toBe(true);
   });
 });
