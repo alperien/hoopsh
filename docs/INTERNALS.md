@@ -139,7 +139,22 @@ positions from `npm run calreport`, which quotes n40 grand-mean centers with
 standard errors — quoting a smaller nested window's mean as "the center" was
 an error the third review caught, twice, in our own write-up. The pre-texture
 FTA-low and 3P%-high residuals PASS after the texture re-tune):
-- **THE FRICTION SIGNATURE** (the review computed it from our own table; the
+- **RESOLVED by the arrival-based drive commit (speed-fix cluster)**: the
+  ORtg unreachability and the friction floors were ONE mechanism short —
+  drives with a fixed commit window expired mid-lane (picks equal to the
+  old engine, FINISHES collapsed 4.7→1.35/game), and with them went the
+  strips, charges, and help collisions that ARE the sim's friction. The
+  commit now scales with launch distance (penetrate until ARRIVAL — the
+  same principle as the phase boundaries, which are also arrival-based
+  now: advance flips at 36 ft, transition when 4+ defenders are back).
+  Post-fix at 40-game verify: ORtg ~116-118 mid-band (from 121-on-ceiling
+  then 124-126 during the cluster), steals and turnovers back in band.
+  Successor systematic finding: ASSISTED SHARE ~0.65 vs the 0.62 ceiling,
+  repeating on all three seed bases — the drive-and-kick era converts
+  collapses into assisted makes; unassisted-creation economy (post, iso)
+  was boosted (postCallShare 1.875, isoCallShare 0.91) but the hub's post
+  volume remains under his identity floor. Open item with a named cause.
+- **THE FRICTION SIGNATURE (historical — resolved above)** (the review computed it from our own table; the
   calreport now emits it): friction/volume statistics pin near band FLOORS
   (pace edge-unresolved at +1.5se, trb/stl/blk/tov hugging at ~1σ gate
   distance, fta/orbPct at ~2σ) while accuracy/efficiency statistics pin near

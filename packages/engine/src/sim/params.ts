@@ -192,6 +192,10 @@ export interface SimParams {
     transitionBonus: number;
     /** drive commitment window (seconds): a decided drive holds this long before re-evaluation */
     driveCommitSec: number;
+    /** commit ceiling for long rampages (the floor is driveCommitSec); see game.ts arrival-based commit */
+    driveCommitMaxSec: number;
+    /** planning speed for the arrival-based commit: commit ≈ launchDist / this */
+    driveSpeedFtSec: number;
   };
 
   move: {
@@ -409,7 +413,7 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5714,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    baseRim: 0.5798,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.3574,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
@@ -427,7 +431,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.2285,
+    contestCoef: -1.1325,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -468,7 +472,7 @@ export const defaultParams: SimParams = {
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
-    blockBase: 0.2838,
+    blockBase: 0.2754,
     blockSkillCoef: 0.5,
     // Within-zone distance penalty model. Both constants have real-world meaning:
     //   threes: each foot beyond the NBA three-point line costs ≈1.3 pp FG% —
@@ -527,7 +531,7 @@ export const defaultParams: SimParams = {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.2524,
+    riskBase: -4.3,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -535,7 +539,7 @@ export const defaultParams: SimParams = {
     skillCoef: 0.75,
     // Of failed passes, ~55% are stolen (credited to a defender) and the rest
     // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
-    stealShare: 0.5473,
+    stealShare: 0.543,
     // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45,
@@ -601,7 +605,7 @@ export const defaultParams: SimParams = {
     // Softmax temperature over action utilities, in expected-points units.
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
-    temperature: 0.064,
+    temperature: 0.0732,
     // THE MOST IMPORTANT NUMBER IN THE ENGINE.
     // Expected points of "keep working this possession" with a full shot
     // clock ≈ 1.45. Every shot decision is a comparison against this: shoot
@@ -627,7 +631,7 @@ export const defaultParams: SimParams = {
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
     threeAppetite: 1.12,
-    driveAppetite: 0.7864,
+    driveAppetite: 0.7997,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.05,
@@ -636,7 +640,17 @@ export const defaultParams: SimParams = {
     // (executeAction's drive branch) and passing.ts (DHO turn-the-corner grant),
     // so one param governs both. FEEL — 1.35 s at ~20 ft/s covers ~27 ft,
     // roughly the distance from the wing to a layup spot.
-    driveCommitSec: 1.35   // FEEL — drive commitment window, seconds
+    driveCommitSec: 1.35,  // FEEL — commit FLOOR, seconds (short attacks)
+    // Arrival-based commit (drive-collapse forensic, speed-fix branch): a
+    // fixed window expired mid-lane once the jog economy stretched launch
+    // distances — drive PICKS stayed equal to main (~190/4 games) but drive
+    // FINISHES fell 4.7 -> 1.35/game because the terminal decision arrived
+    // as a 15-ft pull-up instead of a rim finish. Commit now scales with
+    // launch distance (dist/driveSpeedFtSec, clamped to [floor, max]):
+    // penetrate until ARRIVAL, then finish or spray — same arrival principle
+    // as the phase boundaries. FEEL.
+    driveCommitMaxSec: 2.5,
+    driveSpeedFtSec: 16.5
   },
 
   move: {
@@ -789,7 +803,7 @@ export const defaultParams: SimParams = {
     contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.0248,
+    holdHalfcourt: 0.043,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -936,7 +950,7 @@ export const defaultParams: SimParams = {
     pnrMaxScreenDistFt: 26,
     // FEEL — post/iso action weights and windows; the post score is carried by
     // tend.post so a team without a post threat simply never rolls it
-    postCallShare: 1.25,
+    postCallShare: 1.875,
     postCallCut: 0.1,
     postEntryBonus: 0.22,
     postWorkBoost: 0.224,
@@ -951,7 +965,7 @@ export const defaultParams: SimParams = {
     // out of ~6 — pass options beat the shot in every near-tie (fidelity
     // probe). Real hubs finish over half their worked post-ups.
     postShotBonus: 0.552,
-    isoCallShare: 0.7,
+    isoCallShare: 0.91,
     isoDriveBonus: 0.15,
     isoDurationSec: 3.0,
     // FEEL — the DHO: the hub-center creation pattern (weight also scales with

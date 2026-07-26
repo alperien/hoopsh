@@ -245,7 +245,10 @@ function tickLive(s: GameState, dt: number): void {
   // (a fixed 4.5s transition window expired mid-floor once the jog economy
   // slowed the getback, and the downhill archetype lost its drive window)
   const rim = attackedRim(s, h.side);
-  if (s.poss.phase === 'advance' && dist(h.pos, rim) < 32) {
+  if (s.poss.phase === 'advance' && dist(h.pos, rim) < 36) {
+    // 36 ft ~ the logo pickup — offense initiates there, not at the arc
+    // (32 ft left 54% of the downhill benchmark's decisions inside the
+    // drive-gated advance phase after the jog economy; main had 36%)
     s.poss.phase = 'halfcourt';
   } else if (s.poss.phase === 'transition') {
     // transition ends when the DEFENSE IS SET: 4+ defenders back inside
@@ -373,7 +376,15 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       startPass(s, h, action.toId, action.passKind);
       break;
     case 'drive': {
-      h.driveUntil = s.t + s.params.decide.driveCommitSec;
+      {
+        // arrival-based commit: penetrate until you REACH the rim vicinity
+        // (launch distance / planning speed), clamped to [floor, ceiling] —
+        // a fixed window expired mid-lane on long launches and drives died
+        // as 15-ft pull-ups (drive-collapse forensic)
+        const D = s.params.decide;
+        const launchDist = dist(h.pos, attackedRim(s, h.side));
+        h.driveUntil = s.t + Math.min(D.driveCommitMaxSec, Math.max(D.driveCommitSec, launchDist / D.driveSpeedFtSec));
+      }
       s.decisionAt = s.t + 0.5; // re-evaluate quickly mid-drive (finish or kick)
       break;
     }
