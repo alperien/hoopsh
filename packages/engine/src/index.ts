@@ -15,7 +15,8 @@ export type {
   TurnoverKind, FoulKind, PossessionOutcome,
   ShotEvent, PassEvent, ReboundEvent, TurnoverEvent, FoulEvent,
   FreeThrowEvent, SubstitutionEvent, PossessionStartEvent, PossessionEndEvent,
-  GameStartEvent, GameEndEvent, PeriodStartEvent, PeriodEndEvent, TipOffEvent
+  GameStartEvent, GameEndEvent, PeriodStartEvent, PeriodEndEvent, TipOffEvent,
+  TimeoutEvent
 } from './core/events.js';
 
 // rules & court

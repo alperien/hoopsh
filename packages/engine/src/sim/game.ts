@@ -24,6 +24,7 @@ import {
   tickDead, tickScramble, tipWeightedWinner
 } from './possession.js';
 import { recordFoul, tickFreeThrows } from './fouls.js';
+import { hurriedness } from './endgame.js';
 import { resolveShotOutcome, startShot, windupSec } from './shooting.js';
 import { attemptReachIn, resolvePassArrival, startPass } from './passing.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
@@ -43,6 +44,19 @@ export interface GameConfig {
    * exists so tests can prove that behavior without simulating for hours.
    */
   safetyCapTicks?: number;
+  /**
+   * ENDGAME LAYER feature flag (default OFF). On, late-game basketball
+   * behaviors activate: clock-kill with a lead, trailing hurry-up and
+   * intentional fouling, hold-for-one / 2-for-1 period endings, and team
+   * timeouts (which add a `timeout` event type to the stream). All of it is
+   * EV/urgency modulation inside the existing decision framework — see
+   * sim/ai/concepts.ts (concept 6) and sim/endgame.ts; constants in
+   * params.endgame. OFF is byte-identical to the pre-layer engine, so the
+   * shipped band calibration is unaffected until this defaults on. Expect
+   * flag-ON games to shift league texture late (more FTs, longer leading-
+   * team possessions, more stoppages) — that is the point.
+   */
+  endgame?: boolean;
   /**
    * Input-contract tier. 'finite' (default) rejects only non-finite ratings
    * and measurements — out-of-range finite values are legal (custom content,
@@ -147,6 +161,9 @@ function initState(cfg: GameConfig): GameState {
     score: [0, 0],
     teamFoulsPeriod: [0, 0],
     tipWinner: 0,
+    endgame: cfg.endgame ?? false,
+    timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
+    runPts: [0, 0],
     poss: {
       team: 0,
       shotClock: rules.shotClockSec,
@@ -301,7 +318,10 @@ function tickLive(s: GameState, dt: number): void {
     // stable target — regenerating it with jitter every tick made the
     // handler visibly vibrate while bringing the ball up
     h.target = { x: rim.x + dir * 26, y: s.court.centerY };
-    h.sprinting = s.poss.phase === 'transition';
+    // endgame hurry (flag-gated): a chasing team SPRINTS the ball up — the
+    // dribble-jog walk-up costs seconds it no longer has (sim/endgame.ts)
+    h.sprinting = s.poss.phase === 'transition' ||
+      (s.endgame && hurriedness(s, h.side) >= s.params.endgame.hurrySprintMin);
   } else {
     h.intent = 'spot';
     h.sprinting = false;

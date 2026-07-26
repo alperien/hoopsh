@@ -15,6 +15,7 @@ import {
 import { type FoulOutcome, enterFreeThrows, recordFoul } from './fouls.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
+import { noteScore } from './endgame.js';
 
 /** windup time before the ball leaves the shooter's hands, by shot type */
 export function windupSec(s: GameState, moveType: ShotMoveType): number {
@@ -134,7 +135,10 @@ export function startShot(
 export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: string): void {
   const shooter = agent(s, shot.shooterId);
   const points = shot.made ? (shot.three ? 3 : 2) : 0;
-  if (shot.made) s.score[shot.side] += points as 2 | 3;
+  if (shot.made) {
+    s.score[shot.side] += points as 2 | 3;
+    noteScore(s, shot.side, points); // unanswered-run tracker (endgame layer)
+  }
 
   emit(s, {
     type: 'shot',

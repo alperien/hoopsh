@@ -153,6 +153,12 @@ export type Phase =
       possKind: 'inbound' | 'tip';
       /** same possession continues (e.g. non-shooting foul, no turnover) */
       continuation?: boolean;
+      /**
+       * an 'advance' timeout was called during this dead ball: the inbound
+       * sets up in the FRONTcourt (sim/possession.ts setupDeadTargets reads
+       * this) — endgame layer only (sim/endgame.ts maybeTimeout)
+       */
+      advanceInbound?: boolean;
     }
   | {
       kind: 'freethrows';
@@ -213,6 +219,19 @@ export interface GameState {
   score: [number, number];
   teamFoulsPeriod: [number, number];
   tipWinner: TeamSide;
+
+  /**
+   * ENDGAME LAYER (GameConfig.endgame). `endgame` gates every late-game
+   * behavior (concept 6, intentional fouling, timeouts) — false is the
+   * default and the byte-identical legacy path. `timeoutsLeft` /`runPts`
+   * are always maintained (cheap bookkeeping, no rng) but only READ when
+   * the flag is on: runPts mirrors the unanswered-points definition the
+   * narration ContextTracker uses (a team's own score accrues, an opponent
+   * score zeroes it) and feeds the stop-the-run timeout trigger.
+   */
+  endgame: boolean;
+  timeoutsLeft: [number, number];
+  runPts: [number, number];
 
   poss: Possession;
   phase: Phase;

@@ -332,6 +332,29 @@ export interface FoulEvent extends Base {
 }
 
 /**
+ * A team timeout (endgame layer — only ever emitted when the game was run
+ * with `GameConfig.endgame: true`; a default-config stream never contains
+ * one). Fires at a dead ball, called by the team that will inbound
+ * (possession requirement, like the real rule — see sim/endgame.ts
+ * maybeTimeout, invoked from sim/possession.ts deadBall). `reason` —
+ * 'stop_run': the opponent has scored `params.endgame.timeoutRunPts`
+ * unanswered and the coach stops the bleeding; 'advance': a trailing team
+ * late in the final period burns a timeout so the ensuing inbound starts in
+ * the FRONTcourt (the real advance-the-ball rule — the mechanical payoff is
+ * the inbound spot, see sim/possession.ts setupDeadTargets). `remaining` is
+ * the calling team's budget AFTER this timeout (budget per game:
+ * rules.timeoutsPerGame). The game clock never runs during the timeout;
+ * `wt` keeps advancing so replays show the huddle as real elapsed time.
+ */
+export interface TimeoutEvent extends Base {
+  type: 'timeout';
+  team: TeamSide;
+  reason: 'stop_run' | 'advance';
+  /** timeouts the calling team has left AFTER this one */
+  remaining: number;
+}
+
+/**
  * A lineup change. `out`/`in` are parallel arrays (`out[i]` is replaced by
  * `in[i]`) but every current caller (sim/subs.ts swapPlayers) only ever
  * swaps one player at a time, so in practice both arrays always have exactly
@@ -362,6 +385,7 @@ export type GameEvent =
   | ReboundEvent
   | TurnoverEvent
   | FoulEvent
+  | TimeoutEvent
   | SubstitutionEvent;
 
 /** Just the `type` tags of GameEvent, e.g. for building `Record<GameEventType, ...>` handler tables. */

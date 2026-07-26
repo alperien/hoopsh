@@ -19,7 +19,7 @@ import { n } from '../../model/derived.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post' }
@@ -47,6 +47,11 @@ export function decideBall(s: GameState): BallAction {
   const sc = Math.max(0, s.poss.shotClock);
   let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
   if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
+  // CONCEPT 6: GAME-STATE URGENCY (endgame layer, GameConfig.endgame only) —
+  // scoreboard and game clock reshape the yardstick itself: clock-kill with
+  // a lead, hurry-up when chasing, hold-for-one / 2-for-1 at period ends.
+  // Doctrine in ai/concepts.ts; flag off never reaches this call.
+  if (s.endgame) continuation = endgameContinuation(s, h.side, continuation);
 
   // Desperation heave: with <1.2s of shot clock (or a period expiring inside
   // 2.5s) and no chance to get closer than 32 ft, just launch it. Bypasses the

@@ -23,6 +23,7 @@ import { checkSubs } from './subs.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 import { startShot } from './shooting.js';
+import { maybeTimeout } from './endgame.js';
 
 /**
  * Decide who wins a jump ball (opening tip, each overtime period).
@@ -183,6 +184,12 @@ export function deadBall(
     possKind: 'inbound',
     continuation: opts.continuation
   };
+  // endgame layer (GameConfig.endgame only): the inbounding team may call a
+  // timeout HERE — the one choke point every stoppage routes through, which
+  // is exactly where real timeouts live. May freeze the clock, stretch the
+  // dead-ball delay, and flag a frontcourt inbound (see sim/endgame.ts);
+  // flag off, it returns immediately.
+  maybeTimeout(s);
   checkSubs(s);
   setupDeadTargets(s, nextTeam);
 }
@@ -200,15 +207,34 @@ export function setupDeadTargets(s: GameState, offSide: TeamSide): void {
   const own = attackedRim(s, other(offSide)); // offense inbounds under its own defended basket
   const dir = rim.x > s.court.midX ? 1 : -1;
   const handler = bestHandler(s, offSide);
+  // an 'advance' timeout moves the whole inbound to the FRONTcourt (endgame
+  // layer): the handler sets up timeoutAdvanceSpotFt from the attacked rim —
+  // the real advance-the-ball payoff, delivered as positioning that the
+  // normal possession machinery then plays out (no scripted inbound play)
+  const advanced =
+    s.phase.kind === 'dead' && s.phase.advanceInbound === true && s.phase.nextTeam === offSide;
   for (const a of onCourt(s, offSide)) {
     a.intent = 'freeze';
     a.sprinting = false;
     if (a.p.id === handler.p.id) {
-      // inbounder stands ~4ft in front of the baseline he's inbounding from,
-      // a few feet off the centerline (own.x is the DEFENDED rim — the
-      // offense always takes the ball out under its own basket after a
-      // score/dead ball on this end)
-      a.target = { x: own.x + dir * 4, y: s.court.centerY - 6 };
+      a.target = advanced
+        // frontcourt hashmark, a step inside the sideline (6 ft keeps the
+        // walk-to spot clear of the boundary clamp — cosmetic offset; the
+        // BEHAVIORAL distance-from-rim is params.endgame.timeoutAdvanceSpotFt)
+        ? { x: rim.x - dir * s.params.endgame.timeoutAdvanceSpotFt, y: 6 }
+        // inbounder stands ~4ft in front of the baseline he's inbounding from,
+        // a few feet off the centerline (own.x is the DEFENDED rim — the
+        // offense always takes the ball out under its own basket after a
+        // score/dead ball on this end)
+        : { x: own.x + dir * 4, y: s.court.centerY - 6 };
+    } else if (advanced) {
+      // the other four space the frontcourt arc — the same fan the halfcourt
+      // spot machinery will refine once the possession starts (cosmetic)
+      const i = s.lineup[offSide].indexOf(a.p.id);
+      a.target = {
+        x: rim.x - dir * (14 + (i % 3) * 6),
+        y: 8 + i * (s.court.width - 16) / 4
+      };
     } else {
       // stagger the rest of the offense toward midcourt in parallel lanes so
       // they don't all clump on one spot; i*4 spaces each successive player
