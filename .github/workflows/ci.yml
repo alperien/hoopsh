@@ -1,0 +1,26 @@
+# The verification ladder, off the honor system.
+# Zero-install by design: the repo runs on Node 24's native type stripping
+# (tools/register.mjs + hooks), so CI needs no npm install at all.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: test suite (invariants, archetypes, wide-band guard, fidelity gate)
+        run: npm test
+      - name: band smoke (8 games)
+        run: npm run batch -- --games 8
+      - name: fingerprint determinism (two runs must match)
+        run: |
+          npm run sim -- --seed ci-fp > /tmp/fp1.txt
+          npm run sim -- --seed ci-fp > /tmp/fp2.txt
+          diff /tmp/fp1.txt /tmp/fp2.txt
