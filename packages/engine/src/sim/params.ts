@@ -1010,12 +1010,25 @@ export function withParams(overrides?: DeepPartial<SimParams>): SimParams {
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
-function deepMerge(base: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+function deepMerge(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+  path = ''
+): Record<string, unknown> {
   for (const key of Object.keys(patch)) {
+    // Unknown keys fail loudly. TypeScript already rejects typos for typed
+    // callers, but sweep/solve/era-pack overrides are built dynamically at
+    // runtime — a typo'd path there used to be silently merged in and then
+    // read by nothing, so the "experiment" measured the unmodified engine
+    // while reporting the knob as applied. Same fail-loud doctrine as
+    // simulateGame's rating validation.
+    if (!(key in base)) {
+      throw new Error(`withParams: unknown SimParams key "${path}${key}" — not a field of defaultParams (typo?)`);
+    }
     const b = base[key];
     const p = patch[key];
     if (b && p && typeof b === 'object' && typeof p === 'object' && !Array.isArray(b) && !Array.isArray(p)) {
-      deepMerge(b as Record<string, unknown>, p as Record<string, unknown>);
+      deepMerge(b as Record<string, unknown>, p as Record<string, unknown>, `${path}${key}.`);
     } else if (p !== undefined) {
       base[key] = p;
     }

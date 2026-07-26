@@ -18,11 +18,7 @@
 import { runBatch } from './run.js';
 import { finalize, evaluate, formatReport } from './aggregate.js';
 import { NBA_BANDS } from './bands.js';
-
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
+import { flagNumber, flagValue } from './args.js';
 
 /**
  * RATCHET FLOOR — the minimum number of passing bands for a zero exit code.
@@ -42,9 +38,9 @@ function argOf(flag: string): string | undefined {
 const RATCHET_FLOOR = 16;
 const GATE_MIN_GAMES = 24;
 
-const games = Number(argOf('--games') ?? 50);
-const seedBase = argOf('--seed') ?? 'acceptance';
-const minBands = Number(argOf('--min-bands') ?? (games >= GATE_MIN_GAMES ? RATCHET_FLOOR : 0));
+const games = flagNumber(process.argv, '--games', 50);
+const seedBase = flagValue(process.argv, '--seed', 'acceptance');
+const minBands = flagNumber(process.argv, '--min-bands', games >= GATE_MIN_GAMES ? RATCHET_FLOOR : 0);
 
 console.log(`Simulating ${games} games (seed base "${seedBase}")...`);
 const t0 = performance.now();

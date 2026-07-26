@@ -264,15 +264,24 @@ function renderEvent(
     }
     case 'foul': {
       const who = lk.last(e.on);
-      const base =
-        e.kind === 'shooting' ? `Whistle — shooting foul on ${who}` :
-        e.kind === 'reach' ? `Reach-in foul on ${who}` :
-        e.kind === 'loose_ball' ? `Loose-ball foul on ${who}` :
-        `Offensive foul on ${who}`;
       const extras: string[] = [];
       if (e.personalCount >= 4) extras.push(`that's ${e.personalCount} on him`);
       if (e.inBonus && e.kind !== 'offensive') extras.push(`${lk.abbrev(e.team === 0 ? 1 : 0)} are in the bonus`);
       if (e.fouledOut) extras.push(`and he's fouled out`);
+      // An offensive foul is ALWAYS the second half of a charge the engine
+      // just emitted as a `turnover` (kind 'off_foul' — see core/events.ts's
+      // TurnoverKind contract), and the turnover case above already narrated
+      // the play ("Charge! ..."). Rendering a generic line here too produced
+      // two adjacent sentences for one whistle on every single charge. Stay
+      // silent UNLESS this foul carries game-state news the charge line
+      // doesn't (foul trouble, a foul-out) — then narrate just that.
+      if (e.kind === 'offensive') {
+        return extras.length ? `On the offensive foul — ${extras.join(', ')}.` : null;
+      }
+      const base =
+        e.kind === 'shooting' ? `Whistle — shooting foul on ${who}` :
+        e.kind === 'reach' ? `Reach-in foul on ${who}` :
+        `Loose-ball foul on ${who}`;
       return `${base}${extras.length ? ' — ' + extras.join(', ') : ''}.`;
     }
     case 'substitution':

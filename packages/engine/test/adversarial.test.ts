@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { Rng, simulateGame } from '@hoopsh/engine';
+import { Rng, simulateGame, withParams } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
 function poisoned(field: 'attr' | 'tend', key: string, value: number) {
@@ -47,6 +47,25 @@ describe('adversarial input', () => {
     const rng = new Rng('adv-weights');
     expect(() => rng.weighted([NaN, 1, 1])).toThrow(/non-finite weight/);
     expect(() => rng.weighted([Infinity, 1])).toThrow(/non-finite weight/);
+  });
+
+  it('Rng.weighted rejects an empty weights array loudly', () => {
+    // used to fall through to int(0) === 0 and the caller then indexed its
+    // own empty array — undefined, silently
+    const rng = new Rng('adv-weights-empty');
+    expect(() => rng.weighted([])).toThrow(/empty weights/);
+  });
+
+  it('withParams rejects unknown override keys loudly (dynamic callers get no typo mercy)', () => {
+    // a typo'd sweep/era-pack path used to merge in silently and be read by
+    // nothing — the experiment then measured the unmodified engine while
+    // reporting the knob as applied
+    expect(() => withParams({ shto: { baseRim: 0.5 } } as never)).toThrow(/unknown SimParams key "shto"/);
+    expect(() => withParams({ shot: { baseRym: 0.5 } } as never)).toThrow(/unknown SimParams key "shot.baseRym"/);
+    // valid overrides still work and land
+    const p = withParams({ shot: { baseRim: 0.42 } });
+    expect(p.shot.baseRim).toBe(0.42);
+    expect(p.shot.basePaint).toBe(withParams().shot.basePaint);
   });
 
   it("validate:'strict' enforces the pack contract that the default tier deliberately does not", () => {
