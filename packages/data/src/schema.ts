@@ -118,6 +118,16 @@ function validatePlayer(p: unknown, path: string, issues: ValidationIssue[]): vo
   const pl = p as Partial<Player>;
   if (!pl.id || typeof pl.id !== 'string') issues.push({ path: `${path}.id`, message: 'missing id' });
   if (!pl.name || typeof pl.name !== 'string') issues.push({ path: `${path}.name`, message: 'missing name' });
+  // weightLb is not cosmetic: defense.ts matchup-sorting reads it every game
+  // and simulateGame() hard-throws on a non-finite body measurement — a pack
+  // without it validates here only to crash at tip-off. Same crash-prevention
+  // rationale as the tactics check below. Finiteness only, no range: the
+  // engine itself imposes no weight range even in its strict tier, and the
+  // pack validator should not out-strict the engine (implausible-but-finite
+  // weights are roster-validate WARNING territory, not rejection).
+  if (typeof pl.weightLb !== 'number' || !Number.isFinite(pl.weightLb)) {
+    issues.push({ path: `${path}.weightLb`, message: 'weightLb must be a finite number' });
+  }
   if (!POSITIONS.includes(pl.pos as string)) {
     issues.push({ path: `${path}.pos`, message: `invalid position ${String(pl.pos)}` });
   }
@@ -166,6 +176,17 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
     return issues;
   }
   if (!team.id) issues.push({ path: '$.team.id', message: 'missing id' });
+  // name/abbrev are required by the Team type and displayed by every consumer
+  // (box score header, play-by-play score lines, replay metadata) — a pack
+  // without them doesn't crash, it produces "undefined 98, undefined 111"
+  // narration, which violates the pack-is-an-honest-description philosophy
+  // just as surely as a silently-defaulted rating would.
+  if (!team.name || typeof team.name !== 'string') {
+    issues.push({ path: '$.team.name', message: 'missing name' });
+  }
+  if (!team.abbrev || typeof team.abbrev !== 'string') {
+    issues.push({ path: '$.team.abbrev', message: 'missing abbrev' });
+  }
   // tactics is REQUIRED by the engine (ai reads threeBias/helpAggr
   // unconditionally, with no fallback) — a pack missing tactics wouldn't
   // fail gracefully at sim time, it would crash mid-game the first time the
@@ -206,6 +227,26 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
       // crash-shaped malformation.
       if (new Set(team.starters).size !== STARTERS_COUNT) {
         issues.push({ path: '$.team.starters', message: 'duplicate starter ids' });
+      }
+    }
+  }
+  // rotationMinutes is optional, but if present it must be shaped right:
+  // subs.ts multiplies each target into its minutes-pace leash, so a
+  // non-numeric value doesn't fail loudly — it turns into NaN and silently
+  // disables the leash comparisons for that player (a rotation that plays
+  // nothing like what the pack says, the exact failure mode this validator
+  // exists to prevent). Keys pointing at ids not on the roster are ignored
+  // harmlessly by the engine, so those are a roster-validate warning rather
+  // than a rejection here.
+  if (team.rotationMinutes !== undefined) {
+    const rot = team.rotationMinutes as Record<string, unknown>;
+    if (typeof rot !== 'object' || rot === null || Array.isArray(rot)) {
+      issues.push({ path: '$.team.rotationMinutes', message: 'must be an object of { playerId: minutes }' });
+    } else {
+      for (const [rid, v] of Object.entries(rot)) {
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+          issues.push({ path: `$.team.rotationMinutes.${rid}`, message: 'minutes target must be a finite number >= 0' });
+        }
       }
     }
   }

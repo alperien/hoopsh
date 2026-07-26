@@ -31,4 +31,23 @@ describe('data pack schema', () => {
     const issues = validateTeamPack(JSON.parse(JSON.stringify(bad)));
     expect(issues.some((i) => i.message.includes('duplicate starter'))).toBe(true);
   });
+
+  it('rejects packs that would crash or garble the sim despite valid ratings', () => {
+    const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
+      team: {
+        name?: string; abbrev?: string;
+        players: { weightLb?: number }[];
+        rotationMinutes?: Record<string, unknown>;
+      };
+    };
+    delete bad.team.name;                       // "undefined 98" narration
+    delete bad.team.abbrev;                     // "undefined are in the bonus"
+    delete bad.team.players[0]!.weightLb;       // simulateGame throws non-finite body measurement
+    bad.team.rotationMinutes = { 'brk-mercer': 'lots' }; // NaN minutes-pace leash in subs.ts
+    const issues = validateTeamPack(bad);
+    expect(issues.some((i) => i.path === '$.team.name')).toBe(true);
+    expect(issues.some((i) => i.path === '$.team.abbrev')).toBe(true);
+    expect(issues.some((i) => i.path === '$.team.players[0].weightLb')).toBe(true);
+    expect(issues.some((i) => i.path === '$.team.rotationMinutes.brk-mercer')).toBe(true);
+  });
 });
