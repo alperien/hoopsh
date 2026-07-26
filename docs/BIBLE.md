@@ -31,9 +31,11 @@
 
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **probability models fed by spatial context, fit to NBA
-league aggregates**: games follow
-basketball rules and season-scale statistics fall inside real-league ranges. Every point
+resolve through **probability models fed by spatial context, calibrated against
+author-recalled NBA ranges** — honesty note: the acceptance targets are currently
+authored from memory, not generated from sourced data; grounding them in citable
+data (and fitting to distributions, not means) is the active roadmap arc. Games
+follow basketball rules and season-scale statistics fall inside those ranges. Every point
 in a box score traces back to a simulated shot at an (x, y) location — a
 2D probability model with position as an input, not a physics sim (there is
 no ball height; see docs/INTERNALS.md known simplifications for the full
@@ -157,6 +159,11 @@ campaign (33% engine comment density, contributor covenant, onboarding path)
 **Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
 their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
 solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
+
+**Next (validation arc):** measured noise floor for every gate · mechanism audit of
+the distributional misses · game-state coupling (trailing-team urgency, tempo kill,
+crunch time) · sourced NBA data in-repo with provenance, bands/targets generated
+not typed · distribution-level fitting with a held-out season the solver never sees.
 
 **Beyond:** season layer (schedules, fatigue across games, injuries) · progression &
 aging · NCAA + EuroLeague rule-pack tuning · era packs (1995 vs 2015 shot diets) ·
