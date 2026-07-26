@@ -45,7 +45,17 @@ export interface GameFlow {
   poss: number;
 }
 
-export function gameFlow(events: GameEvent[]): GameFlow {
+/**
+ * `reg` describes the REGULATION shape (defaults: NBA 4×12). The "Q4"
+ * metrics (clutch window, 10+-lead comebacks) actually mean "the final
+ * regulation period" — under an NCAA pack (2×20) that's the second half,
+ * which is exactly how college clutch is defined. qPts keeps 4 slots for the
+ * report's quarter profile; a halves league fills only the first two.
+ * Passing a RulePack works directly (it has both fields). Reference values
+ * in flow.ts's report remain NBA-only — league-specific flow references are
+ * calibration-milestone work.
+ */
+export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinutes: number } = { periods: 4, periodMinutes: 12 }): GameFlow {
   const f: GameFlow = {
     leadChanges: 0, ties: 0, largestLead: 0, runs8: 0, runs10: 0, maxRun: 0,
     maxDroughtSec: 0, qPts: [0, 0, 0, 0], clutchPts: 0, clutchFTPts: 0,
@@ -57,10 +67,11 @@ export function gameFlow(events: GameEvent[]): GameFlow {
   let prev: [number, number] = [0, 0];
   const lastScoreT: [number, number] = [0, 0];
   const maxDrought: [number, number] = [0, 0];
-  let q4Led10By: -1 | 0 | 1 = 0; // which side (as sign) led by 10+ in Q4
+  let q4Led10By: -1 | 0 | 1 = 0; // which side (as sign) led by 10+ in the final regulation period
   let possStart = -1;
   let possHadOreb = false;
-  const REG = 4 * 12 * 60;
+  const FINAL = reg.periods; // "Q4" of the metric definitions
+  const REG = reg.periods * reg.periodMinutes * 60;
 
   const closeRun = (side: number, run: number) => {
     if (run >= 8) f.runs8++;
@@ -77,7 +88,9 @@ export function gameFlow(events: GameEvent[]): GameFlow {
     if (scored) {
       const side = e.score[0] > prev[0] ? 0 : 1;
       const pts = e.score[0] - prev[0] + (e.score[1] - prev[1]);
-      if (e.period >= 1 && e.period <= 4) f.qPts[e.period - 1] += pts;
+      // regulation periods only, capped at the 4 report slots (a halves
+      // league fills slots 1-2; OT points belong to no quarter profile)
+      if (e.period >= 1 && e.period <= FINAL && e.period <= 4) f.qPts[e.period - 1] += pts;
       // droughts (regulation only)
       if (e.t <= REG) {
         maxDrought[side] = Math.max(maxDrought[side], e.t - lastScoreT[side]);
@@ -93,15 +106,15 @@ export function gameFlow(events: GameEvent[]): GameFlow {
       if (newLeader !== 0 && leader !== 0 && newLeader !== leader) f.leadChanges++;
       if (newLeader !== 0) leader = newLeader;
       f.largestLead = Math.max(f.largestLead, Math.abs(margin));
-      // clutch window
+      // clutch window (final regulation period, last 2:00, within 5)
       const prevMargin = Math.abs(prev[0] - prev[1]);
-      if (e.period === 4 && e.clock <= 120 && prevMargin <= 5) {
+      if (e.period === FINAL && e.clock <= 120 && prevMargin <= 5) {
         f.hadClutch = true;
         f.clutchPts += pts;
         if (e.type === 'free_throw') f.clutchFTPts += pts;
       }
-      // Q4 10+ lead tracking
-      if (e.period === 4 && Math.abs(margin) >= 10) {
+      // final-period 10+ lead tracking
+      if (e.period === FINAL && Math.abs(margin) >= 10) {
         q4Led10By = margin > 0 ? 1 : -1;
         f.led10InQ4 = true;
       }

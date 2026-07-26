@@ -25,11 +25,11 @@ import { GAME_TASK_NAMES, runGamesInProcess, type GameTaskName } from './paralle
 
 const jobPath = process.argv[2];
 if (jobPath === undefined) {
-  console.error('run-worker: missing job path (argv[2]) — expected a JSON file { task, seedBase, start, count }');
+  console.error('run-worker: missing job path (argv[2]) — expected a JSON file { task, seedBase, league, start, count }');
   process.exit(2);
 }
 
-interface Job { task: GameTaskName; seedBase: string; start: number; count: number }
+interface Job { task: GameTaskName; seedBase: string; league?: string; start: number; count: number }
 const job = JSON.parse(readFileSync(jobPath, 'utf8')) as Partial<Job>;
 
 if (typeof job.task !== 'string' || !(GAME_TASK_NAMES as string[]).includes(job.task)) {
@@ -44,6 +44,13 @@ if (typeof job.seedBase !== 'string' || job.seedBase.length === 0) {
 if (!Number.isInteger(job.start) || job.start! < 0 || !Number.isInteger(job.count) || job.count! < 0) {
   throw new Error(`run-worker: start/count must be non-negative integers, got start=${JSON.stringify(job.start)} count=${JSON.stringify(job.count)}`);
 }
+// league is optional (older job files / hand-written debug jobs default to
+// nba); anything present must resolve or the run must die loudly here, same
+// as runGamesInProcess's own resolveLeague call would
+const league = job.league ?? 'nba';
+if (typeof league !== 'string') {
+  throw new Error(`run-worker: league must be a string, got ${JSON.stringify(job.league)}`);
+}
 
-const results = runGamesInProcess(job.task as GameTaskName, job.seedBase, job.start!, job.count!);
+const results = runGamesInProcess(job.task as GameTaskName, job.seedBase, job.start!, job.count!, undefined, league);
 process.stdout.write(JSON.stringify({ task: job.task, start: job.start, count: job.count, results }));

@@ -18,11 +18,12 @@
  *
  * DETERMINISM CONTRACT (the whole point — this repo's verification culture
  * rests on byte-identical reproducibility):
- *   1. Game i's inputs depend only on (seedBase, i): seed `${seedBase}-${i}`,
- *      home/away mirrored on odd GLOBAL index i, rosters constructed fresh
- *      per game. A worker owns a CONTIGUOUS slice of global indices, so
- *      every game is simulated with exactly the inputs the single-process
- *      path would use.
+ *   1. Game i's inputs depend only on (seedBase, league, i): seed
+ *      `${seedBase}-${i}`, the league's rule pack (leagues.ts — 'nba'
+ *      default), home/away mirrored on odd GLOBAL index i, rosters
+ *      constructed fresh per game. A worker owns a CONTIGUOUS slice of
+ *      global indices, so every game is simulated with exactly the inputs
+ *      the single-process path would use.
  *   2. Workers return per-game summaries IN SLICE ORDER; the parent
  *      concatenates slices in slice order, reconstructing global game order.
  *   3. The cross-game reduction (accumulate/finalize, reduceFlows) runs in
@@ -49,6 +50,7 @@ import { boxScore } from '@hoopsh/stats';
 import { sampleMatchup } from '@hoopsh/data';
 import type { TeamGameSummary } from './aggregate.js';
 import { gameFlow, type GameFlow } from './flow-metrics.js';
+import { resolveLeague, type LeagueConfig } from './leagues.js';
 
 const execFileP = promisify(execFile);
 
@@ -82,29 +84,35 @@ export type GameTaskName = keyof GameTaskResults;
  * so any home-side bias cancels out of batch averages (see runBatch's
  * `mirror` doc comment). Rosters are constructed FRESH per game — required
  * for slice invariance, since a worker starting at game 12 has no way to
- * share object state with games 0-11 (and must not need to).
+ * share object state with games 0-11 (and must not need to). The league
+ * config supplies the rule pack; rosters stay the two NBA-fit calibration
+ * teams for EVERY league until an NCAA roster generator exists (see
+ * data/ncaa/README.md §6.4 — deliberate, and why NCAA reports read as
+ * "NBA players under college rules").
  */
-function playGame(seed: string, flip: boolean, endgame = false): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
+function playGame(seed: string, flip: boolean, league: LeagueConfig, endgame = false): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
   const def = sampleMatchup();
   const home = flip ? def.away : def.home;
   const away = flip ? def.home : def.away;
-  const result = simulateGame({ seed, home, away, collectFrames: false, endgame });
+  const result = simulateGame({ seed, home, away, rules: league.rules, collectFrames: false, endgame });
   return { events: result.events, teams: [home, away] };
 }
 
-type GameTaskFns = { [K in GameTaskName]: (seed: string, flip: boolean) => GameTaskResults[K] };
+type GameTaskFns = { [K in GameTaskName]: (seed: string, flip: boolean, league: LeagueConfig) => GameTaskResults[K] };
 
 const GAME_TASKS: GameTaskFns = {
-  batch: (seed, flip) => {
-    const { events, teams } = playGame(seed, flip);
-    const box = boxScore(events, teams);
+  batch: (seed, flip, league) => {
+    const { events, teams } = playGame(seed, flip, league);
+    // pace normalizes to the league's own regulation minutes (poss/48 NBA,
+    // poss/40 NCAA) so it lands in the same convention its band is stated in
+    const box = boxScore(events, teams, { paceMinutes: league.paceMinutes });
     // ship ONLY what accumulate() reads — drops per-player lines and shot
     // events from the IPC payload (a full BoxScore would still be correct,
     // just needlessly large)
     return { teams: box.teams, pace: box.pace };
   },
-  flow: (seed, flip) => gameFlow(playGame(seed, flip).events),
-  flowEndgame: (seed, flip) => gameFlow(playGame(seed, flip, true).events)
+  flow: (seed, flip, league) => gameFlow(playGame(seed, flip, league).events, league.rules),
+  flowEndgame: (seed, flip, league) => gameFlow(playGame(seed, flip, league, true).events, league.rules)
 };
 
 export const GAME_TASK_NAMES = Object.keys(GAME_TASKS) as GameTaskName[];
@@ -121,15 +129,17 @@ export function runGamesInProcess<K extends GameTaskName>(
   seedBase: string,
   start: number,
   count: number,
-  onGame?: (globalIndex: number) => void
+  onGame?: (globalIndex: number) => void,
+  leagueId = 'nba'
 ): GameTaskResults[K][] {
   const fn = GAME_TASKS[task];
   if (fn === undefined) {
     throw new Error(`unknown game task "${String(task)}" (valid: ${GAME_TASK_NAMES.join(', ')})`);
   }
+  const league = resolveLeague(leagueId); // throws loudly on a typo'd league
   const out: GameTaskResults[K][] = [];
   for (let i = start; i < start + count; i++) {
-    out.push(fn(`${seedBase}-${i}`, i % 2 === 1));
+    out.push(fn(`${seedBase}-${i}`, i % 2 === 1, league));
     onGame?.(i);
   }
   return out;
@@ -155,6 +165,8 @@ export interface ParallelRunOptions<K extends GameTaskName> {
   task: K;
   games: number;
   seedBase: string;
+  /** league id (leagues.ts resolveLeague): swaps the rule pack and the pace basis. Default 'nba' — the exact pre-league-flag behavior. */
+  league?: string;
   /** subprocess count; default max(1, availableParallelism() - 1). 1 = run in-process (no subprocess). */
   workers?: number;
   /** progress callback: per game in-process, per completed slice with workers */
@@ -171,11 +183,12 @@ let jobCounter = 0;
 async function runWorkerSlice(
   task: GameTaskName,
   seedBase: string,
+  league: string,
   slice: Slice,
   signal: AbortSignal
 ): Promise<unknown[]> {
   const jobPath = path.join(tmpdir(), `hoopsh-runner-job-${process.pid}-${jobCounter++}.json`);
-  writeFileSync(jobPath, JSON.stringify({ task, seedBase, start: slice.start, count: slice.count }));
+  writeFileSync(jobPath, JSON.stringify({ task, seedBase, league, start: slice.start, count: slice.count }));
   let stdout: string;
   try {
     ({ stdout } = await execFileP(
@@ -229,6 +242,8 @@ async function runWorkerSlice(
  */
 export async function runGames<K extends GameTaskName>(opts: ParallelRunOptions<K>): Promise<GameTaskResults[K][]> {
   const { task, games, seedBase, onProgress } = opts;
+  const league = opts.league ?? 'nba';
+  resolveLeague(league); // validate up front — better a loud parent error than W identical worker failures
   if (!Number.isInteger(games) || games < 0) {
     throw new Error(`runGames: games must be a non-negative integer, got ${String(games)}`);
   }
@@ -240,7 +255,7 @@ export async function runGames<K extends GameTaskName>(opts: ParallelRunOptions<
   const workers = Math.min(requested, Math.max(1, games));
 
   if (workers === 1) {
-    return runGamesInProcess(task, seedBase, 0, games, (i) => onProgress?.(i + 1, games));
+    return runGamesInProcess(task, seedBase, 0, games, (i) => onProgress?.(i + 1, games), league);
   }
 
   // contiguous, near-even slices: the first (games % workers) slices carry
@@ -263,7 +278,7 @@ export async function runGames<K extends GameTaskName>(opts: ParallelRunOptions<
   const settled = await Promise.allSettled(
     slices.map(async (slice) => {
       try {
-        const results = await runWorkerSlice(task, seedBase, slice, controller.signal);
+        const results = await runWorkerSlice(task, seedBase, league, slice, controller.signal);
         done += slice.count;
         onProgress?.(done, games);
         return results;

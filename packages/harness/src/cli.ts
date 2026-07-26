@@ -1,7 +1,16 @@
 /**
  * Batch acceptance run:
- *   npm run batch -- --games 100 [--seed base] [--workers N]
+ *   npm run batch -- --games 100 [--seed base] [--workers N] [--league nba|ncaa]
  * Sims N games and prints the realism acceptance report.
+ *
+ * --league swaps the rule pack, the acceptance bands, AND the pace basis
+ * together (leagues.ts) — never one without the others. 'ncaa' runs the
+ * NCAA men's pack against the proposed bands from
+ * data/ncaa/acceptance-bands.json with pace in poss/40; it is measurement,
+ * not acceptance: the pack is structurally correct but probability models
+ * and rosters are still NBA-fit, so expect most bands to fail until the
+ * NCAA calibration milestone (README §6.4). The gate below therefore only
+ * arms itself for calibrated leagues.
  *
  * The everyday "did I break calibration" check — run this after any engine
  * or params.ts change (AGENTS.md §4's verification tiers call for it on
@@ -20,8 +29,8 @@
  */
 
 import { accumulate, emptyAcc, finalize, evaluate, formatReport } from './aggregate.js';
-import { NBA_BANDS } from './bands.js';
 import { flagNumber, flagValue } from './args.js';
+import { resolveLeague } from './leagues.js';
 import { resolveWorkerCount, runGames } from './parallel.js';
 
 /**
@@ -48,17 +57,24 @@ const GATE_MIN_GAMES = 24;
 
 const games = flagNumber(process.argv, '--games', 50);
 const seedBase = flagValue(process.argv, '--seed', 'acceptance');
-const minBands = flagNumber(process.argv, '--min-bands', games >= GATE_MIN_GAMES ? RATCHET_FLOOR : 0);
+const league = resolveLeague(flagValue(process.argv, '--league', 'nba'));
+// the ratchet is an NBA achievement — an uncalibrated league defaults to
+// report-only (arm it explicitly with --min-bands once it has a ratchet)
+const minBands = flagNumber(
+  process.argv, '--min-bands',
+  league.calibrated && games >= GATE_MIN_GAMES ? RATCHET_FLOOR : 0
+);
 const workers = resolveWorkerCount(flagValue(process.argv, '--workers', 'auto'));
 
 async function main(): Promise<void> {
-  console.log(`Simulating ${games} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'})...`);
+  console.log(`Simulating ${games} ${league.name} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'})...`);
   const t0 = performance.now();
   let lastPrinted = 0;
   const summaries = await runGames({
     task: 'batch',
     games,
     seedBase,
+    league: league.id,
     workers,
     onProgress: (done, total) => {
       // per game in-process, per completed worker slice when parallel
@@ -77,7 +93,7 @@ async function main(): Promise<void> {
   for (const s of summaries) accumulate(acc, s);
 
   const avgs = finalize(acc);
-  const results = evaluate(avgs, NBA_BANDS);
+  const results = evaluate(avgs, league.bands);
   console.log(formatReport(results));
 
   // The exit code IS the acceptance gate. This used to always exit 0 — CI's
@@ -86,14 +102,16 @@ async function main(): Promise<void> {
   const passing = results.filter((r) => r.pass).length;
   if (minBands > 0 && passing < minBands) {
     console.error(
-      `\nBAND GATE: ${passing}/${NBA_BANDS.length} passing < required ${minBands}` +
+      `\nBAND GATE: ${passing}/${league.bands.length} passing < required ${minBands}` +
       (games < GATE_MIN_GAMES
         ? ` — note: n=${games} is below the ${GATE_MIN_GAMES}-game gating threshold, noise dominates`
         : '')
     );
     process.exit(1);
   }
-  if (minBands === 0 && games < GATE_MIN_GAMES) {
+  if (minBands === 0 && !league.calibrated) {
+    console.log(`(report-only: league "${league.id}" is uncalibrated — these bands measure the gap, they don't gate; pass --min-bands to arm one anyway)`);
+  } else if (minBands === 0 && games < GATE_MIN_GAMES) {
     console.log(`(report-only: n=${games} < ${GATE_MIN_GAMES}, band noise dominates below that — gate inactive)`);
   }
 }

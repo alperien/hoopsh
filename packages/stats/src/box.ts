@@ -93,11 +93,25 @@ export interface TeamTotals {
   timeouts: number;
 }
 
+export interface BoxScoreOptions {
+  /**
+   * Regulation-minutes basis for the pace number: pace = possessions per
+   * team per this many minutes of game clock. Defaults to 48, the NBA
+   * convention every existing caller was built on. League-aware callers
+   * must pass the league's own regulation length (rules.periods ×
+   * rules.periodMinutes — 40 for NCAA) or a regulation college game at a
+   * real ~68 poss/40 would REPORT pace ≈ 81.6 and every pace band
+   * comparison would silently mix conventions (data/ncaa/README.md §5's
+   * pace-normalization warning).
+   */
+  paceMinutes?: number;
+}
+
 export interface BoxScore {
   players: PlayerLine[];
   teams: [TeamTotals, TeamTotals];
   finalScore: [number, number];
-  /** possessions per team per 48 min equivalent */
+  /** possessions per team per `paceMinutes` (default 48) equivalent — see BoxScoreOptions */
   pace: number;
   periods: number;
   shotEvents: ShotEvent[];
@@ -120,7 +134,7 @@ function emptyZones(): ZoneLine {
  * updates exactly the counters it's authoritative for; nothing here looks
  * ahead or reconstructs state the events didn't already carry.
  */
-export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
+export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScoreOptions = {}): BoxScore {
   const lines = new Map<string, PlayerLine>();
   for (const side of [0, 1] as TeamSide[]) {
     for (const p of teams[side].players) {
@@ -360,16 +374,17 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
 
   const totalPoss = totals[0].poss + totals[1].poss;
   const gameMinutes = Math.max(1, lastT / 60);
-  // Pace, in the standard NBA sense: possessions per team per 48-minute
-  // equivalent game. totalPoss/2 gives ONE team's raw possession count
-  // (both teams get essentially the same number of possessions per game,
-  // off by at most 1 depending who has the ball at the horn — hence
+  // Pace, in the standard sense: possessions per team per regulation-length
+  // equivalent game (opts.paceMinutes — default 48, the NBA convention; an
+  // NCAA caller passes 40). totalPoss/2 gives ONE team's raw possession
+  // count (both teams get essentially the same number of possessions per
+  // game, off by at most 1 depending who has the ball at the horn — hence
   // averaging via the sum rather than picking totals[0] or totals[1]
-  // directly), then scaled from actual gameMinutes up/down to a 48-minute
-  // basis so a game that went to overtime is still comparable to a
+  // directly), then scaled from actual gameMinutes up/down to that basis so
+  // a game that went to overtime is still comparable to a
   // regulation-length one. `Math.max(1, …)` guards against a division by
   // zero if this were ever called on a zero-length/empty event stream.
-  const pace = (totalPoss / 2) * (48 / gameMinutes);
+  const pace = (totalPoss / 2) * ((opts.paceMinutes ?? 48) / gameMinutes);
 
   return {
     players: [...lines.values()],

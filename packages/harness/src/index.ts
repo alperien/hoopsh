@@ -19,6 +19,10 @@ export {
 export type { Accumulator, LeagueAverages, BandResult, TeamGameSummary } from './aggregate.js';
 export { NBA_BANDS } from './bands.js';
 export type { Band } from './bands.js';
+// league selection: one id resolves rule pack + bands + pace basis together
+// (leagues.ts — NOT league.ts, which generates fictional season teams)
+export { resolveLeague, loadNcaaBands, LEAGUE_IDS } from './leagues.js';
+export type { LeagueConfig } from './leagues.js';
 export {
   roundRobin, buildTasks, gameSeed, simulateTask, simulateTasksSequential,
   computeStandings, runSeason
