@@ -61,6 +61,7 @@ export function moveSpeed(s: GameState, a: Agent): number {
   const offBall = a.p.id !== s.ball.holderId;
   const mult = a.sprinting ? 1
     : offBall && a.intent === 'spot' ? s.params.move.offBallWalkMult
+    : a.intent === 'advance' ? s.params.move.advanceJogMult // the bring-up is a jog
     : s.params.move.halfcourtSpeedMult;
   return max * mult;
 }

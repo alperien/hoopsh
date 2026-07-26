@@ -224,6 +224,8 @@ export interface SimParams {
     stanceSpeedMult: number;
     /** off-ball spacing moves are WALKED (share of max) — spots are held, not chased */
     offBallWalkMult: number;
+    /** the ball-handler's bring-up is a dribble-JOG (share of max), not a sprint */
+    advanceJogMult: number;
   };
 
   fatigue: {
@@ -677,12 +679,20 @@ export const defaultParams: SimParams = {
     // — every small sag adjustment ran at FULL lateral speed. A defender in
     // his stance shuffles; the 1.15x sprint multiplier still applies to
     // closeouts, helps, and blitzes. FEEL.
-    stanceSpeedMult: 0.55,
+    stanceSpeedMult: 0.48,
     // Off-ball offense averaged 7.4 ft/s: spot repositioning ran at the
     // 0.72 cruise. Spacing is walked to and HELD (cuts/crashes/transition
     // still sprint via the sprinting flag; the ball-holder keeps the cruise
     // multiplier — this only walks off-ball spacing moves). FEEL.
-    offBallWalkMult: 0.3
+    offBallWalkMult: 0.3,
+    // The bring-up: at the 0.72 cruise the handler crossed halfcourt at
+    // ~13.7 ft/s (9+ mph) EVERY possession — the single largest contributor
+    // to the speed signature (avg live speed 6.55 vs NBA ~4.2, and the
+    // friction signature it drives — see INTERNALS + the speed-pin
+    // experiment: the shooting calibration absorbs kinematics errors, so
+    // this fix forces a re-fit by design). A real bring-up is a dribble-jog;
+    // transition still sprints via the sprinting flag. FEEL.
+    advanceJogMult: 0.42
   },
 
   fatigue: {
