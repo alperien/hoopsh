@@ -230,6 +230,8 @@ export interface SimParams {
     getbackJogMult: number;
     /** non-sprint crash/boxout repositioning speed (share of max) — short, quick, not a dash */
     crashWorkMult: number;
+    /** transition hard cap, sec — safety only; the real end is the defense getting SET */
+    transitionMaxSec: number;
   };
 
   fatigue: {
@@ -705,7 +707,14 @@ export const defaultParams: SimParams = {
     // of all fast frames and scrambles another 20% before these dials.
     // Real players jog back (~8 ft/s) and work the boxout, not dash it. FEEL.
     getbackJogMult: 0.45,
-    crashWorkMult: 0.5
+    crashWorkMult: 0.5,
+    // Transition used to end on a fixed 4.5s clock — the jog economy made
+    // that expire mid-floor (defense not back, holder 40 ft out) and the
+    // downhill archetype lost its window (drives 4.7 -> 1.27/game, fidelity
+    // incident). Transition now ends when the DEFENSE IS SET (4+ defenders
+    // inside 30 ft of their rim — arrival-based, like the advance flip);
+    // this cap is the chaos-state safety net only. FEEL.
+    transitionMaxSec: 7
   },
 
   fatigue: {

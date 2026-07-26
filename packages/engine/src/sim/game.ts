@@ -10,7 +10,7 @@ import type { Team } from '../model/player.js';
 import type { GameEvent, TeamSide } from '../core/events.js';
 import { defaultParams, withParams, type SimParams } from './params.js';
 import {
-  agent, attackedRim, emit, round1,
+  agent, attackedRim, emit, onCourt, round1,
   type Agent, type GameState
 } from './state.js';
 import { Rng } from '../core/rng.js';
@@ -241,12 +241,23 @@ function tickLive(s: GameState, dt: number): void {
   }
   if (pr) s.pendingRelease = null; // stale windup (ball changed hands)
 
-  // possession phase transitions
+  // possession phase transitions — both ARRIVAL-based, not clock-based
+  // (a fixed 4.5s transition window expired mid-floor once the jog economy
+  // slowed the getback, and the downhill archetype lost its drive window)
   const rim = attackedRim(s, h.side);
   if (s.poss.phase === 'advance' && dist(h.pos, rim) < 32) {
     s.poss.phase = 'halfcourt';
-  } else if (s.poss.phase === 'transition' && s.t - s.poss.startT > 4.5) {
-    s.poss.phase = 'halfcourt';
+  } else if (s.poss.phase === 'transition') {
+    // transition ends when the DEFENSE IS SET: 4+ defenders back inside
+    // 30 ft of the rim they protect (the same arrival principle as the
+    // advance flip); transitionMaxSec is the chaos-state safety cap
+    let back = 0;
+    for (const d of onCourt(s, other(h.side))) {
+      if (!d.fouledOut && dist(d.pos, rim) < 30) back++;
+    }
+    if (back >= 4 || s.t - s.poss.startT > s.params.move.transitionMaxSec) {
+      s.poss.phase = 'halfcourt';
+    }
   }
 
   // holder movement intent
