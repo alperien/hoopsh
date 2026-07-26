@@ -19,7 +19,7 @@ import { n } from '../../model/derived.js';
 import type { ShotMoveType } from '../../core/events.js';
 import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
-import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
+import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
 import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, tempo } from './concepts.js';
 
@@ -153,7 +153,8 @@ export function decideBall(s: GameState): BallAction {
   const contestBrake =
     clamp(contest.level - A.contestBrakeAt, 0, 1) *
     (A.contestBrakeBase + ((h.p.attr.decisions - 50) / 100) * A.contestBrakeIQ);
-  // CONCEPT 5: TEMPO — transition looks are worth extra before the defense sets
+  // CONCEPT 5: TEMPO — transition looks are worth extra before the defense
+  // sets (flat early-offense term + the steal-break premium; concepts.ts)
   const T = tempo(s);
   const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake;
 
@@ -210,8 +211,16 @@ export function decideBall(s: GameState): BallAction {
     // Where the drive would END: 5 ft short of the rim (a layup/floater spot,
     // not the rim itself — nobody finishes AT the center of the hoop).
     const projected = lerp(h.pos, rim, clamp((distToRim - 5) / distToRim, 0, 1));
+    // the projected-contest FLOOR is defender-aware: driveProjContestBase
+    // prices the help expected to arrive by the finish, and help can only
+    // come from defenders who are actually back — on a set floor (back ≥
+    // transSetBackCount) the full base applies, on a naked rim there is no
+    // one to project. Before this, the flat 0.35 floor contested an EMPTY
+    // floor and drives never beat the continuation after a steal (wave2
+    // diagnostic: driveEv ~1.01 vs cont 1.47 on the break).
+    const backShare = clamp(defendersBack(s, h.side) / s.params.move.transSetBackCount, 0, 1);
     const projContest = {
-      level: clamp(A.driveProjContestBase + laneCrowd * A.driveProjContestCrowd, 0, 1),
+      level: clamp(A.driveProjContestBase * backShare + laneCrowd * A.driveProjContestCrowd, 0, 1),
       by: null,
       heightAdvFt: 0
     };

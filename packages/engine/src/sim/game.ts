@@ -18,7 +18,7 @@ import { add, dist, len, lerp, norm, scale, sub } from '../core/vec.js';
 import {
   decideBall, defenseTick, offenseOffBallTick, type BallAction
 } from './ai.js';
-import { contestAt } from './resolve.js';
+import { contestAt, defendersBack } from './resolve.js';
 import {
   bestHandler, deadBall, endPeriod, endPossession, giveBall, setupDeadTargets,
   tickDead, tickScramble, tipWeightedWinner
@@ -270,14 +270,15 @@ function tickLive(s: GameState, dt: number): void {
     // drive-gated advance phase after the jog economy; main had 36%)
     s.poss.phase = 'halfcourt';
   } else if (s.poss.phase === 'transition') {
-    // transition ends when the DEFENSE IS SET: 4+ defenders back inside
-    // 30 ft of the rim they protect (the same arrival principle as the
-    // advance flip); transitionMaxSec is the chaos-state safety cap
-    let back = 0;
-    for (const d of liveOnCourt(s, other(h.side))) {
-      if (dist(d.pos, rim) < 30) back++;
-    }
-    if (back >= 4 || s.t - s.poss.startT > s.params.move.transitionMaxSec) {
+    // transition ends when the DEFENSE IS SET: transSetBackCount+ defenders
+    // inside transBackRadiusFt of the rim they protect (the same arrival
+    // principle as the advance flip — shared definition in resolve.ts
+    // defendersBack, also read by the decision layer's transition
+    // continuation cut); transitionMaxSec is the chaos-state safety cap
+    if (
+      defendersBack(s, h.side) >= s.params.move.transSetBackCount ||
+      s.t - s.poss.startT > s.params.move.transitionMaxSec
+    ) {
       s.poss.phase = 'halfcourt';
     }
   }

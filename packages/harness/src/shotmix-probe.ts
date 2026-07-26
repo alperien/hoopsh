@@ -43,6 +43,10 @@ interface Tally {
   stealScore6: number;
   /** shots by the stealing team within 6s of its own steal (attempt volume) */
   stealShot6: number;
+  /** summed steal->first-shot delay (sec) over stealShot6 events */
+  stealShotDelay: number;
+  /** first terminal outcome within 6s of each steal: make/miss/to/reb/none */
+  stealOutcome: Record<string, number>;
 }
 
 function emptyTally(): Tally {
@@ -50,7 +54,8 @@ function emptyTally(): Tally {
   return {
     att: zero(MOVES), make: zero(MOVES), zoneAtt: zero(ZONES), zoneMake: zero(ZONES),
     interiorCsAtt: 0, interiorCsMake: 0, fga: 0, fgm: 0, assisted: 0,
-    oreb: 0, putback6: 0, steals: 0, stealScore6: 0, stealShot6: 0
+    oreb: 0, putback6: 0, steals: 0, stealScore6: 0, stealShot6: 0,
+    stealShotDelay: 0, stealOutcome: {}
   };
 }
 
@@ -84,15 +89,19 @@ export function tallyGame(events: GameEvent[], t: Tally): void {
       t.steals++;
       const thiefSide = e.team === 0 ? 1 : 0;
       let shot = false;
+      let terminal = '';
       for (let j = i + 1; j < events.length; j++) {
         const n = events[j]!;
         if (n.t - e.t > 6) break;
         if (n.type === 'shot' && n.team === thiefSide) {
-          if (!shot) { t.stealShot6++; shot = true; }
-          if (n.made) { t.stealScore6++; break; }
+          if (!shot) { t.stealShot6++; shot = true; t.stealShotDelay += n.t - e.t; }
+          if (n.made) { t.stealScore6++; terminal = 'make'; break; }
+          terminal = 'miss';
         }
-        if (n.type === 'turnover' || n.type === 'rebound') break;
+        if (n.type === 'turnover') { terminal = terminal || 'to'; break; }
+        if (n.type === 'rebound') { terminal = terminal || 'reb'; break; }
       }
+      t.stealOutcome[terminal || 'none'] = (t.stealOutcome[terminal || 'none'] ?? 0) + 1;
     }
   }
 }
@@ -135,6 +144,7 @@ if (isMain) {
   console.log(`  assisted share of makes           ${pct(t.assisted, t.fgm)}   (band 54-62%)`);
   console.log(`  OREB -> FGA <=6s (putback share)  ${pct(t.putback6, t.oreb)}   (real 71.6%)`);
   console.log(`  steal -> score <=6s               ${pct(t.stealScore6, t.steals)}   (real 29.3%)`);
-  console.log(`  steal -> FGA <=6s                 ${pct(t.stealShot6, t.steals)}`);
+  console.log(`  steal -> FGA <=6s                 ${pct(t.stealShot6, t.steals)}   (first shot after ${(t.stealShotDelay / Math.max(1, t.stealShot6)).toFixed(1)}s avg)`);
+  console.log(`  post-steal 6s outcome             ${Object.entries(t.stealOutcome).map(([k, v]) => `${k} ${pct(v, t.steals)}`).join('  ')}`);
   console.log(`  FGA/game ${(t.fga / games).toFixed(1)}  FG% ${pct(t.fgm, t.fga)}  OREB/game ${(t.oreb / games).toFixed(1)}  steals/game ${(t.steals / games).toFixed(1)}`);
 }

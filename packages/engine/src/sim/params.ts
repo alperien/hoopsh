@@ -240,8 +240,13 @@ export interface SimParams {
     threeAppetite: number;
     /** global multiplier on drive appetite */
     driveAppetite: number;
-    /** EV bonus for open transition looks */
+    /** EV bonus for open transition looks (flat while the phase lasts) */
     transitionBonus: number;
+    /** additional shoot/drive EV bonus while a STEAL possession is still in
+     *  transition — the live-ball break premium on top of transitionBonus
+     *  (the drive channel weighs the sum by ai.driveTransitionMult); dies
+     *  with the phase (defense set), like the flat bonus */
+    stealBreakBonus: number;
     /** drive commitment window (seconds): a decided drive holds this long before re-evaluation */
     driveCommitSec: number;
     /** commit ceiling for long rampages (the floor is driveCommitSec); see game.ts arrival-based commit */
@@ -292,6 +297,12 @@ export interface SimParams {
     crashWorkMult: number;
     /** transition hard cap, sec — safety only; the real end is the defense getting SET */
     transitionMaxSec: number;
+    /** the defense is SET once this many defenders are back — ends the
+     *  transition phase (game.ts) and zeroes the transition continuation cut
+     *  (ai/concepts.ts); shared definition lives in resolve.ts defendersBack */
+    transSetBackCount: number;
+    /** "back" = inside this distance of the rim being defended, ft */
+    transBackRadiusFt: number;
   };
 
   fatigue: {
@@ -923,6 +934,29 @@ export const defaultParams: SimParams = {
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.05,
+    // The live-ball break premium: a steal catches the defense mid-offense —
+    // facing the wrong way, cross-matched, floor balance gone — which is a
+    // categorically better break than the push off a defensive rebound (the
+    // retreat is already downhill-facing). REAL: transition off steals runs
+    // ~1.2-1.3 PPP vs ~1.05-1.1 off rebounds, and the sim's measured gap
+    // was exactly here — after a steal the clock-only continuation reset to
+    // its MAXIMUM (~1.47), the thief's rim look priced at uShoot ≈ -0.41
+    // (P(shoot) 14.8%/decision), and steal->score-in-6s ran 12-17% vs the
+    // real 29.3% (flow-reference.json). Sized by 12-game probes on two seed
+    // bases: 0.35 lands conversion at 27.9/29.3% with league FGA at the
+    // taxonomy-fix level (~no pace cost) and assisted share slightly BELOW
+    // its pre-branch level. Probed-and-rejected shapes, for the record
+    // (wave2/shotmix): a state-aware CONTINUATION cut scaled by
+    // defenders-back (the diagnostic's preferred design) fed the window to
+    // hit-ahead passes league-wide (assisted share +4-10pp over a band it
+    // already exceeded, conversion saturated ~20-24%) — and when
+    // steal-gated, its headcount scaling faded exactly as defenders got
+    // back DURING the push, gutting per-attempt quality at the finish; a
+    // GLOBAL flat raise (transitionBonus 0.3) hit conversion but repriced
+    // every dreb push (+13% league FGA). Flat-through-the-phase,
+    // steal-gated won on conversion AND every side metric. FEEL
+    // (probe-verified, awaits the coordinated re-sweep).
+    stealBreakBonus: 0.35,
     // Drive commitment window: how long a drive decision keeps the ball-handler
     // heading at the rim before re-evaluation. Used in BOTH game.ts
     // (executeAction's drive branch) and passing.ts (DHO turn-the-corner grant),
@@ -1021,7 +1055,16 @@ export const defaultParams: SimParams = {
     // incident). Transition now ends when the DEFENSE IS SET (4+ defenders
     // inside 30 ft of their rim — arrival-based, like the advance flip);
     // this cap is the chaos-state safety net only. FEEL.
-    transitionMaxSec: 7
+    transitionMaxSec: 7,
+    // "The defense is set" — the shared arrival definition (was inline in
+    // game.ts's phase flip; promoted when the decision layer started
+    // reading the same measure for the transition continuation cut and the
+    // defender-aware projected drive contest — resolve.ts defendersBack).
+    // 4 of 5 back is a set defense (one trailer is normal); 30 ft covers
+    // the arc plus a step — a defender beyond it cannot influence the
+    // first action at the rim. FEEL.
+    transSetBackCount: 4,
+    transBackRadiusFt: 30
   },
 
   fatigue: {

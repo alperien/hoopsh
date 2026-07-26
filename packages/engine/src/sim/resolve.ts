@@ -412,6 +412,25 @@ export function openness(s: GameState, a: Agent): number {
   return 1 - contestAt(s, a, a.pos).level;
 }
 
+/**
+ * How many live defenders are BACK against the side attacking — inside
+ * move.transBackRadiusFt of the rim they protect. THE shared "is the defense
+ * set" measure: game.ts ends the transition phase once
+ * move.transSetBackCount are back, and the decision layer reads the same
+ * count to scale the transition continuation value (use-it-or-lose-it — see
+ * ai/concepts.ts concept 5) and the projected drive contest floor (help can
+ * only come from defenders who are actually back). One definition, so the
+ * phase machinery and the EV brain can never disagree about what "set" means.
+ */
+export function defendersBack(s: GameState, offSide: TeamSide): number {
+  const rim = attackedRim(s, offSide);
+  let back = 0;
+  for (const d of liveOnCourt(s, other(offSide))) {
+    if (dist(d.pos, rim) < s.params.move.transBackRadiusFt) back++;
+  }
+  return back;
+}
+
 /** shooter gravity: how far out and how tightly a defense must respect this player */
 /**
  * Shooter gravity ∈ [0,1] — how much respect the defense must pay this player

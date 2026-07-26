@@ -344,13 +344,46 @@ export function endgameContinuation(
  * Transition urgency: looks are worth extra before the defense sets. The
  * drive channel weighs it by driveTransitionMult (getting downhill in
  * transition is the highest-value version of the window).
+ *
+ * Two layers, both dead once the defense is set (the phase flip at
+ * transSetBackCount back is itself the state gate):
+ *  - transitionBonus: the original flat early-offense term (SWEPT).
+ *  - stealBreakBonus: the live-ball break premium — a steal catches the
+ *    defense mid-offense (facing the wrong way, cross-matched, floor
+ *    balance gone), a categorically better break than the push off a
+ *    defensive rebound. REAL: ~1.2-1.3 PPP off steals vs ~1.05-1.1 off
+ *    rebounds. Deliberately FLAT through the phase rather than scaled by
+ *    defenders-back: the probe showed a headcount-scaled bonus fades
+ *    exactly when the finish decision arrives (defenders got back DURING
+ *    the push), gutting per-attempt quality — while the organized-vs-caught
+ *    distinction the premium prices outlives the raw headcount (a defense
+ *    that sprinted back off a steal is home but not matched up).
  */
 export function tempo(s: GameState): { shoot: number; drive: number } {
   const D = s.params.decide;
   const A = s.params.ai;
-  const term = s.poss.phase === 'transition' ? D.transitionBonus : 0;
+  let term = 0;
+  if (s.poss.phase === 'transition') {
+    term = D.transitionBonus + (s.poss.kind === 'steal' ? D.stealBreakBonus : 0);
+  }
   return {
     shoot: term * A.tempoScale,
     drive: term * A.driveTransitionMult * A.tempoScale
   };
 }
+
+/*
+ * NOTE (wave2/shotmix, probed-and-rejected): a state-aware CONTINUATION cut
+ * — continuation × (1 − cut × unsetness), unsetness from the shared
+ * defenders-back count — was the diagnostic's preferred design for
+ * transition urgency and was implemented and measured here in five shapes
+ * across two seed bases. Every shape lost to the flat, phase-gated
+ * stealBreakBonus above: the yardstick cut moves the PASS bar too, feeding
+ * the break to hit-ahead swings (assisted share +4-10pp over a band the
+ * engine already exceeds), and headcount scaling fades exactly as defenders
+ * get back DURING the push — gutting the finish decision the window exists
+ * to reward. The phase flip at transSetBackCount back (game.ts, shared
+ * definition in resolve.ts defendersBack) is itself the state gate; the
+ * surviving state-aware piece is the defender-aware projected drive contest
+ * in decide.ts. Numbers in params.decide.stealBreakBonus's comment.
+ */
