@@ -1,0 +1,9512 @@
+{
+ "meta": {
+  "purpose": "Real-NBA play-by-play corpus for the data spine: per-game derived flow/grammar metrics plus corpus distributions. Full play arrays live in pbp-plays/ shards; raw HTML stays out of git (data/nba/raw/, gitignored).",
+  "source": "https://www.basketball-reference.com/boxscores/pbp/<gameId>.html",
+  "season": "2025-26 regular season",
+  "generatedAt": "2026-07-27",
+  "pipeline": "npm run nba:fetch -- --season 2025-26 && npm run nba:parse -- --write-reference",
+  "games": 184,
+  "failed": [],
+  "dates": {
+   "2025-10-24": 12,
+   "2025-10-29": 10,
+   "2025-11-05": 11,
+   "2025-11-15": 5,
+   "2025-11-21": 9,
+   "2025-11-26": 9,
+   "2025-12-05": 12,
+   "2025-12-15": 5,
+   "2025-12-26": 9,
+   "2026-01-02": 10,
+   "2026-01-09": 10,
+   "2026-01-20": 7,
+   "2026-01-28": 9,
+   "2026-02-06": 6,
+   "2026-02-12": 3,
+   "2026-02-25": 6,
+   "2026-03-08": 10,
+   "2026-03-18": 9,
+   "2026-03-28": 6,
+   "2026-04-05": 11,
+   "2026-04-10": 15
+  },
+  "validation": {
+   "pass": 184,
+   "fail": 0,
+   "checks": "per game: (1) score column is monotonic and one-sided per event, (2) every scoring event’s delta equals the points its text implies, (3) text-summed points == scoreboard final == scorebox final for both teams"
+  },
+  "playsFiles": [
+   "pbp-plays/plays-2025-10.json",
+   "pbp-plays/plays-2025-11.json",
+   "pbp-plays/plays-2025-12.json",
+   "pbp-plays/plays-2026-01.json",
+   "pbp-plays/plays-2026-02.json",
+   "pbp-plays/plays-2026-03.json",
+   "pbp-plays/plays-2026-04.json"
+  ],
+  "definitions": "see header of tools/parse-nba.mjs and data/nba/flow-reference.json meta.definitions"
+ },
+ "distributions": {
+  "flow": {
+   "leadChangesPerGame": {
+    "n": 184,
+    "mean": 6.84,
+    "stddev": 5.32,
+    "p10": 1,
+    "p50": 6,
+    "p90": 14.7,
+    "min": 0,
+    "max": 24
+   },
+   "tiesPerGame": {
+    "n": 184,
+    "mean": 5.14,
+    "stddev": 4.1,
+    "p10": 0,
+    "p50": 4,
+    "p90": 10.7,
+    "min": 0,
+    "max": 19
+   },
+   "largestLeadPerGame": {
+    "n": 184,
+    "mean": 21.58,
+    "stddev": 9.06,
+    "p10": 11,
+    "p50": 20,
+    "p90": 35,
+    "min": 8,
+    "max": 55
+   },
+   "runs8PerGame": {
+    "n": 184,
+    "mean": 3.68,
+    "stddev": 1.65,
+    "p10": 2,
+    "p50": 4,
+    "p90": 6,
+    "min": 0,
+    "max": 8
+   },
+   "runs10PerGame": {
+    "n": 184,
+    "mean": 1.4,
+    "stddev": 1.04,
+    "p10": 0,
+    "p50": 1,
+    "p90": 3,
+    "min": 0,
+    "max": 5
+   },
+   "maxRunPerGame": {
+    "n": 184,
+    "mean": 11.9,
+    "stddev": 2.9,
+    "p10": 9,
+    "p50": 11,
+    "p90": 15,
+    "min": 7,
+    "max": 24
+   },
+   "maxTeamDroughtSec": {
+    "n": 184,
+    "mean": 226,
+    "stddev": 59,
+    "p10": 164,
+    "p50": 216,
+    "p90": 304,
+    "min": 128,
+    "max": 432
+   },
+   "quarterPts": [
+    {
+     "n": 184,
+     "mean": 58.8,
+     "stddev": 7.9,
+     "p10": 49,
+     "p50": 59,
+     "p90": 68,
+     "min": 37,
+     "max": 82
+    },
+    {
+     "n": 184,
+     "mean": 57.5,
+     "stddev": 8.3,
+     "p10": 49,
+     "p50": 57,
+     "p90": 68,
+     "min": 31,
+     "max": 84
+    },
+    {
+     "n": 184,
+     "mean": 58.3,
+     "stddev": 9.1,
+     "p10": 46,
+     "p50": 58,
+     "p90": 69,
+     "min": 39,
+     "max": 82
+    },
+    {
+     "n": 184,
+     "mean": 55.6,
+     "stddev": 9.3,
+     "p10": 43.3,
+     "p50": 56.5,
+     "p90": 68,
+     "min": 29,
+     "max": 73
+    }
+   ],
+   "clutchFTShare": {
+    "n": 63,
+    "mean": 0.358,
+    "stddev": 0.29,
+    "p10": 0,
+    "p50": 0.333,
+    "p90": 0.762,
+    "min": 0,
+    "max": 1,
+    "pooled": 0.354,
+    "qualifyingGames": 63
+   },
+   "q4Lead10LostRate": {
+    "rate": 0.054,
+    "lost": 8,
+    "led10Games": 148,
+    "wilson95": [
+     0.028,
+     0.103
+    ],
+    "lostIds": [
+     "202510240ORL",
+     "202601090MEM",
+     "202601090POR",
+     "202601200UTA",
+     "202601280IND",
+     "202602250TOR",
+     "202604050NOP",
+     "202604100SAC"
+    ]
+   },
+   "finalMargin": {
+    "n": 184,
+    "mean": 14.2,
+    "stddev": 10,
+    "p10": 2.3,
+    "p50": 12.5,
+    "p90": 29,
+    "min": 1,
+    "max": 46
+   },
+   "otGamesShare": 0.022
+  },
+  "possessions": {
+   "n": 36703,
+   "perGame": {
+    "n": 184,
+    "mean": 199.5,
+    "stddev": 10.2,
+    "p10": 186,
+    "p50": 199,
+    "p90": 212,
+    "min": 174,
+    "max": 242
+   },
+   "lengthSec": {
+    "mean": 14.47,
+    "p10": 5,
+    "p50": 14,
+    "p90": 24,
+    "share0to8": 0.222,
+    "share16plus": 0.431
+   },
+   "p50PerGame": {
+    "n": 184,
+    "mean": 14.3,
+    "stddev": 0.9,
+    "p10": 13,
+    "p50": 14,
+    "p90": 15,
+    "min": 11,
+    "max": 16
+   },
+   "secondChanceShare": {
+    "pooled": 0.132,
+    "n": 184,
+    "mean": 0.132,
+    "stddev": 0.028,
+    "p10": 0.099,
+    "p50": 0.13,
+    "p90": 0.166,
+    "min": 0.058,
+    "max": 0.23
+   }
+  },
+  "grammar": {
+   "putbackWithin6sShareOfOreb": {
+    "pooled": 0.716,
+    "n": 184,
+    "mean": 0.714,
+    "stddev": 0.113,
+    "p10": 0.558,
+    "p50": 0.72,
+    "p90": 0.845,
+    "min": 0.364,
+    "max": 0.957,
+    "putbacks": 2974,
+    "orebPlayer": 4151,
+    "legacyAnchorDefinition": 0.348,
+    "orebAllRows": 6524
+   },
+   "stealToScoreWithin6sShare": {
+    "pooled": 0.293,
+    "n": 184,
+    "mean": 0.296,
+    "stddev": 0.126,
+    "p10": 0.125,
+    "p50": 0.3,
+    "p90": 0.457,
+    "min": 0,
+    "max": 0.6,
+    "conversions": 925,
+    "steals": 3157,
+    "legacyAnchorDefinition": 0.292
+   },
+   "andOnesPerGame": {
+    "n": 184,
+    "mean": 4.69,
+    "stddev": 2.24,
+    "p10": 2,
+    "p50": 4,
+    "p90": 8,
+    "min": 0,
+    "max": 11
+   },
+   "orebPlayerPerGame": {
+    "n": 184,
+    "mean": 22.6,
+    "stddev": 5.4,
+    "p10": 16,
+    "p50": 22,
+    "p90": 29,
+    "min": 8,
+    "max": 38
+   },
+   "stealsPerGame": {
+    "n": 184,
+    "mean": 17.2,
+    "stddev": 4.6,
+    "p10": 11.3,
+    "p50": 17,
+    "p90": 23,
+    "min": 6,
+    "max": 31
+   }
+  }
+ },
+ "games": [
+  {
+   "id": "202510240BRK",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    131,
+    124
+   ],
+   "ot": 0,
+   "plays": 481,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 25,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 216,
+    "qPts": [
+     57,
+     57,
+     80,
+     61
+    ],
+    "clutchPts": 4,
+    "clutchFTPts": 4,
+    "clutchShare": 1,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 34,
+    "putback6": 10,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 34,
+    "steals": 23,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 29,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510240DAL",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    117,
+    107
+   ],
+   "ot": 0,
+   "plays": 504,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 2,
+    "largestLead": 17,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 263,
+    "qPts": [
+     63,
+     47,
+     59,
+     55
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 32,
+    "putback6": 15,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 32,
+    "steals": 22,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 217,
+    "secondChance": 22,
+    "meanLen": 13.27,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202510240HOU",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    115,
+    111
+   ],
+   "ot": 0,
+   "plays": 544,
+   "flow": {
+    "leadChanges": 15,
+    "ties": 12,
+    "largestLead": 9,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 220,
+    "qPts": [
+     65,
+     54,
+     54,
+     53
+    ],
+    "clutchPts": 5,
+    "clutchFTPts": 3,
+    "clutchShare": 0.6,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 32,
+    "orebAll": 49,
+    "putback6": 22,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 49,
+    "steals": 20,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 36,
+    "meanLen": 14.62,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510240LAC",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    102,
+    129
+   ],
+   "ot": 0,
+   "plays": 453,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 6,
+    "largestLead": 32,
+    "runs8": 5,
+    "runs10": 4,
+    "maxRun": 14,
+    "maxDroughtSec": 316,
+    "qPts": [
+     67,
+     61,
+     55,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 27
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 30,
+    "putback6": 18,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 30,
+    "steals": 24,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 193,
+    "secondChance": 25,
+    "meanLen": 14.92,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202510240LAL",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    110,
+    128
+   ],
+   "ot": 0,
+   "plays": 452,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 3,
+    "largestLead": 25,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 157,
+    "qPts": [
+     76,
+     55,
+     71,
+     36
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 33,
+    "putback6": 17,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 33,
+    "steals": 10,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 183,
+    "secondChance": 24,
+    "meanLen": 15.74,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202510240MEM",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    146,
+    114
+   ],
+   "ot": 0,
+   "plays": 519,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 2,
+    "largestLead": 45,
+    "runs8": 4,
+    "runs10": 3,
+    "maxRun": 17,
+    "maxDroughtSec": 294,
+    "qPts": [
+     69,
+     64,
+     57,
+     70
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 32
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 38,
+    "putback6": 22,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 38,
+    "steals": 23,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 222,
+    "secondChance": 29,
+    "meanLen": 12.97,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202510240NOP",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    120,
+    116
+   ],
+   "ot": 1,
+   "plays": 555,
+   "flow": {
+    "leadChanges": 15,
+    "ties": 10,
+    "largestLead": 9,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 200,
+    "qPts": [
+     57,
+     58,
+     47,
+     52
+    ],
+    "clutchPts": 10,
+    "clutchFTPts": 1,
+    "clutchShare": 0.1,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 36,
+    "orebAll": 55,
+    "putback6": 27,
+    "putback6Legacy": 20,
+    "putback6LegacyDen": 55,
+    "steals": 16,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 40,
+    "meanLen": 15.22,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510240NYK",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    95,
+    105
+   ],
+   "ot": 0,
+   "plays": 471,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 2,
+    "largestLead": 24,
+    "runs8": 6,
+    "runs10": 4,
+    "maxRun": 17,
+    "maxDroughtSec": 370,
+    "qPts": [
+     52,
+     56,
+     39,
+     53
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 39,
+    "putback6": 19,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 39,
+    "steals": 17,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 186,
+    "secondChance": 30,
+    "meanLen": 15.48,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202510240ORL",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    111,
+    107
+   ],
+   "ot": 0,
+   "plays": 509,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 8,
+    "largestLead": 14,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 15,
+    "maxDroughtSec": 216,
+    "qPts": [
+     49,
+     63,
+     52,
+     54
+    ],
+    "clutchPts": 12,
+    "clutchFTPts": 6,
+    "clutchShare": 0.5,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 39,
+    "putback6": 14,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 39,
+    "steals": 16,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 24,
+    "meanLen": 14.33,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510240POR",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    119,
+    139
+   ],
+   "ot": 0,
+   "plays": 517,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 5,
+    "largestLead": 25,
+    "runs8": 6,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 173,
+    "qPts": [
+     56,
+     69,
+     69,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 35,
+    "putback6": 12,
+    "putback6Legacy": 6,
+    "putback6LegacyDen": 35,
+    "steals": 25,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 218,
+    "secondChance": 25,
+    "meanLen": 13.21,
+    "p50Len": 12
+   }
+  },
+  {
+   "id": "202510240SAC",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    104,
+    105
+   ],
+   "ot": 0,
+   "plays": 449,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 12,
+    "largestLead": 8,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 194,
+    "qPts": [
+     55,
+     40,
+     59,
+     55
+    ],
+    "clutchPts": 14,
+    "clutchFTPts": 4,
+    "clutchShare": 0.286,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 16,
+    "orebAll": 25,
+    "putback6": 12,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 25,
+    "steals": 16,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 20,
+    "meanLen": 14.77,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510240TOR",
+   "date": "2025-10-24",
+   "away": "CLE",
+   "home": "BRK",
+   "final": [
+    122,
+    116
+   ],
+   "ot": 0,
+   "plays": 492,
+   "flow": {
+    "leadChanges": 19,
+    "ties": 14,
+    "largestLead": 10,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 141,
+    "qPts": [
+     46,
+     60,
+     66,
+     66
+    ],
+    "clutchPts": 7,
+    "clutchFTPts": 2,
+    "clutchShare": 0.286,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 38,
+    "putback6": 21,
+    "putback6Legacy": 20,
+    "putback6LegacyDen": 38,
+    "steals": 19,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 25,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510290BOS",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    105,
+    125
+   ],
+   "ot": 0,
+   "plays": 492,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 7,
+    "largestLead": 20,
+    "runs8": 6,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 274,
+    "qPts": [
+     82,
+     53,
+     48,
+     47
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 41,
+    "putback6": 23,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 41,
+    "steals": 17,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 31,
+    "meanLen": 15.16,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202510290BRK",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    117,
+    112
+   ],
+   "ot": 0,
+   "plays": 474,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 0,
+    "largestLead": 17,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 178,
+    "qPts": [
+     61,
+     54,
+     62,
+     52
+    ],
+    "clutchPts": 4,
+    "clutchFTPts": 4,
+    "clutchShare": 1,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 28,
+    "orebAll": 41,
+    "putback6": 19,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 41,
+    "steals": 15,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 31,
+    "meanLen": 15,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510290CHI",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    113,
+    126
+   ],
+   "ot": 0,
+   "plays": 445,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 2,
+    "largestLead": 17,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 186,
+    "qPts": [
+     69,
+     57,
+     66,
+     47
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 25,
+    "putback6": 12,
+    "putback6Legacy": 5,
+    "putback6LegacyDen": 25,
+    "steals": 16,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 200,
+    "secondChance": 18,
+    "meanLen": 14.4,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510290DAL",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    105,
+    107
+   ],
+   "ot": 0,
+   "plays": 556,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 7,
+    "largestLead": 14,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 205,
+    "qPts": [
+     55,
+     52,
+     48,
+     57
+    ],
+    "clutchPts": 6,
+    "clutchFTPts": 6,
+    "clutchShare": 1,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 47,
+    "putback6": 20,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 47,
+    "steals": 12,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 32,
+    "meanLen": 13.78,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202510290DEN",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    88,
+    122
+   ],
+   "ot": 0,
+   "plays": 455,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 1,
+    "largestLead": 41,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 24,
+    "maxDroughtSec": 406,
+    "qPts": [
+     59,
+     41,
+     50,
+     60
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 34
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 37,
+    "putback6": 22,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 37,
+    "steals": 15,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 196,
+    "secondChance": 27,
+    "meanLen": 14.69,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202510290DET",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    116,
+    135
+   ],
+   "ot": 0,
+   "plays": 540,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 3,
+    "largestLead": 24,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 164,
+    "qPts": [
+     65,
+     64,
+     64,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 19
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 47,
+    "putback6": 19,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 47,
+    "steals": 16,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 10
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 38,
+    "meanLen": 14.33,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510290MIN",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    116,
+    115
+   ],
+   "ot": 0,
+   "plays": 457,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 6,
+    "largestLead": 20,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 164,
+    "qPts": [
+     66,
+     54,
+     63,
+     48
+    ],
+    "clutchPts": 6,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 34,
+    "putback6": 14,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 34,
+    "steals": 14,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 196,
+    "secondChance": 24,
+    "meanLen": 14.69,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202510290PHO",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    114,
+    113
+   ],
+   "ot": 0,
+   "plays": 485,
+   "flow": {
+    "leadChanges": 15,
+    "ties": 10,
+    "largestLead": 10,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 209,
+    "qPts": [
+     53,
+     49,
+     57,
+     68
+    ],
+    "clutchPts": 10,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 25,
+    "putback6": 16,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 25,
+    "steals": 23,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 210,
+    "secondChance": 16,
+    "meanLen": 13.71,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510290TOR",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    139,
+    121
+   ],
+   "ot": 0,
+   "plays": 465,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 4,
+    "largestLead": 21,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 212,
+    "qPts": [
+     69,
+     64,
+     64,
+     63
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 36,
+    "putback6": 17,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 36,
+    "steals": 15,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 21,
+    "meanLen": 14.47,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202510290UTA",
+   "date": "2025-10-29",
+   "away": "CLE",
+   "home": "BOS",
+   "final": [
+    136,
+    134
+   ],
+   "ot": 0,
+   "plays": 555,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 2,
+    "largestLead": 22,
+    "runs8": 4,
+    "runs10": 3,
+    "maxRun": 14,
+    "maxDroughtSec": 161,
+    "qPts": [
+     76,
+     76,
+     63,
+     55
+    ],
+    "clutchPts": 11,
+    "clutchFTPts": 9,
+    "clutchShare": 0.818,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 30,
+    "orebAll": 46,
+    "putback6": 21,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 46,
+    "steals": 24,
+    "stealScore6": 11,
+    "stealScore6Legacy": 11,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 216,
+    "secondChance": 36,
+    "meanLen": 13.33,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511050BOS",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    107,
+    136
+   ],
+   "ot": 0,
+   "plays": 452,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 0,
+    "largestLead": 33,
+    "runs8": 8,
+    "runs10": 4,
+    "maxRun": 11,
+    "maxDroughtSec": 234,
+    "qPts": [
+     63,
+     67,
+     52,
+     61
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 29
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 35,
+    "putback6": 16,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 35,
+    "steals": 14,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 9
+   },
+   "poss": {
+    "n": 196,
+    "secondChance": 28,
+    "meanLen": 14.69,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511050CLE",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    121,
+    132
+   ],
+   "ot": 0,
+   "plays": 493,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 2,
+    "largestLead": 26,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 198,
+    "qPts": [
+     68,
+     69,
+     57,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 40,
+    "putback6": 20,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 40,
+    "steals": 18,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 31,
+    "meanLen": 13.91,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511050DAL",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    101,
+    99
+   ],
+   "ot": 0,
+   "plays": 473,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 4,
+    "largestLead": 13,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 218,
+    "qPts": [
+     48,
+     53,
+     54,
+     45
+    ],
+    "clutchPts": 11,
+    "clutchFTPts": 7,
+    "clutchShare": 0.636,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 34,
+    "putback6": 15,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 34,
+    "steals": 21,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 28,
+    "meanLen": 14.47,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511050DEN",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    112,
+    122
+   ],
+   "ot": 0,
+   "plays": 479,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 8,
+    "largestLead": 17,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 273,
+    "qPts": [
+     69,
+     59,
+     59,
+     47
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 35,
+    "putback6": 17,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 35,
+    "steals": 23,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 25,
+    "meanLen": 13.78,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511050DET",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    103,
+    114
+   ],
+   "ot": 0,
+   "plays": 501,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 8,
+    "largestLead": 12,
+    "runs8": 3,
+    "runs10": 3,
+    "maxRun": 13,
+    "maxDroughtSec": 281,
+    "qPts": [
+     58,
+     50,
+     39,
+     70
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 39,
+    "putback6": 12,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 39,
+    "steals": 12,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 28,
+    "meanLen": 14.55,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511050IND",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    112,
+    103
+   ],
+   "ot": 0,
+   "plays": 513,
+   "flow": {
+    "leadChanges": 12,
+    "ties": 10,
+    "largestLead": 10,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 225,
+    "qPts": [
+     43,
+     70,
+     50,
+     52
+    ],
+    "clutchPts": 2,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 9
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 42,
+    "putback6": 20,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 42,
+    "steals": 15,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 202,
+    "secondChance": 29,
+    "meanLen": 14.26,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511050LAL",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    116,
+    118
+   ],
+   "ot": 0,
+   "plays": 519,
+   "flow": {
+    "leadChanges": 13,
+    "ties": 13,
+    "largestLead": 12,
+    "runs8": 3,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 186,
+    "qPts": [
+     55,
+     64,
+     65,
+     50
+    ],
+    "clutchPts": 9,
+    "clutchFTPts": 5,
+    "clutchShare": 0.556,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 42,
+    "putback6": 14,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 42,
+    "steals": 15,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 29,
+    "meanLen": 14.62,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511050MEM",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    124,
+    109
+   ],
+   "ot": 0,
+   "plays": 516,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 1,
+    "largestLead": 21,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 196,
+    "qPts": [
+     56,
+     55,
+     63,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 28,
+    "orebAll": 40,
+    "putback6": 19,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 40,
+    "steals": 19,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 34,
+    "meanLen": 13.91,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511050NYK",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    114,
+    137
+   ],
+   "ot": 0,
+   "plays": 458,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 3,
+    "largestLead": 23,
+    "runs8": 2,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 178,
+    "qPts": [
+     54,
+     58,
+     68,
+     71
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 23
+   },
+   "grammar": {
+    "orebPlayer": 30,
+    "orebAll": 38,
+    "putback6": 25,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 38,
+    "steals": 13,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 193,
+    "secondChance": 28,
+    "meanLen": 14.92,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511050POR",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    119,
+    121
+   ],
+   "ot": 0,
+   "plays": 534,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 0,
+    "largestLead": 22,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 211,
+    "qPts": [
+     62,
+     60,
+     45,
+     73
+    ],
+    "clutchPts": 14,
+    "clutchFTPts": 8,
+    "clutchShare": 0.571,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 32,
+    "putback6": 11,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 32,
+    "steals": 17,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 212,
+    "secondChance": 25,
+    "meanLen": 13.58,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511050SAC",
+   "date": "2025-11-05",
+   "away": "WAS",
+   "home": "BOS",
+   "final": [
+    116,
+    121
+   ],
+   "ot": 0,
+   "plays": 501,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 5,
+    "largestLead": 13,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 165,
+    "qPts": [
+     57,
+     62,
+     58,
+     60
+    ],
+    "clutchPts": 3,
+    "clutchFTPts": 3,
+    "clutchShare": 1,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 26,
+    "putback6": 11,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 26,
+    "steals": 17,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 1
+   },
+   "poss": {
+    "n": 210,
+    "secondChance": 23,
+    "meanLen": 13.71,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511150CHO",
+   "date": "2025-11-15",
+   "away": "OKC",
+   "home": "CHO",
+   "final": [
+    109,
+    96
+   ],
+   "ot": 0,
+   "plays": 418,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 12,
+    "largestLead": 22,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 264,
+    "qPts": [
+     60,
+     47,
+     50,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 35,
+    "putback6": 18,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 35,
+    "steals": 15,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 32,
+    "meanLen": 15,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511150CLE",
+   "date": "2025-11-15",
+   "away": "OKC",
+   "home": "CHO",
+   "final": [
+    100,
+    108
+   ],
+   "ot": 0,
+   "plays": 539,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 3,
+    "largestLead": 11,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 240,
+    "qPts": [
+     60,
+     55,
+     45,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 40,
+    "putback6": 13,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 40,
+    "steals": 16,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 210,
+    "secondChance": 27,
+    "meanLen": 13.71,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511150IND",
+   "date": "2025-11-15",
+   "away": "OKC",
+   "home": "CHO",
+   "final": [
+    129,
+    111
+   ],
+   "ot": 0,
+   "plays": 519,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 4,
+    "largestLead": 28,
+    "runs8": 5,
+    "runs10": 3,
+    "maxRun": 14,
+    "maxDroughtSec": 235,
+    "qPts": [
+     61,
+     54,
+     71,
+     54
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 35,
+    "putback6": 10,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 35,
+    "steals": 18,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 214,
+    "secondChance": 21,
+    "meanLen": 13.46,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511150MIL",
+   "date": "2025-11-15",
+   "away": "OKC",
+   "home": "CHO",
+   "final": [
+    119,
+    95
+   ],
+   "ot": 0,
+   "plays": 462,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 1,
+    "largestLead": 31,
+    "runs8": 4,
+    "runs10": 3,
+    "maxRun": 15,
+    "maxDroughtSec": 207,
+    "qPts": [
+     48,
+     51,
+     65,
+     50
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 24
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 35,
+    "putback6": 12,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 35,
+    "steals": 19,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 25,
+    "meanLen": 14.77,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511150MIN",
+   "date": "2025-11-15",
+   "away": "OKC",
+   "home": "CHO",
+   "final": [
+    123,
+    112
+   ],
+   "ot": 0,
+   "plays": 479,
+   "flow": {
+    "leadChanges": 22,
+    "ties": 10,
+    "largestLead": 14,
+    "runs8": 6,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 187,
+    "qPts": [
+     60,
+     55,
+     58,
+     62
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 29,
+    "putback6": 15,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 29,
+    "steals": 18,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 20,
+    "meanLen": 14.33,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511210BOS",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    113,
+    105
+   ],
+   "ot": 0,
+   "plays": 446,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 8,
+    "largestLead": 18,
+    "runs8": 2,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 195,
+    "qPts": [
+     50,
+     65,
+     54,
+     49
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 30,
+    "putback6": 15,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 30,
+    "steals": 12,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 23,
+    "meanLen": 15,
+    "p50Len": 14.5
+   }
+  },
+  {
+   "id": "202511210CHI",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    143,
+    107
+   ],
+   "ot": 0,
+   "plays": 539,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 6,
+    "largestLead": 41,
+    "runs8": 7,
+    "runs10": 3,
+    "maxRun": 10,
+    "maxDroughtSec": 272,
+    "qPts": [
+     68,
+     54,
+     55,
+     73
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 36
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 44,
+    "putback6": 13,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 44,
+    "steals": 18,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 215,
+    "secondChance": 33,
+    "meanLen": 13.4,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511210CLE",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    109,
+    120
+   ],
+   "ot": 0,
+   "plays": 503,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 9,
+    "largestLead": 22,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 348,
+    "qPts": [
+     64,
+     53,
+     64,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 31,
+    "putback6": 16,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 31,
+    "steals": 15,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 24,
+    "meanLen": 14.12,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511210DAL",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    115,
+    118
+   ],
+   "ot": 0,
+   "plays": 499,
+   "flow": {
+    "leadChanges": 17,
+    "ties": 14,
+    "largestLead": 15,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 189,
+    "qPts": [
+     59,
+     53,
+     58,
+     63
+    ],
+    "clutchPts": 12,
+    "clutchFTPts": 5,
+    "clutchShare": 0.417,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 31,
+    "putback6": 14,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 31,
+    "steals": 24,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 24,
+    "meanLen": 13.85,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511210GSW",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    127,
+    123
+   ],
+   "ot": 0,
+   "plays": 496,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 7,
+    "largestLead": 11,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 206,
+    "qPts": [
+     63,
+     74,
+     54,
+     59
+    ],
+    "clutchPts": 20,
+    "clutchFTPts": 4,
+    "clutchShare": 0.2,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 30,
+    "orebAll": 43,
+    "putback6": 18,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 43,
+    "steals": 22,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 34,
+    "meanLen": 14.33,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511210HOU",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    112,
+    109
+   ],
+   "ot": 0,
+   "plays": 458,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 7,
+    "largestLead": 13,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 264,
+    "qPts": [
+     37,
+     58,
+     63,
+     63
+    ],
+    "clutchPts": 16,
+    "clutchFTPts": 7,
+    "clutchShare": 0.438,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 48,
+    "putback6": 19,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 48,
+    "steals": 16,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 185,
+    "secondChance": 28,
+    "meanLen": 15.57,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202511210PHO",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    113,
+    114
+   ],
+   "ot": 0,
+   "plays": 512,
+   "flow": {
+    "leadChanges": 12,
+    "ties": 5,
+    "largestLead": 18,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 203,
+    "qPts": [
+     56,
+     55,
+     52,
+     64
+    ],
+    "clutchPts": 7,
+    "clutchFTPts": 1,
+    "clutchShare": 0.143,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 48,
+    "putback6": 21,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 48,
+    "steals": 30,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 33,
+    "meanLen": 13.85,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511210TOR",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    110,
+    140
+   ],
+   "ot": 0,
+   "plays": 478,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 1,
+    "largestLead": 35,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 207,
+    "qPts": [
+     51,
+     53,
+     78,
+     68
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 30
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 33,
+    "putback6": 16,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 33,
+    "steals": 22,
+    "stealScore6": 10,
+    "stealScore6Legacy": 10,
+    "andOnes": 1
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 23,
+    "meanLen": 13.78,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511210UTA",
+   "date": "2025-11-21",
+   "away": "BRK",
+   "home": "BOS",
+   "final": [
+    144,
+    112
+   ],
+   "ot": 0,
+   "plays": 443,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 4,
+    "largestLead": 36,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 22,
+    "maxDroughtSec": 327,
+    "qPts": [
+     74,
+     61,
+     63,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 32
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 27,
+    "putback6": 10,
+    "putback6Legacy": 6,
+    "putback6LegacyDen": 27,
+    "steals": 25,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 19,
+    "meanLen": 13.85,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202511260BOS",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    114,
+    117
+   ],
+   "ot": 0,
+   "plays": 530,
+   "flow": {
+    "leadChanges": 19,
+    "ties": 11,
+    "largestLead": 10,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 167,
+    "qPts": [
+     54,
+     61,
+     54,
+     62
+    ],
+    "clutchPts": 23,
+    "clutchFTPts": 15,
+    "clutchShare": 0.652,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 33,
+    "orebAll": 45,
+    "putback6": 24,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 45,
+    "steals": 14,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 189,
+    "secondChance": 33,
+    "meanLen": 15.24,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511260CHO",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    129,
+    101
+   ],
+   "ot": 0,
+   "plays": 467,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 2,
+    "largestLead": 31,
+    "runs8": 3,
+    "runs10": 3,
+    "maxRun": 13,
+    "maxDroughtSec": 210,
+    "qPts": [
+     68,
+     51,
+     54,
+     57
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 28
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 32,
+    "putback6": 11,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 32,
+    "steals": 17,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 196,
+    "secondChance": 26,
+    "meanLen": 14.69,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511260GSW",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    104,
+    100
+   ],
+   "ot": 0,
+   "plays": 497,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 3,
+    "largestLead": 14,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 223,
+    "qPts": [
+     47,
+     59,
+     44,
+     54
+    ],
+    "clutchPts": 12,
+    "clutchFTPts": 5,
+    "clutchShare": 0.417,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 38,
+    "orebAll": 56,
+    "putback6": 27,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 56,
+    "steals": 15,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 181,
+    "secondChance": 38,
+    "meanLen": 15.91,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511260MIA",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    103,
+    106
+   ],
+   "ot": 0,
+   "plays": 431,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 6,
+    "largestLead": 12,
+    "runs8": 1,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 216,
+    "qPts": [
+     56,
+     44,
+     58,
+     51
+    ],
+    "clutchPts": 4,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 29,
+    "putback6": 15,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 29,
+    "steals": 16,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 24,
+    "meanLen": 14.33,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511260NOP",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    133,
+    128
+   ],
+   "ot": 1,
+   "plays": 481,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 5,
+    "largestLead": 17,
+    "runs8": 5,
+    "runs10": 4,
+    "maxRun": 13,
+    "maxDroughtSec": 235,
+    "qPts": [
+     64,
+     57,
+     71,
+     52
+    ],
+    "clutchPts": 9,
+    "clutchFTPts": 1,
+    "clutchShare": 0.111,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 27,
+    "putback6": 20,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 27,
+    "steals": 19,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 213,
+    "secondChance": 25,
+    "meanLen": 14.93,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511260OKC",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    105,
+    113
+   ],
+   "ot": 0,
+   "plays": 503,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 7,
+    "largestLead": 12,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 170,
+    "qPts": [
+     41,
+     47,
+     61,
+     69
+    ],
+    "clutchPts": 10,
+    "clutchFTPts": 4,
+    "clutchShare": 0.4,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 42,
+    "putback6": 10,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 42,
+    "steals": 12,
+    "stealScore6": 0,
+    "stealScore6Legacy": 0,
+    "andOnes": 0
+   },
+   "poss": {
+    "n": 194,
+    "secondChance": 22,
+    "meanLen": 14.85,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511260POR",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    115,
+    102
+   ],
+   "ot": 0,
+   "plays": 538,
+   "flow": {
+    "leadChanges": 12,
+    "ties": 8,
+    "largestLead": 14,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 164,
+    "qPts": [
+     59,
+     51,
+     67,
+     40
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 32,
+    "orebAll": 50,
+    "putback6": 22,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 50,
+    "steals": 15,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 33,
+    "meanLen": 14.33,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202511260SAC",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    112,
+    100
+   ],
+   "ot": 0,
+   "plays": 447,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 25,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 264,
+    "qPts": [
+     57,
+     55,
+     44,
+     56
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 12
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 38,
+    "putback6": 17,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 38,
+    "steals": 23,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 193,
+    "secondChance": 29,
+    "meanLen": 14.92,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202511260TOR",
+   "date": "2025-11-26",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    95,
+    97
+   ],
+   "ot": 0,
+   "plays": 481,
+   "flow": {
+    "leadChanges": 14,
+    "ties": 12,
+    "largestLead": 13,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 22,
+    "maxDroughtSec": 432,
+    "qPts": [
+     46,
+     53,
+     47,
+     46
+    ],
+    "clutchPts": 4,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 31,
+    "putback6": 10,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 31,
+    "steals": 16,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 23,
+    "meanLen": 14.47,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512050ATL",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    134,
+    133
+   ],
+   "ot": 0,
+   "plays": 471,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 1,
+    "largestLead": 23,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 20,
+    "maxDroughtSec": 293,
+    "qPts": [
+     64,
+     63,
+     70,
+     70
+    ],
+    "clutchPts": 18,
+    "clutchFTPts": 5,
+    "clutchShare": 0.278,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 26,
+    "putback6": 16,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 26,
+    "steals": 17,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 21,
+    "meanLen": 13.78,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050BOS",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    105,
+    126
+   ],
+   "ot": 0,
+   "plays": 428,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 1,
+    "largestLead": 29,
+    "runs8": 7,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 236,
+    "qPts": [
+     56,
+     59,
+     64,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 28,
+    "putback6": 11,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 28,
+    "steals": 17,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 21,
+    "meanLen": 15.16,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512050CHI",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    120,
+    105
+   ],
+   "ot": 0,
+   "plays": 446,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 4,
+    "largestLead": 19,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 194,
+    "qPts": [
+     63,
+     56,
+     56,
+     50
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 27,
+    "putback6": 8,
+    "putback6Legacy": 5,
+    "putback6LegacyDen": 27,
+    "steals": 20,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 200,
+    "secondChance": 21,
+    "meanLen": 14.4,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050CLE",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    117,
+    130
+   ],
+   "ot": 0,
+   "plays": 490,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 4,
+    "largestLead": 20,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 231,
+    "qPts": [
+     65,
+     71,
+     63,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 33,
+    "putback6": 14,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 33,
+    "steals": 19,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 205,
+    "secondChance": 24,
+    "meanLen": 14.05,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050DET",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    116,
+    122
+   ],
+   "ot": 0,
+   "plays": 543,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 10,
+    "largestLead": 13,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 167,
+    "qPts": [
+     58,
+     65,
+     46,
+     69
+    ],
+    "clutchPts": 10,
+    "clutchFTPts": 7,
+    "clutchShare": 0.7,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 31,
+    "orebAll": 46,
+    "putback6": 21,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 46,
+    "steals": 14,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 39,
+    "meanLen": 14.62,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050HOU",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    98,
+    117
+   ],
+   "ot": 0,
+   "plays": 457,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 7,
+    "largestLead": 30,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 283,
+    "qPts": [
+     55,
+     71,
+     43,
+     46
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 19
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 38,
+    "putback6": 16,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 38,
+    "steals": 21,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 31,
+    "meanLen": 14.77,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512050MEM",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    98,
+    107
+   ],
+   "ot": 0,
+   "plays": 415,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 9,
+    "largestLead": 9,
+    "runs8": 1,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 239,
+    "qPts": [
+     63,
+     49,
+     53,
+     40
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 9
+   },
+   "grammar": {
+    "orebPlayer": 9,
+    "orebAll": 17,
+    "putback6": 4,
+    "putback6Legacy": 2,
+    "putback6LegacyDen": 17,
+    "steals": 20,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 14,
+    "meanLen": 14.77,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050MIL",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    116,
+    101
+   ],
+   "ot": 0,
+   "plays": 462,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 3,
+    "largestLead": 26,
+    "runs8": 3,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 183,
+    "qPts": [
+     53,
+     65,
+     52,
+     47
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 29,
+    "putback6": 12,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 29,
+    "steals": 20,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 23,
+    "meanLen": 14.55,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050NYK",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    112,
+    146
+   ],
+   "ot": 0,
+   "plays": 463,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 41,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 23,
+    "maxDroughtSec": 393,
+    "qPts": [
+     54,
+     61,
+     77,
+     66
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 34
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 34,
+    "putback6": 17,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 34,
+    "steals": 17,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 26,
+    "meanLen": 14.12,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512050OKC",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    111,
+    132
+   ],
+   "ot": 0,
+   "plays": 433,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 8,
+    "largestLead": 32,
+    "runs8": 2,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 194,
+    "qPts": [
+     54,
+     57,
+     67,
+     65
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 16,
+    "orebAll": 23,
+    "putback6": 12,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 23,
+    "steals": 7,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 194,
+    "secondChance": 15,
+    "meanLen": 14.85,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512050ORL",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    105,
+    106
+   ],
+   "ot": 0,
+   "plays": 465,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 9,
+    "largestLead": 10,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 191,
+    "qPts": [
+     58,
+     59,
+     49,
+     45
+    ],
+    "clutchPts": 8,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 11,
+    "orebAll": 26,
+    "putback6": 4,
+    "putback6Legacy": 4,
+    "putback6LegacyDen": 26,
+    "steals": 9,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 200,
+    "secondChance": 17,
+    "meanLen": 14.4,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202512050TOR",
+   "date": "2025-12-05",
+   "away": "DEN",
+   "home": "ATL",
+   "final": [
+    111,
+    86
+   ],
+   "ot": 0,
+   "plays": 493,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 2,
+    "largestLead": 29,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 17,
+    "maxDroughtSec": 275,
+    "qPts": [
+     42,
+     53,
+     53,
+     49
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 25
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 36,
+    "putback6": 10,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 36,
+    "steals": 26,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 25,
+    "meanLen": 14.19,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202512150BOS",
+   "date": "2025-12-15",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    112,
+    105
+   ],
+   "ot": 0,
+   "plays": 475,
+   "flow": {
+    "leadChanges": 15,
+    "ties": 7,
+    "largestLead": 12,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 288,
+    "qPts": [
+     58,
+     52,
+     56,
+     51
+    ],
+    "clutchPts": 5,
+    "clutchFTPts": 1,
+    "clutchShare": 0.2,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 39,
+    "putback6": 16,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 39,
+    "steals": 16,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 188,
+    "secondChance": 25,
+    "meanLen": 15.32,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512150DEN",
+   "date": "2025-12-15",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    125,
+    128
+   ],
+   "ot": 1,
+   "plays": 499,
+   "flow": {
+    "leadChanges": 17,
+    "ties": 16,
+    "largestLead": 9,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 168,
+    "qPts": [
+     54,
+     55,
+     66,
+     59
+    ],
+    "clutchPts": 18,
+    "clutchFTPts": 2,
+    "clutchShare": 0.111,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 34,
+    "putback6": 16,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 34,
+    "steals": 17,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 25,
+    "meanLen": 15.59,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512150LAC",
+   "date": "2025-12-15",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    121,
+    103
+   ],
+   "ot": 0,
+   "plays": 428,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 4,
+    "largestLead": 23,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 161,
+    "qPts": [
+     52,
+     52,
+     62,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 40,
+    "putback6": 15,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 40,
+    "steals": 14,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 182,
+    "secondChance": 27,
+    "meanLen": 15.82,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512150MIA",
+   "date": "2025-12-15",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    106,
+    96
+   ],
+   "ot": 0,
+   "plays": 460,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 9,
+    "largestLead": 11,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 190,
+    "qPts": [
+     45,
+     53,
+     53,
+     51
+    ],
+    "clutchPts": 3,
+    "clutchFTPts": 1,
+    "clutchShare": 0.333,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 31,
+    "putback6": 16,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 31,
+    "steals": 21,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 25,
+    "meanLen": 14.55,
+    "p50Len": 13.5
+   }
+  },
+  {
+   "id": "202512150UTA",
+   "date": "2025-12-15",
+   "away": "DET",
+   "home": "BOS",
+   "final": [
+    133,
+    140
+   ],
+   "ot": 1,
+   "plays": 569,
+   "flow": {
+    "leadChanges": 12,
+    "ties": 13,
+    "largestLead": 10,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 164,
+    "qPts": [
+     80,
+     66,
+     45,
+     67
+    ],
+    "clutchPts": 14,
+    "clutchFTPts": 4,
+    "clutchShare": 0.286,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 34,
+    "putback6": 14,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 34,
+    "steals": 14,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 11
+   },
+   "poss": {
+    "n": 225,
+    "secondChance": 26,
+    "meanLen": 14.13,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512260ATL",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    126,
+    111
+   ],
+   "ot": 0,
+   "plays": 459,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 4,
+    "largestLead": 17,
+    "runs8": 6,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 224,
+    "qPts": [
+     64,
+     50,
+     60,
+     63
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 24,
+    "putback6": 16,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 24,
+    "steals": 20,
+    "stealScore6": 6,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 218,
+    "secondChance": 21,
+    "meanLen": 13.21,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202512260CHI",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    102,
+    109
+   ],
+   "ot": 0,
+   "plays": 484,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 6,
+    "largestLead": 11,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 194,
+    "qPts": [
+     58,
+     43,
+     65,
+     45
+    ],
+    "clutchPts": 7,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 36,
+    "putback6": 17,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 36,
+    "steals": 10,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 28,
+    "meanLen": 14.77,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512260IND",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    140,
+    122
+   ],
+   "ot": 0,
+   "plays": 483,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 2,
+    "largestLead": 28,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 165,
+    "qPts": [
+     67,
+     69,
+     66,
+     60
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 35,
+    "putback6": 15,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 35,
+    "steals": 14,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 0
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 27,
+    "meanLen": 14.12,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202512260MEM",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    104,
+    125
+   ],
+   "ot": 0,
+   "plays": 486,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 4,
+    "largestLead": 21,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 197,
+    "qPts": [
+     60,
+     50,
+     65,
+     54
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 36,
+    "putback6": 12,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 36,
+    "steals": 23,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 30,
+    "meanLen": 14.47,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202512260NOP",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    115,
+    108
+   ],
+   "ot": 0,
+   "plays": 526,
+   "flow": {
+    "leadChanges": 13,
+    "ties": 8,
+    "largestLead": 9,
+    "runs8": 3,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 142,
+    "qPts": [
+     49,
+     52,
+     60,
+     62
+    ],
+    "clutchPts": 10,
+    "clutchFTPts": 2,
+    "clutchShare": 0.2,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 28,
+    "orebAll": 54,
+    "putback6": 21,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 54,
+    "steals": 19,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 205,
+    "secondChance": 34,
+    "meanLen": 14.05,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202512260ORL",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    120,
+    105
+   ],
+   "ot": 0,
+   "plays": 498,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 1,
+    "largestLead": 24,
+    "runs8": 3,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 197,
+    "qPts": [
+     66,
+     39,
+     68,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 32,
+    "orebAll": 47,
+    "putback6": 24,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 47,
+    "steals": 10,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 32,
+    "meanLen": 15.16,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202512260POR",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    119,
+    103
+   ],
+   "ot": 0,
+   "plays": 426,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 1,
+    "largestLead": 16,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 16,
+    "maxDroughtSec": 306,
+    "qPts": [
+     60,
+     58,
+     45,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 16
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 27,
+    "putback6": 7,
+    "putback6Legacy": 4,
+    "putback6LegacyDen": 27,
+    "steals": 12,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 183,
+    "secondChance": 18,
+    "meanLen": 15.74,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202512260UTA",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    129,
+    131
+   ],
+   "ot": 0,
+   "plays": 485,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 4,
+    "largestLead": 15,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 166,
+    "qPts": [
+     69,
+     66,
+     79,
+     46
+    ],
+    "clutchPts": 8,
+    "clutchFTPts": 2,
+    "clutchShare": 0.25,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 38,
+    "putback6": 16,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 38,
+    "steals": 23,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 28,
+    "meanLen": 13.85,
+    "p50Len": 13.5
+   }
+  },
+  {
+   "id": "202512260WAS",
+   "date": "2025-12-26",
+   "away": "MIA",
+   "home": "ATL",
+   "final": [
+    117,
+    138
+   ],
+   "ot": 0,
+   "plays": 462,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 3,
+    "largestLead": 21,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 128,
+    "qPts": [
+     67,
+     68,
+     67,
+     53
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 14,
+    "orebAll": 28,
+    "putback6": 13,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 28,
+    "steals": 18,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 22,
+    "meanLen": 14.19,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601020CHI",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    114,
+    121
+   ],
+   "ot": 0,
+   "plays": 447,
+   "flow": {
+    "leadChanges": 19,
+    "ties": 8,
+    "largestLead": 13,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 198,
+    "qPts": [
+     54,
+     64,
+     68,
+     49
+    ],
+    "clutchPts": 10,
+    "clutchFTPts": 4,
+    "clutchShare": 0.4,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 14,
+    "orebAll": 26,
+    "putback6": 11,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 26,
+    "steals": 16,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 21,
+    "meanLen": 14.55,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601020CLE",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    108,
+    113
+   ],
+   "ot": 0,
+   "plays": 445,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 5,
+    "largestLead": 11,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 10,
+    "maxDroughtSec": 278,
+    "qPts": [
+     52,
+     69,
+     64,
+     36
+    ],
+    "clutchPts": 6,
+    "clutchFTPts": 4,
+    "clutchShare": 0.667,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 31,
+    "putback6": 14,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 31,
+    "steals": 14,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 191,
+    "secondChance": 26,
+    "meanLen": 15.08,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601020GSW",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    131,
+    94
+   ],
+   "ot": 0,
+   "plays": 480,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 1,
+    "largestLead": 41,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 19,
+    "maxDroughtSec": 282,
+    "qPts": [
+     57,
+     52,
+     52,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 37
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 32,
+    "putback6": 16,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 32,
+    "steals": 18,
+    "stealScore6": 10,
+    "stealScore6Legacy": 10,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 27,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601020IND",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    123,
+    113
+   ],
+   "ot": 0,
+   "plays": 502,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 5,
+    "largestLead": 19,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 159,
+    "qPts": [
+     61,
+     68,
+     49,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 13,
+    "orebAll": 23,
+    "putback6": 12,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 23,
+    "steals": 17,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 17,
+    "meanLen": 13.78,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202601020LAL",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    121,
+    128
+   ],
+   "ot": 0,
+   "plays": 484,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 6,
+    "largestLead": 15,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 18,
+    "maxDroughtSec": 295,
+    "qPts": [
+     70,
+     56,
+     66,
+     57
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 14,
+    "orebAll": 28,
+    "putback6": 11,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 28,
+    "steals": 19,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 210,
+    "secondChance": 22,
+    "meanLen": 13.71,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202601020MIL",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    121,
+    122
+   ],
+   "ot": 0,
+   "plays": 455,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 14,
+    "largestLead": 16,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 172,
+    "qPts": [
+     62,
+     49,
+     67,
+     65
+    ],
+    "clutchPts": 17,
+    "clutchFTPts": 3,
+    "clutchShare": 0.176,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 16,
+    "orebAll": 28,
+    "putback6": 13,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 28,
+    "steals": 12,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 193,
+    "secondChance": 22,
+    "meanLen": 14.92,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601020NOP",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    122,
+    109
+   ],
+   "ot": 0,
+   "plays": 496,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 6,
+    "largestLead": 22,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 248,
+    "qPts": [
+     66,
+     52,
+     42,
+     71
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 38,
+    "orebAll": 60,
+    "putback6": 27,
+    "putback6Legacy": 22,
+    "putback6LegacyDen": 60,
+    "steals": 14,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 187,
+    "secondChance": 43,
+    "meanLen": 15.4,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601020NYK",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    111,
+    99
+   ],
+   "ot": 0,
+   "plays": 488,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 3,
+    "largestLead": 26,
+    "runs8": 6,
+    "runs10": 2,
+    "maxRun": 13,
+    "maxDroughtSec": 307,
+    "qPts": [
+     63,
+     44,
+     57,
+     46
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 12
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 36,
+    "putback6": 16,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 36,
+    "steals": 20,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 24,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601020PHO",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    102,
+    129
+   ],
+   "ot": 0,
+   "plays": 490,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 4,
+    "largestLead": 28,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 196,
+    "qPts": [
+     61,
+     57,
+     62,
+     51
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 27
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 36,
+    "putback6": 15,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 36,
+    "steals": 22,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 24,
+    "meanLen": 14.12,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601020WAS",
+   "date": "2026-01-02",
+   "away": "ORL",
+   "home": "CHI",
+   "final": [
+    99,
+    119
+   ],
+   "ot": 0,
+   "plays": 464,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 1,
+    "largestLead": 28,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 182,
+    "qPts": [
+     61,
+     53,
+     55,
+     49
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 34,
+    "putback6": 18,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 34,
+    "steals": 25,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 28,
+    "meanLen": 14.33,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601090BOS",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    117,
+    125
+   ],
+   "ot": 0,
+   "plays": 416,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 0,
+    "largestLead": 20,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 175,
+    "qPts": [
+     67,
+     61,
+     55,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 30,
+    "putback6": 13,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 30,
+    "steals": 10,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 185,
+    "secondChance": 25,
+    "meanLen": 15.57,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601090BRK",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    121,
+    105
+   ],
+   "ot": 0,
+   "plays": 431,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 23,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 241,
+    "qPts": [
+     60,
+     50,
+     57,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 16
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 39,
+    "putback6": 20,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 39,
+    "steals": 21,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 185,
+    "secondChance": 29,
+    "meanLen": 15.57,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601090DEN",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    110,
+    87
+   ],
+   "ot": 0,
+   "plays": 414,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 6,
+    "largestLead": 26,
+    "runs8": 4,
+    "runs10": 3,
+    "maxRun": 13,
+    "maxDroughtSec": 281,
+    "qPts": [
+     58,
+     50,
+     41,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 23
+   },
+   "grammar": {
+    "orebPlayer": 8,
+    "orebAll": 15,
+    "putback6": 7,
+    "putback6Legacy": 6,
+    "putback6LegacyDen": 15,
+    "steals": 20,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 11,
+    "meanLen": 15.16,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601090GSW",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    103,
+    137
+   ],
+   "ot": 0,
+   "plays": 424,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 4,
+    "largestLead": 35,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 15,
+    "maxDroughtSec": 242,
+    "qPts": [
+     63,
+     59,
+     59,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 34
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 36,
+    "putback6": 18,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 36,
+    "steals": 10,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 188,
+    "secondChance": 29,
+    "meanLen": 15.32,
+    "p50Len": 15.5
+   }
+  },
+  {
+   "id": "202601090LAL",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    105,
+    101
+   ],
+   "ot": 0,
+   "plays": 449,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 7,
+    "largestLead": 12,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 183,
+    "qPts": [
+     49,
+     64,
+     50,
+     43
+    ],
+    "clutchPts": 12,
+    "clutchFTPts": 4,
+    "clutchShare": 0.333,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 27,
+    "orebAll": 40,
+    "putback6": 21,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 40,
+    "steals": 19,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 186,
+    "secondChance": 30,
+    "meanLen": 15.48,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202601090MEM",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    117,
+    116
+   ],
+   "ot": 0,
+   "plays": 500,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 2,
+    "largestLead": 21,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 184,
+    "qPts": [
+     60,
+     51,
+     64,
+     58
+    ],
+    "clutchPts": 7,
+    "clutchFTPts": 2,
+    "clutchShare": 0.286,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 35,
+    "putback6": 17,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 35,
+    "steals": 13,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 10
+   },
+   "poss": {
+    "n": 194,
+    "secondChance": 26,
+    "meanLen": 14.85,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601090ORL",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    103,
+    91
+   ],
+   "ot": 0,
+   "plays": 485,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 2,
+    "largestLead": 16,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 224,
+    "qPts": [
+     52,
+     55,
+     55,
+     32
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 12
+   },
+   "grammar": {
+    "orebPlayer": 32,
+    "orebAll": 46,
+    "putback6": 28,
+    "putback6Legacy": 25,
+    "putback6LegacyDen": 46,
+    "steals": 17,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 38,
+    "meanLen": 15,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202601090PHO",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    107,
+    112
+   ],
+   "ot": 0,
+   "plays": 476,
+   "flow": {
+    "leadChanges": 13,
+    "ties": 10,
+    "largestLead": 12,
+    "runs8": 2,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 304,
+    "qPts": [
+     51,
+     71,
+     58,
+     39
+    ],
+    "clutchPts": 17,
+    "clutchFTPts": 7,
+    "clutchShare": 0.412,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 38,
+    "putback6": 12,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 38,
+    "steals": 7,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 184,
+    "secondChance": 27,
+    "meanLen": 15.65,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601090POR",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    105,
+    111
+   ],
+   "ot": 0,
+   "plays": 492,
+   "flow": {
+    "leadChanges": 24,
+    "ties": 13,
+    "largestLead": 13,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 277,
+    "qPts": [
+     57,
+     54,
+     56,
+     49
+    ],
+    "clutchPts": 13,
+    "clutchFTPts": 7,
+    "clutchShare": 0.538,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 36,
+    "orebAll": 49,
+    "putback6": 23,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 49,
+    "steals": 17,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 39,
+    "meanLen": 15,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202601090WAS",
+   "date": "2026-01-09",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    128,
+    107
+   ],
+   "ot": 0,
+   "plays": 503,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 2,
+    "largestLead": 26,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 175,
+    "qPts": [
+     54,
+     56,
+     74,
+     51
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 41,
+    "putback6": 18,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 41,
+    "steals": 22,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 11
+   },
+   "poss": {
+    "n": 214,
+    "secondChance": 31,
+    "meanLen": 13.46,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202601200CHI",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    110,
+    138
+   ],
+   "ot": 0,
+   "plays": 425,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 4,
+    "largestLead": 31,
+    "runs8": 6,
+    "runs10": 4,
+    "maxRun": 13,
+    "maxDroughtSec": 215,
+    "qPts": [
+     55,
+     64,
+     66,
+     63
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 28
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 28,
+    "putback6": 14,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 28,
+    "steals": 16,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 205,
+    "secondChance": 20,
+    "meanLen": 14.05,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601200DEN",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    115,
+    107
+   ],
+   "ot": 0,
+   "plays": 458,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 4,
+    "largestLead": 16,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 16,
+    "maxDroughtSec": 392,
+    "qPts": [
+     65,
+     63,
+     46,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 30,
+    "putback6": 10,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 30,
+    "steals": 9,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 18,
+    "meanLen": 15.16,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601200GSW",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    145,
+    127
+   ],
+   "ot": 0,
+   "plays": 474,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 30,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 10,
+    "maxDroughtSec": 228,
+    "qPts": [
+     69,
+     51,
+     82,
+     70
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 34,
+    "putback6": 14,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 34,
+    "steals": 14,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 27,
+    "meanLen": 13.91,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202601200HOU",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    106,
+    111
+   ],
+   "ot": 0,
+   "plays": 467,
+   "flow": {
+    "leadChanges": 12,
+    "ties": 4,
+    "largestLead": 16,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 387,
+    "qPts": [
+     67,
+     63,
+     44,
+     43
+    ],
+    "clutchPts": 6,
+    "clutchFTPts": 2,
+    "clutchShare": 0.333,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 36,
+    "putback6": 15,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 36,
+    "steals": 12,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 194,
+    "secondChance": 32,
+    "meanLen": 14.85,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601200PHI",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    116,
+    110
+   ],
+   "ot": 0,
+   "plays": 503,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 8,
+    "largestLead": 17,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 237,
+    "qPts": [
+     57,
+     53,
+     71,
+     45
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 33,
+    "orebAll": 45,
+    "putback6": 26,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 45,
+    "steals": 17,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 1
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 35,
+    "meanLen": 13.85,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202601200SAC",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    130,
+    117
+   ],
+   "ot": 0,
+   "plays": 470,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 0,
+    "largestLead": 17,
+    "runs8": 3,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 161,
+    "qPts": [
+     57,
+     84,
+     48,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 30,
+    "putback6": 16,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 30,
+    "steals": 12,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 210,
+    "secondChance": 21,
+    "meanLen": 13.71,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601200UTA",
+   "date": "2026-01-20",
+   "away": "LAC",
+   "home": "CHI",
+   "final": [
+    122,
+    127
+   ],
+   "ot": 0,
+   "plays": 483,
+   "flow": {
+    "leadChanges": 16,
+    "ties": 9,
+    "largestLead": 15,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 152,
+    "qPts": [
+     63,
+     54,
+     63,
+     69
+    ],
+    "clutchPts": 8,
+    "clutchFTPts": 3,
+    "clutchShare": 0.375,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 5
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 37,
+    "putback6": 22,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 37,
+    "steals": 20,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 24,
+    "meanLen": 13.85,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601280BOS",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    117,
+    106
+   ],
+   "ot": 0,
+   "plays": 445,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 0,
+    "largestLead": 23,
+    "runs8": 6,
+    "runs10": 3,
+    "maxRun": 12,
+    "maxDroughtSec": 246,
+    "qPts": [
+     56,
+     50,
+     57,
+     60
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 33,
+    "putback6": 19,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 33,
+    "steals": 14,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 188,
+    "secondChance": 26,
+    "meanLen": 15.32,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601280CLE",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    99,
+    129
+   ],
+   "ot": 0,
+   "plays": 423,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 5,
+    "largestLead": 34,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 243,
+    "qPts": [
+     52,
+     60,
+     64,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 30
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 32,
+    "putback6": 18,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 32,
+    "steals": 19,
+    "stealScore6": 10,
+    "stealScore6Legacy": 10,
+    "andOnes": 1
+   },
+   "poss": {
+    "n": 193,
+    "secondChance": 23,
+    "meanLen": 14.92,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202601280DAL",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    118,
+    105
+   ],
+   "ot": 0,
+   "plays": 506,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 5,
+    "largestLead": 17,
+    "runs8": 0,
+    "runs10": 0,
+    "maxRun": 7,
+    "maxDroughtSec": 153,
+    "qPts": [
+     60,
+     46,
+     61,
+     56
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 45,
+    "putback6": 15,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 45,
+    "steals": 21,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 27,
+    "meanLen": 13.78,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601280HOU",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    111,
+    99
+   ],
+   "ot": 0,
+   "plays": 478,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 4,
+    "largestLead": 16,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 267,
+    "qPts": [
+     62,
+     54,
+     54,
+     40
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 12
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 40,
+    "putback6": 20,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 40,
+    "steals": 17,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 27,
+    "meanLen": 14.55,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601280IND",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    110,
+    113
+   ],
+   "ot": 0,
+   "plays": 458,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 7,
+    "largestLead": 14,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 223,
+    "qPts": [
+     57,
+     45,
+     59,
+     62
+    ],
+    "clutchPts": 16,
+    "clutchFTPts": 2,
+    "clutchShare": 0.125,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 20,
+    "putback6": 8,
+    "putback6Legacy": 6,
+    "putback6LegacyDen": 20,
+    "steals": 10,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 193,
+    "secondChance": 18,
+    "meanLen": 14.92,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202601280MEM",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    112,
+    97
+   ],
+   "ot": 0,
+   "plays": 415,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 2,
+    "largestLead": 22,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 244,
+    "qPts": [
+     64,
+     53,
+     48,
+     44
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 37,
+    "putback6": 12,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 37,
+    "steals": 15,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 0
+   },
+   "poss": {
+    "n": 179,
+    "secondChance": 29,
+    "meanLen": 16.09,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202601280MIA",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    133,
+    124
+   ],
+   "ot": 0,
+   "plays": 469,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 4,
+    "largestLead": 17,
+    "runs8": 5,
+    "runs10": 3,
+    "maxRun": 14,
+    "maxDroughtSec": 169,
+    "qPts": [
+     61,
+     66,
+     60,
+     70
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 9
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 26,
+    "putback6": 19,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 26,
+    "steals": 18,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 213,
+    "secondChance": 21,
+    "meanLen": 13.52,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601280TOR",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    119,
+    92
+   ],
+   "ot": 0,
+   "plays": 476,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 0,
+    "largestLead": 27,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 13,
+    "maxDroughtSec": 237,
+    "qPts": [
+     46,
+     52,
+     54,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 27
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 34,
+    "putback6": 20,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 34,
+    "steals": 21,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 24,
+    "meanLen": 14.47,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202601280UTA",
+   "date": "2026-01-28",
+   "away": "ATL",
+   "home": "BOS",
+   "final": [
+    140,
+    124
+   ],
+   "ot": 0,
+   "plays": 476,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 0,
+    "largestLead": 27,
+    "runs8": 4,
+    "runs10": 3,
+    "maxRun": 15,
+    "maxDroughtSec": 194,
+    "qPts": [
+     58,
+     65,
+     71,
+     70
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 16
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 31,
+    "putback6": 19,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 31,
+    "steals": 31,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 215,
+    "secondChance": 23,
+    "meanLen": 13.4,
+    "p50Len": 12
+   }
+  },
+  {
+   "id": "202602060BOS",
+   "date": "2026-02-06",
+   "away": "MIA",
+   "home": "BOS",
+   "final": [
+    96,
+    98
+   ],
+   "ot": 0,
+   "plays": 459,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 6,
+    "largestLead": 22,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 201,
+    "qPts": [
+     44,
+     53,
+     51,
+     46
+    ],
+    "clutchPts": 3,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 37,
+    "putback6": 11,
+    "putback6Legacy": 8,
+    "putback6LegacyDen": 37,
+    "steals": 16,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 184,
+    "secondChance": 27,
+    "meanLen": 15.65,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602060DET",
+   "date": "2026-02-06",
+   "away": "MIA",
+   "home": "BOS",
+   "final": [
+    80,
+    118
+   ],
+   "ot": 0,
+   "plays": 431,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 3,
+    "largestLead": 43,
+    "runs8": 2,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 238,
+    "qPts": [
+     45,
+     60,
+     45,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 38
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 27,
+    "putback6": 15,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 27,
+    "steals": 16,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 186,
+    "secondChance": 19,
+    "meanLen": 15.48,
+    "p50Len": 15.5
+   }
+  },
+  {
+   "id": "202602060MIL",
+   "date": "2026-02-06",
+   "away": "MIA",
+   "home": "BOS",
+   "final": [
+    99,
+    105
+   ],
+   "ot": 0,
+   "plays": 419,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 4,
+    "largestLead": 20,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 15,
+    "maxDroughtSec": 275,
+    "qPts": [
+     52,
+     49,
+     47,
+     56
+    ],
+    "clutchPts": 2,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 28,
+    "putback6": 10,
+    "putback6Legacy": 5,
+    "putback6LegacyDen": 28,
+    "steals": 13,
+    "stealScore6": 0,
+    "stealScore6Legacy": 0,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 184,
+    "secondChance": 22,
+    "meanLen": 15.65,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602060MIN",
+   "date": "2026-02-06",
+   "away": "MIA",
+   "home": "BOS",
+   "final": [
+    119,
+    115
+   ],
+   "ot": 0,
+   "plays": 455,
+   "flow": {
+    "leadChanges": 17,
+    "ties": 10,
+    "largestLead": 18,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 218,
+    "qPts": [
+     66,
+     60,
+     57,
+     51
+    ],
+    "clutchPts": 14,
+    "clutchFTPts": 7,
+    "clutchShare": 0.5,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 37,
+    "putback6": 22,
+    "putback6Legacy": 18,
+    "putback6LegacyDen": 37,
+    "steals": 12,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 28,
+    "meanLen": 15,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602060POR",
+   "date": "2026-02-06",
+   "away": "MIA",
+   "home": "BOS",
+   "final": [
+    115,
+    135
+   ],
+   "ot": 0,
+   "plays": 458,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 4,
+    "largestLead": 30,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 186,
+    "qPts": [
+     61,
+     71,
+     61,
+     57
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 29,
+    "putback6": 16,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 29,
+    "steals": 21,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 21,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202602060SAC",
+   "date": "2026-02-06",
+   "away": "MIA",
+   "home": "BOS",
+   "final": [
+    114,
+    111
+   ],
+   "ot": 0,
+   "plays": 455,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 13,
+    "largestLead": 12,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 163,
+    "qPts": [
+     44,
+     53,
+     59,
+     69
+    ],
+    "clutchPts": 4,
+    "clutchFTPts": 2,
+    "clutchShare": 0.5,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 28,
+    "putback6": 11,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 28,
+    "steals": 16,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 25,
+    "meanLen": 14.77,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602120LAL",
+   "date": "2026-02-12",
+   "away": "DAL",
+   "home": "LAL",
+   "final": [
+    104,
+    124
+   ],
+   "ot": 0,
+   "plays": 443,
+   "flow": {
+    "leadChanges": 16,
+    "ties": 7,
+    "largestLead": 22,
+    "runs8": 7,
+    "runs10": 3,
+    "maxRun": 15,
+    "maxDroughtSec": 254,
+    "qPts": [
+     67,
+     60,
+     51,
+     50
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 14,
+    "orebAll": 24,
+    "putback6": 10,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 24,
+    "steals": 15,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 200,
+    "secondChance": 18,
+    "meanLen": 14.4,
+    "p50Len": 14.5
+   }
+  },
+  {
+   "id": "202602120OKC",
+   "date": "2026-02-12",
+   "away": "DAL",
+   "home": "LAL",
+   "final": [
+    110,
+    93
+   ],
+   "ot": 0,
+   "plays": 435,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 3,
+    "largestLead": 24,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 244,
+    "qPts": [
+     55,
+     67,
+     40,
+     41
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 17
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 38,
+    "putback6": 19,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 38,
+    "steals": 12,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 186,
+    "secondChance": 29,
+    "meanLen": 15.48,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602120UTA",
+   "date": "2026-02-12",
+   "away": "DAL",
+   "home": "LAL",
+   "final": [
+    135,
+    119
+   ],
+   "ot": 0,
+   "plays": 510,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 9,
+    "largestLead": 19,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 300,
+    "qPts": [
+     59,
+     65,
+     63,
+     67
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 16
+   },
+   "grammar": {
+    "orebPlayer": 31,
+    "orebAll": 40,
+    "putback6": 24,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 40,
+    "steals": 22,
+    "stealScore6": 10,
+    "stealScore6Legacy": 10,
+    "andOnes": 10
+   },
+   "poss": {
+    "n": 212,
+    "secondChance": 27,
+    "meanLen": 13.58,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202602250DEN",
+   "date": "2026-02-25",
+   "away": "BOS",
+   "home": "DEN",
+   "final": [
+    84,
+    103
+   ],
+   "ot": 0,
+   "plays": 461,
+   "flow": {
+    "leadChanges": 18,
+    "ties": 13,
+    "largestLead": 19,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 15,
+    "maxDroughtSec": 238,
+    "qPts": [
+     45,
+     50,
+     49,
+     43
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 19
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 38,
+    "putback6": 17,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 38,
+    "steals": 8,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 187,
+    "secondChance": 26,
+    "meanLen": 15.4,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602250DET",
+   "date": "2026-02-25",
+   "away": "BOS",
+   "home": "DEN",
+   "final": [
+    116,
+    124
+   ],
+   "ot": 0,
+   "plays": 492,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 3,
+    "largestLead": 17,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 255,
+    "qPts": [
+     56,
+     54,
+     64,
+     66
+    ],
+    "clutchPts": 7,
+    "clutchFTPts": 3,
+    "clutchShare": 0.429,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 28,
+    "orebAll": 43,
+    "putback6": 22,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 43,
+    "steals": 16,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 31,
+    "meanLen": 14.62,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202602250HOU",
+   "date": "2026-02-25",
+   "away": "BOS",
+   "home": "DEN",
+   "final": [
+    97,
+    128
+   ],
+   "ot": 0,
+   "plays": 433,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 1,
+    "largestLead": 36,
+    "runs8": 6,
+    "runs10": 2,
+    "maxRun": 15,
+    "maxDroughtSec": 269,
+    "qPts": [
+     55,
+     72,
+     57,
+     41
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 31
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 38,
+    "putback6": 18,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 38,
+    "steals": 15,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 24,
+    "meanLen": 15,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202602250MEM",
+   "date": "2026-02-25",
+   "away": "BOS",
+   "home": "DEN",
+   "final": [
+    133,
+    112
+   ],
+   "ot": 0,
+   "plays": 469,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 3,
+    "largestLead": 32,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 189,
+    "qPts": [
+     65,
+     62,
+     45,
+     73
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 32,
+    "putback6": 22,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 32,
+    "steals": 19,
+    "stealScore6": 10,
+    "stealScore6Legacy": 10,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 26,
+    "meanLen": 14.62,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602250MIL",
+   "date": "2026-02-25",
+   "away": "BOS",
+   "home": "DEN",
+   "final": [
+    116,
+    118
+   ],
+   "ot": 0,
+   "plays": 423,
+   "flow": {
+    "leadChanges": 13,
+    "ties": 12,
+    "largestLead": 12,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 13,
+    "maxDroughtSec": 244,
+    "qPts": [
+     66,
+     59,
+     62,
+     47
+    ],
+    "clutchPts": 8,
+    "clutchFTPts": 2,
+    "clutchShare": 0.25,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 2
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 33,
+    "putback6": 13,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 33,
+    "steals": 14,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 188,
+    "secondChance": 27,
+    "meanLen": 15.32,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202602250TOR",
+   "date": "2026-02-25",
+   "away": "BOS",
+   "home": "DEN",
+   "final": [
+    110,
+    107
+   ],
+   "ot": 0,
+   "plays": 510,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 8,
+    "largestLead": 15,
+    "runs8": 5,
+    "runs10": 3,
+    "maxRun": 10,
+    "maxDroughtSec": 172,
+    "qPts": [
+     59,
+     57,
+     52,
+     49
+    ],
+    "clutchPts": 9,
+    "clutchFTPts": 3,
+    "clutchShare": 0.333,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 3
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 35,
+    "putback6": 15,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 35,
+    "steals": 17,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 21,
+    "meanLen": 14.12,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202603080CLE",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    109,
+    98
+   ],
+   "ot": 0,
+   "plays": 453,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 2,
+    "largestLead": 26,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 265,
+    "qPts": [
+     61,
+     31,
+     63,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 35,
+    "putback6": 8,
+    "putback6Legacy": 4,
+    "putback6LegacyDen": 35,
+    "steals": 6,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 185,
+    "secondChance": 27,
+    "meanLen": 15.57,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603080LAL",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    97,
+    110
+   ],
+   "ot": 0,
+   "plays": 453,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 23,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 233,
+    "qPts": [
+     54,
+     49,
+     54,
+     50
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 13
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 29,
+    "putback6": 17,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 29,
+    "steals": 17,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 195,
+    "secondChance": 23,
+    "meanLen": 14.77,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603080MIA",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    110,
+    121
+   ],
+   "ot": 0,
+   "plays": 476,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 1,
+    "largestLead": 29,
+    "runs8": 7,
+    "runs10": 2,
+    "maxRun": 13,
+    "maxDroughtSec": 223,
+    "qPts": [
+     50,
+     65,
+     68,
+     48
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 40,
+    "putback6": 21,
+    "putback6Legacy": 20,
+    "putback6LegacyDen": 40,
+    "steals": 14,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 35,
+    "meanLen": 15.16,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603080MIL",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    130,
+    91
+   ],
+   "ot": 0,
+   "plays": 450,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 39,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 281,
+    "qPts": [
+     40,
+     82,
+     48,
+     51
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 39
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 34,
+    "putback6": 14,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 34,
+    "steals": 21,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 191,
+    "secondChance": 26,
+    "meanLen": 15.08,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603080NOP",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    118,
+    138
+   ],
+   "ot": 0,
+   "plays": 505,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 5,
+    "largestLead": 23,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 180,
+    "qPts": [
+     67,
+     65,
+     63,
+     61
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 43,
+    "putback6": 21,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 43,
+    "steals": 13,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 29,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202603080PHO",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    99,
+    111
+   ],
+   "ot": 0,
+   "plays": 447,
+   "flow": {
+    "leadChanges": 15,
+    "ties": 10,
+    "largestLead": 16,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 254,
+    "qPts": [
+     58,
+     60,
+     40,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 12
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 38,
+    "putback6": 14,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 38,
+    "steals": 6,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 174,
+    "secondChance": 29,
+    "meanLen": 16.55,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202603080POR",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    111,
+    131
+   ],
+   "ot": 0,
+   "plays": 499,
+   "flow": {
+    "leadChanges": 13,
+    "ties": 7,
+    "largestLead": 24,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 183,
+    "qPts": [
+     60,
+     61,
+     59,
+     62
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 43,
+    "putback6": 17,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 43,
+    "steals": 14,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 9
+   },
+   "poss": {
+    "n": 201,
+    "secondChance": 31,
+    "meanLen": 14.33,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202603080SAC",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    110,
+    126
+   ],
+   "ot": 0,
+   "plays": 503,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 4,
+    "largestLead": 17,
+    "runs8": 1,
+    "runs10": 0,
+    "maxRun": 8,
+    "maxDroughtSec": 189,
+    "qPts": [
+     55,
+     61,
+     77,
+     43
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 16
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 35,
+    "putback6": 18,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 35,
+    "steals": 7,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 23,
+    "meanLen": 14.19,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603080SAS",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    120,
+    145
+   ],
+   "ot": 0,
+   "plays": 472,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 3,
+    "largestLead": 30,
+    "runs8": 2,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 152,
+    "qPts": [
+     65,
+     61,
+     78,
+     61
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 25
+   },
+   "grammar": {
+    "orebPlayer": 14,
+    "orebAll": 27,
+    "putback6": 8,
+    "putback6Legacy": 7,
+    "putback6LegacyDen": 27,
+    "steals": 9,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 20,
+    "meanLen": 14.55,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603080TOR",
+   "date": "2026-03-08",
+   "away": "BOS",
+   "home": "CLE",
+   "final": [
+    92,
+    122
+   ],
+   "ot": 0,
+   "plays": 475,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 1,
+    "largestLead": 32,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 10,
+    "maxDroughtSec": 201,
+    "qPts": [
+     65,
+     36,
+     53,
+     60
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 30
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 37,
+    "putback6": 15,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 37,
+    "steals": 16,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 30,
+    "meanLen": 14.47,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202603180BOS",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    99,
+    120
+   ],
+   "ot": 0,
+   "plays": 475,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 0,
+    "largestLead": 26,
+    "runs8": 7,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 187,
+    "qPts": [
+     59,
+     54,
+     49,
+     57
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 21
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 42,
+    "putback6": 20,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 42,
+    "steals": 24,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 196,
+    "secondChance": 34,
+    "meanLen": 14.69,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202603180BRK",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    121,
+    92
+   ],
+   "ot": 0,
+   "plays": 463,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 1,
+    "largestLead": 42,
+    "runs8": 7,
+    "runs10": 3,
+    "maxRun": 13,
+    "maxDroughtSec": 244,
+    "qPts": [
+     39,
+     45,
+     62,
+     67
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 29
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 37,
+    "putback6": 16,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 37,
+    "steals": 24,
+    "stealScore6": 11,
+    "stealScore6Legacy": 11,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 206,
+    "secondChance": 25,
+    "meanLen": 13.98,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202603180CHI",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    139,
+    109
+   ],
+   "ot": 0,
+   "plays": 478,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 38,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 254,
+    "qPts": [
+     49,
+     68,
+     67,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 30
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 28,
+    "putback6": 11,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 28,
+    "steals": 19,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 215,
+    "secondChance": 19,
+    "meanLen": 13.4,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202603180DAL",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    135,
+    120
+   ],
+   "ot": 0,
+   "plays": 472,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 21,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 152,
+    "qPts": [
+     67,
+     56,
+     60,
+     72
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 36,
+    "putback6": 18,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 36,
+    "steals": 18,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 210,
+    "secondChance": 28,
+    "meanLen": 13.71,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202603180HOU",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    124,
+    116
+   ],
+   "ot": 0,
+   "plays": 437,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 9,
+    "largestLead": 13,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 163,
+    "qPts": [
+     61,
+     61,
+     59,
+     59
+    ],
+    "clutchPts": 2,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 32,
+    "putback6": 12,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 32,
+    "steals": 16,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 191,
+    "secondChance": 22,
+    "meanLen": 15.08,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603180IND",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    127,
+    119
+   ],
+   "ot": 0,
+   "plays": 494,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 22,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 166,
+    "qPts": [
+     70,
+     71,
+     50,
+     55
+    ],
+    "clutchPts": 3,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 8
+   },
+   "grammar": {
+    "orebPlayer": 32,
+    "orebAll": 44,
+    "putback6": 22,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 44,
+    "steals": 14,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 31,
+    "meanLen": 14.62,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202603180MEM",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    118,
+    125
+   ],
+   "ot": 0,
+   "plays": 512,
+   "flow": {
+    "leadChanges": 21,
+    "ties": 11,
+    "largestLead": 11,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 174,
+    "qPts": [
+     61,
+     59,
+     70,
+     53
+    ],
+    "clutchPts": 1,
+    "clutchFTPts": 1,
+    "clutchShare": 1,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 7
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 38,
+    "putback6": 14,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 38,
+    "steals": 18,
+    "stealScore6": 10,
+    "stealScore6Legacy": 10,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 215,
+    "secondChance": 27,
+    "meanLen": 13.4,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202603180MIN",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    111,
+    147
+   ],
+   "ot": 0,
+   "plays": 510,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 3,
+    "largestLead": 38,
+    "runs8": 8,
+    "runs10": 4,
+    "maxRun": 12,
+    "maxDroughtSec": 212,
+    "qPts": [
+     74,
+     56,
+     64,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 36
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 43,
+    "putback6": 26,
+    "putback6Legacy": 21,
+    "putback6LegacyDen": 43,
+    "steals": 25,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 9
+   },
+   "poss": {
+    "n": 217,
+    "secondChance": 31,
+    "meanLen": 13.27,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202603180NOP",
+   "date": "2026-03-18",
+   "away": "GSW",
+   "home": "BOS",
+   "final": [
+    109,
+    124
+   ],
+   "ot": 0,
+   "plays": 421,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 2,
+    "largestLead": 20,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 230,
+    "qPts": [
+     66,
+     54,
+     61,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 15
+   },
+   "grammar": {
+    "orebPlayer": 27,
+    "orebAll": 36,
+    "putback6": 22,
+    "putback6Legacy": 20,
+    "putback6LegacyDen": 36,
+    "steals": 22,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 191,
+    "secondChance": 26,
+    "meanLen": 15.08,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603280ATL",
+   "date": "2026-03-28",
+   "away": "SAC",
+   "home": "ATL",
+   "final": [
+    113,
+    123
+   ],
+   "ot": 0,
+   "plays": 444,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 9,
+    "largestLead": 16,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 14,
+    "maxDroughtSec": 163,
+    "qPts": [
+     57,
+     63,
+     50,
+     66
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 40,
+    "putback6": 22,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 40,
+    "steals": 17,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 29,
+    "meanLen": 15,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603280CHO",
+   "date": "2026-03-28",
+   "away": "SAC",
+   "home": "ATL",
+   "final": [
+    118,
+    114
+   ],
+   "ot": 0,
+   "plays": 504,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 5,
+    "largestLead": 15,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 340,
+    "qPts": [
+     61,
+     72,
+     56,
+     43
+    ],
+    "clutchPts": 11,
+    "clutchFTPts": 5,
+    "clutchShare": 0.455,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 28,
+    "orebAll": 45,
+    "putback6": 22,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 45,
+    "steals": 11,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 28,
+    "meanLen": 15,
+    "p50Len": 14.5
+   }
+  },
+  {
+   "id": "202603280MEM",
+   "date": "2026-03-28",
+   "away": "SAC",
+   "home": "ATL",
+   "final": [
+    124,
+    125
+   ],
+   "ot": 0,
+   "plays": 536,
+   "flow": {
+    "leadChanges": 13,
+    "ties": 18,
+    "largestLead": 11,
+    "runs8": 6,
+    "runs10": 2,
+    "maxRun": 13,
+    "maxDroughtSec": 214,
+    "qPts": [
+     58,
+     56,
+     72,
+     63
+    ],
+    "clutchPts": 22,
+    "clutchFTPts": 4,
+    "clutchShare": 0.182,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 20,
+    "orebAll": 39,
+    "putback6": 16,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 39,
+    "steals": 25,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 10
+   },
+   "poss": {
+    "n": 221,
+    "secondChance": 31,
+    "meanLen": 13.03,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202603280MIL",
+   "date": "2026-03-28",
+   "away": "SAC",
+   "home": "ATL",
+   "final": [
+    127,
+    95
+   ],
+   "ot": 0,
+   "plays": 419,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 0,
+    "largestLead": 38,
+    "runs8": 5,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 303,
+    "qPts": [
+     61,
+     51,
+     69,
+     41
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 32
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 31,
+    "putback6": 10,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 31,
+    "steals": 22,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 194,
+    "secondChance": 20,
+    "meanLen": 14.85,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603280MIN",
+   "date": "2026-03-28",
+   "away": "SAC",
+   "home": "ATL",
+   "final": [
+    109,
+    87
+   ],
+   "ot": 0,
+   "plays": 467,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 2,
+    "largestLead": 24,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 314,
+    "qPts": [
+     57,
+     36,
+     41,
+     62
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 22
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 36,
+    "putback6": 13,
+    "putback6Legacy": 9,
+    "putback6LegacyDen": 36,
+    "steals": 19,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 196,
+    "secondChance": 28,
+    "meanLen": 14.69,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202603280PHO",
+   "date": "2026-03-28",
+   "away": "SAC",
+   "home": "ATL",
+   "final": [
+    109,
+    134
+   ],
+   "ot": 0,
+   "plays": 478,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 2,
+    "largestLead": 34,
+    "runs8": 7,
+    "runs10": 3,
+    "maxRun": 13,
+    "maxDroughtSec": 219,
+    "qPts": [
+     60,
+     58,
+     73,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 25
+   },
+   "grammar": {
+    "orebPlayer": 32,
+    "orebAll": 41,
+    "putback6": 24,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 41,
+    "steals": 16,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 30,
+    "meanLen": 13.91,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604050BOS",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    101,
+    115
+   ],
+   "ot": 0,
+   "plays": 442,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 8,
+    "largestLead": 18,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 287,
+    "qPts": [
+     52,
+     48,
+     57,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 14
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 34,
+    "putback6": 13,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 34,
+    "steals": 16,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 194,
+    "secondChance": 22,
+    "meanLen": 14.85,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604050BRK",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    115,
+    121
+   ],
+   "ot": 0,
+   "plays": 440,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 5,
+    "largestLead": 17,
+    "runs8": 6,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 198,
+    "qPts": [
+     58,
+     55,
+     56,
+     67
+    ],
+    "clutchPts": 9,
+    "clutchFTPts": 0,
+    "clutchShare": 0,
+    "led10InQ4": false,
+    "led10Lost": false,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 35,
+    "putback6": 14,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 35,
+    "steals": 20,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 197,
+    "secondChance": 25,
+    "meanLen": 14.62,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604050CHI",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    120,
+    110
+   ],
+   "ot": 0,
+   "plays": 488,
+   "flow": {
+    "leadChanges": 10,
+    "ties": 8,
+    "largestLead": 13,
+    "runs8": 2,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 175,
+    "qPts": [
+     60,
+     59,
+     51,
+     60
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 10
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 42,
+    "putback6": 20,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 42,
+    "steals": 20,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 202,
+    "secondChance": 32,
+    "meanLen": 14.26,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604050CLE",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    108,
+    117
+   ],
+   "ot": 0,
+   "plays": 472,
+   "flow": {
+    "leadChanges": 9,
+    "ties": 5,
+    "largestLead": 15,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 239,
+    "qPts": [
+     63,
+     50,
+     68,
+     44
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 9
+   },
+   "grammar": {
+    "orebPlayer": 21,
+    "orebAll": 33,
+    "putback6": 14,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 33,
+    "steals": 15,
+    "stealScore6": 2,
+    "stealScore6Legacy": 2,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 24,
+    "meanLen": 14.55,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604050DAL",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    128,
+    134
+   ],
+   "ot": 0,
+   "plays": 493,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 1,
+    "largestLead": 22,
+    "runs8": 6,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 214,
+    "qPts": [
+     71,
+     57,
+     76,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 19,
+    "orebAll": 32,
+    "putback6": 12,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 32,
+    "steals": 17,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 205,
+    "secondChance": 22,
+    "meanLen": 14.05,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604050GSW",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    117,
+    116
+   ],
+   "ot": 0,
+   "plays": 441,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 4,
+    "largestLead": 15,
+    "runs8": 6,
+    "runs10": 2,
+    "maxRun": 13,
+    "maxDroughtSec": 234,
+    "qPts": [
+     57,
+     51,
+     66,
+     59
+    ],
+    "clutchPts": 14,
+    "clutchFTPts": 1,
+    "clutchShare": 0.071,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 1
+   },
+   "grammar": {
+    "orebPlayer": 14,
+    "orebAll": 24,
+    "putback6": 11,
+    "putback6Legacy": 6,
+    "putback6LegacyDen": 24,
+    "steals": 11,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 186,
+    "secondChance": 18,
+    "meanLen": 15.48,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604050MIL",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    115,
+    131
+   ],
+   "ot": 0,
+   "plays": 461,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 2,
+    "largestLead": 19,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 15,
+    "maxDroughtSec": 186,
+    "qPts": [
+     59,
+     59,
+     61,
+     67
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 16
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 40,
+    "putback6": 20,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 40,
+    "steals": 24,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 30,
+    "meanLen": 14.19,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604050MIN",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    122,
+    108
+   ],
+   "ot": 0,
+   "plays": 458,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 9,
+    "largestLead": 22,
+    "runs8": 3,
+    "runs10": 2,
+    "maxRun": 15,
+    "maxDroughtSec": 214,
+    "qPts": [
+     50,
+     65,
+     53,
+     62
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 14
+   },
+   "grammar": {
+    "orebPlayer": 29,
+    "orebAll": 37,
+    "putback6": 21,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 37,
+    "steals": 16,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 192,
+    "secondChance": 29,
+    "meanLen": 15,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604050NOP",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    112,
+    108
+   ],
+   "ot": 0,
+   "plays": 522,
+   "flow": {
+    "leadChanges": 14,
+    "ties": 8,
+    "largestLead": 15,
+    "runs8": 2,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 185,
+    "qPts": [
+     57,
+     55,
+     57,
+     51
+    ],
+    "clutchPts": 9,
+    "clutchFTPts": 7,
+    "clutchShare": 0.778,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 41,
+    "putback6": 18,
+    "putback6Legacy": 17,
+    "putback6LegacyDen": 41,
+    "steals": 13,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 207,
+    "secondChance": 26,
+    "meanLen": 13.91,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202604050OKC",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    111,
+    146
+   ],
+   "ot": 0,
+   "plays": 440,
+   "flow": {
+    "leadChanges": 3,
+    "ties": 0,
+    "largestLead": 43,
+    "runs8": 7,
+    "runs10": 2,
+    "maxRun": 15,
+    "maxDroughtSec": 306,
+    "qPts": [
+     65,
+     64,
+     60,
+     68
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 35
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 30,
+    "putback6": 16,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 30,
+    "steals": 19,
+    "stealScore6": 7,
+    "stealScore6Legacy": 6,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 214,
+    "secondChance": 22,
+    "meanLen": 13.46,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202604050SAC",
+   "date": "2026-04-05",
+   "away": "TOR",
+   "home": "BOS",
+   "final": [
+    138,
+    109
+   ],
+   "ot": 0,
+   "plays": 441,
+   "flow": {
+    "leadChanges": 5,
+    "ties": 4,
+    "largestLead": 37,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 140,
+    "qPts": [
+     74,
+     56,
+     56,
+     61
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 29
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 32,
+    "putback6": 16,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 32,
+    "steals": 24,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 26,
+    "meanLen": 14.19,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604100ATL",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    102,
+    124
+   ],
+   "ot": 0,
+   "plays": 462,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 5,
+    "largestLead": 36,
+    "runs8": 6,
+    "runs10": 3,
+    "maxRun": 16,
+    "maxDroughtSec": 327,
+    "qPts": [
+     49,
+     60,
+     52,
+     65
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 22
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 36,
+    "putback6": 17,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 36,
+    "steals": 20,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 3
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 26,
+    "meanLen": 14.19,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604100BOS",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    118,
+    144
+   ],
+   "ot": 0,
+   "plays": 474,
+   "flow": {
+    "leadChanges": 1,
+    "ties": 1,
+    "largestLead": 41,
+    "runs8": 7,
+    "runs10": 3,
+    "maxRun": 11,
+    "maxDroughtSec": 183,
+    "qPts": [
+     69,
+     64,
+     65,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 26
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 40,
+    "putback6": 19,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 40,
+    "steals": 15,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 7
+   },
+   "poss": {
+    "n": 209,
+    "secondChance": 29,
+    "meanLen": 13.78,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202604100CHI",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    127,
+    103
+   ],
+   "ot": 0,
+   "plays": 492,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 5,
+    "largestLead": 28,
+    "runs8": 4,
+    "runs10": 0,
+    "maxRun": 9,
+    "maxDroughtSec": 227,
+    "qPts": [
+     54,
+     63,
+     61,
+     52
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 24
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 36,
+    "putback6": 17,
+    "putback6Legacy": 16,
+    "putback6LegacyDen": 36,
+    "steals": 22,
+    "stealScore6": 8,
+    "stealScore6Legacy": 8,
+    "andOnes": 8
+   },
+   "poss": {
+    "n": 211,
+    "secondChance": 26,
+    "meanLen": 13.65,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604100CHO",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    118,
+    100
+   ],
+   "ot": 0,
+   "plays": 495,
+   "flow": {
+    "leadChanges": 11,
+    "ties": 13,
+    "largestLead": 21,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 14,
+    "maxDroughtSec": 294,
+    "qPts": [
+     66,
+     67,
+     50,
+     35
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 18
+   },
+   "grammar": {
+    "orebPlayer": 30,
+    "orebAll": 47,
+    "putback6": 19,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 47,
+    "steals": 23,
+    "stealScore6": 7,
+    "stealScore6Legacy": 7,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 189,
+    "secondChance": 38,
+    "meanLen": 15.24,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604100DEN",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    107,
+    127
+   ],
+   "ot": 0,
+   "plays": 433,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 1,
+    "largestLead": 21,
+    "runs8": 1,
+    "runs10": 1,
+    "maxRun": 17,
+    "maxDroughtSec": 337,
+    "qPts": [
+     61,
+     49,
+     65,
+     59
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 20
+   },
+   "grammar": {
+    "orebPlayer": 25,
+    "orebAll": 35,
+    "putback6": 21,
+    "putback6Legacy": 15,
+    "putback6LegacyDen": 35,
+    "steals": 21,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 0
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 29,
+    "meanLen": 14.19,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604100HOU",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    136,
+    132
+   ],
+   "ot": 0,
+   "plays": 444,
+   "flow": {
+    "leadChanges": 22,
+    "ties": 19,
+    "largestLead": 10,
+    "runs8": 0,
+    "runs10": 0,
+    "maxRun": 7,
+    "maxDroughtSec": 165,
+    "qPts": [
+     73,
+     69,
+     67,
+     59
+    ],
+    "clutchPts": 5,
+    "clutchFTPts": 2,
+    "clutchShare": 0.4,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 4
+   },
+   "grammar": {
+    "orebPlayer": 18,
+    "orebAll": 35,
+    "putback6": 12,
+    "putback6Legacy": 11,
+    "putback6LegacyDen": 35,
+    "steals": 11,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 198,
+    "secondChance": 25,
+    "meanLen": 14.55,
+    "p50Len": 14
+   }
+  },
+  {
+   "id": "202604100IND",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    105,
+    94
+   ],
+   "ot": 0,
+   "plays": 483,
+   "flow": {
+    "leadChanges": 2,
+    "ties": 4,
+    "largestLead": 14,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 11,
+    "maxDroughtSec": 407,
+    "qPts": [
+     49,
+     60,
+     57,
+     33
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 11
+   },
+   "grammar": {
+    "orebPlayer": 26,
+    "orebAll": 32,
+    "putback6": 16,
+    "putback6Legacy": 13,
+    "putback6LegacyDen": 32,
+    "steals": 19,
+    "stealScore6": 4,
+    "stealScore6Legacy": 4,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 208,
+    "secondChance": 29,
+    "meanLen": 13.85,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202604100LAL",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    73,
+    101
+   ],
+   "ot": 0,
+   "plays": 449,
+   "flow": {
+    "leadChanges": 6,
+    "ties": 2,
+    "largestLead": 29,
+    "runs8": 3,
+    "runs10": 1,
+    "maxRun": 13,
+    "maxDroughtSec": 231,
+    "qPts": [
+     57,
+     48,
+     40,
+     29
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 28
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 37,
+    "putback6": 11,
+    "putback6Legacy": 10,
+    "putback6LegacyDen": 37,
+    "steals": 25,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 2
+   },
+   "poss": {
+    "n": 179,
+    "secondChance": 24,
+    "meanLen": 16.09,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202604100MIL",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    108,
+    125
+   ],
+   "ot": 0,
+   "plays": 403,
+   "flow": {
+    "leadChanges": 0,
+    "ties": 1,
+    "largestLead": 23,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 12,
+    "maxDroughtSec": 183,
+    "qPts": [
+     62,
+     58,
+     63,
+     50
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 17
+   },
+   "grammar": {
+    "orebPlayer": 17,
+    "orebAll": 26,
+    "putback6": 12,
+    "putback6Legacy": 4,
+    "putback6LegacyDen": 26,
+    "steals": 12,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 190,
+    "secondChance": 19,
+    "meanLen": 15.16,
+    "p50Len": 15.5
+   }
+  },
+  {
+   "id": "202604100NYK",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    95,
+    112
+   ],
+   "ot": 0,
+   "plays": 416,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 1,
+    "largestLead": 19,
+    "runs8": 4,
+    "runs10": 2,
+    "maxRun": 12,
+    "maxDroughtSec": 280,
+    "qPts": [
+     43,
+     44,
+     56,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 17
+   },
+   "grammar": {
+    "orebPlayer": 12,
+    "orebAll": 23,
+    "putback6": 7,
+    "putback6Legacy": 5,
+    "putback6LegacyDen": 23,
+    "steals": 17,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 182,
+    "secondChance": 16,
+    "meanLen": 15.82,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202604100POR",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    97,
+    116
+   ],
+   "ot": 0,
+   "plays": 463,
+   "flow": {
+    "leadChanges": 8,
+    "ties": 9,
+    "largestLead": 20,
+    "runs8": 7,
+    "runs10": 5,
+    "maxRun": 12,
+    "maxDroughtSec": 309,
+    "qPts": [
+     57,
+     55,
+     58,
+     43
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 19
+   },
+   "grammar": {
+    "orebPlayer": 24,
+    "orebAll": 36,
+    "putback6": 15,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 36,
+    "steals": 18,
+    "stealScore6": 5,
+    "stealScore6Legacy": 5,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 187,
+    "secondChance": 30,
+    "meanLen": 15.4,
+    "p50Len": 16
+   }
+  },
+  {
+   "id": "202604100SAC",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    118,
+    124
+   ],
+   "ot": 0,
+   "plays": 490,
+   "flow": {
+    "leadChanges": 15,
+    "ties": 10,
+    "largestLead": 15,
+    "runs8": 4,
+    "runs10": 3,
+    "maxRun": 12,
+    "maxDroughtSec": 178,
+    "qPts": [
+     59,
+     55,
+     57,
+     71
+    ],
+    "clutchPts": 13,
+    "clutchFTPts": 7,
+    "clutchShare": 0.538,
+    "led10InQ4": true,
+    "led10Lost": true,
+    "finalMargin": 6
+   },
+   "grammar": {
+    "orebPlayer": 22,
+    "orebAll": 34,
+    "putback6": 15,
+    "putback6Legacy": 12,
+    "putback6LegacyDen": 34,
+    "steals": 22,
+    "stealScore6": 3,
+    "stealScore6Legacy": 3,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 203,
+    "secondChance": 25,
+    "meanLen": 14.19,
+    "p50Len": 13
+   }
+  },
+  {
+   "id": "202604100SAS",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    120,
+    139
+   ],
+   "ot": 0,
+   "plays": 466,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 8,
+    "largestLead": 24,
+    "runs8": 5,
+    "runs10": 1,
+    "maxRun": 10,
+    "maxDroughtSec": 174,
+    "qPts": [
+     63,
+     70,
+     68,
+     58
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 19
+   },
+   "grammar": {
+    "orebPlayer": 27,
+    "orebAll": 35,
+    "putback6": 19,
+    "putback6Legacy": 14,
+    "putback6LegacyDen": 35,
+    "steals": 11,
+    "stealScore6": 1,
+    "stealScore6Legacy": 1,
+    "andOnes": 6
+   },
+   "poss": {
+    "n": 199,
+    "secondChance": 27,
+    "meanLen": 14.47,
+    "p50Len": 15
+   }
+  },
+  {
+   "id": "202604100UTA",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    101,
+    147
+   ],
+   "ot": 0,
+   "plays": 467,
+   "flow": {
+    "leadChanges": 7,
+    "ties": 5,
+    "largestLead": 55,
+    "runs8": 6,
+    "runs10": 2,
+    "maxRun": 15,
+    "maxDroughtSec": 217,
+    "qPts": [
+     63,
+     63,
+     58,
+     64
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 46
+   },
+   "grammar": {
+    "orebPlayer": 23,
+    "orebAll": 32,
+    "putback6": 22,
+    "putback6Legacy": 19,
+    "putback6LegacyDen": 32,
+    "steals": 26,
+    "stealScore6": 9,
+    "stealScore6Legacy": 9,
+    "andOnes": 5
+   },
+   "poss": {
+    "n": 242,
+    "secondChance": 25,
+    "meanLen": 11.9,
+    "p50Len": 11
+   }
+  },
+  {
+   "id": "202604100WAS",
+   "date": "2026-04-10",
+   "away": "CLE",
+   "home": "ATL",
+   "final": [
+    140,
+    117
+   ],
+   "ot": 0,
+   "plays": 425,
+   "flow": {
+    "leadChanges": 4,
+    "ties": 2,
+    "largestLead": 25,
+    "runs8": 4,
+    "runs10": 1,
+    "maxRun": 11,
+    "maxDroughtSec": 210,
+    "qPts": [
+     57,
+     67,
+     66,
+     67
+    ],
+    "clutchPts": 0,
+    "clutchFTPts": 0,
+    "clutchShare": null,
+    "led10InQ4": true,
+    "led10Lost": false,
+    "finalMargin": 23
+   },
+   "grammar": {
+    "orebPlayer": 15,
+    "orebAll": 29,
+    "putback6": 13,
+    "putback6Legacy": 5,
+    "putback6LegacyDen": 29,
+    "steals": 19,
+    "stealScore6": 6,
+    "stealScore6Legacy": 6,
+    "andOnes": 4
+   },
+   "poss": {
+    "n": 204,
+    "secondChance": 21,
+    "meanLen": 14.12,
+    "p50Len": 14
+   }
+  }
+ ]
+}

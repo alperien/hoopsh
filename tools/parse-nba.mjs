@@ -299,6 +299,7 @@ function possessionMetrics(plays) {
 }
 
 // ---------------------------------------------------------------- stats helpers
+const today = () => new Date().toLocaleDateString('sv'); // local YYYY-MM-DD
 const round = (x, d = 2) => Number(x.toFixed(d));
 function percentile(sorted, p) {
   if (sorted.length === 0) return null;
@@ -461,7 +462,7 @@ const corpus = {
     purpose: 'Real-NBA play-by-play corpus for the data spine: per-game derived flow/grammar metrics plus corpus distributions. Full play arrays live in pbp-plays/ shards; raw HTML stays out of git (data/nba/raw/, gitignored).',
     source: 'https://www.basketball-reference.com/boxscores/pbp/<gameId>.html',
     season: '2025-26 regular season',
-    generatedAt: new Date().toISOString().slice(0, 10),
+    generatedAt: today(),
     pipeline: 'npm run nba:fetch -- --season 2025-26 && npm run nba:parse -- --write-reference',
     games: good.length,
     failed: failures,
@@ -541,9 +542,9 @@ if (writeReference) {
       },
       previousAnchor: {
         note: 'The retired n=6 anchor this corpus replaces (kept for scholarship; deltas in meta.changesVsAnchor).',
-        gameIds: old.meta.primarySample.gameIds
+        gameIds: old.meta.previousAnchor?.gameIds ?? old.meta.primarySample?.gameIds ?? null // survives re-runs
       },
-      generatedAt: new Date().toISOString().slice(0, 10),
+      generatedAt: today(),
       generatedBy: 'tools/parse-nba.mjs --write-reference',
       definitions: {
         leadChange: 'scoreboard leader flips sign between two scoring events; tie interludes are not changes; a tie is counted once when entered from a led state',
