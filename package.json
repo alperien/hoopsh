@@ -29,6 +29,7 @@
     "fingerprint:write": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fingerprint.ts --write",
     "calreport": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/calreport.ts",
     "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
+    "rosters:fit": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fit-roster.ts",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",
     "docs:bible": "node tools/build-bible.mjs"
