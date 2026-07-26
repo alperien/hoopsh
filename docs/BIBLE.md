@@ -484,6 +484,16 @@ out-of-sample roster check in the harness; distributional realism (score
 variance, blowout rate, quarter profiles) is reported but not yet enforced.
 Treat band-locked as "necessary, not sufficient".
 
+**Out-of-sample status** (`npm run oos` — generated rosters the sweep never
+saw): 15/17 bands generalize, including assisted share and the pace/efficiency
+cluster. Two findings, recorded not hidden: the three-point DIET
+under-expresses on shooter-poor random rosters (3PA share ~30% vs the 33%
+floor — the appetite calibration leans on the sample teams' shooter mix), and
+the distributional report shows games slightly too decisive (avg margin ~13.7
+vs the NBA's ~11-12, blowouts ~23% vs 15-20%, overtime ~2.5% vs 5-7% — one
+coherent story: game-to-game variance runs high). Both are open calibration
+items, not claims.
+
 ## Known simplifications (deliberate, documented)
 
 Simplified inbounds (timed reset, no inbound passer) · no timeouts · no backcourt/

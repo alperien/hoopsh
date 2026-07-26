@@ -17,6 +17,7 @@
     "sweep": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/sweep.ts",
     "fidelity": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fidelity.ts",
     "solve": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/solve.ts",
+    "oos": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/oos.ts",
     "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",
