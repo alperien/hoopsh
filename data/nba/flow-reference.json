@@ -1,0 +1,182 @@
+{
+  "meta": {
+    "purpose": "Real-NBA reference values for game-FLOW metrics (harness/src/flow.ts) and event-grammar magnitudes. Every value carries provenance; provisional values are honest small-sample anchors to be replaced by the data-spine milestone (REFACTOR.md roadmap M2), not folk numbers.",
+    "primarySample": {
+      "what": "Six 2025-26 regular-season games parsed from public basketball-reference play-by-play pages (game ids below); metrics computed with the same operational definitions flow.ts applies to sim events.",
+      "gameIds": [
+        "202512150BOS",
+        "202601200CHI",
+        "202603080CLE",
+        "202511050CLE",
+        "202602120OKC",
+        "202512150DEN"
+      ],
+      "caveat": "n=6 is an anchor, not a distribution. Grade B = computed from primary play-by-play with a stated definition; grade C = thin/derived; grade A reserved for published multi-season data with methodology."
+    },
+    "generatedAt": "2026-07-27",
+    "publishedSources": {
+      "note": "Published/derived values from a sourced research pass (2026-07-27); where they disagree with the primary sample the DEFINITION usually differs — flow.ts implements the strict definitions documented here.",
+      "leadChanges": "NBA stats survey via AP (2023-24): 26.7/game — but that is a RECORD year under a looser definition (counts every flip incl. within FT sequences); strict scoring-event flips (ours) run far lower. Grade B.",
+      "runs": "FortyEightEightyTwo blog: ~77% of games contain a 10-0+ run; 16% contain a 15-0+ (season unstated, grade B). Academic: Bozhidarova et al. arXiv 2606.27957 (2019-25, 7054 games) — unanswered runs skew to 2-6 pts, grade A (qualitative).",
+      "comebacks": "PlayNY (14-yr): down 10 after Q3 wins 12.9% home / 11.1% road (grade B). inpredictable is canonical for WP methodology (grade A) but publishes no static up-10-Q4 table.",
+      "possessionLength": "inpredictable: mean 14.67s/possession (2017-18, PRE the 2018 OREB 14s-reset rule — era boundary; grade A). NBA/Second Spectrum buckets its shot-clock data 24-22/22-18/18-15/15-7/7-4/4-0 — not the 0-7/7-15/15-24 scheme anyone assumes (grade A).",
+      "clutch": "Definitional chaos across sources (last-5min/margin-5 vs last-2min/margin-3). Clutch PPP runs HIGHER than season avg via intentional-foul FTs despite lower FG% (82games, grade B). Our clutchFTShare stays grade C until self-computed at scale.",
+      "quarterProfile": "No authoritative league table found; one unverified source suggests Q4 is the HIGHEST-scoring quarter (FT parade), contradicting our 6-game Q4-lowest sample — treat quarter profile as unvalidated either way (grade C).",
+      "grammar": "Putback: CTG standard is 3s-after-OREB halfcourt-only (ours is 6s incl. any next shot — hence our 33% vs their narrower base). Second-chance points: 11.7-17.6 per team-game (2024-25, grade B). And-one per-game: no in-era league figure exists; our 4.8 primary stands (grade B)."
+    },
+    "turingBaseline": {
+      "date": "2026-07-27",
+      "protocol": "30 blind excerpts (15 sim / 15 real bbref, same dry register, pseudonymized, Q2-Q3 windows, 14 plays), 5 independent LLM judges, forced choice",
+      "discriminationAccuracy": "15/30 = 50% (95% CI 32-68%) — coin-flip; sim passed as REAL 11/15 (73%), judge false-alarm rate on real 4/15 (27%)",
+      "simTells": [
+        "repeated identical shot distances (26ft threes / 4-5ft twos) from fixed spacing spots",
+        "shot-type monotony: sub-8ft attempts all read 'jump shot' (no layup/floater/hook vocabulary)",
+        "missing real-game event vocabulary: timeouts, replay reviews, team rebounds all read as REAL markers to judges"
+      ],
+      "protocolFixes": [
+        "unicode pseudonymizer bug mangled diacritic names on the REAL side (fixed in turing.ts)",
+        "renderer lacks bbref's 'at rim' phrasing variant"
+      ]
+    }
+  },
+  "flow": {
+    "leadChangesPerGame": {
+      "value": 6.5,
+      "range": [
+        4,
+        12
+      ],
+      "grade": "B",
+      "basis": "primary n=6; published multi-season averages run higher (~9-10) under looser definitions that count every flip within FT sequences"
+    },
+    "tiesPerGame": {
+      "value": 5.7,
+      "range": [
+        2,
+        10
+      ],
+      "grade": "B",
+      "basis": "primary n=6"
+    },
+    "largestLeadPerGame": {
+      "value": 21.3,
+      "range": [
+        12,
+        30
+      ],
+      "grade": "B",
+      "basis": "primary n=6"
+    },
+    "runs8PerGame": {
+      "value": 3.3,
+      "range": [
+        2,
+        5
+      ],
+      "grade": "B",
+      "basis": "primary n=6; maximal unanswered runs >= 8-0"
+    },
+    "runs10PerGame": {
+      "value": 1.8,
+      "range": [
+        1,
+        3
+      ],
+      "grade": "B",
+      "basis": "primary n=6; maximal unanswered runs >= 10-0"
+    },
+    "maxRunPerGame": {
+      "value": 12.5,
+      "range": [
+        8,
+        18
+      ],
+      "grade": "B",
+      "basis": "primary n=6"
+    },
+    "maxTeamDroughtSec": {
+      "value": 295,
+      "range": [
+        180,
+        480
+      ],
+      "grade": "B",
+      "basis": "primary n=6; one team's longest gap between own scores, regulation only"
+    },
+    "quarterPtsProfile": {
+      "value": [
+        58.5,
+        56.3,
+        58.0,
+        54.2
+      ],
+      "grade": "B",
+      "basis": "primary n=6, both teams combined; Q4 lowest is the signature (matches published per-quarter scoring)"
+    },
+    "clutchFTShare": {
+      "value": 0.35,
+      "range": [
+        0.2,
+        0.6
+      ],
+      "grade": "C",
+      "basis": "primary sample had only 2 qualifying clutch games (0.11, 0.20 across the full 2-minute window); the foul-game spike concentrates in the final ~40s — published analyses of the 'foul game' support a materially higher share than mid-game. Provisional."
+    },
+    "q4Lead10LostRate": {
+      "value": 0.07,
+      "range": [
+        0.03,
+        0.15
+      ],
+      "grade": "C",
+      "basis": "derived from published win-probability tables (up 10 entering Q4 wins ~90-95%); 'led by 10+ at any point in Q4 and lost' is rarer than the entering-Q4 number"
+    },
+    "possessionP50Sec": {
+      "value": 12.5,
+      "range": [
+        10,
+        15
+      ],
+      "grade": "C",
+      "basis": "published time-per-possession averages (~12-14.5s by season); distribution shape provisional pending tracking-data ingestion"
+    }
+  },
+  "grammar": {
+    "putbackWithin6sShareOfOreb": {
+      "value": 0.33,
+      "range": [
+        0.2,
+        0.45
+      ],
+      "grade": "B",
+      "basis": "primary n=6: 71 putback attempts within 6s of 214 offensive rebounds"
+    },
+    "stealToScoreWithin6sShare": {
+      "value": 0.29,
+      "range": [
+        0.2,
+        0.45
+      ],
+      "grade": "B",
+      "basis": "primary n=6: 25 of 85 steals converted to a made basket within 6s"
+    },
+    "andOnesPerGame": {
+      "value": 4.8,
+      "range": [
+        2.5,
+        8
+      ],
+      "grade": "B",
+      "basis": "primary n=6, both teams: made shot with a shooting foul at the same clock"
+    },
+    "secondChanceShareOfPoss": {
+      "value": 0.13,
+      "range": [
+        0.08,
+        0.2
+      ],
+      "grade": "C",
+      "basis": "derived: league ORB% ~22-26% of available misses translates to roughly this share of possessions containing an offensive rebound"
+    }
+  }
+}

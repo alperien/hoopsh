@@ -73,6 +73,34 @@ rediscovery.
 | D6 | `makePlayer` uses a module-global `anonCounter` for default ids (impure; call-order-dependent fixture ids). Left as-is — changing it risks fixture-id churn across tests; low value. | deferred (low value) |
 | D7 | `oos.ts` "out-of-sample" covers 12/132 matchups at defaults; naming/doc clarification, not a bug. | deferred (doc-only) |
 
+## Realism-gate tiers ("reads like basketball")
+
+Added 2026-07-27 on top of the original four gate families (invariants /
+bands / fidelity / texture):
+
+| Tier | Tool | Gated? | What it catches |
+|---|---|---|---|
+| Flow arcs | `npm run flow` + `test/flow.test.ts` | passing metrics gated (ratchet) | games that stop trading runs/leads, drought anomalies, possession-shape drift |
+| Event grammar | inside flow.ts + reference file | report + gated subset | putback/steal-conversion/and-one/second-chance magnitudes |
+| PBP Turing | `npm run turing` + judge protocol | measured baseline, rerun per milestone | the literal read — blind discrimination vs real NBA play-by-play |
+
+**Flow findings at baseline (48 games):** already-real — lead changes 7.1
+(real ~6.5), ties 5.4 (~5.7), runs>=8 3.1 (~3.3), droughts 232s (~295), and-ones
+4.9 (~4.8), possession p50 13.3s, comeback rate 5%. **Provable gaps** — putback
+rate 60% vs ~33% (putback economy over-tuned), steal->score-6s 13% vs ~29%
+(transition conversion), runs>=10 1.0 vs ~1.8 (no momentum model; consistency
+STAGED), flat quarter profile (no fatigue-arc/endgame pacing), clutch FT share
+20% vs 35%+ (no intentional fouling — M4).
+
+**Turing baseline (2026-07-27):** 30 blind excerpts (15 sim / 15 real bbref
+2025-26, identical dry register, pseudonymized), 5 independent LLM judges:
+**50% discrimination accuracy (CI 32-68%) — coin-flip; 73% of sim excerpts
+passed as real.** Sim tells that worked: fixed-spot distance quantization
+("26 ft" repeats), shot-type monotony at short range, missing event vocabulary
+(timeouts/replay/team rebounds read as REAL markers). Protocol notes: unicode
+pseudonymizer bug (fixed), renderer lacks bbref's "at rim" variant. Full
+provenance in data/nba/flow-reference.json.
+
 ## Finding → commit traceability map
 
 Every finding from the review, mapped to its resolution. Commits on branch
