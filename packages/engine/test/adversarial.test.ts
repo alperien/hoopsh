@@ -16,7 +16,7 @@ import { sampleMatchup } from '@hoopsh/data';
 function poisoned(field: 'attr' | 'tend', key: string, value: number) {
   const { home, away } = sampleMatchup();
   const bad = structuredClone(home);
-  (bad.players[2]![field] as Record<string, number>)[key] = value;
+  (bad.players[2]![field] as unknown as Record<string, number>)[key] = value;
   return { home: bad, away };
 }
 
@@ -66,8 +66,8 @@ describe('adversarial input', () => {
     const { home, away } = sampleMatchup();
     const extreme = structuredClone(home);
     for (const p of extreme.players) {
-      for (const k of Object.keys(p.attr)) (p.attr as Record<string, number>)[k] = 999;
-      for (const k of Object.keys(p.tend)) (p.tend as Record<string, number>)[k] = 0;
+      for (const k of Object.keys(p.attr)) (p.attr as unknown as Record<string, number>)[k] = 999;
+      for (const k of Object.keys(p.tend)) (p.tend as unknown as Record<string, number>)[k] = 0;
     }
     const result = simulateGame({ seed: 'adv-extreme', home: extreme, away, collectFrames: false });
     let starts = 0;

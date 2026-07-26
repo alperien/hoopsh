@@ -94,7 +94,7 @@ export function decideBall(s: GameState): BallAction {
   // working the block: shots from a live post-up resolve as post moves
   // (windupPost + movePost in the shot model) instead of hurried pull-ups
   const postingUp = act0?.kind === 'post' && act0.posterId === h.p.id && act0.phase === 'working';
-  const shotMove: BallAction['moveType'] & string =
+  const shotMove: Extract<BallAction, { kind: 'shoot' }>['moveType'] =
     // post-shot zone boundary — 14 ft from the rim is the outer edge of the
     // traditional post area. FEEL — same numerical value as move.nearRimFt
     // (the contest model's interior boundary) but a distinct physical concept:

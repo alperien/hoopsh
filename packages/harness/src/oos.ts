@@ -57,7 +57,7 @@ const BENCH_POOLS: Record<string, Builder[]> = {
 };
 
 function jitterRatings(rng: Rng, p: Player, j: number): void {
-  const bags = [p.attr as Record<string, number>, p.tend as Record<string, number>];
+  const bags = [p.attr as unknown as Record<string, number>, p.tend as unknown as Record<string, number>];
   for (const bag of bags) {
     for (const k of Object.keys(bag)) {
       bag[k] = Math.round(clamp(bag[k]! + rng.range(-j, j), 1, 99));

@@ -214,6 +214,8 @@ export interface SimParams {
     contestDBlend: number;
     /** collision-separation share absorbed by a live poster's opponent */
     postLeanShare: number;
+    /** interior-vs-perimeter role-defense boundary for the contest model, ft */
+    nearRimFt: number;
   };
 
   fatigue: {
@@ -876,7 +878,12 @@ export const defaultParams: SimParams = {
 /** deep-merge partial overrides onto defaults (for experiments & era packs) */
 export function withParams(overrides?: DeepPartial<SimParams>): SimParams {
   if (!overrides) return structuredClone(defaultParams);
-  return deepMerge(structuredClone(defaultParams), overrides) as SimParams;
+  // SimParams has no index signature (deliberate — fixed keys catch typos),
+  // so the generic merge goes through unknown at this one boundary.
+  return deepMerge(
+    structuredClone(defaultParams) as unknown as Record<string, unknown>,
+    overrides as Record<string, unknown>
+  ) as unknown as SimParams;
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };

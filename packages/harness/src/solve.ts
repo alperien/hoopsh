@@ -203,7 +203,7 @@ function perturb(rng: Rng, base: Player, step: number): Player {
   const moves = 2 + Math.floor(rng.float() * 3);
   for (let m = 0; m < moves; m++) {
     const d = SEARCH_DIALS[Math.floor(rng.float() * SEARCH_DIALS.length)]!;
-    const bag = d.path === 'attr' ? (p.attr as Record<string, number>) : (p.tend as Record<string, number>);
+    const bag = d.path === 'attr' ? (p.attr as unknown as Record<string, number>) : (p.tend as unknown as Record<string, number>);
     bag[d.key] = Math.round(clamp(bag[d.key]! + (rng.float() * 2 - 1) * step, 1, 99));
   }
   return p;

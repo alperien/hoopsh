@@ -32,7 +32,7 @@ export function startPass(
   s: GameState,
   from: Agent,
   toId: string,
-  passKind: 'normal' | 'kickout' | 'outlet' | 'entry'
+  passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff'
 ): void {
   const to = agent(s, toId);
   const risk = passRisk(s, from, to);
