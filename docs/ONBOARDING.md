@@ -17,7 +17,7 @@ This is the guided path. The other documents state *what's true*; this file stat
 ```bash
 npm run sim -- --seed my-first-game     # box score + play-by-play in the console
 npm test                                # 69 tests: invariants, realism guard, archetypes, fidelity gate
-npm run batch -- --games 24             # the 16-band NBA realism report
+npm run batch -- --games 24             # the NBA realism band report
 npm run bench                           # ~6 games/sec
 ```
 Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.json`

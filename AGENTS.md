@@ -153,10 +153,14 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   must be untouched.
 
 ### 4.4 Calibration etiquette
-- The 16 NBA bands (`harness/src/bands.ts`) are the gate. "Locked" means 46–48 of 48
-  band-checks passing across the three seed bases at 40+ games, with any single miss
-  under ~1% outside a band edge; that residual is the **noise floor** (sampling
-  variance), not miscalibration. Do not chase it with hand-nudges — use the sweep.
+- The NBA bands (`harness/src/bands.ts`) are the gate — count them there, never
+  from memory (the list grows). "Locked" means: across the three seed bases at
+  40+ games, at most a small handful of checks miss, each within ~1-2% of a band
+  edge, WITH THE MISSING EDGES DRIFTING BETWEEN SEEDS — that drift is the
+  **noise floor** (sampling variance). A miss that repeats on the SAME band
+  across seeds is systematic, not noise, and belongs in INTERNALS' findings.
+  Do not chase either kind with hand-nudges — use the sweep. Never quote a
+  stale pass-rate in docs; state where to measure it instead.
 - After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
   precision), then re-verify with `--iters 0`.
 

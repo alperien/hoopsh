@@ -8,7 +8,7 @@
  * anything touching sim behavior). It's just runBatch (run.ts, mirrored
  * home/away by default) piped through finalize/evaluate/formatReport
  * (aggregate.ts) against NBA_BANDS (bands.ts) — no play-by-play, no per-game
- * detail, just the 16-band OK/FAIL table. For a single human-readable game
+ * detail, just the band OK/FAIL table. For a single human-readable game
  * with a box score, use simone.ts instead; for a raw perf number, bench.ts.
  * 50 games is usually enough to see a real drift; sweep.ts's own internal
  * verification pass uses more (24/seed base × 3) because it's checking a

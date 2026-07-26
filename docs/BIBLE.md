@@ -123,14 +123,20 @@ Signature mechanics:
 
 ## Realism status
 
-A batch harness grades league-wide averages against 16 NBA acceptance bands
-(pace, efficiency, shot mix, rebounding, fouls, turnovers…), and an automated
-parameter sweep (`npm run sweep`) keeps them locked. Current state: **46–48 of 48
-band-checks passing across three independent seed bases** at 40-game samples;
-residual misses are <1% band-edge grazes (the sampling noise floor). A 50-test
-suite, including a permanent invariant suite derived from two adversarial audit
-rounds, guards determinism, possession accounting, minutes conservation, and
-buzzer integrity on every change. Archetype tests pin player differentiation
+A batch harness grades league-wide averages against the NBA acceptance bands
+in `harness/src/bands.ts` (pace, efficiency, shot mix, rebounding, fouls,
+turnovers, assisted share…), and an automated parameter sweep
+(`npm run sweep`) re-centers them after mechanics changes. **No static pass
+rate is quoted here on purpose — quoted numbers rot.** Measure the current
+state yourself: `npm run batch -- --games 40` for one seed base,
+`npm run sweep -- --iters 0 --verify 40` for three, `npm run oos` for rosters
+the sweep has never seen (plus a distributional report the means can't
+capture). Residual misses and open calibration findings are recorded in
+`docs/INTERNALS.md`, not hidden. The test suite — including a permanent
+invariant suite derived from adversarial audit rounds and an adversarial-
+input fixture — guards determinism, possession accounting, minutes
+conservation, and buzzer integrity on every change (`npm test` prints the
+live count). Archetype tests pin player differentiation
 (elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
 of shots inside; non-shooting bigs do not take low-value shots).
 
@@ -153,7 +159,7 @@ broadcast TTS audio · WASM hot path if the perf budget ever demands it.
 
 ## License
 
-Not chosen yet — treat as all-rights-reserved until a license lands.
+MIT — see [LICENSE](LICENSE).
 
 
 ---
@@ -471,8 +477,10 @@ invariant.**
 3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
    re-center; bake the printed diff into `params.ts` defaults; verify with
    `npm run sweep -- --iters 0 --verify 40`.
-4. Expect the noise floor: at 40-game samples, single bands graze edges by <1% on
-   some seeds. 46–48 of 48 checks passing with sub-5% misses is a locked state.
+4. Expect the noise floor: at 40-game samples, single bands graze edges by ~1-2%
+   on some seeds, with the missing edges drifting between seeds. Nearly-all
+   checks passing with only that drifting residual is a locked state; a repeat
+   miss on the same band across seeds is a systematic finding — record it below.
 
 **What "locked" does and does not claim.** The bands are league-mean aggregates
 on the repo's own rosters, and the sweep tunes the same knobs the bands grade —
@@ -670,10 +678,14 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   must be untouched.
 
 ### 4.4 Calibration etiquette
-- The 16 NBA bands (`harness/src/bands.ts`) are the gate. "Locked" means 46–48 of 48
-  band-checks passing across the three seed bases at 40+ games, with any single miss
-  under ~1% outside a band edge; that residual is the **noise floor** (sampling
-  variance), not miscalibration. Do not chase it with hand-nudges — use the sweep.
+- The NBA bands (`harness/src/bands.ts`) are the gate — count them there, never
+  from memory (the list grows). "Locked" means: across the three seed bases at
+  40+ games, at most a small handful of checks miss, each within ~1-2% of a band
+  edge, WITH THE MISSING EDGES DRIFTING BETWEEN SEEDS — that drift is the
+  **noise floor** (sampling variance). A miss that repeats on the SAME band
+  across seeds is systematic, not noise, and belongs in INTERNALS' findings.
+  Do not chase either kind with hand-nudges — use the sweep. Never quote a
+  stale pass-rate in docs; state where to measure it instead.
 - After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
   precision), then re-verify with `--iters 0`.
 
@@ -1029,7 +1041,7 @@ This is the guided path. The other documents state *what's true*; this file stat
 ```bash
 npm run sim -- --seed my-first-game     # box score + play-by-play in the console
 npm test                                # 69 tests: invariants, realism guard, archetypes, fidelity gate
-npm run batch -- --games 24             # the 16-band NBA realism report
+npm run batch -- --games 24             # the NBA realism band report
 npm run bench                           # ~6 games/sec
 ```
 Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.json`

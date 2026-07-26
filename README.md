@@ -96,14 +96,20 @@ Signature mechanics:
 
 ## Realism status
 
-A batch harness grades league-wide averages against 16 NBA acceptance bands
-(pace, efficiency, shot mix, rebounding, fouls, turnovers…), and an automated
-parameter sweep (`npm run sweep`) keeps them locked. Current state: **46–48 of 48
-band-checks passing across three independent seed bases** at 40-game samples;
-residual misses are <1% band-edge grazes (the sampling noise floor). A 50-test
-suite, including a permanent invariant suite derived from two adversarial audit
-rounds, guards determinism, possession accounting, minutes conservation, and
-buzzer integrity on every change. Archetype tests pin player differentiation
+A batch harness grades league-wide averages against the NBA acceptance bands
+in `harness/src/bands.ts` (pace, efficiency, shot mix, rebounding, fouls,
+turnovers, assisted share…), and an automated parameter sweep
+(`npm run sweep`) re-centers them after mechanics changes. **No static pass
+rate is quoted here on purpose — quoted numbers rot.** Measure the current
+state yourself: `npm run batch -- --games 40` for one seed base,
+`npm run sweep -- --iters 0 --verify 40` for three, `npm run oos` for rosters
+the sweep has never seen (plus a distributional report the means can't
+capture). Residual misses and open calibration findings are recorded in
+`docs/INTERNALS.md`, not hidden. The test suite — including a permanent
+invariant suite derived from adversarial audit rounds and an adversarial-
+input fixture — guards determinism, possession accounting, minutes
+conservation, and buzzer integrity on every change (`npm test` prints the
+live count). Archetype tests pin player differentiation
 (elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
 of shots inside; non-shooting bigs do not take low-value shots).
 
@@ -123,10 +129,6 @@ solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
 aging · NCAA + EuroLeague rule-pack tuning · era packs (1995 vs 2015 shot diets) ·
 deep player editor UI · GM & MyPlayer experiences · defensive schemes ·
 broadcast TTS audio · WASM hot path if the perf budget ever demands it.
-
-## License
-
-MIT licensed — see LICENSE.
 
 ## License
 

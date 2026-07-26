@@ -107,8 +107,10 @@ invariant.**
 3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
    re-center; bake the printed diff into `params.ts` defaults; verify with
    `npm run sweep -- --iters 0 --verify 40`.
-4. Expect the noise floor: at 40-game samples, single bands graze edges by <1% on
-   some seeds. 46–48 of 48 checks passing with sub-5% misses is a locked state.
+4. Expect the noise floor: at 40-game samples, single bands graze edges by ~1-2%
+   on some seeds, with the missing edges drifting between seeds. Nearly-all
+   checks passing with only that drifting residual is a locked state; a repeat
+   miss on the same band across seeds is a systematic finding — record it below.
 
 **What "locked" does and does not claim.** The bands are league-mean aggregates
 on the repo's own rosters, and the sweep tunes the same knobs the bands grade —
