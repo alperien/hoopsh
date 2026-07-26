@@ -360,10 +360,12 @@ export function tickScramble(s: GameState, dt: number): void {
       const liveVictims = liveOnCourt(s, ph.offSide);
       const victim = (liveVictims.length > 0 ? liveVictims : victims)
         .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0]!;
-      const { inBonus } = recordFoul(s, fouler, 'loose_ball', victim);
-      if (inBonus) {
+      const { bonus } = recordFoul(s, fouler, 'loose_ball', victim);
+      if (bonus) {
         victim.usedPoss++; // bonus trip = possession used (usage bookkeeping)
-        enterFreeThrows(s, victim, s.rules.bonusFreeThrows);
+        // award from FoulOutcome.bonus (NCAA 7-9 is a one-and-one), not a
+        // flat rules.bonusFreeThrows read — see fouls.ts FoulOutcome
+        enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne);
       } else {
         // side out, offense keeps it: shot clock is floored at the rule
         // pack's short-clock reset (NBA 14s) off a loose-ball whistle —

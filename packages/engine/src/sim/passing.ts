@@ -238,10 +238,12 @@ export function attemptReachIn(s: GameState, dt: number): void {
     endPossession(s, 'turnover');
     startPossession(s, d.side, 'steal', d);
   } else {
-    const { inBonus } = recordFoul(s, d, 'reach', h);
-    if (inBonus) {
+    const { bonus } = recordFoul(s, d, 'reach', h);
+    if (bonus) {
       h.usedPoss++; // a bonus trip uses the possession (usage bookkeeping)
-      enterFreeThrows(s, h, s.rules.bonusFreeThrows);
+      // award comes from FoulOutcome.bonus, not rules.bonusFreeThrows: under
+      // NCAA rules team fouls 7-9 are a one-and-one, not a flat two
+      enterFreeThrows(s, h, bonus.shots, bonus.oneAndOne);
     } else {
       // not in the bonus: no free throws, offense just keeps the ball —
       // shot clock is floored at the rule pack's short-clock reset (NBA 14s,

@@ -249,6 +249,15 @@ export interface ShotEvent extends Base {
  * itself is never split across two separate shooting fouls. The sequence's
  * final attempt (n === of) is what can trigger `possession_end` — see
  * sim/fouls.ts tickFreeThrows.
+ *
+ * ONE-AND-ONE trips (rules.bonusRule 'oneAndOne', team fouls in
+ * [teamFoulBonusAt, doubleBonusAt) — NCAA men): `of` is the POTENTIAL 2. A
+ * made front end earns the second attempt as usual, but a missed front end
+ * (`n: 1, made: false, oneAndOne: true`) ends the trip immediately with a
+ * LIVE ball — no `n: 2` event and no dead-ball formality rebound; the next
+ * rebound event is a real scramble result. `oneAndOne` is stamped on every
+ * attempt of such a trip and ABSENT everywhere else, so leagues without the
+ * rule emit byte-identical events.
  */
 export interface FreeThrowEvent extends Base {
   type: 'free_throw';
@@ -257,6 +266,7 @@ export interface FreeThrowEvent extends Base {
   n: number;
   of: number;
   made: boolean;
+  oneAndOne?: boolean;
 }
 
 /**
