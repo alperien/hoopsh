@@ -91,7 +91,7 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 ## The safety net (run all of it before pushing)
 
 ```bash
-npm run test     # 69 tests: determinism, geometry, archetypes, narration, schema,
+npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
 npm run bench    # ≥1 game/sec budget (typical ~6)

@@ -30,7 +30,7 @@ git clone https://github.com/alperien/hoopsh && cd hoopsh
 npm run sim                      # simulate one game: box score + play-by-play + replay
 npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
-npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
+npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice broadcast script for a game
 ```
@@ -126,12 +126,14 @@ Run it yourself: `npm run batch -- --games 50`.
 ## Roadmap
 
 **Done:** replay viewer · broadcast demo · automated parameter sweep ·
-orchestrator refactor · pick-and-roll · invariant suite · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path)
+orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
+usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
+invariant suite · full documentation campaign (contributor covenant, onboarding path)
 
-**Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
-their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
-solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
+**Phase 2R (current — tuning, not building):** the actions above are implemented and
+wired; the open work is calibrating their volumes (e.g. hub post-up share) · dump-off
+reads · fidelity harness + inverse solver · Curry/LeBron/Jokić profiles validated
+against real-life stat ranges.
 
 **Next (validation arc):** measured noise floor for every gate · mechanism audit of
 the distributional misses · game-state coupling (trailing-team urgency, tempo kill,

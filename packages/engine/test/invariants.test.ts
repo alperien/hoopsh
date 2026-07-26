@@ -187,7 +187,7 @@ describe(`engine invariants over ${GAMES} games`, () => {
 
   it('no player teleports: per-frame movement stays under a physical ceiling', () => {
     // wall-clock frames record through stoppages, so no legitimate gap exists;
-    // 40 ft/s (well above elite sprint ~28) with the frame step gives headroom
+    // 45 ft/s (well above elite sprint ~28) with the frame step gives headroom
     // for substitution position handoffs which swap players in place
     for (const r of results) {
       const f = r.frames;

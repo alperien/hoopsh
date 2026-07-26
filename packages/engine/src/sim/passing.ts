@@ -199,12 +199,12 @@ export function attemptReachIn(s: GameState, dt: number): void {
   const p = F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
   if (!s.rng.chance(p)) return;
 
-  // given a reach-in happens, stripP is the clean-strip share: 0.3 base, +0.3
-  // swing for an elite-steal defender, -0.22 swing for an elite ball-handler
+  // given a reach-in happens, stripP is the clean-strip share: a base, plus a
+  // swing for an elite-steal defender, minus a swing for an elite ball-handler
   // (ball security beats a defender's hands, but not as much as the
-  // defender's hands beat a poor handler) — clamped to [0.08, 0.7] so even
-  // the best/worst matchups still have a real chance either way, never a
-  // guaranteed foul or guaranteed strip
+  // defender's hands beat a poor handler) — clamped to [stripMin, stripMax] so
+  // even the best/worst matchups still have a real chance either way, never a
+  // guaranteed foul or guaranteed strip (all five constants live in params.foul)
   // attacking reach-ins skew cleaner: a poke at the gather is a strip far
   // more often than a hack (without the skew, the attack-exposure tax paid
   // out in fouls instead of the turnovers it exists to produce)

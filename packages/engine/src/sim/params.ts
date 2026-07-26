@@ -40,7 +40,7 @@
  *
  * 4. PROVENANCE. Values fall into three kinds, and the comments say which:
  *      • REAL — a measured basketball fact (free-throw % ≈ 71-78% league-wide).
- *      • SWEPT — found by the optimizer hunting the 16 acceptance bands. These
+ *      • SWEPT — found by the optimizer hunting the 17 acceptance bands. These
  *        carry odd precision (0.485, 1.449) precisely because a machine chose
  *        them; do not "tidy" them without re-running the sweep.
  *      • FEEL — hand-set for plausible motion/timing, not statistically
@@ -480,7 +480,7 @@ export interface SimParams {
 
 export const defaultParams: SimParams = {
   // 10 Hz: fine enough that a 28 ft/s sprinter moves <3 ft per tick (smooth
-  // motion, accurate contests), coarse enough for ~6 games/sec. FEEL.
+  // motion, accurate contests), coarse enough for a >= 1 game/sec budget (hardware-dependent, ~3-6 typical). FEEL.
   tickHz: 10,
   // one replay frame per 2 ticks = 5 Hz: the viewer interpolates between them,
   // and it halves replay size (~1.8 MB/game). FEEL.

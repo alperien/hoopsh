@@ -36,12 +36,10 @@ import { promisify } from 'node:util';
 import { defaultParams } from '@hoopsh/engine';
 import { NBA_BANDS } from './bands.js';
 import { evaluate, type LeagueAverages } from './aggregate.js';
-// NOTE: `setPath` is imported but never called in this file — every write
-// to a nested SimParams path here goes through evaluateCandidate's own
-// nested-object builder (see the loop over `cand` entries below), and
-// `getPath` alone is used for reads (reading defaults, computing the diff).
-// Left in place for this docs-only pass; flagged rather than removed per
-// AGENTS.md §2.5/§7.
+// Reads use getPath (defaults, the candidate diff); writes go through
+// evaluateCandidate's own nested-object builder, so setPath isn't needed
+// here and isn't imported. (A prior comment here claimed setPath was
+// "imported but never called" — it was never imported at all; corrected.)
 import { SWEEPABLE, getPath } from './knobs.js';
 
 const execFileP = promisify(execFile);
@@ -334,10 +332,10 @@ async function main(): Promise<void> {
   console.log(`\nVERIFY (${VERIFY_GAMES} games × ${SEED_BASES.length} seeds): score ${verify.score.toFixed(3)}, band-fails ${failCount(verify.seedResults)}`);
   for (const sr of verify.seedResults) {
     const fails = evaluate(sr.avgs, NBA_BANDS).filter((r) => !r.pass);
-    // NOTE: `16` here is NBA_BANDS.length hardcoded rather than referenced —
-    // correct today (bands.ts has exactly 16 entries) but would silently
-    // misreport the passing fraction if a band were ever added or removed
-    // without updating this literal too. Left as-is for this docs-only pass.
+    // passing fraction is computed dynamically from NBA_BANDS.length (17
+    // today) — no hardcoded count to drift. (A prior comment here described a
+    // hardcoded `16` on this line; there was none, and the count was already
+    // 17 — corrected.)
     console.log(`  ${sr.seedBase}: ${NBA_BANDS.length - fails.length}/${NBA_BANDS.length} ${fails.length ? '(' + fails.map((f) => `${f.band.metric}=${f.value.toFixed(2)}`).join(', ') + ')' : ''}`);
   }
 

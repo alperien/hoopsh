@@ -19,11 +19,12 @@ export type ShotZone = 'rim' | 'paint' | 'mid' | 'three';
  * dribbles), `pull_up` (off-the-dribble jumper after that window), `drive`
  * (shot attempt at the rim while driving), `putback` (immediate rebound
  * put-back attempt), `heave` (desperation end-of-clock/end-of-period shot from
- * distance, resolved with a heavy make-probability penalty). STAGED — modeled
- * in SimParams (movement/foul adjustments exist) but no current code path
- * assigns them to an actual attempt: `cut_finish` (finishing an off-ball cut)
- * and `post` (post-up shot) await the iso/post actions (tend.iso, tend.post)
- * landing in a later stage; see docs/INTERNALS.md.
+ * distance, resolved with a heavy make-probability penalty), `post` (a shot from
+ * a worked post-up, assigned by sim/ai/decide.ts once the post action reaches
+ * its 'working' phase). STAGED — modeled in SimParams (movement/foul
+ * adjustments exist) but no current code path assigns it to an actual attempt:
+ * `cut_finish` (finishing an off-ball cut) still awaits a dedicated assignment
+ * in a later stage; see docs/INTERNALS.md.
  */
 export type ShotMoveType =
   | 'catch_shoot'
@@ -180,9 +181,12 @@ export interface PossessionEndEvent extends Base {
  * never produces a `pass` event). `kind` — 'normal': a standard halfcourt
  * pass; 'kickout': a pass out of a live drive (sim/ai.ts decideBall labels
  * any pass while `driving` a kickout); 'outlet': a pass during transition
- * phase (fast break ball movement); 'entry': the feed to a posted big (post action); 'handoff': a dribble-handoff — the hub screens for the receiver as he hands it off (dho action)
- * — the type exists but no current AI code path assigns it (it awaits the
- * post-up action; see the tend.post STAGED note in model/player.ts).
+ * phase (fast break ball movement); 'entry': the feed to a posted big
+ * (assigned by sim/ai/decide.ts when the post action is 'posting' and the
+ * poster is settled on the block); 'handoff': a dribble-handoff — the hub
+ * screens for the receiver as he hands it off (assigned by sim/ai/decide.ts
+ * when the DHO receiver has sprinted into range; the catch stuns his trailing
+ * defender, see sim/passing.ts). Both are live AI code paths today.
  */
 export interface PassEvent extends Base {
   type: 'pass';

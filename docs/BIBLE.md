@@ -57,7 +57,7 @@ git clone https://github.com/alperien/hoopsh && cd hoopsh
 npm run sim                      # simulate one game: box score + play-by-play + replay
 npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
-npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
+npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice broadcast script for a game
 ```
@@ -153,12 +153,14 @@ Run it yourself: `npm run batch -- --games 50`.
 ## Roadmap
 
 **Done:** replay viewer · broadcast demo · automated parameter sweep ·
-orchestrator refactor · pick-and-roll · invariant suite · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path)
+orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
+usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
+invariant suite · full documentation campaign (contributor covenant, onboarding path)
 
-**Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
-their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
-solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
+**Phase 2R (current — tuning, not building):** the actions above are implemented and
+wired; the open work is calibrating their volumes (e.g. hub post-up share) · dump-off
+reads · fidelity harness + inverse solver · Curry/LeBron/Jokić profiles validated
+against real-life stat ranges.
 
 **Next (validation arc):** measured noise floor for every gate · mechanism audit of
 the distributional misses · game-state coupling (trailing-team urgency, tempo kill,
@@ -253,7 +255,7 @@ packages/
 
 Dependency rule: `engine` imports nothing. Everything else imports `engine`.
 Experiences (GM, MyPlayer, editor UI) will live outside these packages and speak to the
-engine only through its public API: `simulateGame(config) → { events, replay, result }`.
+engine only through its public API: `simulateGame(config) → GameResult` (`{ seed, events, finalScore, frames, rules, params, teams }`; a `Replay` is assembled separately from that result via `buildReplay`).
 
 ## 4. Engine internals
 
@@ -474,7 +476,7 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 ## The safety net (run all of it before pushing)
 
 ```bash
-npm run test     # 69 tests: determinism, geometry, archetypes, narration, schema,
+npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
 npm run bench    # ≥1 game/sec budget (typical ~6)
@@ -695,7 +697,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 ## 2. The DO-NOT list
 
 1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
-   optimizer chose it against 48 acceptance-band checks. Rounding it de-calibrates the
+   optimizer chose it against the 17 acceptance-band checks (bands.ts NBA_BANDS). Rounding it de-calibrates the
    league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
@@ -752,7 +754,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # 69 tests incl. invariants + fidelity gate — ALWAYS, every change
+npm test                        # full suite: invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
@@ -1139,9 +1141,9 @@ This is the guided path. The other documents state *what's true*; this file stat
 **2. Run everything** (~20 min):
 ```bash
 npm run sim -- --seed my-first-game     # box score + play-by-play in the console
-npm test                                # 69 tests: invariants, realism guard, archetypes, fidelity gate
+npm test                                # full suite: invariants, realism guard, archetypes, fidelity gate
 npm run batch -- --games 24             # the NBA realism band report
-npm run bench                           # ~6 games/sec
+npm run bench                           # throughput; budget >= 1 game/sec (hardware-dependent, ~3-6 typical)
 ```
 Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.json`
 onto it, press space. Watch a full possession. Scrub around a free throw.

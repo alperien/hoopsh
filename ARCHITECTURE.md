@@ -71,7 +71,7 @@ packages/
 
 Dependency rule: `engine` imports nothing. Everything else imports `engine`.
 Experiences (GM, MyPlayer, editor UI) will live outside these packages and speak to the
-engine only through its public API: `simulateGame(config) → { events, replay, result }`.
+engine only through its public API: `simulateGame(config) → GameResult` (`{ seed, events, finalScore, frames, rules, params, teams }`; a `Replay` is assembled separately from that result via `buildReplay`).
 
 ## 4. Engine internals
 
