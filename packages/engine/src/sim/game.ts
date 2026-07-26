@@ -252,7 +252,7 @@ function tickLive(s: GameState, dt: number): void {
     // stops at the restricted-area edge.
     const dRim = dist(h.pos, rim);
     if (dRim > 4.5) {
-      const step = scale(norm(sub(rim, h.pos)), 0.15);
+      const step = scale(norm(sub(rim, h.pos)), s.params.ai.backdownStepFt);
       h.target = add(h.pos, step);
     } else {
       h.target = { ...h.pos };
@@ -345,7 +345,7 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       startPass(s, h, action.toId, action.passKind);
       break;
     case 'drive': {
-      h.driveUntil = s.t + 1.35;
+      h.driveUntil = s.t + s.params.decide.driveCommitSec;
       s.decisionAt = s.t + 0.5; // re-evaluate quickly mid-drive (finish or kick)
       break;
     }

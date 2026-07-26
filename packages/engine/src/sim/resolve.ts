@@ -42,13 +42,19 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
     //  skill: technique blended with role defense — interiorD when the defender
     //         is protecting the rim area, perimeterD outside (move.contestDBlend
     //         sets the mix). 0.55 floor: presence alone bothers a shot.
-    const nearRim = dist(d.pos, rim) < 14;
+    const nearRim = dist(d.pos, rim) < s.params.move.nearRimFt;
     const roleD = nearRim ? d.p.attr.interiorD : d.p.attr.perimeterD;
     const blend = s.params.move.contestDBlend;
     const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
-    const skill = 0.55 + 0.45 * (defSkill / 100);
-    //  stunned: caught on a screen → he's there but useless (55% reduction).
-    //         This is what makes a pick-and-roll pull-up a good shot.
+    const skill = s.params.ai.contestSkillFloor + s.params.ai.contestSkillRange * (defSkill / 100);
+    //  stunned: caught on a screen → he's there but badly out of position. A
+    //  stunned defender still bothers the shot (45% of normal contest) because
+    //  he is physically present — he just can't properly contest.
+    //  0.45 = FEEL: tuned so a PnR pull-up is visibly better than a normal
+    //  one, but not automatic (the screen stun already costs pnrStunOverSec
+    //  seconds of defensive recovery). Kept inline: it is the stun multiplier
+    //  defined by the pnr mechanic and would only be meaningful as a param
+    //  paired with pnrStun*Sec — a future consolidation candidate.
     const stunned = s.t < d.screenStunUntil ? 0.45 : 1;
     const level = closing * skill * stunned;
     if (level > best) {
@@ -57,8 +63,9 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
       bestReach = reachFt(d.p);
     }
   }
-  // uncontested default of +0.5 ft: shooting over nobody is like shooting over
-  // someone slightly shorter than you — a mild positive, not a free pass
+  // 0.5 ft uncontested height advantage: shooting over nobody is like shooting
+  // over someone slightly shorter — a mild positive that prevents the height
+  // term from swinging negative on unguarded makes (geometry, not behavioral).
   const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5;
   return { level: clamp(best, 0, 1), by, heightAdvFt };
 }
@@ -82,11 +89,11 @@ export function anticipatedContest(
   let bestReach = 0;
   for (const d of onCourt(s, other(shooter.side))) {
     if (d.fouledOut) continue;
-    // project the defender forward by 80% of the windup: he closes ground
-    // while the shooter gathers, but not perfectly (he must also decelerate to
-    // contest rather than run past). 0.8 keeps anticipation honest rather than
-    // clairvoyant.
-    const lead = windupSec * 0.8;
+    // project the defender forward by windupProjShare of the windup: he closes
+    // ground while the shooter gathers, but not perfectly (he must also
+    // decelerate to contest rather than run past). The share keeps anticipation
+    // honest rather than clairvoyant.
+    const lead = windupSec * s.params.ai.windupProjShare;
     const proj = {
       x: d.pos.x + d.vel.x * lead,
       y: d.pos.y + d.vel.y * lead
@@ -96,12 +103,12 @@ export function anticipatedContest(
     const closing = 1 - dd / radius;
     // same role-defense blend as contestAt so anticipation and resolution use
     // one skill definition (interiorD near the rim, perimeterD outside)
-    const nearRim = dist(d.pos, rim) < 14;
+    const nearRim = dist(d.pos, rim) < s.params.move.nearRimFt;
     const roleD = nearRim ? d.p.attr.interiorD : d.p.attr.perimeterD;
     const blend = s.params.move.contestDBlend;
     const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
-    const skill = 0.55 + 0.45 * (defSkill / 100);
-    const stunned = s.t < d.screenStunUntil ? 0.45 : 1;
+    const skill = s.params.ai.contestSkillFloor + s.params.ai.contestSkillRange * (defSkill / 100);
+    const stunned = s.t < d.screenStunUntil ? 0.45 : 1; // same stun multiplier as contestAt (see above)
     const level = closing * skill * stunned;
     if (level > best) {
       best = level;
@@ -109,7 +116,7 @@ export function anticipatedContest(
       bestReach = reachFt(d.p);
     }
   }
-  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5;
+  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5; // same uncontested default as contestAt
   return { level: clamp(best, 0, 1), by, heightAdvFt };
 }
 
@@ -162,14 +169,14 @@ export function shotMakeP(
   // deep threes get harder past the line; rim shots get harder away from point-blank
   // Within-zone distance penalties (the zone bases cover the typical shot;
   // these handle the tails):
-  //  • threes: each foot beyond 23 costs 0.055 logits ≈ 1.3 percentage points,
-  //    so a 30-footer is ~9 points worse than a corner three. Matches the real
-  //    falloff on deep attempts.
-  //  • rim: 0.09/ft from point-blank out to the 4 ft zone edge — a dunk and a
-  //    4-foot floater are genuinely different shots.
+  //  • threes: each foot beyond distPenaltyThreeFt costs distPenaltyThreePerFt logits
+  //    ≈ 1.3 percentage points, so a 30-footer is ~9 points worse than a corner three.
+  //    Matches the real falloff on deep attempts.
+  //  • rim: distPenaltyRimPerFt/ft from point-blank out to the 4 ft zone edge —
+  //    a dunk and a 4-foot floater are genuinely different shots.
   const distAdj =
-    zone === 'three' ? -0.055 * Math.max(0, distFt - 23) :
-    zone === 'rim' ? -0.09 * distFt : 0;
+    zone === 'three' ? -P.distPenaltyThreePerFt * Math.max(0, distFt - P.distPenaltyThreeFt) :
+    zone === 'rim' ? -P.distPenaltyRimPerFt * distFt : 0;
 
   // Size only matters at the rim (a 7-footer's reach is irrelevant on a
   // jumper). Clamped to ±1.5 ft of standing-reach advantage so extreme
@@ -238,11 +245,11 @@ export function blockP(s: GameState, zone: ShotZone, contest: Contest): number {
   const P = s.params.shot;
   // Only would-be misses reach here, so this reallocates misses → blocks
   // without touching FG% calibration. Scaled by contest level (you can't block
-  // what you aren't near) and capped at 50% so even Gobert doesn't erase
-  // every contested miss. The 1.8 gain and 0.14 skill weight are tuned to hit
+  // what you aren't near) and capped at blockCap so even Gobert doesn't erase
+  // every contested miss. blockGain and blockSkillWeight are tuned to hit
   // the 3.5-6.5 blocks/game band.
   const skill = P.blockSkillCoef * n(blocker.p.attr.block);
-  return clamp((P.blockBase + skill * 0.14) * contest.level * 1.8, 0, 0.5);
+  return clamp((P.blockBase + skill * P.blockSkillWeight) * contest.level * P.blockGain, 0, P.blockCap);
 }
 
 // ---------- fouls ----------
@@ -294,26 +301,26 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
   for (const d of onCourt(s, other(from.side))) {
     if (d.fouledOut) continue;
     // Lane occlusion: how badly defenders clog the passing line.
-    // 6 ft is the reach-plus-step envelope around a pass lane — beyond that a
-    // defender is irrelevant to this pass.
+    // laneDangerFt is the reach-plus-step envelope around a pass lane — beyond
+    // that a defender is irrelevant to this pass.
     const dLane = distToLane(a, b, d.pos);
-    if (dLane > 6) continue;
-    const along = clamp(1 - dLane / 6, 0, 1);
+    if (dLane > P.laneDangerFt) continue;
+    const along = clamp(1 - dLane / P.laneDangerFt, 0, 1);
     // steal rating 0→0.5, 100→1.0: anyone in the lane is a hazard; ball-hawks
     // are twice the hazard
     const stealSkill = 0.5 + 0.5 * (d.p.attr.steal / 100);
     const contribution = along * stealSkill;
-    // 0.6 damping keeps multiple loose defenders from stacking into certainty
-    occlusion += contribution * 0.6;
+    // laneOcclusionDamp keeps multiple loose defenders from stacking into certainty
+    occlusion += contribution * P.laneOcclusionDamp;
     if (contribution > dangerScore) {
       dangerScore = contribution;
       dangerId = d.p.id;
     }
   }
   // long cross-court passes are riskier
-  // Cross-court passes are riskier: beyond 25 ft, each extra 10 ft adds 0.12
-  // logits. Long skip passes hang in the air — real turnover source.
-  const lengthTerm = 0.12 * Math.max(0, passLen - 25) / 10;
+  // Cross-court passes are riskier: beyond longPassFt, each extra 10 ft adds
+  // longPassPer10Ft logits. Long skip passes hang in the air — real turnover source.
+  const lengthTerm = P.longPassPer10Ft * Math.max(0, passLen - P.longPassFt) / 10;
   const skillTerm = P.skillCoef * ((n(from.p.attr.passAcc) + n(from.p.attr.passVision)) / 2);
   const logit = P.riskBase + P.laneRiskCoef * clamp(occlusion, 0, 1.6) + lengthTerm - skillTerm;
   return { turnoverP: sigmoid(logit), dangerId };
@@ -337,9 +344,9 @@ export function sampleMissLanding(s: GameState, rim: V2, shotDistFt: number): V2
   // Long shots rebound long (well-documented in tracking data) — this is why
   // three-heavy games produce more guard rebounds and longer scrambles.
   const mean = R.missDistBase + R.missDistCoef * shotDistFt;
-  // 45% relative spread: rebounds cluster near the mean but with a real tail;
-  // floor of 1 ft prevents a degenerate on-rim sample.
-  const d = Math.max(1, s.rng.gaussian(mean, mean * 0.45));
+  // reboundSpreadFactor × mean relative spread: rebounds cluster near the mean
+  // but with a real tail; floor of 1 ft prevents a degenerate on-rim sample.
+  const d = Math.max(1, s.rng.gaussian(mean, mean * R.reboundSpreadFactor));
   const angle = s.rng.range(0, Math.PI * 2);
   const raw = { x: rim.x + Math.cos(angle) * d, y: rim.y + Math.sin(angle) * d };
   return {
@@ -360,9 +367,9 @@ export function resolveRebound(
   for (const side of [0, 1] as TeamSide[]) {
     for (const a of onCourt(s, side)) {
       if (a.fouledOut) continue;
-      // 24 ft cutoff: beyond that you're not getting to this rebound
+      // beyond reboundCutoffFt you're not getting to this rebound
       const d = dist(a.pos, spot);
-      if (d > 24) continue;
+      if (d > R.reboundCutoffFt) continue;
       // Proximity dominates (1/(1+d)^power) — rebounding is mostly positioning
       const prox = 1 / Math.pow(1 + d, R.proximityPower);
       const attr = a.p.attr;
@@ -377,6 +384,14 @@ export function resolveRebound(
       // a 97-defReb/92-boxout center pulled 7.5 boards). Rebounding is a
       // zero-sum lottery, so re-weighting redistributes WHO rebounds without
       // moving league totals.
+      // FEEL — these six rating blend weights shape who wins each scramble:
+      //   offense: offReb×0.8 (pursuit) + vertical×0.3 (hops) + height×0.45/in
+      //   defense: defReb×0.7 (positioning) + boxout×0.35 (sealing) +
+      //            vertical×0.12 (tipped reach) + height×0.45/in
+      // Kept inline because the six values are a coupled set; splitting them
+      // into six separate params without also separating offensive vs defensive
+      // paths would make the API harder to reason about without adding sweep
+      // value. Migration candidate if the reb model is ever re-tuned.
       const rebSkill = a.side === offSide
         ? attr.offReb * 0.8 + attr.vertical * 0.3 + a.p.heightIn * 0.45
         : attr.defReb * 0.7 + attr.boxout * 0.35 + attr.vertical * 0.12 + a.p.heightIn * 0.45;
@@ -413,13 +428,14 @@ export function openness(s: GameState, a: Agent): number {
  * it shrinks the on-ball gap defenders keep, reduces how far help defenders
  * sag off, and steers help rotations away from shooters.
  *
- * Weighted 65% ABILITY / 35% WILLINGNESS on purpose: a great shooter who never
- * shoots eventually gets ignored, and a volume gunner who can't shoot still
- * commands *some* attention. Both terms are needed — this is why "Curry-ness"
- * requires elite `three` AND heavy `shotThree`.
+ * Weighted gravityThreeWeight ABILITY / gravityTendWeight WILLINGNESS on purpose:
+ * a great shooter who never shoots eventually gets ignored, and a volume gunner
+ * who can't shoot still commands *some* attention. Both terms are needed — this
+ * is why "Curry-ness" requires elite `three` AND heavy `shotThree`.
  */
-export function gravity(a: Agent): number {
-  return clamp((a.p.attr.three / 100) * 0.65 + (a.p.tend.shotThree / 100) * 0.35, 0, 1);
+export function gravity(s: GameState, a: Agent): number {
+  const A = s.params.ai;
+  return clamp((a.p.attr.three / 100) * A.gravityThreeWeight + (a.p.tend.shotThree / 100) * A.gravityTendWeight, 0, 1);
 }
 
 /** rough top speed available right now, accounting for fatigue */

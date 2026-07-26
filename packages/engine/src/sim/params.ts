@@ -86,6 +86,16 @@ export interface SimParams {
     /** chance a rim/paint miss with a strong interior contest is a block */
     blockBase: number;
     blockSkillCoef: number;
+    /** within-zone distance penalty model.
+     *  Three-point penalty: logit cost per foot beyond distPenaltyThreeFt.
+     *  Rim penalty: logit cost per foot from point-blank (a dunk vs a 4-ft floater). */
+    distPenaltyThreeFt: number;      // threshold at which the three-distance penalty starts
+    distPenaltyThreePerFt: number;   // logit per foot beyond distPenaltyThreeFt
+    distPenaltyRimPerFt: number;     // logit per foot from the rim (rim-zone shots only)
+    /** block probability model tuning — reallocates misses → blocks without changing FG% */
+    blockGain: number;               // multiplier on (blockBase + skill) × contest
+    blockCap: number;                // maximum block probability (even Gobert doesn't erase every miss)
+    blockSkillWeight: number;        // weight on blockSkillCoef × n(block) inside blockP
     /** seconds from decision to release, by shot type (the closeout race window) */
     windupCatchShoot: number;
     windupPullUp: number;
@@ -127,6 +137,14 @@ export interface SimParams {
     stealShare: number;
     /** flat ball speed, ft/s */
     speedFtS: number;
+    /** passing-lane danger envelope: defenders within this radius of the line threaten the pass */
+    laneDangerFt: number;
+    /** damping factor when multiple defenders are in the lane — prevents stacking to certainty */
+    laneOcclusionDamp: number;
+    /** long-pass length threshold; beyond this each extra 10 ft adds longPassPer10Ft logits */
+    longPassFt: number;
+    /** logit risk added per 10 ft of pass length beyond longPassFt */
+    longPassPer10Ft: number;
   };
 
   reb: {
@@ -139,6 +157,10 @@ export interface SimParams {
     proximityPower: number;
     /** putback attempt chance when an off-rebound lands at the rim */
     putbackChance: number;
+    /** beyond this distance from the miss-landing spot, a player can't reach the rebound */
+    reboundCutoffFt: number;
+    /** relative spread of miss-landing samples around the mean: std = mean × this factor */
+    reboundSpreadFactor: number;
   };
 
   decide: {
@@ -161,6 +183,8 @@ export interface SimParams {
     driveAppetite: number;
     /** EV bonus for open transition looks */
     transitionBonus: number;
+    /** drive commitment window (seconds): a decided drive holds this long before re-evaluation */
+    driveCommitSec: number;
   };
 
   move: {
@@ -245,6 +269,28 @@ export interface SimParams {
     cutDurationSec: number;
     crashBase: number;           // offensive rebound crash probability base
     crashTendScale: number;
+    // contest model internals
+    contestSkillFloor: number;   // minimum contest multiplier from mere presence (floor of skill range)
+    contestSkillRange: number;   // additional multiplier at rating 100 vs floor (skill range above floor)
+    windupProjShare: number;     // share of windup time used to project a defender forward in anticipatedContest
+    // gravity model
+    gravityThreeWeight: number;  // weight of three-point ability in gravity() (vs tendency)
+    gravityTendWeight: number;   // weight of shotThree tendency in gravity() (vs ability)
+    // on-ball detection and off-ball movement thresholds
+    onBallRadiusFt: number;      // defender must be within this to count as "on the ball"
+    cutRunwayFt: number;         // off-ball player must be beyond this distance to trigger a cut
+    // dunker-spot assignment
+    dunkerGravityThreshold: number; // gravity below this → dunker spot; above → corner shooter
+    // crash thresholds
+    crashNearFt: number;         // offensive player must be within this to be eligible to crash
+    // pick-and-roll roll timing (in cut machinery)
+    pnrRollCutSec: number;       // how long the screener's cut grant lasts after the screen sets
+    // post mechanics
+    postArrivalFt: number;       // self-posting player transitions to 'working' within this of the block
+    backdownStepFt: number;      // distance the poster creeps toward the rim each movement step
+    // DHO mechanics
+    dhoSearchRadiusFt: number;   // maximum distance from hub at which a DHO receiver is considered
+    dhoArcSplitFt: number;       // inside this rim distance, DHO catch triggers a drive commitment
     // defense positioning
     guardDistBase: number;       // tightest off-ball guard distance
     guardDistOpen: number;       // extra sag vs zero-gravity players
@@ -382,6 +428,18 @@ export const defaultParams: SimParams = {
     // totals tunable without disturbing efficiency calibration. SWEPT.
     blockBase: 0.2838,
     blockSkillCoef: 0.5,
+    // Within-zone distance penalty model. Both constants have real-world meaning:
+    //   threes: each foot beyond the NBA three-point line costs ≈1.3 pp FG% —
+    //     30-footers genuinely are harder than corner threes. FEEL.
+    //   rim: a dunk and a 4-foot floater are different shots; 0.09/ft captures
+    //     the falloff from directly under the hoop to the paint edge. FEEL.
+    distPenaltyThreeFt: 23,         // NBA three-point line distance, ft — REAL
+    distPenaltyThreePerFt: 0.055,   // logit per foot beyond distPenaltyThreeFt — FEEL
+    distPenaltyRimPerFt: 0.09,      // logit per foot from the rim (rim-zone only) — FEEL
+    // Block model: 1.8 gain and 0.5 cap tuned to the 3.5-6.5 blocks/game band. SWEPT.
+    blockGain: 1.8,          // multiplier applied to (blockBase + skill × blockSkillWeight) × contest — SWEPT
+    blockCap: 0.5,           // maximum block probability — FEEL (even Gobert can't block everything)
+    blockSkillWeight: 0.14,  // weight of n(block) inside blockP — SWEPT
     // WINDUP = seconds between "decides to shoot" and release. This is the
     // engine's signature mechanic: it creates the catch-and-shoot vs closeout
     // RACE, so a defender who is 8 ft away when the decision is made may
@@ -438,7 +496,18 @@ export const defaultParams: SimParams = {
     stealShare: 0.5473,
     // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
-    speedFtS: 45
+    speedFtS: 45,
+    // Pass-lane danger model — how defenders in the lane are weighted.
+    //   laneDangerFt: reach-plus-step envelope; beyond it a defender can't
+    //     intercept this pass. FEEL.
+    //   laneOcclusionDamp: caps how much multiple loose defenders stack
+    //     against a single pass — prevents deterministic TOs in a crowd. FEEL.
+    laneDangerFt: 6,           // FEEL — roughly arm's length plus a step
+    laneOcclusionDamp: 0.6,    // FEEL — damping factor per lane defender
+    // Long-pass risk: a skip pass hangs in the air, buying defenders time.
+    //   Beyond 25 ft each extra 10 ft adds 0.12 logits (~3 pp TO rate). FEEL.
+    longPassFt: 25,            // FEEL — cross-court skip distance threshold
+    longPassPer10Ft: 0.12      // FEEL — logit per 10 ft beyond longPassFt
   },
 
   reb: {
@@ -457,7 +526,16 @@ export const defaultParams: SimParams = {
     // Chance an offensive rebound caught at the rim goes straight back up
     // rather than resetting the offense. FEEL, and it produces the putback
     // shot type. SWEPT-adjacent.
-    putbackChance: 0.45
+    putbackChance: 0.45,
+    // Rebound scramble geometry:
+    //   reboundCutoffFt: beyond this nobody realistically gets there. FEEL —
+    //     24 ft is approximately the three-point arc; a player who let the shot
+    //     leave from that far has no chance on a typical short miss.
+    reboundCutoffFt: 24,        // FEEL — max scramble distance, ft
+    // reboundSpreadFactor: controls how tightly miss-landings cluster around
+    //   the mean. 0.45 × mean gives a Gaussian std; floor at 1 ft prevents
+    //   on-the-rim degenerate samples. Tracking-data validated. FEEL.
+    reboundSpreadFactor: 0.45   // FEEL — relative spread of miss-landing distribution
   },
 
   decide: {
@@ -497,7 +575,13 @@ export const defaultParams: SimParams = {
     driveAppetite: 0.9,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
-    transitionBonus: 0.05
+    transitionBonus: 0.05,
+    // Drive commitment window: how long a drive decision keeps the ball-handler
+    // heading at the rim before re-evaluation. Used in BOTH game.ts
+    // (executeAction's drive branch) and passing.ts (DHO turn-the-corner grant),
+    // so one param governs both. FEEL — 1.35 s at ~20 ft/s covers ~27 ft,
+    // roughly the distance from the wing to a layup spot.
+    driveCommitSec: 1.35   // FEEL — drive commitment window, seconds
   },
 
   move: {
@@ -525,7 +609,12 @@ export const defaultParams: SimParams = {
     contestDBlend: 0.45,
     // FEEL — post play is legal contact: the defender absorbs most of the
     // body separation when a live poster leans in (0.5 = symmetric)
-    postLeanShare: 0.85
+    postLeanShare: 0.85,
+    // Rim-proximity threshold for role-defense blending in the contest model:
+    // inside nearRimFt the interior-defense skill (interiorD) applies instead
+    // of perimeterD. Approximately the paint distance where rim protection
+    // begins to matter more than perimeter footwork. FEEL.
+    nearRimFt: 14   // FEEL — interior-vs-perimeter role-defense boundary, ft
   },
 
   fatigue: {
@@ -594,6 +683,56 @@ export const defaultParams: SimParams = {
     cutDurationSec: 1.6,
     crashBase: 0.15,
     crashTendScale: 0.6,
+    // Contest model internals — the skill floor and projection factor that shape
+    // how presence + skill translate to a contest level.
+    //   contestSkillFloor: a defender who is physically present always bothers
+    //     the shot at least this much, even at the lowest skill (floor of the
+    //     skill range). 0.55 means mere presence is 55% of a full contest. FEEL.
+    //   contestSkillRange: the remaining headroom from floor to 1.0; at rating
+    //     100 the formula reaches floor + range = 1.0. FEEL.
+    //   windupProjShare: in anticipatedContest the defender is projected forward
+    //     by windupSec × share. 0.8 = 80% of windup (he closes, doesn't overshoot). FEEL.
+    contestSkillFloor: 0.55,    // FEEL — presence-only contest floor
+    contestSkillRange: 0.45,    // FEEL — additional skill range above the floor
+    windupProjShare: 0.8,       // FEEL — defender projection share of windup time
+    // Gravity model: three-point ability (attr.three) vs willingness (tend.shotThree).
+    // REAL — a great shooter who never shoots gets ignored; a volume gunner who
+    // can't shoot still draws *some* respect. Both dimensions are necessary.
+    gravityThreeWeight: 0.65,   // REAL — ability weight (three rating) in gravity()
+    gravityTendWeight: 0.35,    // REAL — tendency weight (shotThree) in gravity()
+    // On-ball detection and off-ball movement thresholds.
+    //   onBallRadiusFt: a defender beyond this isn't "on the ball" — the
+    //     blitz/reach-in logic and the assist model use this radius. FEEL.
+    //   cutRunwayFt: a cut needs runway; a player too close to the rim is
+    //     already in the play and can't gain separation. FEEL.
+    onBallRadiusFt: 12,         // FEEL — on-ball defender detection radius, ft
+    cutRunwayFt: 16,            // FEEL — minimum rim distance to trigger a cut, ft
+    // Dunker-spot assignment: gravity below this threshold → dunker spot.
+    // 0.42 ≈ defense will ignore him on the perimeter; he's more useful as a
+    // lob/putback threat at the baseline. FEEL.
+    dunkerGravityThreshold: 0.42, // FEEL — gravity boundary for dunker-spot assignment
+    // Crash eligibility: offensive player must be within crashNearFt of the rim
+    // to be considered for a crash. Approximately the paint edge. FEEL.
+    crashNearFt: 22,            // FEEL — max crash-eligible distance from rim, ft
+    // PnR roll timing: after the screen sets, the screener becomes a cutter
+    // for this many seconds. Reuses cut machinery so the pocket pass emerges
+    // without special-casing it. FEEL.
+    pnrRollCutSec: 1.7,         // FEEL — roll cut grant duration, seconds
+    // Post mechanics:
+    //   postArrivalFt: on a self-post, the 'working' phase starts when the
+    //     poster gets within this distance of the block target. FEEL.
+    //   backdownStepFt: each movement step the poster creeps toward the rim
+    //     by this distance (slow power dribbles). FEEL.
+    postArrivalFt: 3.5,         // FEEL — self-post block-arrival threshold, ft
+    backdownStepFt: 0.15,       // FEEL — backdown creep step per tick, ft
+    // DHO mechanics:
+    //   dhoSearchRadiusFt: receivers farther than this from the hub are skipped.
+    //     Approximately the arc; a handoff needs to be practical. FEEL.
+    //   dhoArcSplitFt: inside this rim distance the DHO catch triggers a drive
+    //     commitment; beyond it the catch-and-shoot machinery owns the decision.
+    //     Approximately the three-point arc. FEEL.
+    dhoSearchRadiusFt: 26,      // FEEL — DHO receiver search radius, ft
+    dhoArcSplitFt: 22,          // FEEL — inside-arc drive-commitment threshold, ft
     guardDistBase: 2.8,
     guardDistOpen: 4.5,
     sagStartFt: 16,

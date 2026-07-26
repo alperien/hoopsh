@@ -134,9 +134,9 @@ export function resolvePassArrival(s: GameState): void {
     // competes naturally. Without this, receivers caught, reset, and the
     // action produced 0.1 assists a game on 8.9 handoffs.
     const rim = attackedRim(s, to.side);
-    if (dist(to.pos, rim) < 22) {
+    if (dist(to.pos, rim) < s.params.ai.dhoArcSplitFt) {
       // inside the arc: turn the corner downhill
-      to.driveUntil = s.t + 1.35; // same commitment as executeAction's drive
+      to.driveUntil = s.t + s.params.decide.driveCommitSec; // same commitment as executeAction's drive
     }
     // at/beyond the arc: no commitment — the catch-and-shoot machinery owns
     // the rise (a drive grant there sprinted the receiver INTO the defense

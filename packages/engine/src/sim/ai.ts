@@ -95,6 +95,10 @@ export function decideBall(s: GameState): BallAction {
   // (windupPost + movePost in the shot model) instead of hurried pull-ups
   const postingUp = act0?.kind === 'post' && act0.posterId === h.p.id && act0.phase === 'working';
   const shotMove: BallAction['moveType'] & string =
+    // post-shot zone boundary — 14 ft from the rim is the outer edge of the
+    // traditional post area. FEEL — same numerical value as move.nearRimFt
+    // (the contest model's interior boundary) but a distinct physical concept:
+    // this gates the SHOT TYPE (post vs pull-up), not the defensive role blend.
     postingUp && distToRim < 14 ? 'post'
       : driving && distToRim < 12 ? 'drive'
       : sinceCatch < 0.9 && h.dribblesSinceCatch === 0 ? 'catch_shoot'
@@ -361,6 +365,12 @@ export function decideBall(s: GameState): BallAction {
 /** the defender ASSIGNED to this player (falls back to nearest on-ball man) */
 export function assignedDefender(s: GameState, man: Agent): Agent | null {
   for (const d of onCourt(s, other(man.side))) {
+    // 16 ft assignment leash: a defender whose man is within 16 ft of him
+    // counts as "assigned" to that man and is returned directly — this is
+    // distinct from onBallRadiusFt (which gates who counts as "on the ball"
+    // for reach-in/help purposes). FEEL — large enough that a defender
+    // who has been beaten a step is still his man; small enough that a
+    // full rotation resets assignment.
     if (!d.fouledOut && d.manId === man.p.id && dist(d.pos, man.pos) < 16) return d;
   }
   return onBallDefender(s, man);
@@ -374,8 +384,8 @@ export function onBallDefender(s: GameState, holder: Agent): Agent | null {
     const dd = dist(d.pos, holder.pos);
     if (dd < bestD) { bestD = dd; best = d; }
   }
-  // 12 ft cutoff: past that nobody is meaningfully "on the ball"
-  return best && bestD < 12 ? best : null;
+  // onBallRadiusFt cutoff: past that nobody is meaningfully "on the ball"
+  return best && bestD < s.params.ai.onBallRadiusFt ? best : null;
 }
 
 /**
@@ -413,7 +423,7 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
   const rim = attackedRim(s, offSide);
   for (const a of onCourt(s, offSide)) {
     if (a.fouledOut) continue;
-    const near = dist(a.pos, rim) < 22;
+    const near = dist(a.pos, rim) < s.params.ai.crashNearFt;
     const crash = near && s.rng.chance(
       s.params.ai.crashBase + (a.p.tend.crashOffReb / 100) * s.params.ai.crashTendScale
     );
@@ -475,7 +485,7 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   // defense), the lowest-gravity big goes to the dunker spot.
   const sorted = [...players].sort((a, b) => b.p.attr.ballHandle - a.p.attr.ballHandle);
   const handler = sorted[0]!;
-  const rest = sorted.slice(1).sort((a, b) => gravity(b) - gravity(a));
+  const rest = sorted.slice(1).sort((a, b) => gravity(s, b) - gravity(s, a));
 
   const map = s.poss.spotMap;
   map.clear();
@@ -485,10 +495,10 @@ export function assignSpots(s: GameState, side: TeamSide): void {
     if (i < 3) {
       map.set(a.p.id, shooterKeys[i]!);
     } else {
-      // gravity < 0.42 ≈ "the defense will not respect him out there", so he
-      // is more useful on the baseline as a lob/putback threat than standing
+      // gravity < dunkerGravityThreshold ≈ "the defense will not respect him out there",
+      // so he is more useful on the baseline as a lob/putback threat than standing
       // in a corner being ignored (which would clog the spacing he can't use)
-      map.set(a.p.id, gravity(a) < 0.42 ? 'dunker' : shooterKeys[3]!);
+      map.set(a.p.id, gravity(s, a) < s.params.ai.dunkerGravityThreshold ? 'dunker' : shooterKeys[3]!);
     }
   });
 
@@ -536,7 +546,7 @@ function actionTick(s: GameState): void {
       // dribble-down: wait until he has actually reached the block, else
       // "working" would start 26 ft from the rim
       const selfPost = act.feederId === act.posterId;
-      if (!selfPost || dist(poster.pos, poster.target) < 3.5) {
+      if (!selfPost || dist(poster.pos, poster.target) < A.postArrivalFt) {
         act.phase = 'working'; // the backdown clock starts
         act.postedAt = s.t;
       }
@@ -579,7 +589,7 @@ function actionTick(s: GameState): void {
         // contact: the on-ball defender must navigate the screen
         act.phase = 'set';
         act.setAt = s.t;
-        const under = s.rng.chance(clamp(A.pnrUnderBase - gravity(handler), 0.08, 0.85));
+        const under = s.rng.chance(clamp(A.pnrUnderBase - gravity(s, handler), 0.08, 0.85));
         if (under) {
           onBall.screenStunUntil = s.t + A.pnrStunUnderSec;
           onBall.navUnderUntil = s.t + 1.2; // drops back — concedes the pull-up
@@ -594,8 +604,8 @@ function actionTick(s: GameState): void {
     if (act.phase === 'set' && s.t - act.setAt > 0.5) {
       // screener's next job: roll to the rim or pop to the arc
       act.phase = 'finishing';
-      if (gravity(screener) < A.pnrRollGravityCut) {
-        screener.cutUntil = s.t + 1.7; // the roll IS a cut — pocket pass emerges
+      if (gravity(s, screener) < A.pnrRollGravityCut) {
+        screener.cutUntil = s.t + A.pnrRollCutSec; // the roll IS a cut — pocket pass emerges
       } else {
         screener.spotKey = screener.pos.y < s.court.centerY ? 'wing_l' : 'wing_r';
       }
@@ -641,7 +651,7 @@ function actionTick(s: GameState): void {
     const travel = dist(a.pos, h.pos);
     if (travel > A.pnrMaxScreenDistFt) continue;
     const score =
-      (1 - gravity(a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400
+      (1 - gravity(s, a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400
       - travel / 40;
     if (score > bestScore) { bestScore = score; best = a; }
   }
@@ -668,8 +678,13 @@ function actionTick(s: GameState): void {
   let dhoScore = 0;
   for (const a of onCourt(s, s.poss.team)) {
     if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
-    if (dist(a.pos, h.pos) > 26) continue;
-    const sc = gravity(a) * 0.65 + (a.p.tend.offBallMotion / 100) * 0.35;
+    if (dist(a.pos, h.pos) > A.dhoSearchRadiusFt) continue;
+    // DHO receiver score: gravity (shooter identity, 65%) + motion (movement
+    // tendency, 35%). FEEL — a handoff buys a rise; it needs a shooter who
+    // also sprints in. Numerically similar to the gravity() weights but a
+    // distinct quantity (selecting who to run the DHO with, not how much
+    // the defense respects the eventual shooter).
+    const sc = gravity(s, a) * 0.65 + (a.p.tend.offBallMotion / 100) * 0.35;
     if (sc > dhoScore) { dhoScore = sc; dhoRecv = a; }
   }
   const wPnr = best ? 1 : 0;
@@ -779,13 +794,13 @@ export function offenseOffBallTick(s: GameState): void {
     // ball side (see defenseTick denial), which is exactly when the backdoor
     // is there — the classic counter, and what keeps an all-time shooter's
     // offense alive when the catch is taken away.
-    const denyCutMult = gravity(a) > s.params.ai.denyGravityCut ? s.params.ai.denyBackdoorMult : 1;
+    const denyCutMult = gravity(s, a) > s.params.ai.denyGravityCut ? s.params.ai.denyBackdoorMult : 1;
     if (
       s.poss.phase === 'halfcourt' &&
       a.spotKey !== 'dunker' &&
       s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale * denyCutMult) &&
-      // only cut from outside 16 ft — a cut needs runway to be worth anything
-      dist(a.pos, rim) > 16
+      // only cut from outside cutRunwayFt — a cut needs runway to be worth anything
+      dist(a.pos, rim) > s.params.ai.cutRunwayFt
     ) {
       a.cutUntil = s.t + s.params.ai.cutDurationSec;
       continue;
@@ -844,7 +859,7 @@ export function defenseTick(s: GameState): void {
   // denial's on-ball sibling, and what actually caps elite pull-up volume
   // (the fidelity benchmark kept 15+ deep attempts against single coverage)
   const blitz =
-    holder !== null && gravity(holder) > A.denyGravityCut &&
+    holder !== null && gravity(s, holder) > A.denyGravityCut &&
     dist(holder.pos, rim) > A.blitzBeyondFt;
   let helper: Agent | null = null;
   if (holder && (s.t < holder.driveUntil || postWorking || blitz)) {
@@ -860,7 +875,12 @@ export function defenseTick(s: GameState): void {
         // shooters effectively can't be helped off of. helpAggr scales how
         // much a team tolerates the risk.
         const man = agent(s, d.manId);
-        const score = dist(d.pos, rim) + gravity(man) * A.helperGravityWeight * (1.35 - helpAggr);
+        // 1.35: the gravity-penalty ceiling at helpAggr=0 (maximum reluctance).
+        // At helpAggr=1.0 (full aggression) the factor drops to 0.35 — the team
+        // still avoids leaving elite shooters open but is much more willing to
+        // rotate off of average-gravity players. FEEL — sets the gravity weight
+        // range: [0.35 × helperGravityWeight, 1.35 × helperGravityWeight].
+        const score = dist(d.pos, rim) + gravity(s, man) * A.helperGravityWeight * (1.35 - helpAggr);
         if (score < bestScore) { bestScore = score; helper = d; }
       }
     }
@@ -906,7 +926,7 @@ export function defenseTick(s: GameState): void {
       const driveThreat = (man.p.tend.drive / 100) * (man.p.attr.speed / 100);
       let gap = Math.max(
         2.2,
-        s.params.move.defGapBaseFt - gravity(man) * s.params.move.defGapGravityFt
+        s.params.move.defGapBaseFt - gravity(s, man) * s.params.move.defGapGravityFt
           + driveThreat * s.params.move.defGapDriveFt
       );
       // ducking under a screen: drop back, concede the pull-up
@@ -926,7 +946,7 @@ export function defenseTick(s: GameState): void {
     }
 
     // off-ball: guard the man-rim line, sagging with ball distance & low gravity
-    const g = gravity(man);
+    const g = gravity(s, man);
     // DENIAL: an all-time shooter doesn't get guarded, he gets denied — above
     // the gravity threshold the defender shades onto the man-BALL line (top-
     // lock) to take the catch away instead of protecting the drive line.
