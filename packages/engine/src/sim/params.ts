@@ -196,6 +196,8 @@ export interface SimParams {
   sub: {
     /** energy threshold that queues a substitution at the next dead ball */
     tiredThreshold: number;
+    rotationLeashScale: number;  // energy-leash points per 100% of minutes-pace deviation
+    rotationLeashMax: number;    // leash adjustment cap (energy points)
     /** energy at which a bench player is considered ready */
     readyThreshold: number;
   };
@@ -298,6 +300,9 @@ export interface SimParams {
     dhoDurationSec: number;      // action lifetime
     dhoHandoffBonus: number;     // pass-utility bonus for the handoff itself
     blitzBeyondFt: number;       // blitz an extreme-gravity HOLDER beyond this range
+    transitionPullUpBonus: number; // rhythm-three bias in transition (green-light gated)
+    defCrashFarChance: number;   // base chance a perimeter defender crashes the glass
+    defCrashFarSkill: number;    // extra crash chance per unit of his defReb
     // closed-loop usage pressure
     usageShareSwing: number;     // target share = 0.20 + n-ish swing (usage 90 -> ~30%)
     usageGainEV: number;         // EV pressure per 100% of target-vs-realized share gap
@@ -317,7 +322,7 @@ export const defaultParams: SimParams = {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
     baseRim: 0.5714,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.2759,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    basePaint: -0.2858,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.955,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
@@ -334,7 +339,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.06,
+    contestCoef: -1.2285,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -397,7 +402,7 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.452,
+    shootRim: 0.445,
     shootPaint: 0.1,
     shootMid: 0.05,
     shootThree: 0.012,
@@ -440,11 +445,11 @@ export const defaultParams: SimParams = {
     // The offense is at a structural disadvantage on the glass (it is
     // retreating, the defense is between man and rim), so offensive rebound
     // weights are discounted. This is THE lever on ORB% (band 20-30%). SWEPT.
-    offWeightMult: 0.9164,
+    offWeightMult: 0.7328,
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
-    missDistBase: 4.6944,
+    missDistBase: 4.7142,
     missDistCoef: 0.16,
     // How sharply proximity dominates the scramble: weight ∝ 1/(1+d)^power.
     // Higher = rebounding is pure positioning; lower = size/skill matter more.
@@ -488,7 +493,7 @@ export const defaultParams: SimParams = {
     // ERA KNOBS. Global multipliers on three-point and drive appetite —
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
-    threeAppetite: 1.013,
+    threeAppetite: 0.9618,
     driveAppetite: 0.9,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
@@ -546,6 +551,10 @@ export const defaultParams: SimParams = {
     // numbers ARE the rotation pattern: ~8-9 man rotations, starters ~30-34
     // minutes. FEEL, validated by the archetype minutes test.
     tiredThreshold: 62,
+    // FEEL — minutes-aware rotation: 10% behind a coach's minutes target buys
+    // ~6 energy points of extra leash, capped so nobody plays to collapse
+    rotationLeashScale: 60,
+    rotationLeashMax: 14,
     readyThreshold: 88
   },
 
@@ -583,7 +592,7 @@ export const defaultParams: SimParams = {
     catchContestScale: 0.72,
     cutRateScale: 0.0034,
     cutDurationSec: 1.6,
-    crashBase: 0.1574,
+    crashBase: 0.15,
     crashTendScale: 0.6,
     guardDistBase: 2.8,
     guardDistOpen: 4.5,
@@ -668,6 +677,12 @@ export const defaultParams: SimParams = {
     // FEEL — the blitz: extreme-gravity holders get a second body beyond the
     // arc (what actually caps an elite shooter's pull-up volume)
     blitzBeyondFt: 20,
+    // FEEL — the trailer three: worth ~a quarter point of bias to a shooter
+    transitionPullUpBonus: 0.42,
+    // FEEL — perimeter defenders mostly hold on the shot; rebounding
+    // instincts send ~30-50% of them in (defReb-scaled)
+    defCrashFarChance: 0.22,
+    defCrashFarSkill: 0.35,
     // REAL — usage tendency maps to USG%: 50 = 20% (exactly 1/5 of the
     // offense), each 10 points of tendency = 2.4% of share; the observed NBA
     // spread (10-34%) fits inside the dial's range

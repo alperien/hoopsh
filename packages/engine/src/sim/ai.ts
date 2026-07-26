@@ -136,6 +136,14 @@ export function decideBall(s: GameState): BallAction {
   if (shotMove === 'catch_shoot' && myShot.zone === 'three') {
     shootBias += A.catchShootBonus * clamp((0.5 - contest.level) / 0.5, 0, 1) * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
   }
+  // the transition pull-up: before the defense sets, a rhythm three off the
+  // dribble is a drilled shot for shooters — the trailer/early-offense three
+  // a drive-first star actually takes (his halfcourt threes are conceded to
+  // the rim threat). Green-light gated like the catch-and-shoot; without
+  // this the downhill benchmark attempted 0.7 threes against a real 5-7.
+  if (s.poss.phase === 'transition' && shotMove === 'pull_up' && myShot.zone === 'three') {
+    shootBias += A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+  }
   // the worked post move: after the backdown the turnaround is the plan —
   // without this the spray won 8:1 and post scoring never materialized
   if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
@@ -422,6 +430,22 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
   for (const d of onCourt(s, other(offSide))) {
     if (d.fouledOut) continue;
     const man = d.manId ? s.agents.get(d.manId) : null;
+    if (man && dist(man.pos, rim) >= 20) {
+      // guard-crash economy: a defender guarding the PERIMETER mostly holds
+      // rather than sprinting into the scrum — unconditional crashing had
+      // guards poaching long boards from the bigs who carved the position
+      // (the hub benchmark's rebound share ran ~2 boards short). Rebounding
+      // instincts (defReb) still send some guards in — the Westbrook clause.
+      const goes = s.rng.chance(
+        s.params.ai.defCrashFarChance + (d.p.attr.defReb / 100) * s.params.ai.defCrashFarSkill
+      );
+      if (!goes) {
+        d.intent = 'getback';
+        d.target = { ...man.pos }; // stay attached — deny the outlet leak
+        d.sprinting = false;
+        continue;
+      }
+    }
     d.intent = 'crash';
     d.target = man && dist(man.pos, rim) < 20
       ? lerp(man.pos, rim, 0.45) // box out between man and rim

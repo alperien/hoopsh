@@ -109,7 +109,7 @@ const team = (id: string, name: string, abbrev: string, star: Player, cast: Play
   tactics: t,
   // the star carries a real superstar's load; the engine's rotation logic
   // fills the rest from the default derivation
-  rotationMinutes: { [star.id]: 36 }
+  rotationMinutes: { [star.id]: 35 } // real star load is ~34-35.5 a night
 });
 
 /** motion-and-gravity cast: a connector forward, shooting, and a rim-runner */
@@ -176,13 +176,11 @@ const per = (f: (l: AggLine) => number) => (l: AggLine) => f(l) / Math.max(1, l.
 /**
  * Composite prime-season ranges — REAL numbers. v2 tightened the slack edges
  * (the sides reality never approached); the contested edges are untouched.
- * Two rows are RATCHETS — real targets whose mechanisms don't exist yet:
- *   • downhill 3PA: needs the transition/late-clock pull-up economy (a
- *     drive-first star's threes are taken in transition rhythm and as clock
- *     bailouts, neither of which the halfcourt decision loop produces)
- *   • hub TRB: rebound share tracks position and skill correctly but the
- *     star's minutes scale (~32 vs a real ~34.5) and guard-crash economy
- *     leave him ~2 boards short of a real 10+ season
+ * One row remains a RATCHET — a real target whose mechanism is only partly
+ * landed: downhill 3PA (the transition pull-up exists and doubled his
+ * attempts, but reaching 3+ needs a larger transition share of his touches).
+ * The hub-TRB ratchet was EARNED by the minutes controller + guard-crash
+ * economy and is now enforced.
  */
 export const TARGETS: Record<string, Target[]> = {
   'fid-curry': [
@@ -205,7 +203,7 @@ export const TARGETS: Record<string, Target[]> = {
   'fid-jokic': [
     { label: 'PTS', lo: 19.5, hi: 28.5, get: per((l) => l.pts) },
     { label: 'AST', lo: 7, hi: 11, get: per((l) => l.ast) },
-    { label: 'TRB', lo: 10, hi: 13, ratchet: true, get: (l) => l.trb / Math.max(1, l.games) },
+    { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) }, // ratchet EARNED: minutes controller + guard-crash economy
     { label: 'FG%', lo: 0.52, hi: 0.64, pct: true, get: (l) => l.fgm / Math.max(1, l.fga) },
     { label: '3PA', lo: 2, hi: 5.5, get: per((l) => l.tpa) },
     { label: 'Post shots', lo: 1.8, hi: 7, get: per((l) => l.postShots) }

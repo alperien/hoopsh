@@ -10,6 +10,7 @@
  */
 
 import type { TeamSide } from '../core/events.js';
+import { clamp } from '../core/rng.js';
 import { agent, emit, onCourt, type Agent, type GameState } from './state.js';
 
 /**
@@ -45,6 +46,22 @@ export function swapPlayers(s: GameState, side: TeamSide, out: Agent, into: Agen
  * `protect`: a player id who must stay on the floor no matter what (e.g. the
  * free-throw shooter mid-sequence) — skipped entirely by this pass.
  */
+/**
+ * Minutes pace vs a coach's target (Team.rotationMinutes): <1 behind, >1
+ * ahead, null when the player has no target or the game just started.
+ * Consumed by checkSubs on BOTH sides of the rotation — the pull leash and
+ * the eager return — so a targeted star both stays out longer and comes back
+ * sooner.
+ */
+function minutesPace(s: GameState, teamIdx: TeamSide, a: Agent): number | null {
+  const target = s.teams[teamIdx].rotationMinutes?.[a.p.id];
+  if (target === undefined) return null;
+  const gameSec = s.rules.periods * s.rules.periodMinutes * 60;
+  const elapsed = Math.min(1, s.t / gameSec);
+  if (elapsed <= 0.02) return null;
+  return a.secondsPlayed / Math.max(1, target * 60 * elapsed);
+}
+
 export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
   // crunch-time definition: final scheduled period (or OT), under 5 minutes
@@ -78,17 +95,47 @@ export function checkSubs(s: GameState, protect?: string): void {
       // starters run longer stints; bench players yield the floor back sooner —
       // a starter plays until tiredThreshold, a reserve is pulled 12 energy
       // points earlier (shorter leash, deeper bench rotation)
-      const tiredAt = starters.has(id) ? P.tiredThreshold : P.tiredThreshold + 12;
+      let tiredAt = starters.has(id) ? P.tiredThreshold : P.tiredThreshold + 12;
+      // minutes-aware leash: with a coach's target (Team.rotationMinutes) a
+      // behind-pace player is ridden deeper into fatigue and an ahead-of-pace
+      // one rests earlier. Teams without targets are byte-identical to the
+      // old behavior — this field had sat UNWIRED since the Team interface
+      // gained it (the fidelity casts were requesting star minutes into the
+      // void, and the hub benchmark ran 32 min against a 36 target).
+      const pace = minutesPace(s, side, a);
+      if (pace !== null) {
+        tiredAt += clamp((pace - 1) * P.rotationLeashScale, -P.rotationLeashMax, P.rotationLeashMax);
+      }
       if (a.energy < tiredAt) {
+        // behind-pace targeted players return EAGERLY (reduced ready bar and
+        // sorted first): the bench-sit, not the pull timing, is what actually
+        // caps a star's minutes — the leash alone moved him +0.5 a game
+        // the eager-return gate sets the equilibrium: targets settle at
+        // ~gate x target minutes (0.92 produced 33 of 36). 0.97 with the
+        // ahead-hold at 1.08 brackets the target from both sides.
+        const behindPace = (b: Agent) => {
+          const bp = minutesPace(s, side, b);
+          return bp !== null && bp < 0.97;
+        };
         const bench = team.players
           .map((p) => agent(s, p.id))
-          .filter((b) => !b.onCourt && !b.fouledOut && b.energy >= P.readyThreshold);
+          .filter((b) => {
+            if (b.onCourt || b.fouledOut) return false;
+            // the controller's other half: a target player AHEAD of pace is
+            // HELD BACK even when rested — without this, most-rested sorting
+            // returned the star at every dead ball and targets read 44 min
+            const bp = minutesPace(s, side, b);
+            if (bp !== null && bp > 1.08) return false;
+            return b.energy >= (behindPace(b) ? P.readyThreshold - 8 : P.readyThreshold);
+          });
         if (bench.length === 0) continue;
-        // prefer a same-position replacement (Number(bool) sorts true before
-        // false when used as the primary comparator: 1 - 0 > 0 means the
-        // same-position match sorts first), then most-rested among ties
+        // prefer behind-pace targets, then a same-position replacement
+        // (Number(bool) sorts true before false when used as the primary
+        // comparator), then most-rested among ties
         bench.sort((x, y) =>
-          Number(y.p.pos === a.p.pos) - Number(x.p.pos === a.p.pos) || y.energy - x.energy
+          Number(behindPace(y)) - Number(behindPace(x)) ||
+          Number(y.p.pos === a.p.pos) - Number(x.p.pos === a.p.pos) ||
+          y.energy - x.energy
         );
         swapPlayers(s, side, a, bench[0]!);
       }
