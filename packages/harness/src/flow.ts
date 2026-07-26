@@ -101,8 +101,12 @@ async function main(): Promise<void> {
     ['Possession length p50 (s)', m.possP50.toFixed(1), '~11-14', 'B'],
     ['Poss <=8s share', `${(m.possShare0to8 * 100).toFixed(0)}%`, '~25-35%', 'C'],
     ['Poss >=16s share', `${(m.possShare16plus * 100).toFixed(0)}%`, '~25-35%', 'C'],
-    ['OREB -> putback <=6s', `${(m.putbackShare * 100).toFixed(0)}%`, '~33%', 'B'],
-    ['Steal -> score <=6s', `${(m.stealConvShare * 100).toFixed(0)}%`, '~29%', 'B'],
+    // putback reference CORRECTED (wave2): 0.716 of PLAYER OREBs from the
+    // 184-game corpus (grade A) — the old ~33% divided by all OREB rows
+    // including team-rebound bookkeeping (flow-reference.json
+    // putbackWithin6sShareOfOreb.basis); sim ~50% is LOW, not high
+    ['OREB -> putback <=6s', `${(m.putbackShare * 100).toFixed(0)}%`, '~72%', 'A'],
+    ['Steal -> score <=6s', `${(m.stealConvShare * 100).toFixed(0)}%`, '~29%', 'A'],
     ['And-ones / game', m.andOnes.toFixed(1), '~4.8', 'B'],
     ['2nd-chance poss share', `${(m.secondChanceShare * 100).toFixed(0)}%`, '~12-15%', 'C']
   ];
