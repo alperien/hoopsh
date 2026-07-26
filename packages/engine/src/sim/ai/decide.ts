@@ -133,9 +133,9 @@ export function decideBall(s: GameState): BallAction {
     shootBias += (D.threeAppetite - 1) * A.threeApptScale * (h.p.tend.shotThree / 50) + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
   }
   // CONCEPT 1: DECISIVENESS — drilled green-light shots (catch-and-shoot
-  // three, transition pull-up, worked post move). The doctrine and every
-  // gate's incident history live in ai/concepts.ts.
-  shootBias += decisiveness(s, h, shotMove, myShot.zone, contest.level, act0);
+  // three, transition pull-up, worked post move, conceded mid-range jumper).
+  // The doctrine and every gate's incident history live in ai/concepts.ts.
+  shootBias += decisiveness(s, h, shotMove, myShot.zone, myShot.distFt, contest.level, act0);
   // USAGE PRESSURE — the closed loop that makes load an identity. The dial
   // (tend.usage) sets a target share of team offense; the gap between it and
   // the REALIZED share this game biases the self-creation options. An
@@ -188,7 +188,7 @@ export function decideBall(s: GameState): BallAction {
     const pay = commitmentPass(s, h, m, act0);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho
+      + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
       - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {

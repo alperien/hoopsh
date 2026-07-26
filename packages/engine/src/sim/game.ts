@@ -16,7 +16,7 @@ import {
 import { Rng } from '../core/rng.js';
 import { add, dist, len, lerp, norm, scale, sub } from '../core/vec.js';
 import {
-  decideBall, defenseTick, offenseOffBallTick, type BallAction
+  decideBall, defenseTick, midPullUpLight, offenseOffBallTick, type BallAction
 } from './ai.js';
 import { contestAt, defendersBack } from './resolve.js';
 import {
@@ -400,13 +400,34 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       break;
     case 'drive': {
       {
-        // arrival-based commit: penetrate until you REACH the rim vicinity
-        // (launch distance / planning speed), clamped to [floor, ceiling] —
-        // a fixed window expired mid-lane on long launches and drives died
-        // as 15-ft pull-ups (drive-collapse forensic)
         const D = s.params.decide;
+        const A = s.params.ai;
         const launchDist = dist(h.pos, attackedRim(s, h.side));
-        h.driveUntil = s.t + Math.min(D.driveCommitMaxSec, Math.max(D.driveCommitSec, launchDist / D.driveSpeedFtSec));
+        // THE SNAKE STOP-SHORT: a mid-range identity sometimes attacks TO
+        // HIS SPOT, not the rim — the drive that ends in a stop-on-a-dime
+        // pull-up at the FT-line/elbow band (the signature self-created
+        // middy). Gated on the shared midPullUpLight (ai/shared.ts: the
+        // same joint green light the decisiveness term honors, so the
+        // player who snakes and the player who rises are the same player)
+        // and only from OUTSIDE the band — a snake attacks INTO it;
+        // launches already inside it are the ordinary rim drive. The
+        // commit simply ends at driveMidStopFt instead of the rim: the
+        // beaten defender is still trailing when it expires, so the next
+        // decision is a pull-up in the band with real separation — and if
+        // the light doesn't fire there, the kick machinery takes over,
+        // which is how real snakes end too.
+        const stopShort =
+          launchDist > A.midGreenMaxFt &&
+          midPullUpLight(h) > 0 &&
+          s.rng.chance(midPullUpLight(h) * A.driveMidStopChance);
+        // non-snake: the arrival-based commit — penetrate until you REACH
+        // the rim vicinity (launch distance / planning speed), clamped to
+        // [floor, ceiling]; a fixed window expired mid-lane on long
+        // launches and drives died as 15-ft pull-ups (drive-collapse
+        // forensic)
+        h.driveUntil = stopShort
+          ? s.t + (launchDist - A.driveMidStopFt) / D.driveSpeedFtSec
+          : s.t + Math.min(D.driveCommitMaxSec, Math.max(D.driveCommitSec, launchDist / D.driveSpeedFtSec));
       }
       s.decisionAt = s.t + 0.5; // re-evaluate quickly mid-drive (finish or kick)
       break;

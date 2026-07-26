@@ -17,11 +17,13 @@
  *
  * The most realism-critical relationships across them:
  *   gravity() → defensive gap and sag depth (WHY shooters create space)
+ *   midRespect() → off-ball gap inside jumper range (WHY the elbow big is
+ *     guarded at the FT line, and why his middy volume self-limits)
  *   help convergence → drive EV falls, kickout EV rises (drive-and-kick)
  *   screen stun → contest drops (WHY a pick-and-roll pull-up is a good shot)
  */
 
 export { decideBall, type BallAction } from './ai/decide.js';
-export { assignedDefender, onBallDefender, moveSpeed } from './ai/shared.js';
+export { assignedDefender, onBallDefender, moveSpeed, midPullUpLight } from './ai/shared.js';
 export { onShotReleased, assignSpots, offenseOffBallTick } from './ai/offense.js';
 export { assignMatchups, defenseTick } from './ai/defense.js';

@@ -115,9 +115,11 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  * "4-out-1-in" slot). ai.ts assignSpots hands these out by personnel: best
  * ball-handler to `top`, the four best-gravity shooters to the
  * wings/corners, and the worst shooter to `dunker` if he's a true
- * non-shooter. `elbow_l/r` and `short_roll` aren't part of the initial
- * assignment — they're used as ad hoc landing spots during actions (e.g. a
- * popping screener) rather than a starting formation slot.
+ * non-shooter. `elbow_l/r` are the mid-range supply line: assignSpots
+ * stations a low-gravity big with a real in-between game there (instead
+ * of wasting a corner on him), and ai/actions.ts routes a mid-pop
+ * screener there after the screen. `short_roll` is reached via the cut
+ * machinery rather than assignment.
  *
  * Every position below is a named REAL basketball spot:
  *  - `top`: top of the key / top of the arc, dead center, the traditional
@@ -138,7 +140,8 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  *    non-shooter on the perimeter would let his defender sag off and
  *    congest the paint instead — hence assignSpots routing by gravity.
  *  - `elbow_l`/`elbow_r`: the elbows — where the free-throw line meets the
- *    lane lines, a classic pass-and-cut or pick-and-pop landing spot.
+ *    lane lines, a classic pass-and-cut or pick-and-pop landing spot. The
+ *    canonical mid-range real estate: a catch here is the 16-footer.
  *  - `short_roll`: the "short roll" area, roughly the front of the rim at
  *    mid-paint depth — where a screener who rolled to the basket but got cut
  *    off pulls up short to become a passing-window threat instead of
@@ -174,8 +177,16 @@ export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] 
     // low blocks — post-up real estate, ~first hash beside the key
     { key: 'post_l', pos: spot(3.5, cy - 6.5) },
     { key: 'post_r', pos: spot(3.5, cy + 6.5) },
-    { key: 'elbow_l', pos: spot(16, cy - 8) },
-    { key: 'elbow_r', pos: spot(16, cy + 8) },
+    // True elbow geometry: the NBA free-throw line sits 13.75 ft from the
+    // rim center (ftLineFt 19 − rimInsetFt 5.25) and the lane lines ±8 ft
+    // off the center line; the elbow jumper is taken from a step behind
+    // that intersection — dx 14 puts the spot sqrt(14² + 8²) ≈ 16.1 ft
+    // from the rim, the canonical 16-footer (was dx 16 ≈ 17.9 ft while
+    // the spots sat unconsumed; the mid-pop supply line made the distance
+    // load-bearing: it must land inside the 14-19.5 ft real-mid band with
+    // jitter, not straddle the long-2 boundary).
+    { key: 'elbow_l', pos: spot(14, cy - 8) },
+    { key: 'elbow_r', pos: spot(14, cy + 8) },
     { key: 'short_roll', pos: spot(11, cy) }
   ];
 }

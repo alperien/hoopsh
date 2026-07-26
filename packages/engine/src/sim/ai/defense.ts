@@ -8,7 +8,7 @@ import { clamp } from '../../core/rng.js';
 import { dist, lerp, norm, scale, sub, add, type V2 } from '../../core/vec.js';
 import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
-import { gravity } from '../resolve.js';
+import { gravity, midRespect } from '../resolve.js';
 import { foulHuntSide } from '../endgame.js';
 
 /** assign man matchups: sort both lineups by size and pair them */
@@ -123,7 +123,13 @@ function pickHelper(
     // reluctance), dropping to ceil−1 at helpAggr=1.0 — full aggression
     // still avoids leaving elite shooters open but rotates off of
     // average-gravity players much more willingly.
-    const score = dist(d.pos, rim) + gravity(s, man) * A.helperGravityWeight * (A.helperGravityCeil - helpAggr);
+    // ...respect is the max of the three-point threat and the live mid
+    // threat (midRespect — position-aware): helping off a mid big standing
+    // AT the elbow concedes his drilled 16-footer, and pre-fix he was
+    // always the first man chosen to rotate (lowest gravity near the rim),
+    // which made the stationed elbow a free outlet on every drive.
+    const respect = Math.max(gravity(s, man), midRespect(s, man));
+    const score = dist(d.pos, rim) + respect * A.helperGravityWeight * (A.helperGravityCeil - helpAggr);
     if (score < bestScore) { bestScore = score; helper = d; }
   }
   return helper;
@@ -191,7 +197,13 @@ function containOnBall(s: GameState, d: Agent, holder: Agent, rim: V2): void {
  */
 function positionOffBall(s: GameState, d: Agent, man: Agent, rim: V2, helpAggr: number): void {
   const A = s.params.ai;
-  const g = gravity(s, man);
+  // Respect what the man can hit FROM WHERE HE STANDS: the three-point
+  // threat everywhere (gravity), or the live mid-range threat when he is
+  // stationed inside jumper range (midRespect — the elbow big). Without the
+  // mid half, his defender sagged 6+ ft off the elbow and every catch there
+  // was a free 16-footer; guarding it honestly also pulls that defender out
+  // of the paint, which is the spacing pressure the mid game really exerts.
+  const g = Math.max(gravity(s, man), midRespect(s, man));
   // DENIAL: an all-time shooter doesn't get guarded, he gets denied — above
   // the gravity threshold the defender shades onto the man-BALL line (top-
   // lock) to take the catch away instead of protecting the drive line.

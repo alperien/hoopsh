@@ -448,6 +448,29 @@ export function gravity(s: GameState, a: Agent): number {
   return clamp((a.p.attr.three / 100) * A.gravityThreeWeight + (a.p.tend.shotThree / 100) * A.gravityTendWeight, 0, 1);
 }
 
+/**
+ * Position-aware MID-RANGE respect ∈ [0,1] — gravity()'s in-between sibling.
+ * gravity() is deliberately a three-point concept (it prices standing beyond
+ * the arc), which left a hole the mid-range restoration exposed: a defender
+ * sagging off a low-gravity big kept sagging when that big stood AT the
+ * elbow, so every elbow catch was free and the mid game had no counter
+ * (probe: the stationed postAnchor took 7 mid shots/game at 57% — hub-level
+ * volume the defense never answered). Real defenses guard the jumper within
+ * its range: the same ability-weighted/willingness-weighted blend as
+ * gravity() (one respect doctrine, one pair of weights — see the gravity
+ * comment for why both terms are needed), applied to the MID skill pair, and
+ * live only while the man actually stands inside jumper range
+ * (midGreenMaxFt — beyond it the mid threat is latent and the three-point
+ * model owns the question). Consumed by off-ball guard distance and helper
+ * selection in ai/defense.ts; a rim-runner's blend stays low (ability 28 /
+ * appetite 5 ≈ 0.2), so sagging off HIM in the paint is still correct.
+ */
+export function midRespect(s: GameState, a: Agent): number {
+  const A = s.params.ai;
+  if (dist(a.pos, attackedRim(s, a.side)) > A.midGreenMaxFt) return 0;
+  return clamp((a.p.attr.midRange / 100) * A.gravityThreeWeight + (a.p.tend.shotMid / 100) * A.gravityTendWeight, 0, 1);
+}
+
 /** rough top speed available right now, accounting for fatigue */
 export function currentMaxSpeed(s: GameState, a: Agent): number {
   const f = s.params.fatigue;
