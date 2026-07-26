@@ -18,7 +18,7 @@ import {
   type Agent, type GameState, type Phase
 } from './state.js';
 import { assignMatchups, assignSpots } from './ai.js';
-import { resolveRebound } from './resolve.js';
+import { resolveRebound, resolveTeamReboundSide } from './resolve.js';
 import { checkSubs } from './subs.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
@@ -89,6 +89,7 @@ export function startPossession(
     kind,
     lastPass: null,
     spotMap: new Map(),
+    spots: new Map(), // filled by assignSpots below (jittered per possession)
     action: null,
     ended: false
   };
@@ -350,6 +351,40 @@ export function tickScramble(s: GameState, dt: number): void {
       }
       return;
     }
+  }
+
+  // TEAM rebound: some caroms die without any individual securing them —
+  // tipped out of bounds, long skips off the scrum — and the officials
+  // award a side the ball at a dead-ball inbound. Real logs read
+  // "Defensive rebound by Team" (the Turing baseline judges used the sim's
+  // total lack of these as a definitely-real marker). The winning side runs
+  // the SAME positioning-weighted lottery a player rebound would, so this
+  // diverts individual credit without moving the ORB/DRB split; rate lives
+  // at params.reb.deadBallCaromChance (0 disables the mechanic entirely).
+  if (s.rng.chance(s.params.reb.deadBallCaromChance)) {
+    const side = resolveTeamReboundSide(s, ph.landAt, ph.offSide);
+    const offensive = side === ph.offSide;
+    emit(s, {
+      type: 'rebound',
+      team: side,
+      offensive,
+      x: round1(ph.landAt.x),
+      y: round1(ph.landAt.y)
+    });
+    if (offensive) {
+      // offense retains at a side out: shot clock floors at the rule pack's
+      // short-clock reset and the SAME possession continues — mirrors the
+      // loose-ball-foul side-out branch above
+      s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+      deadBall(s, ph.offSide, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+    } else {
+      // defense is awarded the ball out of bounds: the possession ended in a
+      // defensive rebound, but the next one starts from a dead-ball INBOUND
+      // (not a live_rebound) — no transition burst off a whistle
+      endPossession(s, 'def_rebound');
+      deadBall(s, side, { clockRuns: false });
+    }
+    return;
   }
 
   const winner = resolveRebound(s, ph.landAt, ph.offSide);

@@ -77,8 +77,11 @@ export type FoulKind = 'shooting' | 'reach' | 'offensive' | 'loose_ball';
  * possession: `made_ft` if that FT sequence's last attempt goes in,
  * otherwise the sequence's live-rebound scramble decides it (`def_rebound`,
  * or the offense keeps the same possession alive on an offensive rebound
- * with no possession_end in between). `def_rebound` — the defense secured a
- * live-ball rebound (missed shot or missed final free throw).  `turnover` —
+ * with no possession_end in between). `def_rebound` — the defense secured
+ * the rebound off a missed shot or missed final free throw: either a
+ * live-ball board by a player (next possession starts as 'live_rebound') or
+ * a dead carom awarded to the defense as a TEAM rebound (next possession
+ * starts as a dead-ball 'inbound' — see ReboundEvent below). `turnover` —
  * any TurnoverKind. `period_end` — the period horn sounded with the
  * possession still live (a no-shot buzzer-beater situation).
  */
@@ -256,12 +259,39 @@ export interface FreeThrowEvent extends Base {
   made: boolean;
 }
 
-/** A live-ball rebound (miss or missed-final-free-throw scramble). `offensive` is true when `team` matches the side that took the missed shot. `x`/`y` are the ball's landing/contest spot, not the rebounder's position. */
+/**
+ * A rebound. `offensive` is true when `team` matches the side that took the
+ * missed shot. `x`/`y` are the ball's landing/contest spot, not the
+ * rebounder's position.
+ *
+ * Three flavors, distinguished by `player`/`deadBall`:
+ *  - `player` set — a live-ball rebound secured by that individual (miss or
+ *    missed-final-free-throw scramble). The only flavor before team
+ *    rebounds landed; every stat consumer credits it to the player.
+ *  - `player` absent, no `deadBall` — a TEAM rebound: the live carom died
+ *    without any individual securing it (skipped out of bounds / rolled
+ *    dead), and the officials award `team` the ball at a dead-ball inbound
+ *    (sim/possession.ts tickScramble, rate params.reb.deadBallCaromChance;
+ *    the side is drawn from the same positioning-weighted lottery a player
+ *    rebound uses, so ORB%'s expectation is unchanged). Real logs read
+ *    "Defensive rebound by Team". Counts toward TEAM rebound totals with no
+ *    player line — official-scoring convention (stats/box.ts).
+ *  - `deadBall: true` (always playerless, always offensive) — the
+ *    scorekeeping FORMALITY logged after a missed NON-final free throw:
+ *    the ball is dead by rule, nobody rebounds anything, the next attempt
+ *    simply proceeds (sim/fouls.ts tickFreeThrows). Real logs print
+ *    "Offensive rebound by Team" here; official scoring EXCLUDES these
+ *    dead-ball rebounds from all rebound totals, and stats/box.ts does the
+ *    same. Emitted for play-by-play fidelity, not for the box score.
+ */
 export interface ReboundEvent extends Base {
   type: 'rebound';
   team: TeamSide;
-  player: string;
+  /** rebounder id — ABSENT for a team rebound (no individual credit) */
+  player?: string;
   offensive: boolean;
+  /** scorekeeping formality after a missed non-final FT (see above) */
+  deadBall?: boolean;
   x: number;
   y: number;
 }

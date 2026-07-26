@@ -294,11 +294,24 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
         break;
       }
       case 'rebound': {
-        const line = lines.get(e.player)!;
-        if (e.offensive) { line.orb += 1; totals[e.team].orb += 1; }
-        else { line.drb += 1; totals[e.team].drb += 1; }
-        line.trb += 1;
+        // Dead-ball formality rebounds (missed non-final FT) are excluded
+        // from ALL rebound totals — official-scoring convention; they exist
+        // for play-by-play fidelity only (core/events.ts ReboundEvent).
+        if (e.deadBall) break;
+        // Team totals count every real rebound; the player line exists only
+        // when an individual secured it. A playerless event is a TEAM
+        // rebound (dead carom awarded to a side) — the board happened and
+        // belongs in the team's ORB/DRB/TRB, but nobody's line gets credit,
+        // exactly like an official box score.
+        if (e.offensive) totals[e.team].orb += 1;
+        else totals[e.team].drb += 1;
         totals[e.team].trb += 1;
+        if (e.player) {
+          const line = lines.get(e.player)!;
+          if (e.offensive) line.orb += 1;
+          else line.drb += 1;
+          line.trb += 1;
+        }
         break;
       }
       case 'turnover': {

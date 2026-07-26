@@ -178,6 +178,17 @@ export interface Possession {
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip';
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
+  /**
+   * THIS possession's spacing-spot coordinates: the geometric template
+   * (geometry/court.ts spacingSpots) plus a small seeded per-possession
+   * jitter (params.ai.spotJitterFt), rolled once in assignSpots. Every
+   * consumer of a spot position during the possession (off-ball spacing,
+   * relocations, post-block targets) reads THIS map, never the raw
+   * template — that's what keeps the same trip internally coherent while
+   * different trips stop reproducing five bit-identical coordinates (the
+   * repeated "26 ft"/"5 ft" shot-distance tell from the Turing baseline).
+   */
+  spots: Map<string, V2>;
   /** the running set action, if any (e.g. an active pick-and-roll) */
   action: TeamAction | null;
   /** guard: possession_end has been emitted for this possession */

@@ -63,11 +63,67 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
 
 // ------------------------------------------------------------ offense setup
 
+/**
+ * Roll THIS possession's spot coordinates: the geometric template plus a
+ * small seeded jitter (params.ai.spotJitterFt, uniform per axis), stored on
+ * s.poss.spots for every downstream consumer. One roll per spot per
+ * possession — the draw count is fixed (all spots, every call), so the RNG
+ * stream stays deterministic regardless of personnel or spot usage.
+ *
+ * Why: with exact template coordinates, every trip produced bit-identical
+ * shot locations — the Turing baseline judges read the repeated "26 ft"
+ * threes and "5 ft" twos as a generator artifact (flow-reference.json
+ * meta.turingBaseline). Real spots are zones re-picked each trip.
+ *
+ * Two guards keep jitter from changing what a spot MEANS (both bit the
+ * first time around — assisted share drifted over its band edge on the
+ * 24-game guard):
+ *  - Corners deliberately sit INSIDE the 22 ft corner-three line (the D3
+ *    decision — behind-the-line corners are coupled to the assist economy,
+ *    see spacingSpots). Jitter must neither un-make that call (outward)
+ *    nor systematically SHORTEN the corner into an easier junk 2 (inward),
+ *    so corners jitter along the baseline only: lateral stays pinned at
+ *    the template offset.
+ *  - Top/wing spots are three-point spacing: a real shooter stands BEHIND
+ *    the line on purpose. Unguarded jitter parked them on/inside the arc
+ *    and minted 23-ft catch-and-shoot twos, so those spots keep
+ *    params.ai.spotJitterArcMarginFt of clearance behind the arc (pushed
+ *    back out radially when a roll lands too close).
+ */
+function rollSpots(s: GameState, rim: { x: number; y: number }): Map<string, { x: number; y: number }> {
+  const j = s.params.ai.spotJitterFt;
+  const byKey = new Map<string, { x: number; y: number }>();
+  for (const { key, pos } of spacingSpots(s.court, rim)) {
+    // two draws per spot, EVERY spot, every possession — fixed rng
+    // consumption keeps the stream deterministic across code paths
+    const dx = s.rng.range(-j, j);
+    const dy = s.rng.range(-j, j);
+    const p = { x: pos.x + dx, y: pos.y + dy };
+    if (key === 'corner_l' || key === 'corner_r') {
+      p.y = pos.y; // baseline-depth jitter only; lateral is the spot's meaning
+    } else if (key === 'top' || key === 'wing_l' || key === 'wing_r') {
+      const minR = s.rules.three.arcRadiusFt + s.params.ai.spotJitterArcMarginFt;
+      const d = dist(p, rim);
+      if (d < minR && d > 1e-9) {
+        // push back out along the rim->spot ray to the clearance floor
+        const k = minR / d;
+        p.x = rim.x + (p.x - rim.x) * k;
+        p.y = rim.y + (p.y - rim.y) * k;
+      }
+    }
+    // same court margin the relocation drift respects — nobody spaces out of bounds
+    p.x = clamp(p.x, 2, s.court.length - 2);
+    p.y = clamp(p.y, 2, s.court.width - 2);
+    byKey.set(key, p);
+  }
+  return byKey;
+}
+
 /** assign spacing spots for the possession by personnel */
 export function assignSpots(s: GameState, side: TeamSide): void {
   const rim = attackedRim(s, side);
-  const spots = spacingSpots(s.court, rim);
-  const byKey = new Map(spots.map((x) => [x.key, x.pos]));
+  const byKey = rollSpots(s, rim);
+  s.poss.spots = byKey;
   // bench exhausted and every on-court player fouled out: play on with who's
   // out there rather than crashing (mirrors bestHandler — NBA rule analog: a
   // fouled-out player remains when no substitute exists; custom short rosters
@@ -117,8 +173,12 @@ export function assignSpots(s: GameState, side: TeamSide): void {
 export function offenseOffBallTick(s: GameState): void {
   const side = s.poss.team;
   const rim = attackedRim(s, side);
-  const spots = spacingSpots(s.court, rim);
-  const byKey = new Map(spots.map((x) => [x.key, x.pos]));
+  // THIS possession's jittered spot table (see rollSpots). The map is filled
+  // by assignSpots at possession start; the defensive fallback only covers a
+  // degenerate empty map (e.g. a hand-built GameState in a test).
+  const byKey = s.poss.spots.size > 0
+    ? s.poss.spots
+    : new Map(spacingSpots(s.court, rim).map((x) => [x.key, x.pos]));
 
   actionTick(s);
   const act = s.poss.action;

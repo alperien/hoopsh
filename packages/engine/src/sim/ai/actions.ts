@@ -200,9 +200,12 @@ export function actionTick(s: GameState): void {
     // feederId === posterId marks it, and the working transition waits for
     // ARRIVAL at the block rather than a catch (see the post branch above).
     const side = poster.pos.y < s.court.centerY ? 'post_l' : 'post_r';
-    const spot = spacingSpots(s.court, attackedRim(s, s.poss.team)).find((x) => x.key === side)!;
+    // read the possession's jittered spot table (see offense.ts rollSpots);
+    // the raw template is only a fallback for a degenerate hand-built state
+    const spotPos = s.poss.spots.get(side)
+      ?? spacingSpots(s.court, attackedRim(s, s.poss.team)).find((x) => x.key === side)!.pos;
     poster.spotKey = side;
-    poster.target = { ...spot.pos };
+    poster.target = { ...spotPos };
     s.poss.action = {
       kind: 'post', posterId: poster.p.id, feederId: holderId,
       phase: 'posting', until: s.t + A.postDurationSec, postedAt: 0
