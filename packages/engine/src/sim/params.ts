@@ -353,6 +353,10 @@ export interface SimParams {
     hurryMaxCut: number;
     /** deficit (pts) at which the hurry reaches full strength */
     hurryDeficitRef: number;
+    /** deficit-depth floor inside hurriedness: even down a single score the
+     *  late clock pushes tempo — the clock ramp, not the deficit, carries
+     *  most of the urgency (share of full depth granted at deficit → 0) */
+    hurryDepthFloor: number;
     /** hurriedness (0..1, sim/endgame.ts) above which the trailing handler
      *  SPRINTS the ball up instead of the normal dribble-jog — the visible
      *  push of a chasing team */
@@ -1046,6 +1050,8 @@ export const defaultParams: SimParams = {
     hurryMaxCut: 0.45,
     // down two scores (6) is the fully-urgent chase
     hurryDeficitRef: 6,
+    // a one-point deficit still carries 40% of full chase depth
+    hurryDepthFloor: 0.4,
     // past ~a third of full urgency, the walk-up becomes a push
     hurrySprintMin: 0.3,
     // ~12 s per chase possession-pair; 1.6 net points recoverable per chance

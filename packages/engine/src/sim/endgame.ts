@@ -74,9 +74,9 @@ export function hurriedness(s: GameState, side: TeamSide): number {
   if (s.clock <= E.holdForOneClockSec && deficit <= E.lastShotDeficitMax) return 0;
   const ramp = 1 - s.clock / E.hurryClockSec;
   const depth = clamp(deficit / E.hurryDeficitRef, 0, 1);
-  // 0.4 floor on depth: even down one score the late clock pushes tempo —
-  // the ramp, not the deficit, carries most of the urgency
-  return ramp * (0.4 + 0.6 * depth) * chaseAliveness(s, deficit);
+  // floored depth: even down one score the late clock pushes tempo — the
+  // ramp, not the deficit, carries most of the urgency
+  return ramp * (E.hurryDepthFloor + (1 - E.hurryDepthFloor) * depth) * chaseAliveness(s, deficit);
 }
 
 /**
@@ -104,7 +104,9 @@ export function foulHuntSide(s: GameState): TeamSide | null {
   const deficit = s.score[off] - s.score[def]; // defense trails by this
   const E = s.params.endgame;
   if (deficit < E.foulMinDeficit || deficit > E.foulMaxDeficit) return null;
-  // one full shot clock of defense per possession the chase still needs
+  // one full shot clock of defense per possession the chase still needs —
+  // the 3 is a rules fact (a possession scores at most one three-pointer's
+  // 3 points), the same inline shot-value arithmetic shooting.ts uses
   const possNeeded = Math.ceil(deficit / 3);
   const window = Math.min(E.foulTrailMaxClockSec, possNeeded * s.rules.shotClockSec);
   if (s.clock > window) return null;
