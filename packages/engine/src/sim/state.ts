@@ -181,9 +181,12 @@ export type Phase =
       shooterId: string;
       side: TeamSide;
       taken: number;
+      /** attempts the trip can reach — for a one-and-one this is the potential 2; a front-end miss ends the trip early (fouls.ts tickFreeThrows) */
       of: number;
       nextIn: number;
       lastMade: boolean;
+      /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
+      oneAndOne: boolean;
     }
   | {
       kind: 'scramble'; // live rebound up for grabs

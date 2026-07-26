@@ -39,13 +39,20 @@
  * are distributed across worker subprocesses by parallel.ts — bit-identical
  * results for any --workers value, --workers 1 = plain single process.
  *
- * Run: npm run flow [-- --games 48 --seed flow --workers N --endgame]
+ * Run: npm run flow [-- --games 48 --seed flow --workers N --endgame --league nba|ncaa]
  * (--endgame simulates with GameConfig.endgame ON — the off/on comparison
  *  for the endgame layer's target metrics: clutch FT share, Q4 shape.)
+ * (--league swaps the rule pack and re-anchors the period-structure metrics
+ *  to that league's regulation shape — under 'ncaa' the clutch window and
+ *  comeback tracking read the SECOND HALF as the final period and droughts
+ *  span 40 minutes. The reference column stays NBA: college flow reference
+ *  data is calibration-milestone work, so treat non-NBA runs as raw
+ *  measurement, not a comparison.)
  */
 
 import { flagNumber, flagValue } from './args.js';
 import { reduceFlows, type FlowAverages } from './flow-metrics.js';
+import { resolveLeague } from './leagues.js';
 import { resolveWorkerCount, runGames, runGamesInProcess } from './parallel.js';
 
 // Re-exported so existing importers of the flow measurement keep working;
@@ -59,8 +66,8 @@ export type { GameFlow, FlowAverages } from './flow-metrics.js';
  * parallel CLI below: runGamesInProcess is the identical inner loop the
  * workers run, so this and `npm run flow -- --workers N` cannot drift.
  */
-export function measureFlow(games: number, seedBase: string): FlowAverages {
-  return reduceFlows(runGamesInProcess('flow', seedBase, 0, games));
+export function measureFlow(games: number, seedBase: string, league = 'nba'): FlowAverages {
+  return reduceFlows(runGamesInProcess('flow', seedBase, 0, games, undefined, league));
 }
 
 // ------------------------------------------------------------------ report
@@ -78,11 +85,12 @@ if (isMain) {
 async function main(): Promise<void> {
   const games = flagNumber(process.argv, '--games', 48);
   const seedBase = flagValue(process.argv, '--seed', 'flow');
+  const league = resolveLeague(flagValue(process.argv, '--league', 'nba'));
   const workers = resolveWorkerCount(flagValue(process.argv, '--workers', 'auto'));
   const endgame = process.argv.includes('--endgame');
-  console.log(`Measuring game flow over ${games} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'}${endgame ? ', endgame ON' : ''})...\n`);
+  console.log(`Measuring game flow over ${games} ${league.name} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'}${endgame ? ', endgame ON' : ''})...\n`);
   const t0 = performance.now();
-  const flows = await runGames({ task: endgame ? 'flowEndgame' : 'flow', games, seedBase, workers });
+  const flows = await runGames({ task: endgame ? 'flowEndgame' : 'flow', games, seedBase, league: league.id, workers });
   const m = reduceFlows(flows);
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)}s)\n`);
 
@@ -117,4 +125,8 @@ async function main(): Promise<void> {
   }
   console.log('\nKnown gaps expected until the endgame layer lands (REFACTOR.md M4): clutch FT share,');
   console.log('comeback texture, and anything downstream of timeouts/intentional fouling.');
+  if (league.id !== 'nba') {
+    console.log(`\nNOTE: the reference column above is NBA data — this was a ${league.name} run, so read the sim`);
+    console.log('column as raw measurement; league-specific flow references are calibration-milestone work.');
+  }
 }
