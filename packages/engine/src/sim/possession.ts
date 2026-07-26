@@ -108,7 +108,11 @@ export function startPossession(
   assignSpots(s, team);
   assignMatchups(s, other(team));
   const h = holder ?? bestHandler(s, team);
-  giveBall(s, h);
+  // acquisition taxonomy: the thief's touch is a steal, a live-rebound
+  // possession starts with the rebounder's grab, and inbound/tip possessions
+  // hand the ball over at a dead ball (an inbound catch is not a live PASS —
+  // the sim doesn't fly an inbound pass, it grants the touch)
+  giveBall(s, h, kind === 'steal' ? 'steal' : kind === 'live_rebound' ? 'rebound' : 'deadball');
   // 0.25s: the new holder needs at least one tick of "look around" before the
   // AI is allowed to shoot/pass/drive off the inbound — prevents an
   // instant no-look heave the moment the ball touches his hands
@@ -121,13 +125,25 @@ export function startPossession(
  * window and hand-check/strip mechanics. Called on every inbound, rebound,
  * steal, and completed pass — NOT on a shot release (that clears the holder
  * without assigning a new one; see `startShot`/`resolvePassArrival`).
+ *
+ * `acquisition` stamps HOW the touch arrived (see state.ts BallAcquisition):
+ * it gates the quick-shot taxonomy in decide.ts (catch_shoot / cut_finish /
+ * putback) and assist eligibility in shooting.ts. On any NON-pass acquisition
+ * the delivery-quality memory is reset to league-typical: catchQuality is a
+ * property of the pass that was caught, and a rebound/steal/dead-ball touch
+ * has no pass — before this, the passQ term in shotMakeP read a stale
+ * delivery from a pass caught possessions earlier (wave2 diagnostic).
+ * resolvePassArrival stamps the REAL delivery quality just before calling
+ * this with 'pass', so the order (stamp, then giveBall) preserves it.
  */
-export function giveBall(s: GameState, a: Agent): void {
+export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy']): void {
   s.ball.holderId = a.p.id;
   s.ball.flight = null;
   a.catchT = s.t;
   a.dribblesSinceCatch = 0;
   a.dribbleAcc = 0;
+  a.acquiredBy = acquisition;
+  if (acquisition !== 'pass') a.catchQuality = s.params.shot.passQualityCenter;
 }
 
 /**
@@ -298,9 +314,10 @@ export function tickDead(s: GameState, dt: number): void {
   if (ph.resumeIn > 0) return;
 
   if (ph.continuation) {
-    // same possession resumes (non-shooting foul etc.)
+    // same possession resumes (non-shooting foul etc.) — a dead-ball touch,
+    // not a pass: the whistle broke whatever play the last pass created
     s.phase = { kind: 'live' };
-    giveBall(s, bestHandler(s, ph.nextTeam));
+    giveBall(s, bestHandler(s, ph.nextTeam), 'deadball');
     // 0.3s: slightly longer than startPossession's 0.25s "look around" beat —
     // this is a possession that was already flowing before the whistle, so
     // give the offense a beat longer to re-set rather than snap back to speed
@@ -431,7 +448,7 @@ export function tickScramble(s: GameState, dt: number): void {
     // 20s left shouldn't get punished down to 14)
     s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
     s.poss.phase = 'halfcourt';
-    giveBall(s, winner);
+    giveBall(s, winner, 'rebound');
     const rim = attackedRim(s, winner.side);
     // putback eligibility: within 6ft of the rim (still right under the
     // basket) and the clock has more than a hundredth of a second left —

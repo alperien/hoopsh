@@ -144,7 +144,7 @@ export function resolvePassArrival(s: GameState): void {
     // and swallowed the open three the stun had just bought)
     s.poss.action = null; // the action delivered; normal offense resumes
   }
-  giveBall(s, to);
+  giveBall(s, to, 'pass');
   // a catch after the buzzer is a dead play — the ball must be shot before 0.0
   // (passes in flight while the clock expires were scoring post-buzzer baskets)
   if (s.clock < 1e-6) { endPeriod(s); return; }

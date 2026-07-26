@@ -16,13 +16,15 @@
 import { clamp } from '../../core/rng.js';
 import { dist, lerp, segmentT, type V2 } from '../../core/vec.js';
 import { n } from '../../model/derived.js';
+import type { ShotMoveType } from '../../core/events.js';
+import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
 import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, tempo } from './concepts.js';
 
 export type BallAction =
-  | { kind: 'shoot'; moveType: 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post' }
+  | { kind: 'shoot'; moveType: ShotMoveType }
   | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' }
   | { kind: 'drive' }
   | { kind: 'hold' };
@@ -62,23 +64,45 @@ export function decideBall(s: GameState): BallAction {
   }
 
   // Which KIND of shot this would be — drives the difficulty adjustment and
-  // the windup length. The catch-and-shoot window is 0.9s and zero dribbles:
-  // rise up immediately off the catch, or it becomes a (harder) pull-up.
+  // the windup length. A 0-dribble shot inside the quick window
+  // (decide.quickCatchSec) is an off-the-touch release, and WHAT it is
+  // depends on where it's from and how the ball arrived (h.acquiredBy):
+  //   • perimeter (mid/three): a catch-and-shoot jumper — the tracking
+  //     definition (0 dribbles, quick touch) regardless of acquisition; only
+  //     a real caught pass carries delivery quality (giveBall neutralizes
+  //     catchQuality on non-pass touches, so the passQ term stays honest).
+  //   • interior (rim/paint) off a PASS: a cut finish — caught in stride and
+  //     laid in (moveCutFinish/windupCutFinish existed for exactly this but
+  //     were assigned nowhere; the shot wore a jump-shot label instead).
+  //   • interior off a REBOUND: a putback — the decision-layer sibling of
+  //     possession.ts's automatic putback branch.
+  //   • interior off a steal/dead-ball touch (rare): a scramble finish
+  //     through traffic — 'drive' is the honest difficulty for going up
+  //     amid bodies without a delivery.
+  // Before acquisition-aware labels, ANY quick 0-dribble shot was
+  // 'catch_shoot': 22% of all attempts were interior shots counted as
+  // catch-and-shoot jumpers, poisoning the shot-mix report (wave2 diagnostic).
   const driving = s.t < h.driveUntil;
   const sinceCatch = s.t - h.catchT;
   const act0 = s.poss.action;
   // working the block: shots from a live post-up resolve as post moves
   // (windupPost + movePost in the shot model) instead of hurried pull-ups
   const postingUp = act0?.kind === 'post' && act0.posterId === h.p.id && act0.phase === 'working';
-  const shotMove: Extract<BallAction, { kind: 'shoot' }>['moveType'] =
+  const quickTouch = sinceCatch < D.quickCatchSec && h.dribblesSinceCatch === 0;
+  const loc = classifyShot(s.rules, s.court, rim, h.pos);
+  const interior = loc.zone === 'rim' || loc.zone === 'paint';
+  const shotMove: ShotMoveType =
     // post-shot zone boundary — 14 ft from the rim is the outer edge of the
     // traditional post area. FEEL — same numerical value as move.nearRimFt
     // (the contest model's interior boundary) but a distinct physical concept:
     // this gates the SHOT TYPE (post vs pull-up), not the defensive role blend.
     postingUp && distToRim < 14 ? 'post'
       : driving && distToRim < 12 ? 'drive'
-      : sinceCatch < 0.9 && h.dribblesSinceCatch === 0 ? 'catch_shoot'
-      : 'pull_up';
+      : !quickTouch ? 'pull_up'
+      : !interior ? 'catch_shoot'
+      : h.acquiredBy === 'rebound' ? 'putback'
+      : h.acquiredBy === 'pass' ? 'cut_finish'
+      : 'drive';
 
   // judge the shot against the contest expected AT RELEASE, not right now —
   // a defender sprinting into a closeout makes the look worse than it seems
@@ -86,7 +110,9 @@ export function decideBall(s: GameState): BallAction {
   const windup =
     shotMove === 'catch_shoot' ? W.windupCatchShoot :
     shotMove === 'pull_up' ? W.windupPullUp :
-    shotMove === 'post' ? W.windupPost : W.windupDrive;
+    shotMove === 'post' ? W.windupPost :
+    shotMove === 'cut_finish' ? W.windupCutFinish :
+    shotMove === 'putback' ? W.windupPutback : W.windupDrive;
   const contest = anticipatedContest(s, h, h.pos, windup);
   const myShot = shotEV(s, h, h.pos, shotMove, contest);
 
@@ -142,7 +168,14 @@ export function decideBall(s: GameState): BallAction {
     // model applies at resolution (self-consistency: chooser and outcome
     // share one belief about what my pass is worth to his shot)
     const myDelivery = n((h.p.attr.passAcc + h.p.attr.passVision) / 2);
-    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest, myDelivery);
+    // ...and with the same TYPE resolution would assign his immediate rise:
+    // an interior receiver's quick catch is a cut finish (caught in stride),
+    // not a jump shot — the chooser must price the pass the way the make
+    // model will resolve it, or it systematically undervalues the feed the
+    // taxonomy now rewards (self-consistency, same rule as the delivery term)
+    const mLoc = classifyShot(s.rules, s.court, rim, m.pos);
+    const mMove: ShotMoveType = mLoc.zone === 'rim' || mLoc.zone === 'paint' ? 'cut_finish' : 'catch_shoot';
+    const theirShot = shotEV(s, m, m.pos, mMove, catchContest, myDelivery);
     if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
     const risk = passRisk(s, h, m);
     // CONCEPT 3: ADVANCE THE ADVANTAGE (cutter / swing / hierarchy pull) and

@@ -221,6 +221,12 @@ export interface SimParams {
     intervalSec: number;
     /** softmax temperature over action utilities (higher = more random) */
     temperature: number;
+    /** the quick-release window off a touch: a 0-dribble shot decided within
+     *  this many seconds of gaining the ball is an off-the-catch release
+     *  (catch_shoot / cut_finish / putback by zone & acquisition — see
+     *  decide.ts); after it the gather is over and the shot is a self-created
+     *  pull-up */
+    quickCatchSec: number;
     /**
      * continuation value curve: expected points of "keep working the possession"
      * = continuationMax * (shotClock / fullClock) ^ continuationCurve
@@ -880,6 +886,14 @@ export const defaultParams: SimParams = {
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
     temperature: 0.0732,
+    // REAL-ish — NBA tracking's catch-and-shoot definition is a 0-dribble
+    // jumper released within ~2s of the touch; the sim's decision cadence
+    // (intervalSec ≈ 0.66, jittered) makes 0.9s the equivalent "rise
+    // immediately off the catch" window. Was an inline 0.9 in decide.ts;
+    // promoted here when the quick-touch window started gating the
+    // cut_finish/putback taxonomy (a make-model input, so it belongs on the
+    // calibration surface per this file's house rule).
+    quickCatchSec: 0.9,
     // THE MOST IMPORTANT NUMBER IN THE ENGINE.
     // Expected points of "keep working this possession" with a full shot
     // clock ≈ 1.45. Every shot decision is a comparison against this: shoot

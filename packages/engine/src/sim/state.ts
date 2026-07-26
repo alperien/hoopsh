@@ -20,6 +20,19 @@ export type MoveIntent =
   | 'getback'   // transition defense retreat
   | 'freeze';   // dead-ball repositioning
 
+/**
+ * How the current holder came to have the ball — the acquisition context a
+ * shot/assist taxonomy needs. A caught PASS is the only acquisition that
+ * makes a no-dribble quick shot a CATCH-and-shoot (and the only one whose
+ * delivery quality legitimately rides the release); a rebound grabbed at the
+ * rim and put straight back up is a putback; a steal or a dead-ball resume
+ * is a self-generated touch. Before this existed, decide.ts labeled every
+ * quick 0-dribble shot `catch_shoot` — 22% of ALL attempts were interior
+ * shots wearing a jump-shot label, and the passQuality term read a stale
+ * delivery from a pass caught possessions earlier (wave2 diagnostic).
+ */
+export type BallAcquisition = 'pass' | 'rebound' | 'steal' | 'deadball';
+
 export interface Agent {
   p: Player;
   side: TeamSide;
@@ -40,6 +53,9 @@ export interface Agent {
   dribblesSinceCatch: number;
   dribbleAcc: number;          // accumulator converting hold-time to dribbles
   catchT: number;              // t when this agent received the ball
+  /** how this touch was acquired (stamped by giveBall) — gates the quick-shot
+   *  taxonomy (catch_shoot vs cut_finish vs putback) and assist eligibility */
+  acquiredBy: BallAcquisition;
   /** delivery quality of the LAST pass caught, n-space [-1,1] — set on every
    *  catch from the passer's passAcc/passVision; feeds the catch-and-shoot
    *  make model ("on time, on target" — teammates shoot better next to a

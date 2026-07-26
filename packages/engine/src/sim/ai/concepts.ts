@@ -47,12 +47,12 @@
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
 import { other, type Agent, type GameState } from '../state.js';
-import type { TeamSide } from '../../core/events.js';
+import type { ShotMoveType, TeamSide } from '../../core/events.js';
 import { hurriedness } from '../endgame.js';
 import { creation } from './shared.js';
 
 type Action = GameState['poss']['action'];
-type ShotMove = 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post';
+type ShotMove = ShotMoveType;
 
 // ------------------------------------------------- 1. DECISIVENESS (shoot)
 

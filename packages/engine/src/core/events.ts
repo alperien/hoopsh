@@ -14,17 +14,23 @@ export type ShotZone = 'rim' | 'paint' | 'mid' | 'three';
 /**
  * How a shot was created, in basketball terms — feeds both the make-probability
  * model (resolve.ts shotMakeP's moveAdj term) and narration/stat breakdowns.
- * Currently produced by the AI (sim/shooting.ts, sim/ai.ts, sim/possession.ts,
- * sim/fouls.ts): `catch_shoot` (spot-up jumper within ~0.9s of the catch, no
- * dribbles), `pull_up` (off-the-dribble jumper after that window), `drive`
- * (shot attempt at the rim while driving), `putback` (immediate rebound
- * put-back attempt), `heave` (desperation end-of-clock/end-of-period shot from
- * distance, resolved with a heavy make-probability penalty), `post` (a shot from
- * a worked post-up, assigned by sim/ai/decide.ts once the post action reaches
- * its 'working' phase). STAGED — modeled in SimParams (movement/foul
- * adjustments exist) but no current code path assigns it to an actual attempt:
- * `cut_finish` (finishing an off-ball cut) still awaits a dedicated assignment
- * in a later stage; see docs/INTERNALS.md.
+ * Produced by the AI (sim/ai/decide.ts's acquisition-aware quick-touch
+ * taxonomy, plus sim/possession.ts's automatic putback branch):
+ * `catch_shoot` — a PERIMETER (mid/three) 0-dribble jumper released within
+ * the quick window (params.decide.quickCatchSec) of gaining the ball; only a
+ * caught pass carries delivery quality into it (see Agent.acquiredBy).
+ * `cut_finish` — an interior (rim/paint) 0-dribble quick finish off a caught
+ * pass: hit in stride and laid in.
+ * `putback` — an offensive-rebound touch put straight back up, via either
+ * possession.ts's automatic branch or the decision layer's quick window.
+ * `pull_up` — an off-the-dribble jumper after the quick window (or any
+ * dribbled-into shot).
+ * `drive` — a shot at the rim off a live drive commitment, or a scramble
+ * finish off a steal/dead-ball touch inside the quick window.
+ * `post` — a shot from a worked post-up (assigned once the post action
+ * reaches its 'working' phase).
+ * `heave` — desperation end-of-clock/end-of-period launch from distance,
+ * resolved with a heavy make-probability penalty.
  */
 export type ShotMoveType =
   | 'catch_shoot'

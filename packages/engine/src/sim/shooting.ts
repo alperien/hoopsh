@@ -84,6 +84,12 @@ export function startShot(
     : s.params.ai.assistMaxDribbles;
   if (
     made && lp &&
+    // only a shot off a CAUGHT PASS can be assisted: an offensive-rebound
+    // putback or a resumed dead-ball touch resets the play, but lastPass
+    // survives both (the possession continues) — before this gate, a
+    // pre-miss/pre-whistle pass was credited on the putback that followed
+    // (same acquisition-ignorance root as the catch_shoot mislabel)
+    shooter.acquiredBy === 'pass' &&
     s.t - shooter.catchT <= s.params.ai.assistWindowSec &&
     shooter.dribblesSinceCatch <= dribbleAllowance &&
     lp.from !== shooter.p.id &&

@@ -123,6 +123,7 @@ function initState(cfg: GameConfig): GameState {
         dribblesSinceCatch: 0,
         dribbleAcc: 0,
         catchT: -99,
+        acquiredBy: 'deadball',
         catchQuality: 0,
         usedPoss: 0,
         teamPossOnCourt: 0,
@@ -238,7 +239,7 @@ function tickLive(s: GameState, dt: number): void {
   const holderId = s.ball.holderId;
   if (!holderId) {
     // shouldn't happen in live phase; recover gracefully
-    giveBall(s, bestHandler(s, s.poss.team));
+    giveBall(s, bestHandler(s, s.poss.team), 'deadball');
     return;
   }
   const h = agent(s, holderId);
