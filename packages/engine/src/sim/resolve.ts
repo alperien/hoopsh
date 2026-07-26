@@ -48,14 +48,9 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
     const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
     const skill = s.params.ai.contestSkillFloor + s.params.ai.contestSkillRange * (defSkill / 100);
     //  stunned: caught on a screen → he's there but badly out of position. A
-    //  stunned defender still bothers the shot (45% of normal contest) because
-    //  he is physically present — he just can't properly contest.
-    //  0.45 = FEEL: tuned so a PnR pull-up is visibly better than a normal
-    //  one, but not automatic (the screen stun already costs pnrStunOverSec
-    //  seconds of defensive recovery). Kept inline: it is the stun multiplier
-    //  defined by the pnr mechanic and would only be meaningful as a param
-    //  paired with pnrStun*Sec — a future consolidation candidate.
-    const stunned = s.t < d.screenStunUntil ? 0.45 : 1;
+    //  stunned defender still bothers the shot because he is physically
+    //  present — he just can't properly contest (see pnrStunContestMult).
+    const stunned = s.t < d.screenStunUntil ? s.params.ai.pnrStunContestMult : 1;
     const level = closing * skill * stunned;
     if (level > best) {
       best = level;
@@ -108,7 +103,7 @@ export function anticipatedContest(
     const blend = s.params.move.contestDBlend;
     const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
     const skill = s.params.ai.contestSkillFloor + s.params.ai.contestSkillRange * (defSkill / 100);
-    const stunned = s.t < d.screenStunUntil ? 0.45 : 1; // same stun multiplier as contestAt (see above)
+    const stunned = s.t < d.screenStunUntil ? s.params.ai.pnrStunContestMult : 1; // same stun rule as contestAt
     const level = closing * skill * stunned;
     if (level > best) {
       best = level;
@@ -384,17 +379,11 @@ export function resolveRebound(
       // a 97-defReb/92-boxout center pulled 7.5 boards). Rebounding is a
       // zero-sum lottery, so re-weighting redistributes WHO rebounds without
       // moving league totals.
-      // FEEL — these six rating blend weights shape who wins each scramble:
-      //   offense: offReb×0.8 (pursuit) + vertical×0.3 (hops) + height×0.45/in
-      //   defense: defReb×0.7 (positioning) + boxout×0.35 (sealing) +
-      //            vertical×0.12 (tipped reach) + height×0.45/in
-      // Kept inline because the six values are a coupled set; splitting them
-      // into six separate params without also separating offensive vs defensive
-      // paths would make the API harder to reason about without adding sweep
-      // value. Migration candidate if the reb model is ever re-tuned.
+      // The six blend weights live in params.reb (blend*) as a COUPLED SET —
+      // see the provenance note there before touching any one of them.
       const rebSkill = a.side === offSide
-        ? attr.offReb * 0.8 + attr.vertical * 0.3 + a.p.heightIn * 0.45
-        : attr.defReb * 0.7 + attr.boxout * 0.35 + attr.vertical * 0.12 + a.p.heightIn * 0.45;
+        ? attr.offReb * R.blendOffReb + attr.vertical * R.blendOffVertical + a.p.heightIn * R.blendHeightPerIn
+        : attr.defReb * R.blendDefReb + attr.boxout * R.blendDefBoxout + attr.vertical * R.blendDefVertical + a.p.heightIn * R.blendHeightPerIn;
       const sideMult = a.side === offSide ? R.offWeightMult : 1;
       candidates.push(a);
       weights.push(prox * rebSkill * sideMult);

@@ -161,6 +161,13 @@ export interface SimParams {
     reboundCutoffFt: number;
     /** relative spread of miss-landing samples around the mean: std = mean × this factor */
     reboundSpreadFactor: number;
+    /** scramble rating blend — a coupled set shaping WHO wins each rebound lottery */
+    blendOffReb: number;         // offensive: pursuit
+    blendOffVertical: number;    // offensive: hops
+    blendDefReb: number;         // defensive: positioning
+    blendDefBoxout: number;      // defensive: sealing
+    blendDefVertical: number;    // defensive: tipped reach
+    blendHeightPerIn: number;    // both sides: weight per inch of height
   };
 
   decide: {
@@ -272,6 +279,7 @@ export interface SimParams {
     // contest model internals
     contestSkillFloor: number;   // minimum contest multiplier from mere presence (floor of skill range)
     contestSkillRange: number;   // additional multiplier at rating 100 vs floor (skill range above floor)
+    pnrStunContestMult: number;  // contest effectiveness while screen-stunned (pairs with pnrStun*Sec)
     windupProjShare: number;     // share of windup time used to project a defender forward in anticipatedContest
     // gravity model
     gravityThreeWeight: number;  // weight of three-point ability in gravity() (vs tendency)
@@ -303,8 +311,10 @@ export interface SimParams {
     denyBackdoorMult: number;    // cut-rate multiplier for a denied man (the counter)
     helpSpotPull: number;        // help spot pull toward the ball
     helperGravityWeight: number; // reluctance to help off shooters
+    helperGravityCeil: number;   // gravity-penalty factor at helpAggr=0 (drops to ceil−1 at helpAggr=1)
     closeoutSlackFt: number;     // gap slack before a closeout sprint
     containDBlend: number;       // on-ball containment: perimeterD share vs lateral
+    assignLeashFt: number;       // a defender within this of his man still counts as assigned to him
     // bookkeeping
     assistWindowSec: number;     // catch-to-shot window for assist credit
     assistMaxDribbles: number;
@@ -535,7 +545,20 @@ export const defaultParams: SimParams = {
     // reboundSpreadFactor: controls how tightly miss-landings cluster around
     //   the mean. 0.45 × mean gives a Gaussian std; floor at 1 ft prevents
     //   on-the-rim degenerate samples. Tracking-data validated. FEEL.
-    reboundSpreadFactor: 0.45   // FEEL — relative spread of miss-landing distribution
+    reboundSpreadFactor: 0.45,  // FEEL — relative spread of miss-landing distribution
+    // Scramble rating blend (FEEL — a COUPLED SET: re-tune together, never
+    // hand-nudge one alone). Rebounding is a zero-sum lottery, so these
+    // redistribute WHO rebounds without moving league totals. Height stays
+    // dominant in absolute terms (inches × per-inch weight beats any rating
+    // term) — but at 0.6/in it flattened craft entirely: every 7-footer
+    // rated within ~10% regardless of skill, and a 97-defReb/92-boxout
+    // center pulled 7.5 boards (fidelity incident).
+    blendOffReb: 0.8,           // pursuit
+    blendOffVertical: 0.3,      // hops
+    blendDefReb: 0.7,           // positioning
+    blendDefBoxout: 0.35,       // sealing
+    blendDefVertical: 0.12,     // tipped reach
+    blendHeightPerIn: 0.45      // both sides, per inch
   },
 
   decide: {
@@ -694,6 +717,11 @@ export const defaultParams: SimParams = {
     //     by windupSec × share. 0.8 = 80% of windup (he closes, doesn't overshoot). FEEL.
     contestSkillFloor: 0.55,    // FEEL — presence-only contest floor
     contestSkillRange: 0.45,    // FEEL — additional skill range above the floor
+    // A screen-stunned defender still bothers the shot (he is physically
+    // present) but can't properly contest. FEEL — tuned so a PnR pull-up is
+    // visibly better than a normal one, not automatic; only meaningful
+    // alongside pnrStunOverSec/pnrStunUnderSec (the recovery cost).
+    pnrStunContestMult: 0.45,
     windupProjShare: 0.8,       // FEEL — defender projection share of windup time
     // Gravity model: three-point ability (attr.three) vs willingness (tend.shotThree).
     // REAL — a great shooter who never shoots gets ignored; a volume gunner who
@@ -746,10 +774,20 @@ export const defaultParams: SimParams = {
     denyBackdoorMult: 3.5,       // FEEL — denial invites the backdoor
     helpSpotPull: 0.28,
     helperGravityWeight: 26,
+    // Gravity-penalty factor across helpAggr∈[0,1]: at helpAggr=0 the full
+    // ceil× reluctance applies; at 1.0 it drops to ceil−1 — still avoids
+    // leaving elite shooters, but rotates off average gravity much more
+    // willingly. FEEL — the range is [ (ceil−1)×helperGravityWeight,
+    // ceil×helperGravityWeight ] ft-equivalent of gravity penalty.
+    helperGravityCeil: 1.35,
     closeoutSlackFt: 1.5,
     // FEEL — lateral quickness is the larger containment share; perimeterD
     // (angles, hand discipline) contributes the rest
     containDBlend: 0.4,
+    // FEEL — assignment leash: large enough that a defender beaten by a step
+    // is still his man; small enough that a full rotation resets assignment.
+    // Distinct from onBallRadiusFt (who counts as "on the ball").
+    assignLeashFt: 16,
     // REAL — NBA scorekeeping credits a pass leading to a score through
     // roughly two seconds / two dribbles of a "direct scoring move"; at
     // 1.6s/1 dribble the engine's assisted-FGM share ran 46% vs the NBA's

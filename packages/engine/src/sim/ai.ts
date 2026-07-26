@@ -365,13 +365,11 @@ export function decideBall(s: GameState): BallAction {
 /** the defender ASSIGNED to this player (falls back to nearest on-ball man) */
 export function assignedDefender(s: GameState, man: Agent): Agent | null {
   for (const d of onCourt(s, other(man.side))) {
-    // 16 ft assignment leash: a defender whose man is within 16 ft of him
-    // counts as "assigned" to that man and is returned directly — this is
-    // distinct from onBallRadiusFt (which gates who counts as "on the ball"
-    // for reach-in/help purposes). FEEL — large enough that a defender
-    // who has been beaten a step is still his man; small enough that a
-    // full rotation resets assignment.
-    if (!d.fouledOut && d.manId === man.p.id && dist(d.pos, man.pos) < 16) return d;
+    // Assignment leash (params.ai.assignLeashFt): a defender whose man is
+    // within the leash counts as "assigned" to that man and is returned
+    // directly — distinct from onBallRadiusFt (which gates who counts as
+    // "on the ball" for reach-in/help purposes).
+    if (!d.fouledOut && d.manId === man.p.id && dist(d.pos, man.pos) < s.params.ai.assignLeashFt) return d;
   }
   return onBallDefender(s, man);
 }
@@ -875,12 +873,11 @@ export function defenseTick(s: GameState): void {
         // shooters effectively can't be helped off of. helpAggr scales how
         // much a team tolerates the risk.
         const man = agent(s, d.manId);
-        // 1.35: the gravity-penalty ceiling at helpAggr=0 (maximum reluctance).
-        // At helpAggr=1.0 (full aggression) the factor drops to 0.35 — the team
-        // still avoids leaving elite shooters open but is much more willing to
-        // rotate off of average-gravity players. FEEL — sets the gravity weight
-        // range: [0.35 × helperGravityWeight, 1.35 × helperGravityWeight].
-        const score = dist(d.pos, rim) + gravity(s, man) * A.helperGravityWeight * (1.35 - helpAggr);
+        // helperGravityCeil: the gravity-penalty factor at helpAggr=0 (maximum
+        // reluctance), dropping to ceil−1 at helpAggr=1.0 — full aggression
+        // still avoids leaving elite shooters open but rotates off of
+        // average-gravity players much more willingly.
+        const score = dist(d.pos, rim) + gravity(s, man) * A.helperGravityWeight * (A.helperGravityCeil - helpAggr);
         if (score < bestScore) { bestScore = score; helper = d; }
       }
     }
