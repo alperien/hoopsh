@@ -460,7 +460,7 @@
 [4,0,"h","Boston full timeout",96,98],
 [4,0,null,"End of 4th quarter",96,98]
 ]},
-"202602060DET":{"away":"MIA","home":"BOS","final":[80,118],"plays":[
+"202602060DET":{"away":"NYK","home":"DET","final":[80,118],"plays":[
 [1,720,null,"Jump ball: M. Robinson vs. I. Stewart (C. Cunningham gains possession)",0,0],
 [1,705,"h","I. Stewart makes 2-pt dunk from 3 ft (assist by C. Cunningham)",0,2],
 [1,684,"a","M. Bridges makes 3-pt jump shot from 24 ft (assist by J. Brunson)",3,2],
@@ -893,7 +893,7 @@
 [4,8,"h","Turnover by M. Sasser (bad pass; steal by T. Jemison)",80,118],
 [4,0,null,"End of 4th quarter",80,118]
 ]},
-"202602060MIL":{"away":"MIA","home":"BOS","final":[99,105],"plays":[
+"202602060MIL":{"away":"IND","home":"MIL","final":[99,105],"plays":[
 [1,720,null,"Jump ball: J. Huff vs. M. Turner (P. Siakam gains possession)",0,0],
 [1,706,"a","A. Nesmith misses 3-pt jump shot from 26 ft",0,0],
 [1,705,"h","Defensive rebound by J. Sims",0,0],
@@ -1314,7 +1314,7 @@
 [4,2,"h","Defensive rebound by B. Portis",99,105],
 [4,0,null,"End of 4th quarter",99,105]
 ]},
-"202602060MIN":{"away":"MIA","home":"BOS","final":[119,115],"plays":[
+"202602060MIN":{"away":"NOP","home":"MIN","final":[119,115],"plays":[
 [1,720,null,"Jump ball: D. Queen vs. R. Gobert (Z. Williamson gains possession)",0,0],
 [1,697,"a","Turnover by T. Murphy (bad pass; steal by R. Gobert)",0,0],
 [1,686,"h","A. Edwards makes 2-pt layup from 1 ft",0,2],
@@ -1771,7 +1771,7 @@
 [4,1,"a","Defensive rebound by T. Murphy",119,115],
 [4,0,null,"End of 4th quarter",119,115]
 ]},
-"202602060POR":{"away":"MIA","home":"BOS","final":[115,135],"plays":[
+"202602060POR":{"away":"MEM","home":"POR","final":[115,135],"plays":[
 [1,720,null,"Jump ball: O. Prosper vs. D. Clingan (T. Camara gains possession)",0,0],
 [1,708,"h","J. Grant misses 3-pt jump shot from 24 ft",0,0],
 [1,706,"a","Defensive rebound by C. Coward",0,0],
@@ -2231,7 +2231,7 @@
 [4,21,"a","J. Mashack makes 3-pt jump shot from 26 ft (assist by J. Small)",115,135],
 [4,0,null,"End of 4th quarter",115,135]
 ]},
-"202602060SAC":{"away":"MIA","home":"BOS","final":[114,111],"plays":[
+"202602060SAC":{"away":"LAC","home":"SAC","final":[114,111],"plays":[
 [1,720,null,"Jump ball: B. Lopez vs. M. Raynaud (R. Westbrook gains possession)",0,0],
 [1,702,"h","D. Hunter makes 2-pt jump shot from 17 ft",0,2],
 [1,682,"a","K. Dunn misses 3-pt jump shot from 26 ft",0,2],
@@ -3133,7 +3133,7 @@
 [4,7,"a","Defensive rebound by M. Christie",104,124],
 [4,0,null,"End of 4th quarter",104,124]
 ]},
-"202602120OKC":{"away":"DAL","home":"LAL","final":[110,93],"plays":[
+"202602120OKC":{"away":"MIL","home":"OKC","final":[110,93],"plays":[
 [1,720,null,"Jump ball: J. Sims vs. C. Holmgren (C. Wallace gains possession)",0,0],
 [1,704,"h","C. Holmgren misses 2-pt jump shot from 8 ft",0,0],
 [1,703,"a","Defensive rebound by K. Porter",0,0],
@@ -3570,7 +3570,7 @@
 [4,2,"a","Turnover by Team (shot clock)",110,93],
 [4,0,null,"End of 4th quarter",110,93]
 ]},
-"202602120UTA":{"away":"DAL","home":"LAL","final":[135,119],"plays":[
+"202602120UTA":{"away":"POR","home":"UTA","final":[135,119],"plays":[
 [1,720,null,"Jump ball: D. Clingan vs. K. Filipowski (D. Clingan gains possession)",0,0],
 [1,705,"a","J. Grant misses 3-pt jump shot from 23 ft",0,0],
 [1,703,"h","Defensive rebound by K. Filipowski",0,0],
@@ -4545,7 +4545,7 @@
 [4,10,"h","Turnover by (turnover)",84,103],
 [4,0,null,"End of 4th quarter",84,103]
 ]},
-"202602250DET":{"away":"BOS","home":"DEN","final":[116,124],"plays":[
+"202602250DET":{"away":"OKC","home":"DET","final":[116,124],"plays":[
 [1,720,null,"Jump ball: J. Williams vs. J. Duren (D. Robinson gains possession)",0,0],
 [1,703,"h","Turnover by C. Cunningham (bad pass; steal by I. Joe)",0,0],
 [1,685,"a","J. Williams makes 3-pt jump shot from 26 ft (assist by L. Dort)",3,0],
@@ -5039,7 +5039,7 @@
 [4,8,"h","Defensive rebound by J. Duren",116,124],
 [4,0,null,"End of 4th quarter",116,124]
 ]},
-"202602250HOU":{"away":"BOS","home":"DEN","final":[97,128],"plays":[
+"202602250HOU":{"away":"SAC","home":"HOU","final":[97,128],"plays":[
 [1,720,null,"Jump ball: M. Raynaud vs. A. Şengün (K. Durant gains possession)",0,0],
 [1,704,"a","M. Raynaud misses 2-pt jump shot from 7 ft (block by A. Şengün)",0,0],
 [1,703,"h","Defensive rebound by J. Smith",0,0],
@@ -5474,7 +5474,7 @@
 [4,3,"h","Turnover by Team (shot clock)",97,128],
 [4,0,null,"End of 4th quarter",97,128]
 ]},
-"202602250MEM":{"away":"BOS","home":"DEN","final":[133,112],"plays":[
+"202602250MEM":{"away":"GSW","home":"MEM","final":[133,112],"plays":[
 [1,720,null,"Jump ball: A. Horford vs. O. Prosper (B. Podziemski gains possession)",0,0],
 [1,701,"a","A. Horford makes 2-pt hook shot from 6 ft (assist by G. Santos)",2,0],
 [1,686,"a","Violation by Team (kicked ball)",2,0],
@@ -5945,7 +5945,7 @@
 [4,1,"a","Turnover by Team (shot clock)",133,112],
 [4,0,null,"End of 4th quarter",133,112]
 ]},
-"202602250MIL":{"away":"BOS","home":"DEN","final":[116,118],"plays":[
+"202602250MIL":{"away":"CLE","home":"MIL","final":[116,118],"plays":[
 [1,720,null,"Jump ball: J. Allen vs. M. Turner (D. Schröder gains possession)",0,0],
 [1,709,"a","S. Merrill misses 3-pt jump shot from 27 ft",0,0],
 [1,705,"h","Defensive rebound by K. Porter",0,0],
@@ -6370,7 +6370,7 @@
 [4,0,"a","Instant Replay (Request: Ruling Stands)",116,118],
 [4,0,null,"End of 4th quarter",116,118]
 ]},
-"202602250TOR":{"away":"BOS","home":"DEN","final":[110,107],"plays":[
+"202602250TOR":{"away":"SAS","home":"TOR","final":[110,107],"plays":[
 [1,720,null,"Jump ball: V. Wembanyama vs. C. Murray-Boyles (D. Fox gains possession)",0,0],
 [1,705,"a","Shooting foul by C. Murray-Boyles (drawn by V. Wembanyama)",0,0],
 [1,705,"a","V. Wembanyama makes free throw 1 of 2",1,0],

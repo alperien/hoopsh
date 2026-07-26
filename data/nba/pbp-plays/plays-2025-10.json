@@ -482,7 +482,7 @@
 [4,0,"h","Offensive rebound by Team",131,124],
 [4,0,null,"End of 4th quarter",131,124]
 ]},
-"202510240DAL":{"away":"CLE","home":"BRK","final":[117,107],"plays":[
+"202510240DAL":{"away":"WAS","home":"DAL","final":[117,107],"plays":[
 [1,720,null,"Jump ball: A. Sarr vs. D. Lively (C. Flagg gains possession)",0,0],
 [1,705,"h","Turnover by D. Lively (bad pass; steal by K. George)",0,0],
 [1,701,"a","K. George misses 3-pt jump shot from 26 ft",0,0],
@@ -988,7 +988,7 @@
 [4,16,"a","Washington full timeout",117,107],
 [4,0,null,"End of 4th quarter",117,107]
 ]},
-"202510240HOU":{"away":"CLE","home":"BRK","final":[115,111],"plays":[
+"202510240HOU":{"away":"DET","home":"HOU","final":[115,111],"plays":[
 [1,720,null,"Jump ball: J. Duren vs. S. Adams (D. Robinson gains possession)",0,0],
 [1,701,"a","Turnover by C. Cunningham (bad pass; steal by A. Şengün)",0,0],
 [1,684,"h","K. Durant makes 2-pt jump shot from 8 ft",0,2],
@@ -1534,7 +1534,7 @@
 [4,2,"h","Offensive rebound by Team",115,111],
 [4,0,null,"End of 4th quarter",115,111]
 ]},
-"202510240LAC":{"away":"CLE","home":"BRK","final":[102,129],"plays":[
+"202510240LAC":{"away":"PHO","home":"LAC","final":[102,129],"plays":[
 [1,720,null,"Jump ball: O. Ighodaro vs. I. Zubac (D. Booker gains possession)",0,0],
 [1,702,"a","G. Allen misses 3-pt jump shot from 24 ft",0,0],
 [1,699,"h","Defensive rebound by D. Jones",0,0],
@@ -1989,7 +1989,7 @@
 [4,3,"h","Turnover by Team (shot clock)",102,129],
 [4,0,null,"End of 4th quarter",102,129]
 ]},
-"202510240LAL":{"away":"CLE","home":"BRK","final":[110,128],"plays":[
+"202510240LAL":{"away":"MIN","home":"LAL","final":[110,128],"plays":[
 [1,720,null,"Jump ball: R. Gobert vs. D. Ayton (A. Edwards gains possession)",0,0],
 [1,704,"a","A. Edwards misses 3-pt jump shot from 26 ft",0,0],
 [1,703,"h","Defensive rebound by A. Reaves",0,0],
@@ -2443,7 +2443,7 @@
 [4,9,"h","Turnover by Team (shot clock)",110,128],
 [4,0,null,"End of 4th quarter",110,128]
 ]},
-"202510240MEM":{"away":"CLE","home":"BRK","final":[146,114],"plays":[
+"202510240MEM":{"away":"MIA","home":"MEM","final":[146,114],"plays":[
 [1,720,null,"Jump ball: K. Ware vs. J. Jackson (J. Wells gains possession)",0,0],
 [1,705,"h","J. Morant makes 2-pt jump shot from 7 ft (assist by K. Caldwell-Pope)",0,2],
 [1,705,"a","Violation by Team (def goaltending)",0,2],
@@ -2964,7 +2964,7 @@
 [4,12,"h","J. Small makes 3-pt jump shot from 29 ft",146,114],
 [4,0,null,"End of 4th quarter",146,114]
 ]},
-"202510240NOP":{"away":"CLE","home":"BRK","final":[120,116],"plays":[
+"202510240NOP":{"away":"SAS","home":"NOP","final":[120,116],"plays":[
 [1,720,null,"Jump ball: V. Wembanyama vs. T. Murphy (Z. Williamson gains possession)",0,0],
 [1,704,"h","Z. Williamson makes 2-pt dunk at rim",0,2],
 [1,704,"h","Shooting foul by V. Wembanyama (drawn by Z. Williamson)",0,2],
@@ -3521,7 +3521,7 @@
 [5,1,"a","H. Barnes makes free throw 2 of 2",120,116],
 [5,0,null,"End of 1st overtime",120,116]
 ]},
-"202510240NYK":{"away":"CLE","home":"BRK","final":[95,105],"plays":[
+"202510240NYK":{"away":"BOS","home":"NYK","final":[95,105],"plays":[
 [1,720,null,"Jump ball: N. Queta vs. K. Towns (P. Pritchard gains possession)",0,0],
 [1,700,"a","S. Hauser makes 3-pt jump shot from 26 ft (assist by P. Pritchard)",3,0],
 [1,685,"h","Offensive foul by K. Towns (drawn by D. White)",3,0],
@@ -3994,7 +3994,7 @@
 [4,22,"h","Defensive rebound by J. Hart",95,105],
 [4,0,null,"End of 4th quarter",95,105]
 ]},
-"202510240ORL":{"away":"CLE","home":"BRK","final":[111,107],"plays":[
+"202510240ORL":{"away":"ATL","home":"ORL","final":[111,107],"plays":[
 [1,720,null,"Jump ball: O. Okongwu vs. W. Carter (J. Suggs gains possession)",0,0],
 [1,701,"h","Shooting foul by O. Okongwu (drawn by W. Carter)",0,0],
 [1,701,"h","W. Carter misses free throw 1 of 2",0,0],
@@ -4505,7 +4505,7 @@
 [4,0,"h","Turnover by J. Suggs (bad pass; steal by J. Johnson)",111,107],
 [4,0,null,"End of 4th quarter",111,107]
 ]},
-"202510240POR":{"away":"CLE","home":"BRK","final":[119,139],"plays":[
+"202510240POR":{"away":"GSW","home":"POR","final":[119,139],"plays":[
 [1,720,null,"Jump ball: Q. Post vs. D. Clingan (D. Avdija gains possession)",0,0],
 [1,701,"h","D. Avdija makes 2-pt layup from 1 ft (assist by D. Clingan)",0,2],
 [1,689,"a","Turnover by D. Green (bad pass)",0,2],
@@ -5024,7 +5024,7 @@
 [4,0,"h","Instant Replay (Request: Ruling Stands)",119,139],
 [4,0,null,"End of 4th quarter",119,139]
 ]},
-"202510240SAC":{"away":"CLE","home":"BRK","final":[104,105],"plays":[
+"202510240SAC":{"away":"UTA","home":"SAC","final":[104,105],"plays":[
 [1,720,null,"Jump ball: W. Kessler vs. D. Sabonis (K. George gains possession)",0,0],
 [1,709,"a","Turnover by W. Kessler (bad pass; steal by D. Schröder)",0,0],
 [1,704,"h","D. Schröder misses 2-pt layup from 5 ft",0,0],
@@ -5475,7 +5475,7 @@
 [4,1,"a","Offensive rebound by Team",104,105],
 [4,0,null,"End of 4th quarter",104,105]
 ]},
-"202510240TOR":{"away":"CLE","home":"BRK","final":[122,116],"plays":[
+"202510240TOR":{"away":"MIL","home":"TOR","final":[122,116],"plays":[
 [1,720,null,"Jump ball: M. Turner vs. J. Poeltl (J. Poeltl gains possession)",0,0],
 [1,700,"h","B. Ingram misses 2-pt jump shot from 13 ft",0,0],
 [1,697,"a","Defensive rebound by R. Rollins",0,0],
@@ -6463,7 +6463,7 @@
 [4,12,"h","Turnover by Team (shot clock)",105,125],
 [4,0,null,"End of 4th quarter",105,125]
 ]},
-"202510290BRK":{"away":"CLE","home":"BOS","final":[117,112],"plays":[
+"202510290BRK":{"away":"ATL","home":"BRK","final":[117,112],"plays":[
 [1,720,null,"Jump ball: K. Porziņģis vs. N. Claxton (B. Saraf gains possession)",0,0],
 [1,701,"h","N. Claxton makes 2-pt dunk from 1 ft (assist by C. Thomas)",0,2],
 [1,678,"a","J. Johnson misses 2-pt jump shot from 6 ft",0,2],
@@ -6939,7 +6939,7 @@
 [4,3,"a","Defensive rebound by O. Okongwu",117,112],
 [4,0,null,"End of 4th quarter",117,112]
 ]},
-"202510290CHI":{"away":"CLE","home":"BOS","final":[113,126],"plays":[
+"202510290CHI":{"away":"SAC","home":"CHI","final":[113,126],"plays":[
 [1,720,null,"Jump ball: D. Sabonis vs. N. Vučević (T. Jones gains possession)",0,0],
 [1,707,"h","M. Buzelis misses 2-pt layup from 2 ft",0,0],
 [1,706,"a","Defensive rebound by D. Sabonis",0,0],
@@ -7386,7 +7386,7 @@
 [4,8,"h","Defensive rebound by N. Vučević",113,126],
 [4,0,null,"End of 4th quarter",113,126]
 ]},
-"202510290DAL":{"away":"CLE","home":"BOS","final":[105,107],"plays":[
+"202510290DAL":{"away":"IND","home":"DAL","final":[105,107],"plays":[
 [1,720,null,"Jump ball: I. Jackson vs. A. Davis (C. Flagg gains possession)",0,0],
 [1,698,"h","K. Thompson misses 3-pt jump shot from 25 ft",0,0],
 [1,695,"a","Defensive rebound by J. Walker",0,0],
@@ -7944,7 +7944,7 @@
 [4,0,"a","Offensive rebound by Team",105,107],
 [4,0,null,"End of 4th quarter",105,107]
 ]},
-"202510290DEN":{"away":"CLE","home":"BOS","final":[88,122],"plays":[
+"202510290DEN":{"away":"NOP","home":"DEN","final":[88,122],"plays":[
 [1,720,null,"Jump ball: D. Jordan vs. N. Jokić (A. Gordon gains possession)",0,0],
 [1,697,"h","N. Jokić makes 2-pt hook shot from 8 ft",0,2],
 [1,674,"a","T. Murphy misses 2-pt jump shot from 14 ft",0,2],
@@ -8401,7 +8401,7 @@
 [4,20,"h","Defensive rebound by Team",88,122],
 [4,0,null,"End of 4th quarter",88,122]
 ]},
-"202510290DET":{"away":"CLE","home":"BOS","final":[116,135],"plays":[
+"202510290DET":{"away":"ORL","home":"DET","final":[116,135],"plays":[
 [1,720,null,"Jump ball: W. Carter vs. J. Duren (J. Suggs gains possession)",0,0],
 [1,700,"a","Turnover by P. Banchero (lost ball; steal by T. Harris)",0,0],
 [1,692,"h","C. Cunningham misses 3-pt jump shot from 27 ft",0,0],
@@ -8943,7 +8943,7 @@
 [4,3,"h","Turnover by R. Holland (bad pass; steal by T. Da Silva)",116,135],
 [4,0,null,"End of 4th quarter",116,135]
 ]},
-"202510290MIN":{"away":"CLE","home":"BOS","final":[116,115],"plays":[
+"202510290MIN":{"away":"LAL","home":"MIN","final":[116,115],"plays":[
 [1,720,null,"Jump ball: D. Ayton vs. R. Gobert (J. LaRavia gains possession)",0,0],
 [1,706,"a","Turnover by D. Ayton (back court)",0,0],
 [1,697,"h","J. Randle misses 2-pt jump shot from 18 ft",0,0],
@@ -9402,7 +9402,7 @@
 [4,0,"a","Instant Replay (Request: Stands)",116,115],
 [4,0,null,"End of 4th quarter",116,115]
 ]},
-"202510290PHO":{"away":"CLE","home":"BOS","final":[114,113],"plays":[
+"202510290PHO":{"away":"MEM","home":"PHO","final":[114,113],"plays":[
 [1,720,null,"Jump ball: J. Jackson vs. M. Williams (R. Dunn gains possession)",0,0],
 [1,705,"h","M. Williams makes 2-pt layup from 3 ft (assist by R. O'Neale)",0,2],
 [1,690,"a","Turnover by J. Morant (dbl dribble)",0,2],
@@ -9889,7 +9889,7 @@
 [4,1,"a","Defensive rebound by J. Morant",114,113],
 [4,0,null,"End of 4th quarter",114,113]
 ]},
-"202510290TOR":{"away":"CLE","home":"BOS","final":[139,121],"plays":[
+"202510290TOR":{"away":"HOU","home":"TOR","final":[139,121],"plays":[
 [1,720,null,"Jump ball: A. Şengün vs. C. Murray-Boyles (J. Smith gains possession)",0,0],
 [1,703,"a","K. Durant misses 3-pt jump shot from 26 ft",0,0],
 [1,700,"a","Offensive rebound by J. Smith",0,0],
@@ -10356,7 +10356,7 @@
 [4,8,"a","Turnover by Team (shot clock)",139,121],
 [4,0,null,"End of 4th quarter",139,121]
 ]},
-"202510290UTA":{"away":"CLE","home":"BOS","final":[136,134],"plays":[
+"202510290UTA":{"away":"POR","home":"UTA","final":[136,134],"plays":[
 [1,720,null,"Jump ball: D. Clingan vs. W. Kessler (K. George gains possession)",0,0],
 [1,702,"h","S. Mykhailiuk misses 3-pt jump shot from 27 ft",0,0],
 [1,700,"a","Defensive rebound by D. Clingan",0,0],

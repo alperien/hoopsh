@@ -361,8 +361,8 @@
   {
    "id": "202510240DAL",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "WAS",
+   "home": "DAL",
    "final": [
     117,
     107
@@ -411,8 +411,8 @@
   {
    "id": "202510240HOU",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "DET",
+   "home": "HOU",
    "final": [
     115,
     111
@@ -461,8 +461,8 @@
   {
    "id": "202510240LAC",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "PHO",
+   "home": "LAC",
    "final": [
     102,
     129
@@ -511,8 +511,8 @@
   {
    "id": "202510240LAL",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "MIN",
+   "home": "LAL",
    "final": [
     110,
     128
@@ -561,8 +561,8 @@
   {
    "id": "202510240MEM",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "MIA",
+   "home": "MEM",
    "final": [
     146,
     114
@@ -611,8 +611,8 @@
   {
    "id": "202510240NOP",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "SAS",
+   "home": "NOP",
    "final": [
     120,
     116
@@ -661,8 +661,8 @@
   {
    "id": "202510240NYK",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "BOS",
+   "home": "NYK",
    "final": [
     95,
     105
@@ -711,8 +711,8 @@
   {
    "id": "202510240ORL",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "ATL",
+   "home": "ORL",
    "final": [
     111,
     107
@@ -761,8 +761,8 @@
   {
    "id": "202510240POR",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "GSW",
+   "home": "POR",
    "final": [
     119,
     139
@@ -811,8 +811,8 @@
   {
    "id": "202510240SAC",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "UTA",
+   "home": "SAC",
    "final": [
     104,
     105
@@ -861,8 +861,8 @@
   {
    "id": "202510240TOR",
    "date": "2025-10-24",
-   "away": "CLE",
-   "home": "BRK",
+   "away": "MIL",
+   "home": "TOR",
    "final": [
     122,
     116
@@ -961,8 +961,8 @@
   {
    "id": "202510290BRK",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "ATL",
+   "home": "BRK",
    "final": [
     117,
     112
@@ -1011,8 +1011,8 @@
   {
    "id": "202510290CHI",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "SAC",
+   "home": "CHI",
    "final": [
     113,
     126
@@ -1061,8 +1061,8 @@
   {
    "id": "202510290DAL",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "IND",
+   "home": "DAL",
    "final": [
     105,
     107
@@ -1111,8 +1111,8 @@
   {
    "id": "202510290DEN",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "NOP",
+   "home": "DEN",
    "final": [
     88,
     122
@@ -1161,8 +1161,8 @@
   {
    "id": "202510290DET",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "ORL",
+   "home": "DET",
    "final": [
     116,
     135
@@ -1211,8 +1211,8 @@
   {
    "id": "202510290MIN",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "LAL",
+   "home": "MIN",
    "final": [
     116,
     115
@@ -1261,8 +1261,8 @@
   {
    "id": "202510290PHO",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "MEM",
+   "home": "PHO",
    "final": [
     114,
     113
@@ -1311,8 +1311,8 @@
   {
    "id": "202510290TOR",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "HOU",
+   "home": "TOR",
    "final": [
     139,
     121
@@ -1361,8 +1361,8 @@
   {
    "id": "202510290UTA",
    "date": "2025-10-29",
-   "away": "CLE",
-   "home": "BOS",
+   "away": "POR",
+   "home": "UTA",
    "final": [
     136,
     134
@@ -1461,8 +1461,8 @@
   {
    "id": "202511050CLE",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "PHI",
+   "home": "CLE",
    "final": [
     121,
     132
@@ -1511,8 +1511,8 @@
   {
    "id": "202511050DAL",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "NOP",
+   "home": "DAL",
    "final": [
     101,
     99
@@ -1561,8 +1561,8 @@
   {
    "id": "202511050DEN",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "MIA",
+   "home": "DEN",
    "final": [
     112,
     122
@@ -1611,8 +1611,8 @@
   {
    "id": "202511050DET",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "UTA",
+   "home": "DET",
    "final": [
     103,
     114
@@ -1661,8 +1661,8 @@
   {
    "id": "202511050IND",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "BRK",
+   "home": "IND",
    "final": [
     112,
     103
@@ -1711,8 +1711,8 @@
   {
    "id": "202511050LAL",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "SAS",
+   "home": "LAL",
    "final": [
     116,
     118
@@ -1761,8 +1761,8 @@
   {
    "id": "202511050MEM",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "HOU",
+   "home": "MEM",
    "final": [
     124,
     109
@@ -1811,8 +1811,8 @@
   {
    "id": "202511050NYK",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "MIN",
+   "home": "NYK",
    "final": [
     114,
     137
@@ -1861,8 +1861,8 @@
   {
    "id": "202511050POR",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "OKC",
+   "home": "POR",
    "final": [
     119,
     121
@@ -1911,8 +1911,8 @@
   {
    "id": "202511050SAC",
    "date": "2025-11-05",
-   "away": "WAS",
-   "home": "BOS",
+   "away": "GSW",
+   "home": "SAC",
    "final": [
     116,
     121
@@ -2011,8 +2011,8 @@
   {
    "id": "202511150CLE",
    "date": "2025-11-15",
-   "away": "OKC",
-   "home": "CHO",
+   "away": "MEM",
+   "home": "CLE",
    "final": [
     100,
     108
@@ -2061,8 +2061,8 @@
   {
    "id": "202511150IND",
    "date": "2025-11-15",
-   "away": "OKC",
-   "home": "CHO",
+   "away": "TOR",
+   "home": "IND",
    "final": [
     129,
     111
@@ -2111,8 +2111,8 @@
   {
    "id": "202511150MIL",
    "date": "2025-11-15",
-   "away": "OKC",
-   "home": "CHO",
+   "away": "LAL",
+   "home": "MIL",
    "final": [
     119,
     95
@@ -2161,8 +2161,8 @@
   {
    "id": "202511150MIN",
    "date": "2025-11-15",
-   "away": "OKC",
-   "home": "CHO",
+   "away": "DEN",
+   "home": "MIN",
    "final": [
     123,
     112
@@ -2261,8 +2261,8 @@
   {
    "id": "202511210CHI",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "MIA",
+   "home": "CHI",
    "final": [
     143,
     107
@@ -2311,8 +2311,8 @@
   {
    "id": "202511210CLE",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "IND",
+   "home": "CLE",
    "final": [
     109,
     120
@@ -2361,8 +2361,8 @@
   {
    "id": "202511210DAL",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "NOP",
+   "home": "DAL",
    "final": [
     115,
     118
@@ -2411,8 +2411,8 @@
   {
    "id": "202511210GSW",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "POR",
+   "home": "GSW",
    "final": [
     127,
     123
@@ -2461,8 +2461,8 @@
   {
    "id": "202511210HOU",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "DEN",
+   "home": "HOU",
    "final": [
     112,
     109
@@ -2511,8 +2511,8 @@
   {
    "id": "202511210PHO",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "MIN",
+   "home": "PHO",
    "final": [
     113,
     114
@@ -2561,8 +2561,8 @@
   {
    "id": "202511210TOR",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "WAS",
+   "home": "TOR",
    "final": [
     110,
     140
@@ -2611,8 +2611,8 @@
   {
    "id": "202511210UTA",
    "date": "2025-11-21",
-   "away": "BRK",
-   "home": "BOS",
+   "away": "OKC",
+   "home": "UTA",
    "final": [
     144,
     112
@@ -2711,8 +2711,8 @@
   {
    "id": "202511260CHO",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "NYK",
+   "home": "CHO",
    "final": [
     129,
     101
@@ -2761,8 +2761,8 @@
   {
    "id": "202511260GSW",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "HOU",
+   "home": "GSW",
    "final": [
     104,
     100
@@ -2811,8 +2811,8 @@
   {
    "id": "202511260MIA",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "MIL",
+   "home": "MIA",
    "final": [
     103,
     106
@@ -2861,8 +2861,8 @@
   {
    "id": "202511260NOP",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "MEM",
+   "home": "NOP",
    "final": [
     133,
     128
@@ -2911,8 +2911,8 @@
   {
    "id": "202511260OKC",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "MIN",
+   "home": "OKC",
    "final": [
     105,
     113
@@ -2961,8 +2961,8 @@
   {
    "id": "202511260POR",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "SAS",
+   "home": "POR",
    "final": [
     115,
     102
@@ -3011,8 +3011,8 @@
   {
    "id": "202511260SAC",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "PHO",
+   "home": "SAC",
    "final": [
     112,
     100
@@ -3061,8 +3061,8 @@
   {
    "id": "202511260TOR",
    "date": "2025-11-26",
-   "away": "DET",
-   "home": "BOS",
+   "away": "IND",
+   "home": "TOR",
    "final": [
     95,
     97
@@ -3161,8 +3161,8 @@
   {
    "id": "202512050BOS",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "LAL",
+   "home": "BOS",
    "final": [
     105,
     126
@@ -3211,8 +3211,8 @@
   {
    "id": "202512050CHI",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "IND",
+   "home": "CHI",
    "final": [
     120,
     105
@@ -3261,8 +3261,8 @@
   {
    "id": "202512050CLE",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "SAS",
+   "home": "CLE",
    "final": [
     117,
     130
@@ -3311,8 +3311,8 @@
   {
    "id": "202512050DET",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "POR",
+   "home": "DET",
    "final": [
     116,
     122
@@ -3361,8 +3361,8 @@
   {
    "id": "202512050HOU",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "PHO",
+   "home": "HOU",
    "final": [
     98,
     117
@@ -3411,8 +3411,8 @@
   {
    "id": "202512050MEM",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "LAC",
+   "home": "MEM",
    "final": [
     98,
     107
@@ -3461,8 +3461,8 @@
   {
    "id": "202512050MIL",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "PHI",
+   "home": "MIL",
    "final": [
     116,
     101
@@ -3511,8 +3511,8 @@
   {
    "id": "202512050NYK",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "UTA",
+   "home": "NYK",
    "final": [
     112,
     146
@@ -3561,8 +3561,8 @@
   {
    "id": "202512050OKC",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "DAL",
+   "home": "OKC",
    "final": [
     111,
     132
@@ -3611,8 +3611,8 @@
   {
    "id": "202512050ORL",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "MIA",
+   "home": "ORL",
    "final": [
     105,
     106
@@ -3661,8 +3661,8 @@
   {
    "id": "202512050TOR",
    "date": "2025-12-05",
-   "away": "DEN",
-   "home": "ATL",
+   "away": "CHO",
+   "home": "TOR",
    "final": [
     111,
     86
@@ -3761,8 +3761,8 @@
   {
    "id": "202512150DEN",
    "date": "2025-12-15",
-   "away": "DET",
-   "home": "BOS",
+   "away": "HOU",
+   "home": "DEN",
    "final": [
     125,
     128
@@ -3811,8 +3811,8 @@
   {
    "id": "202512150LAC",
    "date": "2025-12-15",
-   "away": "DET",
-   "home": "BOS",
+   "away": "MEM",
+   "home": "LAC",
    "final": [
     121,
     103
@@ -3861,8 +3861,8 @@
   {
    "id": "202512150MIA",
    "date": "2025-12-15",
-   "away": "DET",
-   "home": "BOS",
+   "away": "TOR",
+   "home": "MIA",
    "final": [
     106,
     96
@@ -3911,8 +3911,8 @@
   {
    "id": "202512150UTA",
    "date": "2025-12-15",
-   "away": "DET",
-   "home": "BOS",
+   "away": "DAL",
+   "home": "UTA",
    "final": [
     133,
     140
@@ -4011,8 +4011,8 @@
   {
    "id": "202512260CHI",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "PHI",
+   "home": "CHI",
    "final": [
     102,
     109
@@ -4061,8 +4061,8 @@
   {
    "id": "202512260IND",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "BOS",
+   "home": "IND",
    "final": [
     140,
     122
@@ -4111,8 +4111,8 @@
   {
    "id": "202512260MEM",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "MIL",
+   "home": "MEM",
    "final": [
     104,
     125
@@ -4161,8 +4161,8 @@
   {
    "id": "202512260NOP",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "PHO",
+   "home": "NOP",
    "final": [
     115,
     108
@@ -4211,8 +4211,8 @@
   {
    "id": "202512260ORL",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "CHO",
+   "home": "ORL",
    "final": [
     120,
     105
@@ -4261,8 +4261,8 @@
   {
    "id": "202512260POR",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "LAC",
+   "home": "POR",
    "final": [
     119,
     103
@@ -4311,8 +4311,8 @@
   {
    "id": "202512260UTA",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "DET",
+   "home": "UTA",
    "final": [
     129,
     131
@@ -4361,8 +4361,8 @@
   {
    "id": "202512260WAS",
    "date": "2025-12-26",
-   "away": "MIA",
-   "home": "ATL",
+   "away": "TOR",
+   "home": "WAS",
    "final": [
     117,
     138
@@ -4461,8 +4461,8 @@
   {
    "id": "202601020CLE",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "DEN",
+   "home": "CLE",
    "final": [
     108,
     113
@@ -4511,8 +4511,8 @@
   {
    "id": "202601020GSW",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "OKC",
+   "home": "GSW",
    "final": [
     131,
     94
@@ -4561,8 +4561,8 @@
   {
    "id": "202601020IND",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "SAS",
+   "home": "IND",
    "final": [
     123,
     113
@@ -4611,8 +4611,8 @@
   {
    "id": "202601020LAL",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "MEM",
+   "home": "LAL",
    "final": [
     121,
     128
@@ -4661,8 +4661,8 @@
   {
    "id": "202601020MIL",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "CHO",
+   "home": "MIL",
    "final": [
     121,
     122
@@ -4711,8 +4711,8 @@
   {
    "id": "202601020NOP",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "POR",
+   "home": "NOP",
    "final": [
     122,
     109
@@ -4761,8 +4761,8 @@
   {
    "id": "202601020NYK",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "ATL",
+   "home": "NYK",
    "final": [
     111,
     99
@@ -4811,8 +4811,8 @@
   {
    "id": "202601020PHO",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "SAC",
+   "home": "PHO",
    "final": [
     102,
     129
@@ -4861,8 +4861,8 @@
   {
    "id": "202601020WAS",
    "date": "2026-01-02",
-   "away": "ORL",
-   "home": "CHI",
+   "away": "BRK",
+   "home": "WAS",
    "final": [
     99,
     119
@@ -4961,8 +4961,8 @@
   {
    "id": "202601090BRK",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "LAC",
+   "home": "BRK",
    "final": [
     121,
     105
@@ -5011,8 +5011,8 @@
   {
    "id": "202601090DEN",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "ATL",
+   "home": "DEN",
    "final": [
     110,
     87
@@ -5061,8 +5061,8 @@
   {
    "id": "202601090GSW",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "SAC",
+   "home": "GSW",
    "final": [
     103,
     137
@@ -5111,8 +5111,8 @@
   {
    "id": "202601090LAL",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "MIL",
+   "home": "LAL",
    "final": [
     105,
     101
@@ -5161,8 +5161,8 @@
   {
    "id": "202601090MEM",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "OKC",
+   "home": "MEM",
    "final": [
     117,
     116
@@ -5211,8 +5211,8 @@
   {
    "id": "202601090ORL",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "PHI",
+   "home": "ORL",
    "final": [
     103,
     91
@@ -5261,8 +5261,8 @@
   {
    "id": "202601090PHO",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "NYK",
+   "home": "PHO",
    "final": [
     107,
     112
@@ -5311,8 +5311,8 @@
   {
    "id": "202601090POR",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "HOU",
+   "home": "POR",
    "final": [
     105,
     111
@@ -5361,8 +5361,8 @@
   {
    "id": "202601090WAS",
    "date": "2026-01-09",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "NOP",
+   "home": "WAS",
    "final": [
     128,
     107
@@ -5461,8 +5461,8 @@
   {
    "id": "202601200DEN",
    "date": "2026-01-20",
-   "away": "LAC",
-   "home": "CHI",
+   "away": "LAL",
+   "home": "DEN",
    "final": [
     115,
     107
@@ -5511,8 +5511,8 @@
   {
    "id": "202601200GSW",
    "date": "2026-01-20",
-   "away": "LAC",
-   "home": "CHI",
+   "away": "TOR",
+   "home": "GSW",
    "final": [
     145,
     127
@@ -5561,8 +5561,8 @@
   {
    "id": "202601200HOU",
    "date": "2026-01-20",
-   "away": "LAC",
-   "home": "CHI",
+   "away": "SAS",
+   "home": "HOU",
    "final": [
     106,
     111
@@ -5611,8 +5611,8 @@
   {
    "id": "202601200PHI",
    "date": "2026-01-20",
-   "away": "LAC",
-   "home": "CHI",
+   "away": "PHO",
+   "home": "PHI",
    "final": [
     116,
     110
@@ -5661,8 +5661,8 @@
   {
    "id": "202601200SAC",
    "date": "2026-01-20",
-   "away": "LAC",
-   "home": "CHI",
+   "away": "MIA",
+   "home": "SAC",
    "final": [
     130,
     117
@@ -5711,8 +5711,8 @@
   {
    "id": "202601200UTA",
    "date": "2026-01-20",
-   "away": "LAC",
-   "home": "CHI",
+   "away": "MIN",
+   "home": "UTA",
    "final": [
     122,
     127
@@ -5811,8 +5811,8 @@
   {
    "id": "202601280CLE",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "LAL",
+   "home": "CLE",
    "final": [
     99,
     129
@@ -5861,8 +5861,8 @@
   {
    "id": "202601280DAL",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "MIN",
+   "home": "DAL",
    "final": [
     118,
     105
@@ -5911,8 +5911,8 @@
   {
    "id": "202601280HOU",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "SAS",
+   "home": "HOU",
    "final": [
     111,
     99
@@ -5961,8 +5961,8 @@
   {
    "id": "202601280IND",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "CHI",
+   "home": "IND",
    "final": [
     110,
     113
@@ -6011,8 +6011,8 @@
   {
    "id": "202601280MEM",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "CHO",
+   "home": "MEM",
    "final": [
     112,
     97
@@ -6061,8 +6061,8 @@
   {
    "id": "202601280MIA",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "ORL",
+   "home": "MIA",
    "final": [
     133,
     124
@@ -6111,8 +6111,8 @@
   {
    "id": "202601280TOR",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "NYK",
+   "home": "TOR",
    "final": [
     119,
     92
@@ -6161,8 +6161,8 @@
   {
    "id": "202601280UTA",
    "date": "2026-01-28",
-   "away": "ATL",
-   "home": "BOS",
+   "away": "GSW",
+   "home": "UTA",
    "final": [
     140,
     124
@@ -6261,8 +6261,8 @@
   {
    "id": "202602060DET",
    "date": "2026-02-06",
-   "away": "MIA",
-   "home": "BOS",
+   "away": "NYK",
+   "home": "DET",
    "final": [
     80,
     118
@@ -6311,8 +6311,8 @@
   {
    "id": "202602060MIL",
    "date": "2026-02-06",
-   "away": "MIA",
-   "home": "BOS",
+   "away": "IND",
+   "home": "MIL",
    "final": [
     99,
     105
@@ -6361,8 +6361,8 @@
   {
    "id": "202602060MIN",
    "date": "2026-02-06",
-   "away": "MIA",
-   "home": "BOS",
+   "away": "NOP",
+   "home": "MIN",
    "final": [
     119,
     115
@@ -6411,8 +6411,8 @@
   {
    "id": "202602060POR",
    "date": "2026-02-06",
-   "away": "MIA",
-   "home": "BOS",
+   "away": "MEM",
+   "home": "POR",
    "final": [
     115,
     135
@@ -6461,8 +6461,8 @@
   {
    "id": "202602060SAC",
    "date": "2026-02-06",
-   "away": "MIA",
-   "home": "BOS",
+   "away": "LAC",
+   "home": "SAC",
    "final": [
     114,
     111
@@ -6561,8 +6561,8 @@
   {
    "id": "202602120OKC",
    "date": "2026-02-12",
-   "away": "DAL",
-   "home": "LAL",
+   "away": "MIL",
+   "home": "OKC",
    "final": [
     110,
     93
@@ -6611,8 +6611,8 @@
   {
    "id": "202602120UTA",
    "date": "2026-02-12",
-   "away": "DAL",
-   "home": "LAL",
+   "away": "POR",
+   "home": "UTA",
    "final": [
     135,
     119
@@ -6711,8 +6711,8 @@
   {
    "id": "202602250DET",
    "date": "2026-02-25",
-   "away": "BOS",
-   "home": "DEN",
+   "away": "OKC",
+   "home": "DET",
    "final": [
     116,
     124
@@ -6761,8 +6761,8 @@
   {
    "id": "202602250HOU",
    "date": "2026-02-25",
-   "away": "BOS",
-   "home": "DEN",
+   "away": "SAC",
+   "home": "HOU",
    "final": [
     97,
     128
@@ -6811,8 +6811,8 @@
   {
    "id": "202602250MEM",
    "date": "2026-02-25",
-   "away": "BOS",
-   "home": "DEN",
+   "away": "GSW",
+   "home": "MEM",
    "final": [
     133,
     112
@@ -6861,8 +6861,8 @@
   {
    "id": "202602250MIL",
    "date": "2026-02-25",
-   "away": "BOS",
-   "home": "DEN",
+   "away": "CLE",
+   "home": "MIL",
    "final": [
     116,
     118
@@ -6911,8 +6911,8 @@
   {
    "id": "202602250TOR",
    "date": "2026-02-25",
-   "away": "BOS",
-   "home": "DEN",
+   "away": "SAS",
+   "home": "TOR",
    "final": [
     110,
     107
@@ -7011,8 +7011,8 @@
   {
    "id": "202603080LAL",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "NYK",
+   "home": "LAL",
    "final": [
     97,
     110
@@ -7061,8 +7061,8 @@
   {
    "id": "202603080MIA",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "DET",
+   "home": "MIA",
    "final": [
     110,
     121
@@ -7111,8 +7111,8 @@
   {
    "id": "202603080MIL",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "ORL",
+   "home": "MIL",
    "final": [
     130,
     91
@@ -7161,8 +7161,8 @@
   {
    "id": "202603080NOP",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "WAS",
+   "home": "NOP",
    "final": [
     118,
     138
@@ -7211,8 +7211,8 @@
   {
    "id": "202603080PHO",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "CHO",
+   "home": "PHO",
    "final": [
     99,
     111
@@ -7261,8 +7261,8 @@
   {
    "id": "202603080POR",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "IND",
+   "home": "POR",
    "final": [
     111,
     131
@@ -7311,8 +7311,8 @@
   {
    "id": "202603080SAC",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "CHI",
+   "home": "SAC",
    "final": [
     110,
     126
@@ -7361,8 +7361,8 @@
   {
    "id": "202603080SAS",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "HOU",
+   "home": "SAS",
    "final": [
     120,
     145
@@ -7411,8 +7411,8 @@
   {
    "id": "202603080TOR",
    "date": "2026-03-08",
-   "away": "BOS",
-   "home": "CLE",
+   "away": "DAL",
+   "home": "TOR",
    "final": [
     92,
     122
@@ -7511,8 +7511,8 @@
   {
    "id": "202603180BRK",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "OKC",
+   "home": "BRK",
    "final": [
     121,
     92
@@ -7561,8 +7561,8 @@
   {
    "id": "202603180CHI",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "TOR",
+   "home": "CHI",
    "final": [
     139,
     109
@@ -7611,8 +7611,8 @@
   {
    "id": "202603180DAL",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "ATL",
+   "home": "DAL",
    "final": [
     135,
     120
@@ -7661,8 +7661,8 @@
   {
    "id": "202603180HOU",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "LAL",
+   "home": "HOU",
    "final": [
     124,
     116
@@ -7711,8 +7711,8 @@
   {
    "id": "202603180IND",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "POR",
+   "home": "IND",
    "final": [
     127,
     119
@@ -7761,8 +7761,8 @@
   {
    "id": "202603180MEM",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "DEN",
+   "home": "MEM",
    "final": [
     118,
     125
@@ -7811,8 +7811,8 @@
   {
    "id": "202603180MIN",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "UTA",
+   "home": "MIN",
    "final": [
     111,
     147
@@ -7861,8 +7861,8 @@
   {
    "id": "202603180NOP",
    "date": "2026-03-18",
-   "away": "GSW",
-   "home": "BOS",
+   "away": "LAC",
+   "home": "NOP",
    "final": [
     109,
     124
@@ -7961,8 +7961,8 @@
   {
    "id": "202603280CHO",
    "date": "2026-03-28",
-   "away": "SAC",
-   "home": "ATL",
+   "away": "PHI",
+   "home": "CHO",
    "final": [
     118,
     114
@@ -8011,8 +8011,8 @@
   {
    "id": "202603280MEM",
    "date": "2026-03-28",
-   "away": "SAC",
-   "home": "ATL",
+   "away": "CHI",
+   "home": "MEM",
    "final": [
     124,
     125
@@ -8061,8 +8061,8 @@
   {
    "id": "202603280MIL",
    "date": "2026-03-28",
-   "away": "SAC",
-   "home": "ATL",
+   "away": "SAS",
+   "home": "MIL",
    "final": [
     127,
     95
@@ -8111,8 +8111,8 @@
   {
    "id": "202603280MIN",
    "date": "2026-03-28",
-   "away": "SAC",
-   "home": "ATL",
+   "away": "DET",
+   "home": "MIN",
    "final": [
     109,
     87
@@ -8161,8 +8161,8 @@
   {
    "id": "202603280PHO",
    "date": "2026-03-28",
-   "away": "SAC",
-   "home": "ATL",
+   "away": "UTA",
+   "home": "PHO",
    "final": [
     109,
     134
@@ -8261,8 +8261,8 @@
   {
    "id": "202604050BRK",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "WAS",
+   "home": "BRK",
    "final": [
     115,
     121
@@ -8311,8 +8311,8 @@
   {
    "id": "202604050CHI",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "PHO",
+   "home": "CHI",
    "final": [
     120,
     110
@@ -8361,8 +8361,8 @@
   {
    "id": "202604050CLE",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "IND",
+   "home": "CLE",
    "final": [
     108,
     117
@@ -8411,8 +8411,8 @@
   {
    "id": "202604050DAL",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "LAL",
+   "home": "DAL",
    "final": [
     128,
     134
@@ -8461,8 +8461,8 @@
   {
    "id": "202604050GSW",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "HOU",
+   "home": "GSW",
    "final": [
     117,
     116
@@ -8511,8 +8511,8 @@
   {
    "id": "202604050MIL",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "MEM",
+   "home": "MIL",
    "final": [
     115,
     131
@@ -8561,8 +8561,8 @@
   {
    "id": "202604050MIN",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "CHO",
+   "home": "MIN",
    "final": [
     122,
     108
@@ -8611,8 +8611,8 @@
   {
    "id": "202604050NOP",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "ORL",
+   "home": "NOP",
    "final": [
     112,
     108
@@ -8661,8 +8661,8 @@
   {
    "id": "202604050OKC",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "UTA",
+   "home": "OKC",
    "final": [
     111,
     146
@@ -8711,8 +8711,8 @@
   {
    "id": "202604050SAC",
    "date": "2026-04-05",
-   "away": "TOR",
-   "home": "BOS",
+   "away": "LAC",
+   "home": "SAC",
    "final": [
     138,
     109
@@ -8811,8 +8811,8 @@
   {
    "id": "202604100BOS",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "NOP",
+   "home": "BOS",
    "final": [
     118,
     144
@@ -8861,8 +8861,8 @@
   {
    "id": "202604100CHI",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "ORL",
+   "home": "CHI",
    "final": [
     127,
     103
@@ -8911,8 +8911,8 @@
   {
    "id": "202604100CHO",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "DET",
+   "home": "CHO",
    "final": [
     118,
     100
@@ -8961,8 +8961,8 @@
   {
    "id": "202604100DEN",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "OKC",
+   "home": "DEN",
    "final": [
     107,
     127
@@ -9011,8 +9011,8 @@
   {
    "id": "202604100HOU",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "MIN",
+   "home": "HOU",
    "final": [
     136,
     132
@@ -9061,8 +9061,8 @@
   {
    "id": "202604100IND",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "PHI",
+   "home": "IND",
    "final": [
     105,
     94
@@ -9111,8 +9111,8 @@
   {
    "id": "202604100LAL",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "PHO",
+   "home": "LAL",
    "final": [
     73,
     101
@@ -9161,8 +9161,8 @@
   {
    "id": "202604100MIL",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "BRK",
+   "home": "MIL",
    "final": [
     108,
     125
@@ -9211,8 +9211,8 @@
   {
    "id": "202604100NYK",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "TOR",
+   "home": "NYK",
    "final": [
     95,
     112
@@ -9261,8 +9261,8 @@
   {
    "id": "202604100POR",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "LAC",
+   "home": "POR",
    "final": [
     97,
     116
@@ -9311,8 +9311,8 @@
   {
    "id": "202604100SAC",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "GSW",
+   "home": "SAC",
    "final": [
     118,
     124
@@ -9361,8 +9361,8 @@
   {
    "id": "202604100SAS",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "DAL",
+   "home": "SAS",
    "final": [
     120,
     139
@@ -9411,8 +9411,8 @@
   {
    "id": "202604100UTA",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "MEM",
+   "home": "UTA",
    "final": [
     101,
     147
@@ -9461,8 +9461,8 @@
   {
    "id": "202604100WAS",
    "date": "2026-04-10",
-   "away": "CLE",
-   "home": "ATL",
+   "away": "MIA",
+   "home": "WAS",
    "final": [
     140,
     117

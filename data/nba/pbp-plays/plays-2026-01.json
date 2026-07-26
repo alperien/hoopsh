@@ -448,7 +448,7 @@
 [4,0,"a","Offensive rebound by Team",114,121],
 [4,0,null,"End of 4th quarter",114,121]
 ]},
-"202601020CLE":{"away":"ORL","home":"CHI","final":[108,113],"plays":[
+"202601020CLE":{"away":"DEN","home":"CLE","final":[108,113],"plays":[
 [1,720,null,"Jump ball: D. Holmes vs. J. Allen (E. Mobley gains possession)",0,0],
 [1,699,"h","D. Garland misses 3-pt jump shot from 26 ft",0,0],
 [1,699,"a","Defensive rebound by Team",0,0],
@@ -895,7 +895,7 @@
 [4,0,"a","Offensive rebound by Team",108,113],
 [4,0,null,"End of 4th quarter",108,113]
 ]},
-"202601020GSW":{"away":"ORL","home":"CHI","final":[131,94],"plays":[
+"202601020GSW":{"away":"OKC","home":"GSW","final":[131,94],"plays":[
 [1,720,null,"Jump ball: C. Holmgren vs. Q. Post (C. Wallace gains possession)",0,0],
 [1,701,"a","J. Williams makes 2-pt jump shot from 12 ft (assist by C. Holmgren)",2,0],
 [1,683,"h","W. Richard makes 3-pt jump shot from 24 ft (assist by B. Podziemski)",2,3],
@@ -1377,7 +1377,7 @@
 [4,0,"a","Instant Replay (Request: Ruling Stands)",131,94],
 [4,0,null,"End of 4th quarter",131,94]
 ]},
-"202601020IND":{"away":"ORL","home":"CHI","final":[123,113],"plays":[
+"202601020IND":{"away":"SAS","home":"IND","final":[123,113],"plays":[
 [1,720,null,"Jump ball: L. Kornet vs. M. Potter (L. Kornet gains possession)",0,0],
 [1,704,"a","J. Champagnie misses 3-pt jump shot from 25 ft",0,0],
 [1,702,"h","Defensive rebound by B. Mathurin",0,0],
@@ -1881,7 +1881,7 @@
 [4,3,"a","Turnover by Team (shot clock)",123,113],
 [4,0,null,"End of 4th quarter",123,113]
 ]},
-"202601020LAL":{"away":"ORL","home":"CHI","final":[121,128],"plays":[
+"202601020LAL":{"away":"MEM","home":"LAL","final":[121,128],"plays":[
 [1,720,null,"Jump ball: C. Koloko vs. D. Ayton (M. Smart gains possession)",0,0],
 [1,698,"h","M. Smart makes 3-pt jump shot from 23 ft (assist by L. Dončić)",0,3],
 [1,681,"a","C. Koloko makes 2-pt dunk from 1 ft (assist by J. Morant)",2,3],
@@ -2367,7 +2367,7 @@
 [4,5,"h","Personal foul by J. Morant (drawn by L. James)",121,128],
 [4,0,null,"End of 4th quarter",121,128]
 ]},
-"202601020MIL":{"away":"ORL","home":"CHI","final":[121,122],"plays":[
+"202601020MIL":{"away":"CHO","home":"MIL","final":[121,122],"plays":[
 [1,720,null,"Jump ball: P. Hall vs. M. Turner (L. Ball gains possession)",0,0],
 [1,698,"a","K. Knueppel misses 2-pt jump shot from 15 ft",0,0],
 [1,694,"h","Defensive rebound by R. Rollins",0,0],
@@ -2824,7 +2824,7 @@
 [4,0,"a","Offensive rebound by Team",121,122],
 [4,0,null,"End of 4th quarter",121,122]
 ]},
-"202601020NOP":{"away":"ORL","home":"CHI","final":[122,109],"plays":[
+"202601020NOP":{"away":"POR","home":"NOP","final":[122,109],"plays":[
 [1,720,null,"Jump ball: D. Clingan vs. Y. Missi (D. Avdija gains possession)",0,0],
 [1,715,"a","D. Avdija misses 2-pt layup from 5 ft (block by Y. Missi)",0,0],
 [1,711,"a","Offensive rebound by D. Clingan",0,0],
@@ -3322,7 +3322,7 @@
 [4,9,"h","M. Peavy makes 2-pt dunk from 2 ft (assist by J. Fears)",122,109],
 [4,0,null,"End of 4th quarter",122,109]
 ]},
-"202601020NYK":{"away":"ORL","home":"CHI","final":[111,99],"plays":[
+"202601020NYK":{"away":"ATL","home":"NYK","final":[111,99],"plays":[
 [1,720,null,"Jump ball: O. Okongwu vs. A. Hukporti (A. Hukporti gains possession)",0,0],
 [1,701,"h","M. Bridges misses 3-pt jump shot from 23 ft",0,0],
 [1,698,"h","Offensive rebound by A. Hukporti",0,0],
@@ -3812,7 +3812,7 @@
 [4,20,"a","Defensive rebound by N. Alexander-Walker",111,99],
 [4,0,null,"End of 4th quarter",111,99]
 ]},
-"202601020PHO":{"away":"ORL","home":"CHI","final":[102,129],"plays":[
+"202601020PHO":{"away":"SAC","home":"PHO","final":[102,129],"plays":[
 [1,720,null,"Jump ball: M. Raynaud vs. M. Williams (C. Gillespie gains possession)",0,0],
 [1,704,"h","D. Booker misses 3-pt jump shot from 26 ft",0,0],
 [1,701,"h","Offensive rebound by M. Williams",0,0],
@@ -4304,7 +4304,7 @@
 [4,8,"h","Defensive rebound by R. Fleming",102,129],
 [4,0,null,"End of 4th quarter",102,129]
 ]},
-"202601020WAS":{"away":"ORL","home":"CHI","final":[99,119],"plays":[
+"202601020WAS":{"away":"BRK","home":"WAS","final":[99,119],"plays":[
 [1,720,null,"Jump ball: D. Sharpe vs. A. Sarr (N. Clowney gains possession)",0,0],
 [1,698,"a","D. Sharpe makes 2-pt layup from 2 ft (assist by N. Clowney)",2,0],
 [1,676,"h","K. Middleton makes 2-pt jump shot from 17 ft",2,2],
@@ -5188,7 +5188,7 @@
 [4,14,"h","Turnover by Team (shot clock)",117,125],
 [4,0,null,"End of 4th quarter",117,125]
 ]},
-"202601090BRK":{"away":"TOR","home":"BOS","final":[121,105],"plays":[
+"202601090BRK":{"away":"LAC","home":"BRK","final":[121,105],"plays":[
 [1,720,null,"Jump ball: I. Zubac vs. N. Claxton (T. Mann gains possession)",0,0],
 [1,697,"h","N. Clowney misses 3-pt jump shot from 26 ft",0,0],
 [1,694,"a","Defensive rebound by K. Leonard",0,0],
@@ -5621,7 +5621,7 @@
 [4,20,"h","N. Traoré makes 2-pt layup from 1 ft",121,105],
 [4,0,null,"End of 4th quarter",121,105]
 ]},
-"202601090DEN":{"away":"TOR","home":"BOS","final":[110,87],"plays":[
+"202601090DEN":{"away":"ATL","home":"DEN","final":[110,87],"plays":[
 [1,720,null,"Jump ball: O. Okongwu vs. D. Holmes (N. Alexander-Walker gains possession)",0,0],
 [1,697,"a","N. Alexander-Walker misses 3-pt jump shot from 27 ft",0,0],
 [1,695,"h","Defensive rebound by J. Pickett",0,0],
@@ -6037,7 +6037,7 @@
 [4,16,"h","Z. Nnaji makes 3-pt jump shot from 25 ft (assist by J. Pickett)",110,87],
 [4,0,null,"End of 4th quarter",110,87]
 ]},
-"202601090GSW":{"away":"TOR","home":"BOS","final":[103,137],"plays":[
+"202601090GSW":{"away":"SAC","home":"GSW","final":[103,137],"plays":[
 [1,720,null,"Jump ball: M. Raynaud vs. Q. Post (D. Green gains possession)",0,0],
 [1,701,"h","Q. Post makes 2-pt jump shot from 13 ft (assist by S. Curry)",0,2],
 [1,680,"a","M. Raynaud misses 2-pt jump shot from 6 ft (block by Q. Post)",0,2],
@@ -6463,7 +6463,7 @@
 [4,5,"h","Offensive rebound by Team",103,137],
 [4,0,null,"End of 4th quarter",103,137]
 ]},
-"202601090LAL":{"away":"TOR","home":"BOS","final":[105,101],"plays":[
+"202601090LAL":{"away":"MIL","home":"LAL","final":[105,101],"plays":[
 [1,720,null,"Jump ball: M. Turner vs. D. Ayton (L. Dončić gains possession)",0,0],
 [1,698,"h","L. Dončić makes 3-pt jump shot from 23 ft (assist by L. James)",0,3],
 [1,678,"a","M. Turner misses 3-pt jump shot from 24 ft",0,3],
@@ -6914,7 +6914,7 @@
 [4,0,"h","Offensive rebound by Team",105,101],
 [4,0,null,"End of 4th quarter",105,101]
 ]},
-"202601090MEM":{"away":"TOR","home":"BOS","final":[117,116],"plays":[
+"202601090MEM":{"away":"OKC","home":"MEM","final":[117,116],"plays":[
 [1,720,null,"Jump ball: B. Carlson vs. J. Jackson (A. Wiggins gains possession)",0,0],
 [1,694,"a","A. Mitchell makes 2-pt jump shot from 9 ft",2,0],
 [1,671,"h","J. Jackson makes 3-pt jump shot from 23 ft (assist by C. Spencer)",2,3],
@@ -7416,7 +7416,7 @@
 [4,0,"a","Defensive rebound by L. Dort",117,116],
 [4,0,null,"End of 4th quarter",117,116]
 ]},
-"202601090ORL":{"away":"TOR","home":"BOS","final":[103,91],"plays":[
+"202601090ORL":{"away":"PHI","home":"ORL","final":[103,91],"plays":[
 [1,720,null,"Jump ball: J. Embiid vs. W. Carter (D. Bane gains possession)",0,0],
 [1,704,"h","W. Carter makes 2-pt dunk from 2 ft (assist by P. Banchero)",0,2],
 [1,682,"a","J. Embiid misses 3-pt jump shot from 25 ft",0,2],
@@ -7903,7 +7903,7 @@
 [4,22,"a","Turnover by Team (shot clock)",103,91],
 [4,0,null,"End of 4th quarter",103,91]
 ]},
-"202601090PHO":{"away":"TOR","home":"BOS","final":[107,112],"plays":[
+"202601090PHO":{"away":"NYK","home":"PHO","final":[107,112],"plays":[
 [1,720,null,"Jump ball: K. Towns vs. M. Williams (C. Gillespie gains possession)",0,0],
 [1,704,"h","C. Gillespie misses 3-pt jump shot from 26 ft",0,0],
 [1,700,"a","Defensive rebound by K. Towns",0,0],
@@ -8381,7 +8381,7 @@
 [4,0,"h","D. Brooks makes free throw 2 of 2",107,112],
 [4,0,null,"End of 4th quarter",107,112]
 ]},
-"202601090POR":{"away":"TOR","home":"BOS","final":[105,111],"plays":[
+"202601090POR":{"away":"HOU","home":"POR","final":[105,111],"plays":[
 [1,720,null,"Jump ball: S. Adams vs. D. Clingan (J. Smith gains possession)",0,0],
 [1,699,"a","Turnover by S. Adams (bad pass; steal by T. Camara)",0,0],
 [1,695,"h","T. Camara makes 2-pt dunk from 2 ft",0,2],
@@ -8875,7 +8875,7 @@
 [4,6,"a","Turnover by K. Durant (bad pass; steal by S. Cissoko)",105,111],
 [4,0,null,"End of 4th quarter",105,111]
 ]},
-"202601090WAS":{"away":"TOR","home":"BOS","final":[128,107],"plays":[
+"202601090WAS":{"away":"NOP","home":"WAS","final":[128,107],"plays":[
 [1,720,null,"Jump ball: D. Queen vs. A. Sarr (K. George gains possession)",0,0],
 [1,704,"h","T. Johnson misses 2-pt layup from 4 ft",0,0],
 [1,702,"a","Defensive rebound by D. Queen",0,0],
@@ -9807,7 +9807,7 @@
 [4,14,"a","P. Baldwin makes free throw 2 of 2",110,138],
 [4,0,null,"End of 4th quarter",110,138]
 ]},
-"202601200DEN":{"away":"LAC","home":"CHI","final":[115,107],"plays":[
+"202601200DEN":{"away":"LAL","home":"DEN","final":[115,107],"plays":[
 [1,720,null,"Jump ball: D. Ayton vs. A. Gordon (J. Murray gains possession)",0,0],
 [1,704,"h","J. Pickett makes 3-pt jump shot from 26 ft (assist by P. Watson)",0,3],
 [1,681,"a","L. Dončić makes 2-pt jump shot from 12 ft",2,3],
@@ -10267,7 +10267,7 @@
 [4,12,"a","Turnover by Team (shot clock)",115,107],
 [4,0,null,"End of 4th quarter",115,107]
 ]},
-"202601200GSW":{"away":"LAC","home":"CHI","final":[145,127],"plays":[
+"202601200GSW":{"away":"TOR","home":"GSW","final":[145,127],"plays":[
 [1,720,null,"Jump ball: S. Barnes vs. Q. Post (I. Quickley gains possession)",0,0],
 [1,701,"a","S. Barnes makes 2-pt jump shot from 11 ft (assist by B. Ingram)",2,0],
 [1,685,"h","D. Green misses 3-pt jump shot from 23 ft",2,0],
@@ -10743,7 +10743,7 @@
 [4,23,"h","P. Spencer makes 2-pt dunk from 3 ft",145,127],
 [4,0,null,"End of 4th quarter",145,127]
 ]},
-"202601200HOU":{"away":"LAC","home":"CHI","final":[106,111],"plays":[
+"202601200HOU":{"away":"SAS","home":"HOU","final":[106,111],"plays":[
 [1,720,null,"Jump ball: V. Wembanyama vs. A. Şengün (D. Fox gains possession)",0,0],
 [1,700,"a","S. Castle misses 3-pt jump shot from 25 ft",0,0],
 [1,697,"h","Defensive rebound by A. Şengün",0,0],
@@ -11212,7 +11212,7 @@
 [4,1,"a","V. Wembanyama makes 2-pt dunk at rim",106,111],
 [4,0,null,"End of 4th quarter",106,111]
 ]},
-"202601200PHI":{"away":"LAC","home":"CHI","final":[116,110],"plays":[
+"202601200PHI":{"away":"PHO","home":"PHI","final":[116,110],"plays":[
 [1,720,null,"Jump ball: M. Williams vs. A. Drummond (C. Gillespie gains possession)",0,0],
 [1,706,"a","Turnover by C. Gillespie (bad pass; steal by K. Oubre)",0,0],
 [1,703,"h","K. Oubre makes 2-pt layup from 2 ft",0,2],
@@ -11717,7 +11717,7 @@
 [4,12,"a","Defensive rebound by J. Goodwin",116,110],
 [4,0,null,"End of 4th quarter",116,110]
 ]},
-"202601200SAC":{"away":"LAC","home":"CHI","final":[130,117],"plays":[
+"202601200SAC":{"away":"MIA","home":"SAC","final":[130,117],"plays":[
 [1,720,null,"Jump ball: B. Adebayo vs. M. Raynaud (P. Larsson gains possession)",0,0],
 [1,700,"a","B. Adebayo misses 2-pt layup from 5 ft",0,0],
 [1,698,"h","Defensive rebound by M. Raynaud",0,0],
@@ -12189,7 +12189,7 @@
 [4,21,"h","Z. LaVine makes 3-pt jump shot from 27 ft (assist by R. Westbrook)",130,117],
 [4,0,null,"End of 4th quarter",130,117]
 ]},
-"202601200UTA":{"away":"LAC","home":"CHI","final":[122,127],"plays":[
+"202601200UTA":{"away":"MIN","home":"UTA","final":[122,127],"plays":[
 [1,720,null,"Jump ball: R. Gobert vs. J. Nurkić (K. George gains possession)",0,0],
 [1,707,"h","A. Bailey misses 2-pt jump shot from 17 ft",0,0],
 [1,705,"a","Defensive rebound by D. DiVincenzo",0,0],
@@ -13121,7 +13121,7 @@
 [4,23,"h","H. González Peña makes 3-pt jump shot from 25 ft (assist by B. Scheierman)",117,106],
 [4,0,null,"End of 4th quarter",117,106]
 ]},
-"202601280CLE":{"away":"ATL","home":"BOS","final":[99,129],"plays":[
+"202601280CLE":{"away":"LAL","home":"CLE","final":[99,129],"plays":[
 [1,720,null,"Jump ball: D. Ayton vs. J. Allen (D. Mitchell gains possession)",0,0],
 [1,693,"h","J. Allen misses 2-pt jump shot from 12 ft",0,0],
 [1,690,"h","Offensive rebound by J. Tyson",0,0],
@@ -13546,7 +13546,7 @@
 [4,10,"h","Turnover by Team (shot clock)",99,129],
 [4,0,null,"End of 4th quarter",99,129]
 ]},
-"202601280DAL":{"away":"ATL","home":"BOS","final":[118,105],"plays":[
+"202601280DAL":{"away":"MIN","home":"DAL","final":[118,105],"plays":[
 [1,720,"a","Violation by Team (delay of game)",0,0],
 [1,720,null,"Jump ball: R. Gobert vs. D. Gafford (C. Martin gains possession)",0,0],
 [1,716,"h","Turnover by P. Washington (bad pass; steal by D. DiVincenzo)",0,0],
@@ -14054,7 +14054,7 @@
 [4,19,"a","Defensive rebound by N. Reid",118,105],
 [4,0,null,"End of 4th quarter",118,105]
 ]},
-"202601280HOU":{"away":"ATL","home":"BOS","final":[111,99],"plays":[
+"202601280HOU":{"away":"SAS","home":"HOU","final":[111,99],"plays":[
 [1,720,null,"Jump ball: V. Wembanyama vs. A. Şengün (H. Barnes gains possession)",0,0],
 [1,702,"a","Turnover by V. Wembanyama (lost ball; steal by T. Eason)",0,0],
 [1,689,"h","A. Şengün makes 2-pt jump shot from 16 ft (assist by K. Durant)",0,2],
@@ -14534,7 +14534,7 @@
 [4,10,"h","C. Capela makes 2-pt dunk from 1 ft (assist by A. Holiday)",111,99],
 [4,0,null,"End of 4th quarter",111,99]
 ]},
-"202601280IND":{"away":"ATL","home":"BOS","final":[110,113],"plays":[
+"202601280IND":{"away":"CHI","home":"IND","final":[110,113],"plays":[
 [1,720,null,"Jump ball: N. Vučević vs. J. Walker (P. Siakam gains possession)",0,0],
 [1,713,"h","A. Nesmith misses 2-pt jump shot from 1 ft",0,0],
 [1,710,"h","Offensive rebound by J. Furphy",0,0],
@@ -14994,7 +14994,7 @@
 [4,0,"a","Turnover by J. Giddey (bad pass; steal by A. Nembhard)",110,113],
 [4,0,null,"End of 4th quarter",110,113]
 ]},
-"202601280MEM":{"away":"ATL","home":"BOS","final":[112,97],"plays":[
+"202601280MEM":{"away":"CHO","home":"MEM","final":[112,97],"plays":[
 [1,720,null,"Jump ball: M. Diabaté vs. J. Jackson (C. Spencer gains possession)",0,0],
 [1,704,"h","C. Coward misses 2-pt jump shot from 6 ft",0,0],
 [1,701,"h","Offensive rebound by J. Landale",0,0],
@@ -15411,7 +15411,7 @@
 [4,4,"h","G. Jackson makes 2-pt layup from 3 ft (assist by C. Spencer)",112,97],
 [4,0,null,"End of 4th quarter",112,97]
 ]},
-"202601280MIA":{"away":"ATL","home":"BOS","final":[133,124],"plays":[
+"202601280MIA":{"away":"ORL","home":"MIA","final":[133,124],"plays":[
 [1,720,null,"Jump ball: W. Carter vs. B. Adebayo (N. Powell gains possession)",0,0],
 [1,707,"h","B. Adebayo misses 3-pt jump shot from 27 ft",0,0],
 [1,705,"a","Defensive rebound by Team",0,0],
@@ -15882,7 +15882,7 @@
 [4,2,"a","Defensive rebound by P. Banchero",133,124],
 [4,0,null,"End of 4th quarter",133,124]
 ]},
-"202601280TOR":{"away":"ATL","home":"BOS","final":[119,92],"plays":[
+"202601280TOR":{"away":"NYK","home":"TOR","final":[119,92],"plays":[
 [1,720,null,"Jump ball: K. Towns vs. S. Barnes (J. Hart gains possession)",0,0],
 [1,699,"a","K. Towns misses 3-pt jump shot from 26 ft",0,0],
 [1,697,"h","Defensive rebound by S. Barnes",0,0],
@@ -16360,7 +16360,7 @@
 [4,7,"a","Turnover by Team (shot clock)",119,92],
 [4,0,null,"End of 4th quarter",119,92]
 ]},
-"202601280UTA":{"away":"ATL","home":"BOS","final":[140,124],"plays":[
+"202601280UTA":{"away":"GSW","home":"UTA","final":[140,124],"plays":[
 [1,720,null,"Jump ball: A. Horford vs. J. Nurkić (K. George gains possession)",0,0],
 [1,706,"h","K. George makes 2-pt dunk from 4 ft (assist by J. Nurkić)",0,2],
 [1,676,"a","B. Podziemski misses 2-pt layup from 2 ft (block by A. Bailey)",0,2],

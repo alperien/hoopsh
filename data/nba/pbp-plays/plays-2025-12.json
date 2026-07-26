@@ -472,7 +472,7 @@
 [4,0,"a","Offensive rebound by Team",134,133],
 [4,0,null,"End of 4th quarter",134,133]
 ]},
-"202512050BOS":{"away":"DEN","home":"ATL","final":[105,126],"plays":[
+"202512050BOS":{"away":"LAL","home":"BOS","final":[105,126],"plays":[
 [1,720,null,"Jump ball: D. Ayton vs. N. Queta (J. LaRavia gains possession)",0,0],
 [1,702,"a","A. Reaves misses 3-pt jump shot from 28 ft",0,0],
 [1,701,"h","Defensive rebound by J. Walsh",0,0],
@@ -902,7 +902,7 @@
 [4,3,"h","Turnover by Team (shot clock)",105,126],
 [4,0,null,"End of 4th quarter",105,126]
 ]},
-"202512050CHI":{"away":"DEN","home":"ATL","final":[120,105],"plays":[
+"202512050CHI":{"away":"IND","home":"CHI","final":[120,105],"plays":[
 [1,720,null,"Jump ball: J. Huff vs. N. Vučević (C. White gains possession)",0,0],
 [1,696,"h","Turnover by J. Giddey (traveling)",0,0],
 [1,686,"a","P. Siakam misses 2-pt jump shot from 9 ft",0,0],
@@ -1350,7 +1350,7 @@
 [4,5,"a","Turnover by Team (shot clock)",120,105],
 [4,0,null,"End of 4th quarter",120,105]
 ]},
-"202512050CLE":{"away":"DEN","home":"ATL","final":[117,130],"plays":[
+"202512050CLE":{"away":"SAS","home":"CLE","final":[117,130],"plays":[
 [1,720,null,"Jump ball: B. Biyombo vs. E. Mobley (D. Fox gains possession)",0,0],
 [1,706,"a","B. Biyombo makes 2-pt dunk from 1 ft (assist by D. Vassell)",2,0],
 [1,693,"h","Personal foul by D. Vassell (drawn by D. Mitchell)",2,0],
@@ -1842,7 +1842,7 @@
 [4,3,"h","Turnover by Team (shot clock)",117,130],
 [4,0,null,"End of 4th quarter",117,130]
 ]},
-"202512050DET":{"away":"DEN","home":"ATL","final":[116,122],"plays":[
+"202512050DET":{"away":"POR","home":"DET","final":[116,122],"plays":[
 [1,720,null,"Jump ball: R. Williams vs. J. Duren (D. Robinson gains possession)",0,0],
 [1,704,"h","Turnover by J. Duren (bad pass; steal by S. Cissoko)",0,0],
 [1,699,"a","S. Cissoko misses 2-pt layup from 2 ft",0,0],
@@ -2387,7 +2387,7 @@
 [4,7,"h","Defensive rebound by R. Holland",116,122],
 [4,0,null,"End of 4th quarter",116,122]
 ]},
-"202512050HOU":{"away":"DEN","home":"ATL","final":[98,117],"plays":[
+"202512050HOU":{"away":"PHO","home":"HOU","final":[98,117],"plays":[
 [1,720,null,"Jump ball: M. Williams vs. S. Adams (G. Allen gains possession)",0,0],
 [1,701,"a","D. Brooks makes 2-pt jump shot from 11 ft",2,0],
 [1,679,"h","K. Durant misses 2-pt jump shot from 18 ft",2,0],
@@ -2846,7 +2846,7 @@
 [4,10,"h","Defensive rebound by J. Green",98,117],
 [4,0,null,"End of 4th quarter",98,117]
 ]},
-"202512050MEM":{"away":"DEN","home":"ATL","final":[98,107],"plays":[
+"202512050MEM":{"away":"LAC","home":"MEM","final":[98,107],"plays":[
 [1,720,null,"Jump ball: I. Zubac vs. Z. Edey (V. Williams gains possession)",0,0],
 [1,703,"h","J. Wells makes 3-pt jump shot from 26 ft (assist by V. Williams)",0,3],
 [1,678,"a","I. Zubac misses 2-pt hook shot from 6 ft",0,3],
@@ -3263,7 +3263,7 @@
 [4,5,"h","Defensive rebound by Team",98,107],
 [4,0,null,"End of 4th quarter",98,107]
 ]},
-"202512050MIL":{"away":"DEN","home":"ATL","final":[116,101],"plays":[
+"202512050MIL":{"away":"PHI","home":"MIL","final":[116,101],"plays":[
 [1,720,null,"Jump ball: A. Drummond vs. M. Turner (T. Maxey gains possession)",0,0],
 [1,709,"a","T. Maxey makes 2-pt jump shot from 11 ft",2,0],
 [1,690,"h","Turnover by K. Porter (bad pass; steal by T. Maxey)",2,0],
@@ -3727,7 +3727,7 @@
 [4,0,"h","Instant Replay (Request: Ruling Stands)",116,101],
 [4,0,null,"End of 4th quarter",116,101]
 ]},
-"202512050NYK":{"away":"DEN","home":"ATL","final":[112,146],"plays":[
+"202512050NYK":{"away":"UTA","home":"NYK","final":[112,146],"plays":[
 [1,720,null,"Jump ball: J. Nurkić vs. K. Towns (K. George gains possession)",0,0],
 [1,695,"a","Turnover by S. Mykhailiuk (bad pass; steal by K. Towns)",0,0],
 [1,687,"h","J. Brunson misses 2-pt jump shot from 5 ft",0,0],
@@ -4192,7 +4192,7 @@
 [4,2,"h","Turnover by Team (shot clock)",112,146],
 [4,0,null,"End of 4th quarter",112,146]
 ]},
-"202512050OKC":{"away":"DEN","home":"ATL","final":[111,132],"plays":[
+"202512050OKC":{"away":"DAL","home":"OKC","final":[111,132],"plays":[
 [1,720,null,"Jump ball: A. Davis vs. C. Holmgren (R. Nembhard gains possession)",0,0],
 [1,709,"h","Violation by Team (kicked ball)",0,0],
 [1,698,"a","R. Nembhard makes 3-pt jump shot from 23 ft (assist by C. Flagg)",3,0],
@@ -4627,7 +4627,7 @@
 [4,20,"a","D. Russell makes 3-pt jump shot from 26 ft (assist by B. Williams)",111,132],
 [4,0,null,"End of 4th quarter",111,132]
 ]},
-"202512050ORL":{"away":"DEN","home":"ATL","final":[105,106],"plays":[
+"202512050ORL":{"away":"MIA","home":"ORL","final":[105,106],"plays":[
 [1,720,null,"Jump ball: K. Ware vs. W. Carter (F. Wagner gains possession)",0,0],
 [1,703,"h","J. Suggs makes 3-pt jump shot from 26 ft (assist by F. Wagner)",0,3],
 [1,686,"a","N. Powell misses 3-pt jump shot from 26 ft",0,3],
@@ -5094,7 +5094,7 @@
 [4,0,"a","Offensive rebound by Team",105,106],
 [4,0,null,"End of 4th quarter",105,106]
 ]},
-"202512050TOR":{"away":"DEN","home":"ATL","final":[111,86],"plays":[
+"202512050TOR":{"away":"CHO","home":"TOR","final":[111,86],"plays":[
 [1,720,null,"Jump ball: R. Kalkbrenner vs. J. Poeltl (S. Barnes gains possession)",0,0],
 [1,701,"h","S. Barnes makes 2-pt jump shot from 11 ft (assist by J. Walter)",0,2],
 [1,680,"a","L. Ball makes 2-pt jump shot from 6 ft",2,2],
@@ -6066,7 +6066,7 @@
 [4,16,"a","Defensive rebound by J. Green",112,105],
 [4,0,null,"End of 4th quarter",112,105]
 ]},
-"202512150DEN":{"away":"DET","home":"BOS","final":[125,128],"plays":[
+"202512150DEN":{"away":"HOU","home":"DEN","final":[125,128],"plays":[
 [1,720,null,"Jump ball: A. Şengün vs. N. Jokić (A. Thompson gains possession)",0,0],
 [1,696,"a","J. Okogie makes 3-pt jump shot from 25 ft (assist by A. Şengün)",3,0],
 [1,667,"h","P. Watson makes 3-pt jump shot from 22 ft (assist by N. Jokić)",3,3],
@@ -6567,7 +6567,7 @@
 [5,1,"h","Defensive rebound by B. Brown",125,128],
 [5,0,null,"End of 1st overtime",125,128]
 ]},
-"202512150LAC":{"away":"DET","home":"BOS","final":[121,103],"plays":[
+"202512150LAC":{"away":"MEM","home":"LAC","final":[121,103],"plays":[
 [1,720,null,"Jump ball: J. Jackson vs. I. Zubac (J. Harden gains possession)",0,0],
 [1,707,"h","I. Zubac misses 2-pt hook shot from 8 ft",0,0],
 [1,704,"a","Defensive rebound by J. Morant",0,0],
@@ -6997,7 +6997,7 @@
 [4,3,"a","Offensive rebound by C. Spencer",121,103],
 [4,0,null,"End of 4th quarter",121,103]
 ]},
-"202512150MIA":{"away":"DET","home":"BOS","final":[106,96],"plays":[
+"202512150MIA":{"away":"TOR","home":"MIA","final":[106,96],"plays":[
 [1,720,null,"Jump ball: J. Poeltl vs. B. Adebayo (D. Mitchell gains possession)",0,0],
 [1,698,"h","N. Powell misses 2-pt jump shot from 12 ft",0,0],
 [1,696,"a","Defensive rebound by I. Quickley",0,0],
@@ -7459,7 +7459,7 @@
 [4,6,"a","Defensive rebound by S. Barnes",106,96],
 [4,0,null,"End of 4th quarter",106,96]
 ]},
-"202512150UTA":{"away":"DET","home":"BOS","final":[133,140],"plays":[
+"202512150UTA":{"away":"DAL","home":"UTA","final":[133,140],"plays":[
 [1,720,null,"Jump ball: D. Gafford vs. K. Filipowski (K. George gains possession)",0,0],
 [1,705,"h","A. Bailey misses 2-pt jump shot from 13 ft",0,0],
 [1,700,"h","Offensive rebound by A. Bailey",0,0],
@@ -8491,7 +8491,7 @@
 [4,7,"a","Turnover by Team (shot clock)",126,111],
 [4,0,null,"End of 4th quarter",126,111]
 ]},
-"202512260CHI":{"away":"MIA","home":"ATL","final":[102,109],"plays":[
+"202512260CHI":{"away":"PHI","home":"CHI","final":[102,109],"plays":[
 [1,720,null,"Jump ball: J. Embiid vs. N. Vučević (T. Maxey gains possession)",0,0],
 [1,705,"a","P. George misses 3-pt jump shot from 25 ft",0,0],
 [1,703,"h","Defensive rebound by M. Buzelis",0,0],
@@ -8977,7 +8977,7 @@
 [4,8,"h","Defensive rebound by J. Giddey",102,109],
 [4,0,null,"End of 4th quarter",102,109]
 ]},
-"202512260IND":{"away":"MIA","home":"ATL","final":[140,122],"plays":[
+"202512260IND":{"away":"BOS","home":"IND","final":[140,122],"plays":[
 [1,720,null,"Jump ball: N. Queta vs. J. Huff (P. Siakam gains possession)",0,0],
 [1,706,"h","A. Nembhard makes 3-pt jump shot from 23 ft (assist by B. Mathurin)",0,3],
 [1,684,"a","J. Brown misses 2-pt jump shot from 16 ft",0,3],
@@ -9462,7 +9462,7 @@
 [4,20,"a","Turnover by Team (shot clock)",140,122],
 [4,0,null,"End of 4th quarter",140,122]
 ]},
-"202512260MEM":{"away":"MIA","home":"ATL","final":[104,125],"plays":[
+"202512260MEM":{"away":"MIL","home":"MEM","final":[104,125],"plays":[
 [1,720,null,"Jump ball: M. Turner vs. J. Jackson (S. Aldama gains possession)",0,0],
 [1,707,"h","C. Coward misses 3-pt jump shot from 25 ft",0,0],
 [1,703,"a","Defensive rebound by K. Porter",0,0],
@@ -9950,7 +9950,7 @@
 [4,0,"a","Offensive rebound by Team",104,125],
 [4,0,null,"End of 4th quarter",104,125]
 ]},
-"202512260NOP":{"away":"MIA","home":"ATL","final":[115,108],"plays":[
+"202512260NOP":{"away":"PHO","home":"NOP","final":[115,108],"plays":[
 [1,720,null,"Jump ball: M. Williams vs. D. Queen (C. Gillespie gains possession)",0,0],
 [1,703,"a","R. O'Neale misses 3-pt jump shot from 26 ft",0,0],
 [1,699,"h","Defensive rebound by J. Fears",0,0],
@@ -10478,7 +10478,7 @@
 [4,0,"h","Offensive rebound by D. Queen",115,108],
 [4,0,null,"End of 4th quarter",115,108]
 ]},
-"202512260ORL":{"away":"MIA","home":"ATL","final":[120,105],"plays":[
+"202512260ORL":{"away":"CHO","home":"ORL","final":[120,105],"plays":[
 [1,720,null,"Jump ball: M. Diabaté vs. W. Carter (T. Jones gains possession)",0,0],
 [1,704,"h","T. Jones makes 3-pt jump shot from 24 ft (assist by D. Bane)",0,3],
 [1,690,"a","B. Miller makes 2-pt dunk from 1 ft (assist by M. Bridges)",2,3],
@@ -10978,7 +10978,7 @@
 [4,3,"a","Turnover by Team (shot clock)",120,105],
 [4,0,null,"End of 4th quarter",120,105]
 ]},
-"202512260POR":{"away":"MIA","home":"ATL","final":[119,103],"plays":[
+"202512260POR":{"away":"LAC","home":"POR","final":[119,103],"plays":[
 [1,720,null,"Jump ball: B. Lopez vs. D. Clingan (J. Harden gains possession)",0,0],
 [1,696,"a","Turnover by K. Leonard (bad pass; steal by K. Murray)",0,0],
 [1,685,"h","Shooting foul by K. Dunn (drawn by D. Avdija)",0,0],
@@ -11406,7 +11406,7 @@
 [4,14,"a","Turnover by Team (shot clock)",119,103],
 [4,0,null,"End of 4th quarter",119,103]
 ]},
-"202512260UTA":{"away":"MIA","home":"ATL","final":[129,131],"plays":[
+"202512260UTA":{"away":"DET","home":"UTA","final":[129,131],"plays":[
 [1,720,null,"Jump ball: J. Duren vs. J. Nurkić (C. Cunningham gains possession)",0,0],
 [1,704,"a","C. Cunningham makes 2-pt layup from 4 ft",2,0],
 [1,692,"h","L. Markkanen misses 2-pt jump shot from 5 ft",2,0],
@@ -11893,7 +11893,7 @@
 [4,0,"a","Offensive rebound by Team",129,131],
 [4,0,null,"End of 4th quarter",129,131]
 ]},
-"202512260WAS":{"away":"MIA","home":"ATL","final":[117,138],"plays":[
+"202512260WAS":{"away":"TOR","home":"WAS","final":[117,138],"plays":[
 [1,720,null,"Jump ball: S. Barnes vs. A. Sarr (C. McCollum gains possession)",0,0],
 [1,699,"h","K. Middleton misses 3-pt jump shot from 25 ft (block by B. Ingram)",0,0],
 [1,696,"a","Defensive rebound by S. Barnes",0,0],

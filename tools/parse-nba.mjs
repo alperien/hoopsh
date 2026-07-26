@@ -87,11 +87,15 @@ function extractPlays(html, id) {
 }
 
 function extractGameMeta(html, id) {
-  const teams = [...html.matchAll(/\/teams\/([A-Z]{3})\/\d{4}\.html/g)].map((m) => m[1]);
-  const scores = [...html.matchAll(/class="score"[^>]*>(\d+)/g)].map((m) => Number(m[1]));
-  const away = teams[0] ?? null;
-  const home = teams[1] ?? null;
+  // scope to the scorebox block — the page-top "scores" strip links every game
+  // of the date, so a whole-page scan grabs the wrong teams
+  const box = html.match(/<div class="scorebox">[\s\S]*?<div class="scorebox_meta">/)?.[0];
+  if (!box) throw new Error(`${id}: no scorebox block`);
+  const teams = [...box.matchAll(/\/teams\/([A-Z]{3})\/\d{4}\.html/g)].map((m) => m[1]);
+  const scores = [...box.matchAll(/class="score"[^>]*>(\d+)/g)].map((m) => Number(m[1]));
+  const [away, home] = teams;
   if (!away || !home || scores.length < 2) throw new Error(`${id}: scorebox parse failed`);
+  if (home !== id.slice(9)) throw new Error(`${id}: scorebox home ${home} != game-id suffix`);
   return { away, home, boxFinal: [scores[0], scores[1]], date: `${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}` };
 }
 
