@@ -86,7 +86,12 @@ export const SWEEPABLE: Knob[] = [
   { path: 'shot.basePaint', lo: -0.72, hi: -0.25 },
   { path: 'shot.baseMid', lo: -0.85, hi: -0.45 },
   { path: 'shot.baseThree', lo: -1.02, hi: -0.65 },
-  { path: 'shot.contestCoef', lo: -1.5, hi: -0.82 },
+  // contestCoef lo widened -1.5 -> -2.0 after the speed fix: the pin
+  // experiment proved the shooting calibration had absorbed the overspeed
+  // (slower world at fixed constants = FG%/ORtg UP), so re-fitting the
+  // slower engine needs deeper contest punishment than the old prior —
+  // the optimizer pinned ORtg 122-126 with every other dial at boundary.
+  { path: 'shot.contestCoef', lo: -2.0, hi: -0.82 },
   { path: 'shot.blockBase', lo: 0.18, hi: 0.45 },
   { path: 'shot.ftBasePct', lo: 0.69, hi: 0.75 },
 

@@ -11,9 +11,11 @@
  *   movement — per-player speeds between consecutive LIVE frames (game clock
  *     decreasing filters out dead balls/FT rituals; >30 ft/s pairs are
  *     dropped as substitution slot-swaps). NBA tracking reference: players
- *     average ~4.2 ft/s across a possession, and are effectively stationary
- *     (<1 ft/s) a large share of off-ball time — standing IS a basketball
- *     behavior (spacing is held, not jogged).
+ *     average ~4.2 MPH ≈ 6.2 ft/s (UNITS MATTER — an earlier version of
+ *     this header said "4.2 ft/s", a units-confused recollection that
+ *     nearly drove a further round of engine slowing; the third review's
+ *     warning that the target itself was recollection was exact). Standing
+ *     still IS a basketball behavior — spacing is held, not jogged.
  *   passing — ping-pong share: an A→B pass answered by B→A within the window,
  *     the signature of utility ties oscillating; plus passes per possession
  *     (NBA ~3.2: ~300 passes / ~95 possessions per team-game).
@@ -91,7 +93,7 @@ for (let g = 0; g < GAMES; g++) {
 const row = (label: string, val: string, ref: string) =>
   ` info  ${label.padEnd(30)} ${val.padStart(9)}   NBA ~${ref}`;
 console.log(`Texture forensics — ${GAMES} games (seed base '${SEED}')\n`);
-console.log(row('avg live speed (ft/s)', (move.speedSum / move.n).toFixed(2), '4.2'));
+console.log(row('avg live speed (ft/s)', (move.speedSum / move.n).toFixed(2), '6.2 (4.2 MPH)'));
 console.log(row('stationary share (<1 ft/s)', `${((100 * move.still) / move.n).toFixed(0)}%`, 'large; standing holds spacing'));
 console.log(row('walking share (1-6 ft/s)', `${((100 * move.walk) / move.n).toFixed(0)}%`, ''));
 console.log(row('running share (>6 ft/s)', `${((100 * move.run) / move.n).toFixed(0)}%`, ''));

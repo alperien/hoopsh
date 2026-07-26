@@ -192,6 +192,10 @@ export interface SimParams {
     transitionBonus: number;
     /** drive commitment window (seconds): a decided drive holds this long before re-evaluation */
     driveCommitSec: number;
+    /** commit ceiling for long rampages (the floor is driveCommitSec); see game.ts arrival-based commit */
+    driveCommitMaxSec: number;
+    /** planning speed for the arrival-based commit: commit ≈ launchDist / this */
+    driveSpeedFtSec: number;
   };
 
   move: {
@@ -224,6 +228,14 @@ export interface SimParams {
     stanceSpeedMult: number;
     /** off-ball spacing moves are WALKED (share of max) — spots are held, not chased */
     offBallWalkMult: number;
+    /** the ball-handler's bring-up is a dribble-JOG (share of max), not a sprint */
+    advanceJogMult: number;
+    /** the retreat after a score/shot is a JOG (share of max) — nobody sprints back unpressured */
+    getbackJogMult: number;
+    /** non-sprint crash/boxout repositioning speed (share of max) — short, quick, not a dash */
+    crashWorkMult: number;
+    /** transition hard cap, sec — safety only; the real end is the defense getting SET */
+    transitionMaxSec: number;
   };
 
   fatigue: {
@@ -401,7 +413,7 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5714,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    baseRim: 0.5798,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.3574,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
@@ -419,7 +431,7 @@ export const defaultParams: SimParams = {
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
-    contestCoef: -1.2285,
+    contestCoef: -1.1325,
     // The contest level that counts as "normal NBA defensive pressure" — the
     // bases above are calibrated AT this level, so this is the zero point.
     contestMidpoint: 0.38,
@@ -452,7 +464,7 @@ export const defaultParams: SimParams = {
     // originally 0.12 (an 83% ceiling), which failed the fidelity harness's
     // 99-rated benchmark at 79% — league mean is preserved by re-centering
     // the base (the fidelity phase widens SPREADS; bands still own the mean).
-    ftBasePct: 0.666,
+    ftBasePct: 0.69,
     ftSkillSwing: 0.19,
     // REAL — the elite tail: +5.5% at rating 100, zero below 80; rating 99
     // lands ~90%, matching the 88-91% real elite band
@@ -460,7 +472,7 @@ export const defaultParams: SimParams = {
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
-    blockBase: 0.2838,
+    blockBase: 0.2754,
     blockSkillCoef: 0.5,
     // Within-zone distance penalty model. Both constants have real-world meaning:
     //   threes: each foot beyond the NBA three-point line costs ≈1.3 pp FG% —
@@ -512,14 +524,14 @@ export const defaultParams: SimParams = {
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.031
+    looseBallPerReb: 0.0365
   },
 
   pass: {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.2524,
+    riskBase: -4.3,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -527,7 +539,7 @@ export const defaultParams: SimParams = {
     skillCoef: 0.75,
     // Of failed passes, ~55% are stolen (credited to a defender) and the rest
     // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
-    stealShare: 0.5473,
+    stealShare: 0.543,
     // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45,
@@ -548,7 +560,7 @@ export const defaultParams: SimParams = {
     // The offense is at a structural disadvantage on the glass (it is
     // retreating, the defense is between man and rim), so offensive rebound
     // weights are discounted. This is THE lever on ORB% (band 20-30%). SWEPT.
-    offWeightMult: 0.7328,
+    offWeightMult: 0.6,
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
@@ -593,7 +605,7 @@ export const defaultParams: SimParams = {
     // Softmax temperature over action utilities, in expected-points units.
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
-    temperature: 0.064,
+    temperature: 0.0732,
     // THE MOST IMPORTANT NUMBER IN THE ENGINE.
     // Expected points of "keep working this possession" with a full shot
     // clock ≈ 1.45. Every shot decision is a comparison against this: shoot
@@ -619,7 +631,7 @@ export const defaultParams: SimParams = {
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
     threeAppetite: 1.12,
-    driveAppetite: 0.7864,
+    driveAppetite: 0.7997,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.05,
@@ -628,7 +640,17 @@ export const defaultParams: SimParams = {
     // (executeAction's drive branch) and passing.ts (DHO turn-the-corner grant),
     // so one param governs both. FEEL — 1.35 s at ~20 ft/s covers ~27 ft,
     // roughly the distance from the wing to a layup spot.
-    driveCommitSec: 1.35   // FEEL — drive commitment window, seconds
+    driveCommitSec: 1.35,  // FEEL — commit FLOOR, seconds (short attacks)
+    // Arrival-based commit (drive-collapse forensic, speed-fix branch): a
+    // fixed window expired mid-lane once the jog economy stretched launch
+    // distances — drive PICKS stayed equal to main (~190/4 games) but drive
+    // FINISHES fell 4.7 -> 1.35/game because the terminal decision arrived
+    // as a 15-ft pull-up instead of a rim finish. Commit now scales with
+    // launch distance (dist/driveSpeedFtSec, clamped to [floor, max]):
+    // penetrate until ARRIVAL, then finish or spray — same arrival principle
+    // as the phase boundaries. FEEL.
+    driveCommitMaxSec: 2.5,
+    driveSpeedFtSec: 16.5
   },
 
   move: {
@@ -677,12 +699,36 @@ export const defaultParams: SimParams = {
     // — every small sag adjustment ran at FULL lateral speed. A defender in
     // his stance shuffles; the 1.15x sprint multiplier still applies to
     // closeouts, helps, and blitzes. FEEL.
-    stanceSpeedMult: 0.55,
+    stanceSpeedMult: 0.48,
     // Off-ball offense averaged 7.4 ft/s: spot repositioning ran at the
     // 0.72 cruise. Spacing is walked to and HELD (cuts/crashes/transition
     // still sprint via the sprinting flag; the ball-holder keeps the cruise
     // multiplier — this only walks off-ball spacing moves). FEEL.
-    offBallWalkMult: 0.3
+    offBallWalkMult: 0.3,
+    // The bring-up: at the 0.72 cruise the handler crossed halfcourt at
+    // ~13.7 ft/s (9+ mph) EVERY possession — the single largest contributor
+    // to the speed signature (avg live speed 6.55 vs NBA ~4.2, and the
+    // friction signature it drives — see INTERNALS + the speed-pin
+    // experiment: the shooting calibration absorbs kinematics errors, so
+    // this fix forces a re-fit by design). A real bring-up is a dribble-jog;
+    // transition still sprints via the sprinting flag. FEEL.
+    advanceJogMult: 0.42,
+    // THE CRUISE FALLTHROUGH (frame-attribution probe, speed-fix branch):
+    // moveSpeed's offense branch gave every non-defend/non-spot/non-advance
+    // intent the 0.72 cruise — so all five defenders crossed the court at
+    // ~13.7 ft/s after EVERY score (intent 'getback'), and non-sprint
+    // crashers boxed out at the same. 'early' possession windows owned 42%
+    // of all fast frames and scrambles another 20% before these dials.
+    // Real players jog back (~8 ft/s) and work the boxout, not dash it. FEEL.
+    getbackJogMult: 0.45,
+    crashWorkMult: 0.5,
+    // Transition used to end on a fixed 4.5s clock — the jog economy made
+    // that expire mid-floor (defense not back, holder 40 ft out) and the
+    // downhill archetype lost its window (drives 4.7 -> 1.27/game, fidelity
+    // incident). Transition now ends when the DEFENSE IS SET (4+ defenders
+    // inside 30 ft of their rim — arrival-based, like the advance flip);
+    // this cap is the chaos-state safety net only. FEEL.
+    transitionMaxSec: 7
   },
 
   fatigue: {
@@ -757,7 +803,7 @@ export const defaultParams: SimParams = {
     contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.0389,
+    holdHalfcourt: 0.043,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -904,7 +950,7 @@ export const defaultParams: SimParams = {
     pnrMaxScreenDistFt: 26,
     // FEEL — post/iso action weights and windows; the post score is carried by
     // tend.post so a team without a post threat simply never rolls it
-    postCallShare: 1.25,
+    postCallShare: 1.875,
     postCallCut: 0.1,
     postEntryBonus: 0.22,
     postWorkBoost: 0.224,
@@ -919,7 +965,7 @@ export const defaultParams: SimParams = {
     // out of ~6 — pass options beat the shot in every near-tie (fidelity
     // probe). Real hubs finish over half their worked post-ups.
     postShotBonus: 0.552,
-    isoCallShare: 0.7,
+    isoCallShare: 0.91,
     isoDriveBonus: 0.15,
     isoDurationSec: 3.0,
     // FEEL — the DHO: the hub-center creation pattern (weight also scales with
