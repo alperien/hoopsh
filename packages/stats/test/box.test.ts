@@ -134,3 +134,54 @@ describe('box score arithmetic on a known stream', () => {
     }
   });
 });
+
+describe('team rebounds in the box score (known stream)', () => {
+  // A dead carom awarded to the defense (playerless team rebound), then a
+  // FT trip whose missed FIRST attempt logs the dead-ball formality, whose
+  // missed FINAL attempt is secured by a player. Official-scoring
+  // convention: the team rebound counts in TEAM totals only; the dead-ball
+  // formality counts NOWHERE (core/events.ts ReboundEvent).
+  const events: GameEvent[] = [
+    mk({ type: 'game_start', home: { teamId: 'h', lineup: home.starters }, away: { teamId: 'a', lineup: away.starters } } as Partial<GameEvent> & { type: 'game_start' }, 0, [0, 0]),
+    mk({ type: 'possession_start', team: 0, kind: 'tip' } as Partial<GameEvent> & { type: 'possession_start' }, 1, [0, 0]),
+    mk({ type: 'shot', team: 0, shooter: 'h0', x: 20, y: 25, distFt: 15, zone: 'mid', three: false, moveType: 'pull_up', contest: 0.4, made: false, points: 0 } as Partial<GameEvent> & { type: 'shot' }, 8, [0, 0]),
+    // dead carom out of bounds — DEFENSIVE team rebound, nobody credited
+    mk({ type: 'rebound', team: 1, offensive: false, x: 30, y: 10 } as Partial<GameEvent> & { type: 'rebound' }, 9, [0, 0]),
+    mk({ type: 'possession_end', team: 0, outcome: 'def_rebound' } as Partial<GameEvent> & { type: 'possession_end' }, 9, [0, 0]),
+    mk({ type: 'possession_start', team: 1, kind: 'inbound' } as Partial<GameEvent> & { type: 'possession_start' }, 11, [0, 0]),
+    mk({ type: 'foul', team: 0, on: 'h3', kind: 'shooting', drawnBy: 'a0', personalCount: 1, teamCountInPeriod: 1, inBonus: false, fouledOut: false } as Partial<GameEvent> & { type: 'foul' }, 20, [0, 0]),
+    mk({ type: 'free_throw', team: 1, shooter: 'a0', n: 1, of: 2, made: false } as Partial<GameEvent> & { type: 'free_throw' }, 21, [0, 0]),
+    // the missed-non-final-FT scorekeeping formality — counts in NO totals
+    mk({ type: 'rebound', team: 1, offensive: true, deadBall: true, x: 85, y: 25 } as Partial<GameEvent> & { type: 'rebound' }, 21, [0, 0]),
+    mk({ type: 'free_throw', team: 1, shooter: 'a0', n: 2, of: 2, made: false } as Partial<GameEvent> & { type: 'free_throw' }, 22, [0, 0]),
+    // the FINAL miss is a live scramble — a player secures this one
+    mk({ type: 'rebound', team: 0, player: 'h4', offensive: false, x: 80, y: 25 } as Partial<GameEvent> & { type: 'rebound' }, 23, [0, 0]),
+    mk({ type: 'possession_end', team: 1, outcome: 'def_rebound' } as Partial<GameEvent> & { type: 'possession_end' }, 23, [0, 0]),
+    mk({ type: 'period_end' } as Partial<GameEvent> & { type: 'period_end' }, 24, [0, 0]),
+    mk({ type: 'game_end' } as Partial<GameEvent> & { type: 'game_end' }, 24, [0, 0])
+  ];
+  const box = boxScore(events, [home, away]);
+  const p = (id: string) => box.players.find((x) => x.id === id)!;
+
+  it('a team rebound counts in team totals but on no player line', () => {
+    expect(box.teams[1].drb).toBe(1);
+    expect(box.teams[1].trb).toBe(1);
+    const awayPlayerTrb = box.players.filter((x) => x.team === 1).reduce((acc, x) => acc + x.trb, 0);
+    expect(awayPlayerTrb).toBe(0);
+  });
+
+  it('the dead-ball FT formality counts in NO rebound totals', () => {
+    expect(box.teams[1].orb).toBe(0); // the formality was team 1's only "offensive rebound"
+  });
+
+  it('player rebounds still credit both the line and the team totals', () => {
+    expect(p('h4').drb).toBe(1);
+    expect(box.teams[0].drb).toBe(1);
+    expect(box.teams[0].trb).toBe(1);
+    expect(box.teams[0].orb).toBe(0);
+  });
+
+  it('team TRB identity holds: TRB = ORB + DRB including team rebounds', () => {
+    for (const t of box.teams) expect(t.trb).toBe(t.orb + t.drb);
+  });
+});

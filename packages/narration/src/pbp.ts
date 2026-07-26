@@ -231,6 +231,23 @@ function renderEvent(
       ]);
     }
     case 'rebound': {
+      // the missed-non-final-FT formality: dead ball by rule, next attempt
+      // simply proceeds — a broadcast says nothing here
+      if (e.deadBall) return null;
+      if (!e.player) {
+        // TEAM rebound: the carom died out of bounds; a side is awarded the ball
+        return e.offensive
+          ? pool.pick('torb', [
+              `Knocked out of bounds — ${lk.teamName(e.team)} keep it.`,
+              `The carom skips out of play; ${lk.abbrev(e.team)} retain possession.`,
+              `Nobody controls it — out of bounds, still ${lk.teamName(e.team)}'s ball.`
+            ])
+          : pool.pick('tdrb', [
+              `The long rebound bounces out of bounds — ${lk.teamName(e.team)} ball.`,
+              `Tipped out of play; possession to ${lk.teamName(e.team)}.`,
+              `Nobody comes up with it — ${lk.abbrev(e.team)} will inbound.`
+            ]);
+      }
       const who = lk.last(e.player);
       return e.offensive
         ? pool.pick('orb', [

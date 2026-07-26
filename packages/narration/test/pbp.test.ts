@@ -56,6 +56,22 @@ describe('narration', () => {
     expect(linesOut[1]!.text).toContain('fouled out');
   });
 
+  it('team rebounds narrate as out-of-bounds awards; FT formalities stay silent', () => {
+    const base = { t: 100, wt: 120, period: 1, clock: 500, score: [10, 8] as [number, number] };
+    const events = [
+      { type: 'rebound', team: 1, offensive: false, x: 30, y: 10, ...base },
+      { type: 'rebound', team: 0, offensive: true, x: 8, y: 25, ...base },
+      { type: 'rebound', team: 0, offensive: true, deadBall: true, x: 5, y: 25, ...base }
+    ] as GameEvent[];
+    const lines = generatePlayByPlay(events, [home, away], { seed: 'treb-1', includeMoments: false });
+    // two team-rebound lines; the dead-ball formality renders nothing
+    expect(lines.length).toBe(2);
+    for (const l of lines) {
+      expect(l.text).not.toContain('undefined');
+      expect(/out of bounds|out of play|retain|keep it|inbound|ball/i.test(l.text)).toBe(true);
+    }
+  });
+
   it('broadcast script merges pbp and color voices in time order', async () => {
     const cues = await buildBroadcastScript(result.events, [home, away], new TemplateColorProvider(), { seed: 'pbp-1' });
     expect(cues.some((c) => c.speaker === 'color')).toBe(true);

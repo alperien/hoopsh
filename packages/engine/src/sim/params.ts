@@ -203,6 +203,10 @@ export interface SimParams {
     reboundCutoffFt: number;
     /** relative spread of miss-landing samples around the mean: std = mean × this factor */
     reboundSpreadFactor: number;
+    /** share of live-rebound scrambles whose carom dies (out of bounds /
+     *  rolls dead) and is awarded as a TEAM rebound at a dead-ball inbound
+     *  instead of credited to a player — see possession.ts tickScramble */
+    deadBallCaromChance: number;
     /** scramble rating blend — a coupled set shaping WHO wins each rebound lottery */
     blendOffReb: number;         // offensive: pursuit
     blendOffVertical: number;    // offensive: hops
@@ -336,9 +340,15 @@ export interface SimParams {
     relocateDriftFt: number;     // how far the shake drifts away from the defender
     relocDurationSec: number;    // how long the relocated ground is held
     /** per-possession spacing-spot jitter half-width, ft (uniform per axis) —
-     *  see assignSpots; corner spots' lateral component is clamped to stay
-     *  inside the corner-three line (D3 coupling) */
+     *  see offense.ts rollSpots; corner spots jitter along the baseline only
+     *  (lateral pinned inside the corner-three line, D3 coupling) and
+     *  above-the-break three spots stay behind the arc */
     spotJitterFt: number;
+    /** minimum clearance BEHIND the three-point arc a jittered top/wing spot
+     *  keeps (ft) — spacing shooters stand behind the line on purpose;
+     *  without this floor, jitter parks them on/inside it and mints junk
+     *  23-ft catch-and-shoot twos that shift the shot mix */
+    spotJitterArcMarginFt: number;
     // shot selection
     zoneTendBias: number;        // weight of zone shot-diet tendencies
     pullUpBias: number;          // weight of pull-up tendency on pull-ups
@@ -704,6 +714,24 @@ export const defaultParams: SimParams = {
     //   the mean. 0.45 × mean gives a Gaussian std; floor at 1 ft prevents
     //   on-the-rim degenerate samples. Tracking-data validated. FEEL.
     reboundSpreadFactor: 0.45,  // FEEL — relative spread of miss-landing distribution
+    // TEAM rebounds: real missed-FG caroms die out of bounds (tipped OOB,
+    // long skips) at a measured 15.4% of misses in the six-game reference
+    // corpus (14.3/game, 59% awarded to the offense) — and the Turing
+    // baseline's judges used the sim's total LACK of "rebound by Team"
+    // lines as a definitely-real marker (flow-reference.json
+    // meta.turingBaseline). Modeled as a flat pre-roll on scramble
+    // resolution; the WINNING SIDE follows the same positioning-weighted
+    // lottery a player rebound uses, so ORB%'s expectation is unchanged and
+    // team rebound totals still count the board (official-scoring
+    // convention, stats/box.ts). Set slightly under the real 0.154 because
+    // every diverted carom is a player rebound nobody gets credited for —
+    // 0.08 keeps the interior-star TRB identity (fidelity gate) inside its
+    // tripwire — and every diverted OFFENSIVE carom replaces a putback
+    // chance (unassisted makes) with a halfcourt re-set, which nudges
+    // assisted share upward against its band ceiling — while still making
+    // team rebounds a normal sight in the log (~7/game plus the FT
+    // dead-ball formalities). REAL anchor, FEEL discount.
+    deadBallCaromChance: 0.08,
     // Scramble rating blend (FEEL — a COUPLED SET: re-tune together, never
     // hand-nudge one alone). Rebounding is a zero-sum lottery, so these
     // redistribute WHO rebounds without moving league totals. Height stays
@@ -947,12 +975,18 @@ export const defaultParams: SimParams = {
     // (data/nba/flow-reference.json meta.turingBaseline). Real halfcourt
     // spots are ZONES a player re-picks each trip, not points — ±2 ft keeps
     // a "26 ft" three varying across ~24-28 ft without moving anyone to a
-    // different basketball spot. Corner spots clamp their lateral component
-    // inside the corner-three line so jitter cannot un-do the D3 decision
-    // (corners deliberately live INSIDE the line — see geometry/court.ts).
+    // different basketball spot. Two guards keep jitter from CHANGING the
+    // spots' basketball meaning (see offense.ts rollSpots): corners jitter
+    // along the baseline only (lateral pinned exactly at the template's
+    // inside-the-line offset — the D3 decision must not be silently
+    // reversed OR shortened into easier junk 2s), and top/wing spots keep
+    // spotJitterArcMarginFt of clearance behind the arc (a spacing shooter
+    // never deliberately stands on the line; unguarded jitter minted 23-ft
+    // catch-and-shoot twos and nudged assisted share over its band edge).
     // FEEL — sized to the tell, small vs every spacing constant that reads
     // positions (defGapBaseFt 5.0, contestRadiusFt 6.5).
     spotJitterFt: 2.0,
+    spotJitterArcMarginFt: 0.5,
     zoneTendBias: 0.22,
     pullUpBias: 0.18,
     threeApptScale: 0.35,

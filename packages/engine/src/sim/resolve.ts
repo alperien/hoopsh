@@ -324,12 +324,16 @@ export function sampleMissLanding(s: GameState, rim: V2, shotDistFt: number): V2
   };
 }
 
-/** weighted scramble: who comes down with a live rebound at `spot` */
-export function resolveRebound(
+/**
+ * The scramble lottery shared by player rebounds and team-rebound side
+ * awards: every live on-court player within reach, weighted by positioning
+ * and craft.
+ */
+function reboundLottery(
   s: GameState,
   spot: V2,
   offSide: TeamSide
-): Agent {
+): { candidates: Agent[]; weights: number[] } {
   const R = s.params.reb;
   const candidates: Agent[] = [];
   const weights: number[] = [];
@@ -362,6 +366,32 @@ export function resolveRebound(
       weights.push(prox * rebSkill * sideMult);
     }
   }
+  return { candidates, weights };
+}
+
+/**
+ * Which SIDE a dead carom (team rebound) is awarded to: the same
+ * positioning-weighted lottery a player rebound runs, aggregated by side —
+ * so the offensive/defensive split of team rebounds matches the split the
+ * diverted player rebounds would have had, and ORB%'s expectation doesn't
+ * move when params.reb.deadBallCaromChance diverts caroms. Consumes exactly
+ * one rng draw. With nobody in reach the weights are all zero and the draw
+ * degrades to a fair coin (Rng.weighted's uniform fallback).
+ */
+export function resolveTeamReboundSide(s: GameState, spot: V2, offSide: TeamSide): TeamSide {
+  const { candidates, weights } = reboundLottery(s, spot, offSide);
+  const sideW: [number, number] = [0, 0];
+  candidates.forEach((a, i) => { sideW[a.side] += weights[i]!; });
+  return s.rng.weighted(sideW) as TeamSide;
+}
+
+/** weighted scramble: who comes down with a live rebound at `spot` */
+export function resolveRebound(
+  s: GameState,
+  spot: V2,
+  offSide: TeamSide
+): Agent {
+  const { candidates, weights } = reboundLottery(s, spot, offSide);
   if (candidates.length === 0) {
     // nobody near (shouldn't happen) — closest player gets it. Prefer players
     // who haven't fouled out: the main loop filters them, and this fallback

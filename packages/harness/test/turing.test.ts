@@ -62,4 +62,13 @@ describe('turing dry renderer: bbref shot grammar', () => {
     expect(renderEvent(shot({ distFt: 1.0 }), name))
       .toBe('A. Carver makes 2-pt layup from 1 ft');
   });
+
+  it('team rebounds read exactly like bbref: "rebound by Team"', () => {
+    const teamDef = { type: 'rebound', team: 1, offensive: false, x: 30, y: 10, ...base } as GameEvent;
+    expect(renderEvent(teamDef, name)).toBe('Defensive rebound by Team');
+    const ftFormality = { type: 'rebound', team: 0, offensive: true, deadBall: true, x: 5, y: 25, ...base } as GameEvent;
+    expect(renderEvent(ftFormality, name)).toBe('Offensive rebound by Team');
+    const player = { type: 'rebound', team: 0, player: 'sh', offensive: true, x: 5, y: 25, ...base } as GameEvent;
+    expect(renderEvent(player, name)).toBe('Offensive rebound by A. Carver');
+  });
 });

@@ -141,6 +141,9 @@ export function gameFlow(events: GameEvent[]): GameFlow {
         possStart = -1;
         break;
       case 'rebound':
+        // the missed-non-final-FT formality is not a live board — counting
+        // it would inflate OREB/second-chance shares with dead-ball noise
+        if (e.deadBall) break;
         if (e.offensive) {
           f.oreb++;
           possHadOreb = true;

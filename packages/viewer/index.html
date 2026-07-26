@@ -791,7 +791,7 @@ function buildFeed(R, lastNames) {
         break;
       }
       case 'free_throw': push(e, e.team, `${nm(e.shooter)} free throw ${e.n}/${e.of} ${e.made ? '✓' : '✗'}`); break;
-      case 'rebound': push(e, e.team, `${e.offensive ? 'Offensive' : 'Defensive'} rebound ${nm(e.player)}`); break;
+      case 'rebound': push(e, e.team, `${e.offensive ? 'Offensive' : 'Defensive'} rebound ${e.player ? nm(e.player) : 'by Team'}${e.deadBall ? ' (dead ball)' : ''}`); break;
       case 'turnover': {
         const k = e.kind === 'bad_pass' ? (e.stolenBy ? `pass stolen by ${nm(e.stolenBy)}` : 'throws it away')
           : e.kind === 'lost_ball' ? (e.stolenBy ? `stripped by ${nm(e.stolenBy)}` : 'loses the ball')

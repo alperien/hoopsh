@@ -95,7 +95,8 @@ export function renderEvent(
     case 'free_throw':
       return `${name(e.shooter)} ${e.made ? 'makes' : 'misses'} free throw ${e.n} of ${e.of}`;
     case 'rebound':
-      return `${e.offensive ? 'Offensive' : 'Defensive'} rebound by ${name(e.player)}`;
+      // playerless = team rebound; "rebound by Team" is bbref's exact phrasing
+      return `${e.offensive ? 'Offensive' : 'Defensive'} rebound by ${e.player ? name(e.player) : 'Team'}`;
     case 'turnover': {
       const kind =
         e.kind === 'bad_pass' ? 'bad pass' :

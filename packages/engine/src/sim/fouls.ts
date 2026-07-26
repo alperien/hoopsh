@@ -9,7 +9,7 @@
  * whenever `s.phase.kind === 'freethrows'` — see docs/INTERNALS.md's pipeline.
  */
 
-import { attackedRim, agent, emit, onCourt, other, type Agent, type GameState, type Phase } from './state.js';
+import { attackedRim, agent, emit, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
 import { freeThrowP, sampleMissLanding } from './resolve.js';
 import { checkSubs, replaceFouledOut } from './subs.js';
 import { applyFatigue, integrateMovement } from './movement.js';
@@ -154,6 +154,24 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   });
 
   if (ph.taken < ph.of) {
+    if (!made) {
+      // The scorekeeping formality real logs print after every missed
+      // NON-final free throw: "Offensive rebound by Team". The ball is dead
+      // by rule — nobody rebounds anything, the next attempt just proceeds
+      // — so the event carries deadBall: true and every stat consumer
+      // excludes it from rebound totals (official-scoring convention; see
+      // core/events.ts ReboundEvent). Emitted for play-by-play fidelity:
+      // its total absence was a Turing-baseline tell.
+      const rim = attackedRim(s, ph.side);
+      emit(s, {
+        type: 'rebound',
+        team: ph.side,
+        offensive: true,
+        deadBall: true,
+        x: round1(rim.x),
+        y: round1(rim.y)
+      });
+    }
     // 0.9s between subsequent attempts: shorter than the 1.4s lead-in since
     // the shooter is already set at the line — just the ritual dribble/pause
     ph.nextIn = 0.9;

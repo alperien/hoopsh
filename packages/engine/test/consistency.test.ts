@@ -21,7 +21,15 @@ describe('box score internal consistency', () => {
     }
   });
 
-  it('player lines sum to team totals', () => {
+  it('player lines sum to team totals (team rebounds carry the TRB difference)', () => {
+    // TEAM rebounds (dead caroms awarded to a side, playerless — see
+    // core/events.ts ReboundEvent) count in team TRB but on no player line,
+    // exactly like an official box score; every other total is a pure
+    // player sum. Dead-ball FT formalities count nowhere.
+    const teamReb: [number, number] = [0, 0];
+    for (const e of result.events) {
+      if (e.type === 'rebound' && !e.player && !e.deadBall) teamReb[e.team] += 1;
+    }
     for (const side of [0, 1] as const) {
       const players = box.players.filter((p) => p.team === side);
       const sum = (k: 'pts' | 'fga' | 'fgm' | 'trb' | 'ast' | 'tov' | 'pf'): number =>
@@ -29,7 +37,7 @@ describe('box score internal consistency', () => {
       expect(sum('pts')).toEqual(box.teams[side].pts);
       expect(sum('fga')).toEqual(box.teams[side].fga);
       expect(sum('fgm')).toEqual(box.teams[side].fgm);
-      expect(sum('trb')).toEqual(box.teams[side].trb);
+      expect(sum('trb') + teamReb[side]).toEqual(box.teams[side].trb);
       expect(sum('ast')).toEqual(box.teams[side].ast);
       expect(sum('tov')).toEqual(box.teams[side].tov);
     }
