@@ -88,6 +88,16 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const map = s.poss.spotMap;
   map.clear();
   map.set(handler.p.id, 'top');
+  // ball handler (best handle) takes the top; shooters fill wings/corners;
+  // the worst shooter lives at the dunker spot
+  // Best handler initiates from the top; everyone else fills by gravity —
+  // shooters get the wings and corners (where their gravity stretches the
+  // defense), the lowest-gravity big goes to the dunker spot.
+  // NOTE (M1 evidence, REFACTOR.md D3): a best-fit assignment model
+  // (appetite-ranked corners, interior-identity block stationing) was built
+  // and validated per-metric here, but is reverted until the D1 assist-
+  // economy fix lands — behind-the-line corners inflate kick EV and blow
+  // star assist identities (Curry 14.5 apg). Restore it from the D3 trail.
   const shooterKeys = ['wing_l', 'wing_r', 'corner_l', 'corner_r'];
   rest.forEach((a, i) => {
     if (i < 3) {

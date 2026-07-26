@@ -134,6 +134,14 @@ export const SWEEPABLE: Knob[] = [
   // intrinsic value is a STYLE lever; bands cannot see creation structure,
   // so the range must not let the optimizer trade it away.
   { path: 'ai.swingBase', lo: 0.0, hi: 0.045 },
+  // Flow-tier levers (added with the game-flow gates; see
+  // data/nba/flow-reference.json): the flow report measured putback share at
+  // 60% of OREBs vs the real ~33%, and steal->score-in-6s at 13% vs ~29% —
+  // these knobs make both reachable calibration targets instead of frozen
+  // FEEL constants.
+  { path: 'reb.putbackChance', lo: 0.1, hi: 0.5 },
+  { path: 'ai.driveTransitionMult', lo: 1.0, hi: 2.4 },
+  { path: 'ai.transitionPullUpBonus', lo: 0.2, hi: 0.8 },
   { path: 'ai.holdHalfcourt', lo: -0.08, hi: 0.05 },
   { path: 'ai.contestBrakeBase', lo: 0.3, hi: 0.75 },
   { path: 'ai.crashBase', lo: 0.15, hi: 0.4 },

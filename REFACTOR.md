@@ -67,11 +67,46 @@ rediscovery.
 |---|---|---|
 | D1 | Assisted share of FGM ~64% vs band 54–62% (persistent at all n; calreport ≈ −22 SE). An assist-window sweep (2.0→1.65s) confirmed **<2% leverage** — structural, not a knob. Needs a decision-layer assist model + an assisted-share acceptance band. | open (structural; pre-existing) |
 | D2 | Mid-range share ~2% of FGA, median ~20 ft (no band pins it). **No-go this refactor**: no EV path prefers a 16-footer, so restoring it is a decision-layer modeling question (a mid-range shot-selection concept + tendency wiring + full re-sweep), not a bounded fix. Forcing it would trade real efficiency realism for a distribution metric. | deferred (modeling design) |
-| D3 | Corner spacing spot at 21.5 ft (just inside the 22 ft line) → ~1% junk corner-2s. Fix requires **gravity-aware corner assignment** (only true shooters get a behind-the-line corner) so bigs don't over-shoot 3s, then a re-sweep. | deferred (needs re-sweep) |
-| D4 | FT phase skips `applyFatigue` (sole phase handler that does). Correct fix tips pace/FT% bands; needs a re-sweep to re-center. | deferred (needs re-sweep) |
-| D5 | `relocUntil` not cleared in the possession stale-timer sweep (rare cross-possession leak). Correct fix tips the pace boundary; needs a re-sweep. | deferred (needs re-sweep) |
+| D3 | Corner spot at 21.5 ft → ~1% junk corner-2s. **M1 update — D3 is COUPLED to D1 and blocked behind it.** Three assignment models were built and measured (12-game fidelity probes): (1) naive 22.4 corners → Jokić 12.1 3PA (real ~3-4) — kicks feed whoever lives behind the line; (2) appetite-ranked corners (tend.shotThree top-2 ≥ 0.5 floor) → Jokić 4.6 3PA ✓ but he landed on a WING and post shots collapsed 0.5/g, TRB 7; (3) + post-identity pull (fit = shotThree/100 − 0.5·post/100) and interior block-stationing → Jokić 3PA ✓ TRB 13.3 ✓ post recovering (1.2) — **but genuine behind-the-line corners raise kick EV enough that star creators' assists inflate to 12-14.5/game** (Curry 14.5 vs [4.5-8.5]), amplifying D1's structural assist-economy overshoot. The best-fit spacing model is validated per-metric and recorded here; land D1's assist-model fix first, then restore it. | blocked on D1 (model recorded) |
+| D4 | FT phase skips `applyFatigue`. **Landed in M1** with the margin re-sweep. | resolved (M1) |
+| D5 | `relocUntil` not cleared in the stale-timer sweep. **Landed in M1** with the margin re-sweep. | resolved (M1) |
 | D6 | `makePlayer` uses a module-global `anonCounter` for default ids (impure; call-order-dependent fixture ids). Left as-is — changing it risks fixture-id churn across tests; low value. | deferred (low value) |
 | D7 | `oos.ts` "out-of-sample" covers 12/132 matchups at defaults; naming/doc clarification, not a bug. | deferred (doc-only) |
+
+## M1 — robustness re-foundation (margin objective + mechanics landed)
+
+**Root cause located and fixed in the objective:** sweep.ts scored band
+violations with centering pressure capped at 0.015/band — present but ~67x
+weaker than one band-width of violation, so the search treated all interior
+positions as equal and parked metrics on edges (the measured knife-edge). The
+`margin` objective (now default; `--objective legacy` preserved) raises
+centering to a real force (0.25/band) with violations steepened 4x, keeping
+pass-first behavior while buying interior slack.
+
+**Landed via one coordinated set + margin re-sweep (20 iters, 12-knob diff):**
+D4 (FT-phase fatigue) and D5 (relocUntil hygiene) are IN, and the band gate is
+back to **16/17 at n=48** (pace 94.4→in-band, FT% 80.9→in-band; assisted-share
+remains the structural D1 miss). Fidelity identities all pass; Vance leads his
+team in assists again.
+
+**Tidy-test result (the pre-committed criterion): partial win.** Rounding every
+odd-precision default to 2-3 digits now yields **15/17** vs 14/17 pre-M1, and
+the failing band changed from pace to ftPct — the FT% ceiling (80.5%) is the
+one remaining edge-hugger. Next sweep round should give the FT model slack
+(ftBasePct rail currently floors at 0.69).
+
+**Corner/spacing (D3): reverted again, now with the full model recorded.** The
+best-fit assignment (appetite-ranked corners + interior block stationing) was
+validated metric-by-metric across three iterations but exposed hard coupling to
+D1: genuine behind-the-line corners raise kick EV enough to inflate star
+creators to 12-14.5 apg. D3 is blocked on D1, by measurement.
+
+**New decision-layer debt from flow-gap probes (knob leverage disproven):**
+
+| # | Item | Status |
+|---|---|---|
+| D8 | Putback share ~53-56% vs real ~33%: NOT the putbackChance auto-roll — measured flat (53→50%) across putbackChance 0.45→0.22; the excess is emergent post-OREB rim-EV shooting. Needs post-OREB decision modeling (reset/kick-out pricing). | open (decision layer) |
+| D9 | Steal→score-in-6s ~13-17% vs real ~29%: transition conversion; driveTransitionMult has no leverage (swept slightly DOWN by the bands). Needs transition speed/finish economy — M4-adjacent. | open (decision layer) |
 
 ## Realism-gate tiers ("reads like basketball")
 

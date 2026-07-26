@@ -127,12 +127,10 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  *    three-point range (21 ft out, ~15.5 ft off the center line) — the
  *    classic catch-and-shoot / drive-either-way spot for a team's other
  *    perimeter shooters.
- *  - `corner_l`/`corner_r`: the corner threes, sitting at 21.5 ft LATERAL
- *    distance from the rim's center line. This deliberately mirrors the real
- *    cornerDistFt geometry from classifyShot (22 ft) minus a small margin —
- *    a shooter standing here is just inside the three-point line, not
- *    straddling or stepping on it, and the shot is the shortest three on the
- *    floor (see the classifyShot corner-vs-arc note above).
+ *  - `corner_l`/`corner_r`: the corner spots at 21.5 ft LATERAL distance
+ *    from the rim's center line — just INSIDE classifyShot's 22 ft corner
+ *    line (see the D3 note on the entries below for why moving them behind
+ *    the line waits on the assist-economy fix).
  *  - `dunker`: the dunker's spot — deep in the paint right next to the
  *    baseline (4 ft from the rim), where a non-shooting big parks himself to
  *    stay out of the primary driver's lane while remaining a lob/dump-off
@@ -159,16 +157,17 @@ export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] 
     { key: 'top', pos: spot(26, cy) },
     { key: 'wing_l', pos: spot(21, cy - 15.5) },
     { key: 'wing_r', pos: spot(21, cy + 15.5) },
-    // Corner spot at 21.5 ft lateral — DELIBERATELY just inside the 22 ft
-    // corner-three line (classifyShot cornerDistFt). Moving it behind the line
-    // (tried 22.4/22.5) does eliminate the ~1% junk corner-2s the review
-    // flagged, but it also routes moderate-gravity BIGS assigned to a corner
-    // into a heavy three diet — the Jokic fidelity benchmark's 3PA blew past
-    // his real-NBA identity (>9 vs ~3-4) and his post volume collapsed. The
-    // junk-2 rate is minor and self-corrects as off-ball motion drifts players
-    // out; the hub-identity break is not. The real fix is gravity-aware corner
-    // assignment (only true shooters get the behind-the-line corner), which is
-    // future work — see REFACTOR.md D3. Left at 21.5 until then.
+    // Corner spot at 21.5 ft lateral — just inside the 22 ft corner line,
+    // producing a small junk-corner-2 rate (REFACTOR.md D3). Moving corners
+    // genuinely behind the line was attempted THREE ways during M1 (naive,
+    // gravity-gated, appetite-ranked + block stationing — full trail in
+    // REFACTOR.md): each iteration fixed its target metric, and the final
+    // best-fit model restored Jokic's 3PA/TRB/post trajectory — but real
+    // behind-the-line corners raise kick EV enough that the primary
+    // creator's assists inflate to 12-14/game, amplifying the PRE-EXISTING
+    // structural assist-economy overshoot (D1). D3 is therefore COUPLED to
+    // D1: land the assist-model fix first, then this becomes safe. Until
+    // then the junk-2 trickle is the lesser distortion.
     { key: 'corner_l', pos: { x: baselineX + dir * 4, y: cy - 21.5 } },
     { key: 'corner_r', pos: { x: baselineX + dir * 4, y: cy + 21.5 } },
     { key: 'dunker', pos: spot(4, cy + 9) },

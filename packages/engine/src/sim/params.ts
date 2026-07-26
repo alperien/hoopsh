@@ -385,6 +385,7 @@ export interface SimParams {
     cutRunwayFt: number;         // off-ball player must be beyond this distance to trigger a cut
     // dunker-spot assignment
     dunkerGravityThreshold: number; // gravity below this → dunker spot; above → corner shooter
+
     // crash thresholds
     crashNearFt: number;         // offensive player must be within this to be eligible to crash
     // pick-and-roll roll timing (in cut machinery)
@@ -489,7 +490,7 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5798,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    baseRim: 0.5914,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.3574,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
@@ -548,7 +549,7 @@ export const defaultParams: SimParams = {
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
-    blockBase: 0.2754,
+    blockBase: 0.2859,
     blockSkillCoef: 0.5,
     // Within-zone distance penalty model. Both constants have real-world meaning:
     //   threes: each foot beyond the NBA three-point line costs ≈1.3 pp FG% —
@@ -596,7 +597,7 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.3916,
+    shootRim: 0.3998,
     shootPaint: 0.1304,
     shootMid: 0.05,
     shootThree: 0.012,
@@ -612,7 +613,7 @@ export const defaultParams: SimParams = {
     shootFoulCap: 0.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0175,
+    reachInPerSec: 0.0165,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
@@ -638,14 +639,14 @@ export const defaultParams: SimParams = {
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0365
+    looseBallPerReb: 0.0368
   },
 
   pass: {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.3,
+    riskBase: -4.1869,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -678,7 +679,7 @@ export const defaultParams: SimParams = {
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
-    missDistBase: 4.7142,
+    missDistBase: 4.8116,
     missDistCoef: 0.16,
     // How sharply proximity dominates the scramble: weight ∝ 1/(1+d)^power.
     // Higher = rebounding is pure positioning; lower = size/skill matter more.
@@ -686,7 +687,7 @@ export const defaultParams: SimParams = {
     // Chance an offensive rebound caught at the rim goes straight back up
     // rather than resetting the offense. FEEL, and it produces the putback
     // shot type. SWEPT-adjacent.
-    putbackChance: 0.45,
+    putbackChance: 0.4532,
     // Rebound scramble geometry:
     //   reboundCutoffFt: beyond this nobody realistically gets there. FEEL —
     //     24 ft is approximately the three-point arc; a player who let the shot
@@ -936,10 +937,10 @@ export const defaultParams: SimParams = {
     threeApptScale: 0.35,
     tacticsThreeScale: 0.18,
     contestBrakeAt: 0.35,
-    contestBrakeBase: 0.3,
+    contestBrakeBase: 0.3158,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.043,
+    holdHalfcourt: 0.0312,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -950,11 +951,11 @@ export const defaultParams: SimParams = {
     driveTendScale: 0.42,
     laneCrowdPenalty: 0.1,
     driveFlat: -0.05,
-    driveTransitionMult: 1.2,
+    driveTransitionMult: 1.1198,
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
     cutterBonus: 0.5,
-    swingBase: 0.045,
+    swingBase: 0.0341,
     swingPassOutScale: 0.16,
     swingVisionScale: 0.12,
     // FEEL — re-initiation pull: full-clock EV of feeding a teammate 100
@@ -999,6 +1000,7 @@ export const defaultParams: SimParams = {
     // 0.42 ≈ defense will ignore him on the perimeter; he's more useful as a
     // lob/putback threat at the baseline. FEEL.
     dunkerGravityThreshold: 0.42, // FEEL — gravity boundary for dunker-spot assignment
+
     // Crash eligibility: offensive player must be within crashNearFt of the rim
     // to be considered for a crash. Approximately the paint edge. FEEL.
     crashNearFt: 22,            // FEEL — max crash-eligible distance from rim, ft

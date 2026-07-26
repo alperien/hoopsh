@@ -12,7 +12,7 @@
 import { attackedRim, agent, emit, onCourt, other, type Agent, type GameState, type Phase } from './state.js';
 import { freeThrowP, sampleMissLanding } from './resolve.js';
 import { checkSubs, replaceFouledOut } from './subs.js';
-import { integrateMovement } from './movement.js';
+import { applyFatigue, integrateMovement } from './movement.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
 
@@ -132,6 +132,10 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
 export function tickFreeThrows(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
   integrateMovement(s, dt);
+  // fatigue accrues here like every other phase handler — this was the sole
+  // omission (energy silently froze through every trip to the line);
+  // landed with the M1 margin re-sweep (REFACTOR.md D4)
+  applyFatigue(s, dt);
   ph.nextIn -= dt;
   if (ph.nextIn > 0) return;
 
