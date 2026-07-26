@@ -33,6 +33,10 @@ npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance 
 npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice broadcast script for a game
+
+npm run roster:new               # scaffold your own team from archetypes (wizard)
+npm run roster:validate -- t.json  # human-grade pack linting: fixes + plausibility warnings
+npm run sim -- --home t.json     # ...and watch your team play (docs/ROSTERS.md is the guide)
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is

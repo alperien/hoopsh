@@ -21,6 +21,11 @@ mkdirSync(dir, { recursive: true });
 
 for (const team of [cascadiaBreakers(), meridianMonarchs()]) {
   const file = `${dir}/${team.id}.team.json`;
-  writeFileSync(file, JSON.stringify(toTeamPack(team), null, 2) + '\n');
+  // "$schema" first: these two packs are the copy-from examples for hand
+  // authors (see docs/ROSTERS.md), so they ship with the editor pointer
+  // already wired — a copied pack gets autocomplete/inline validation for
+  // free. loadTeamPack() ignores the key; the generated schema allows it.
+  const pack = { $schema: '../../../data/schema/team-pack.schema.json', ...toTeamPack(team) };
+  writeFileSync(file, JSON.stringify(pack, null, 2) + '\n');
   console.log(`wrote ${file} (${team.players.length} players)`);
 }

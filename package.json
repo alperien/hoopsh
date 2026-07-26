@@ -33,6 +33,9 @@
     "nba:fetch": "node tools/fetch-nba.mjs",
     "nba:parse": "node tools/parse-nba.mjs",
     "rosters:fit": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fit-roster.ts",
+    "schema:gen": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/gen-schema.mjs",
+    "roster:new": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/roster-new.mjs",
+    "roster:validate": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/roster-validate.mjs",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",
     "docs:bible": "node tools/build-bible.mjs"
