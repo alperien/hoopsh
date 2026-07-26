@@ -133,7 +133,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # 50 tests incl. invariants — ALWAYS, every change
+npm test                        # 69 tests incl. invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted

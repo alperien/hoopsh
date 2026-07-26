@@ -60,8 +60,16 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 
 1. **One probability form.** Every resolution is `sigmoid(base + Σ terms)`; every
    constant lives in `SimParams`. Rating influence goes through `n(rating)` ∈ [-1, 1].
-2. **Self-consistent AI.** The model that resolves a shot is the model the AI uses to
-   *choose* it (`shotEV` calls `shotMakeP`). Decision and outcome cannot drift apart.
+2. **Self-consistent AI, plus a bounded-rationality layer.** The model that
+   resolves a shot is the model the AI uses to *choose* it (`shotEV` calls
+   `shotMakeP`) — the EV core cannot drift from reality. On TOP of that core,
+   decideBall applies deliberate non-EV bias terms (catch-and-shoot
+   decisiveness, action patience, usage pressure, …): real players are not
+   EV-optimizers, they run drilled behaviors, and each term models one. This
+   is a DESIGN DECISION with a maintenance cost — the terms accumulate per
+   mechanic and are due for consolidation into fewer principled concepts, and
+   the decision-vs-EV divergence should be measured, not assumed small (both
+   tracked on the roadmap).
 3. **Determinism is mandatory.** One seeded `Rng` per game. No `Math.random`, no `Date`,
    no iteration-order dependence. Same seed ⇒ bit-identical events + frames.
 4. **Events are the only truth.** If a consumer needs something, it goes in the event
@@ -78,7 +86,7 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 ## The safety net (run all of it before pushing)
 
 ```bash
-npm run test     # 50 tests: determinism, geometry, archetypes, narration, schema,
+npm run test     # 69 tests: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
 npm run bench    # ≥1 game/sec budget (typical ~6)
@@ -101,6 +109,16 @@ invariant.**
    `npm run sweep -- --iters 0 --verify 40`.
 4. Expect the noise floor: at 40-game samples, single bands graze edges by <1% on
    some seeds. 46–48 of 48 checks passing with sub-5% misses is a locked state.
+
+**What "locked" does and does not claim.** The bands are league-mean aggregates
+on the repo's own rosters, and the sweep tunes the same knobs the bands grade —
+so a locked state demonstrates the model CAN express modern-NBA averages, not
+that it is identified (with 100+ free parameters against ~17 loose constraints,
+many parameterizations pass). Held-out validation is the fidelity suite
+(player-level, profiles authored independently of the sweep) and the
+out-of-sample roster check in the harness; distributional realism (score
+variance, blowout rate, quarter profiles) is reported but not yet enforced.
+Treat band-locked as "necessary, not sufficient".
 
 ## Known simplifications (deliberate, documented)
 

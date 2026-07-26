@@ -4,9 +4,13 @@
 
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **calibrated probability models fed by spatial context**: games follow
+resolve through **probability models fed by spatial context, fit to NBA
+league aggregates**: games follow
 basketball rules and season-scale statistics fall inside real-league ranges. Every point
-in a box score traces back to a simulated shot from a real (x, y) location.
+in a box score traces back to a simulated shot at an (x, y) location — a
+2D probability model with position as an input, not a physics sim (there is
+no ball height; see docs/INTERNALS.md known simplifications for the full
+honest list).
 
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
 ("drop Jordan into 2015"), broadcast experiences — all of these are thin apps consuming
@@ -31,6 +35,10 @@ npm run broadcast                # two-voice broadcast script for a game
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`) layers on with a normal
 `npm i -D typescript vitest tsx @types/node` — but nothing requires it.
+Note for readers of the test files: they import from `'vitest'`, which is NOT
+installed — `tools/hooks.mjs` resolves that specifier to a `node:test`-backed
+shim (`tools/shims/vitest.ts`), so `npm test` runs the whole suite with zero
+dependencies. Installing real vitest simply takes over via `test:vitest`.
 
 ## Watch a game
 
@@ -69,7 +77,7 @@ document, reading paths by role, which doc answers which question). The short li
 
 ## The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs
+Pure physics sims are hard to calibrate; pure stat sims have no feel. hoopsh runs
 continuous 2D movement and decision-making, but resolves discrete events through
 logistic models whose every constant lives in one flat object: **`SimParams`**, the
 calibration surface. Player identity comes from handcrafted **attributes** (what a

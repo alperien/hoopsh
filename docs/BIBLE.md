@@ -31,9 +31,13 @@
 
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **calibrated probability models fed by spatial context**: games follow
+resolve through **probability models fed by spatial context, fit to NBA
+league aggregates**: games follow
 basketball rules and season-scale statistics fall inside real-league ranges. Every point
-in a box score traces back to a simulated shot from a real (x, y) location.
+in a box score traces back to a simulated shot at an (x, y) location — a
+2D probability model with position as an input, not a physics sim (there is
+no ball height; see docs/INTERNALS.md known simplifications for the full
+honest list).
 
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
 ("drop Jordan into 2015"), broadcast experiences — all of these are thin apps consuming
@@ -58,6 +62,10 @@ npm run broadcast                # two-voice broadcast script for a game
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`) layers on with a normal
 `npm i -D typescript vitest tsx @types/node` — but nothing requires it.
+Note for readers of the test files: they import from `'vitest'`, which is NOT
+installed — `tools/hooks.mjs` resolves that specifier to a `node:test`-backed
+shim (`tools/shims/vitest.ts`), so `npm test` runs the whole suite with zero
+dependencies. Installing real vitest simply takes over via `test:vitest`.
 
 ## Watch a game
 
@@ -96,7 +104,7 @@ document, reading paths by role, which doc answers which question). The short li
 
 ## The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs
+Pure physics sims are hard to calibrate; pure stat sims have no feel. hoopsh runs
 continuous 2D movement and decision-making, but resolves discrete events through
 logistic models whose every constant lives in one flat object: **`SimParams`**, the
 calibration surface. Player identity comes from handcrafted **attributes** (what a
@@ -182,7 +190,7 @@ Not chosen yet — treat as all-rights-reserved until a license lands.
 
 ## 2. The core bet: hybrid spatial–stochastic simulation
 
-Pure physics sims cannot be calibrated; pure stat sims have no feel. hoopsh runs a
+Pure physics sims are hard to calibrate; pure stat sims have no feel. hoopsh runs a
 **continuous 2D spatial layer** (movement, spacing, defensive positioning) and resolves
 **discrete events probabilistically** (shots, passes, fouls, rebounds) using models fed
 by spatial context:
@@ -221,7 +229,7 @@ packages/
   data/        player/team JSON schemas, validation, sample fictional rosters
   narration/   template play-by-play + LLM color-commentary interfaces
   harness/     batch runner, acceptance bands, benchmarks, calibration tools
-  viewer/      (planned) single-file 2D canvas replay viewer
+  viewer/      single-file 2D canvas replay viewer (working prototype; frozen)
 ```
 
 Dependency rule: `engine` imports nothing. Everything else imports `engine`.
@@ -416,8 +424,16 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 
 1. **One probability form.** Every resolution is `sigmoid(base + Σ terms)`; every
    constant lives in `SimParams`. Rating influence goes through `n(rating)` ∈ [-1, 1].
-2. **Self-consistent AI.** The model that resolves a shot is the model the AI uses to
-   *choose* it (`shotEV` calls `shotMakeP`). Decision and outcome cannot drift apart.
+2. **Self-consistent AI, plus a bounded-rationality layer.** The model that
+   resolves a shot is the model the AI uses to *choose* it (`shotEV` calls
+   `shotMakeP`) — the EV core cannot drift from reality. On TOP of that core,
+   decideBall applies deliberate non-EV bias terms (catch-and-shoot
+   decisiveness, action patience, usage pressure, …): real players are not
+   EV-optimizers, they run drilled behaviors, and each term models one. This
+   is a DESIGN DECISION with a maintenance cost — the terms accumulate per
+   mechanic and are due for consolidation into fewer principled concepts, and
+   the decision-vs-EV divergence should be measured, not assumed small (both
+   tracked on the roadmap).
 3. **Determinism is mandatory.** One seeded `Rng` per game. No `Math.random`, no `Date`,
    no iteration-order dependence. Same seed ⇒ bit-identical events + frames.
 4. **Events are the only truth.** If a consumer needs something, it goes in the event
@@ -434,7 +450,7 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 ## The safety net (run all of it before pushing)
 
 ```bash
-npm run test     # 50 tests: determinism, geometry, archetypes, narration, schema,
+npm run test     # 69 tests: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
 npm run bench    # ≥1 game/sec budget (typical ~6)
@@ -457,6 +473,16 @@ invariant.**
    `npm run sweep -- --iters 0 --verify 40`.
 4. Expect the noise floor: at 40-game samples, single bands graze edges by <1% on
    some seeds. 46–48 of 48 checks passing with sub-5% misses is a locked state.
+
+**What "locked" does and does not claim.** The bands are league-mean aggregates
+on the repo's own rosters, and the sweep tunes the same knobs the bands grade —
+so a locked state demonstrates the model CAN express modern-NBA averages, not
+that it is identified (with 100+ free parameters against ~17 loose constraints,
+many parameterizations pass). Held-out validation is the fidelity suite
+(player-level, profiles authored independently of the sweep) and the
+out-of-sample roster check in the harness; distributional realism (score
+variance, blowout rate, quarter profiles) is reported but not yet enforced.
+Treat band-locked as "necessary, not sufficient".
 
 ## Known simplifications (deliberate, documented)
 
@@ -614,7 +640,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # 50 tests incl. invariants — ALWAYS, every change
+npm test                        # 69 tests incl. invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
@@ -992,7 +1018,7 @@ This is the guided path. The other documents state *what's true*; this file stat
 **2. Run everything** (~20 min):
 ```bash
 npm run sim -- --seed my-first-game     # box score + play-by-play in the console
-npm test                                # 50 tests: invariants, realism guard, archetypes
+npm test                                # 69 tests: invariants, realism guard, archetypes, fidelity gate
 npm run batch -- --games 24             # the 16-band NBA realism report
 npm run bench                           # ~6 games/sec
 ```
