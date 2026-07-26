@@ -9,6 +9,7 @@ import { dist, lerp, norm, scale, sub, add, type V2 } from '../../core/vec.js';
 import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
+import { foulHuntSide } from '../endgame.js';
 
 /** assign man matchups: sort both lineups by size and pair them */
 export function assignMatchups(s: GameState, defSide: TeamSide): void {
@@ -64,6 +65,11 @@ export function defenseTick(s: GameState): void {
     holder !== null && gravity(s, holder) > A.denyGravityCut &&
     dist(holder.pos, rim) > A.blitzBeyondFt;
   const helper = pickHelper(s, defSide, rim, holder, blitz, helpAggr);
+  // ENDGAME LAYER: a trailing defense hunting an intentional foul
+  // (sim/endgame.ts) presses the ball — the on-ball defender abandons his
+  // containment cushion and closes to grab range so the loaded reach-in
+  // roll in passing.ts can actually connect. Flag off, never active.
+  const hunting = s.endgame && foulHuntSide(s) === defSide;
 
   for (const d of liveOnCourt(s, defSide)) {
     d.intent = 'defend';
@@ -71,6 +77,13 @@ export function defenseTick(s: GameState): void {
     const man = d.manId ? agent(s, d.manId) : null;
     if (!man) { d.target = lerp(rim, s.ball.pos, 0.4); continue; }
 
+    if (hunting && holder && man.p.id === holder.p.id) {
+      // chase the ball for the grab: cushion collapses to foulHuntGapFt
+      // (body-to-body, inside the loaded reach range), full sprint urgency
+      d.target = add(holder.pos, scale(norm(sub(rim, holder.pos)), s.params.endgame.foulHuntGapFt));
+      d.sprinting = true;
+      continue;
+    }
     if (helper && d.p.id === helper.p.id && holder) { positionHelper(s, d, holder, rim, blitz); continue; }
     if (holder && dropCoverage(s, d, man, holder, rim)) continue;
     if (holder && man.p.id === holder.p.id) { containOnBall(s, d, holder, rim); continue; }

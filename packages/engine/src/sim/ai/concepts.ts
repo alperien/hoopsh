@@ -26,6 +26,13 @@
  *      realized share biases self-creation. Kept where the loop lives.
  *   5. TEMPO (tempoScale) — transition urgency: looks are worth more before
  *      the defense sets, and the window closes fast.
+ *   6. GAME-STATE URGENCY (params.endgame.scale — the endgame layer,
+ *      GameConfig.endgame only) — the game clock and scoreboard reshape the
+ *      CONTINUATION VALUE itself: a leading team's live possession is worth
+ *      more unspent (clock-kill), a chasing team's is worth less (hurry),
+ *      the period horn is a second shot clock (last shot / 2-for-1). Never
+ *      a play call — the same softmax over the same utilities, with the
+ *      yardstick moved.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -39,7 +46,9 @@
 
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
-import { type Agent, type GameState } from '../state.js';
+import { other, type Agent, type GameState } from '../state.js';
+import type { TeamSide } from '../../core/events.js';
+import { hurriedness } from '../endgame.js';
 import { creation } from './shared.js';
 
 type Action = GameState['poss']['action'];
@@ -231,6 +240,102 @@ export function advantagePass(
     pull: pull * A.advantageScale,
     passBack: passBack * A.advantageScale
   };
+}
+
+// ------------------------------------- 6. GAME-STATE URGENCY (continuation)
+
+/**
+ * The endgame layer's ball-handler half (GameConfig.endgame only — decide.ts
+ * never calls this on the default path, so flag-off is byte-identical).
+ *
+ * The base continuation curve assumes an endless game: "what the remaining
+ * shot-clock seconds are worth" with no scoreboard and no horn. Real late-
+ * game basketball is exactly the places that assumption breaks, so every
+ * behavior here is a reshaping of that ONE number — the yardstick every
+ * action is already measured against — rather than any new action:
+ *
+ *  - HORN COLLAPSE: the period clock is a second shot clock. Inside the
+ *    urgency window of the HORN, the continuation collapses the same way it
+ *    already does for the shot clock (min of the two governs). Without
+ *    this, a team catching the ball with 8 s in a period idles into the
+ *    heave check; with it, quarter endings produce a real last shot.
+ *  - CLOCK-KILL (leading, final period): every second burned is worth
+ *    points — the opponent's chase needs possessions and the clock is
+ *    denying them. Continuation RISES (ramping toward the horn, fading in
+ *    blowouts), so early-clock looks that used to fire now lose to "keep
+ *    working" and the possession drains to the urgency window before the
+ *    offense attacks: milk to ~:07, then play. The boost itself fades
+ *    inside the urgency window (holdFade) — late-clock offense is
+ *    UNCHANGED, so shot-clock violations don't spike.
+ *  - HURRY (trailing, final period): the mirror image — a chasing team's
+ *    unspent seconds are a cost, not an asset. Continuation FALLS by the
+ *    shared hurriedness signal (sim/endgame.ts: clock ramp × deficit depth
+ *    × chase-aliveness), so good-not-great early looks fire immediately.
+ *  - HOLD FOR ONE: inside ~one possession of any period's horn (and, in the
+ *    final period, only when tied/leading or down ≤ lastShotDeficitMax —
+ *    down 4+ the hurry keeps the wheel), deny the opponent a rebuttal:
+ *    continuation rises until the horn collapse releases the last shot.
+ *  - 2-FOR-1 (non-final periods): in the ~0:28-0:38 window, acting early
+ *    buys a whole extra possession, so the remaining seconds of THIS
+ *    possession are worth less — a tent-shaped continuation cut produces
+ *    the early, slightly-worse shot that real 2-for-1 hunting is.
+ */
+export function endgameContinuation(
+  s: GameState, side: TeamSide, continuation: number
+): number {
+  const E = s.params.endgame;
+  const U = s.params.decide.urgencySec;
+  const sc = Math.max(0, s.poss.shotClock);
+  const clock = s.clock;
+  let mult = 1;
+
+  // horn collapse — bring the period clock into the urgency window the base
+  // curve already applies to the shot clock (factor of clamp(x/U) on the
+  // BINDING clock; divide out what the base already applied for sc)
+  if (clock < sc) {
+    const applied = sc < U ? sc / U : 1;
+    const desired = clamp(clock / U, 0, 1);
+    if (desired < applied) mult *= desired / Math.max(1e-6, applied);
+  }
+
+  // every HOLD-side boost dies inside the urgency window: milking never
+  // re-inflates a collapsing continuation (that would manufacture violations)
+  const eff = Math.min(sc, clock);
+  const holdFade = clamp((eff - U) / U, 0, 1);
+
+  const margin = s.score[side] - s.score[other(side)];
+  if (s.period >= s.rules.periods) {
+    if (margin > 0 && clock <= E.leadHoldClockSec) {
+      const ramp = 1 - clock / E.leadHoldClockSec;
+      // full effect while the lead is worth protecting, gone by 2× the ref
+      // (a 16+ point Q4 lead is garbage time, nobody is milking with intent)
+      const blowoutFade = clamp(2 - margin / E.leadHoldMarginRef, 0, 1);
+      mult *= 1 + E.scale * E.leadHoldMaxBoost * ramp * blowoutFade * holdFade;
+    } else if (margin === 0 && clock <= E.holdForOneClockSec) {
+      // tied, one possession left: the last shot wins the game — hold for it
+      mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
+    } else if (margin < 0) {
+      const deficit = -margin;
+      if (clock <= E.holdForOneClockSec && deficit <= E.lastShotDeficitMax) {
+        // down one score with one possession left: the shot that ties/wins
+        // is THE possession — patience, not panic
+        mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
+      } else {
+        mult *= 1 - E.scale * E.hurryMaxCut * hurriedness(s, side);
+      }
+    }
+  } else if (clock >= E.twoForOneMinClockSec && clock <= E.twoForOneMaxClockSec) {
+    // 2-for-1: tent across the window — strongest at its center, where the
+    // possession arithmetic is cleanest
+    const mid = (E.twoForOneMinClockSec + E.twoForOneMaxClockSec) / 2;
+    const half = Math.max(1e-6, (E.twoForOneMaxClockSec - E.twoForOneMinClockSec) / 2);
+    const tent = 1 - Math.abs(clock - mid) / half;
+    mult *= 1 - E.scale * E.twoForOneCut * tent;
+  } else if (clock <= E.holdForOneClockSec) {
+    // quarter-ending possession (any score): deny the rebuttal, take the last shot
+    mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
+  }
+  return continuation * mult;
 }
 
 // ------------------------------------------------------- 5. TEMPO (shoot/drive)

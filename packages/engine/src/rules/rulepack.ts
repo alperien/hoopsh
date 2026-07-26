@@ -64,6 +64,15 @@ export interface RulePack {
   bonusFreeThrows: number;
   /** personal fouls that disqualify a player (sim/fouls.ts recordFoul's fouledOut check, sim/subs.ts replaceFouledOut) */
   foulOutAt: number;
+
+  // timeouts
+  /**
+   * Team timeouts per game (flat per-game simplification of each league's
+   * real budget rules — no per-half carryover or last-two-minute caps yet).
+   * Consumed only by the endgame layer (GameConfig.endgame — sim/endgame.ts);
+   * a default-config game never calls one, so this field is inert there.
+   */
+  timeoutsPerGame: number;
 }
 
 export const NBA: RulePack = {
@@ -90,7 +99,11 @@ export const NBA: RulePack = {
   // personal fouls — the real modern NBA thresholds.
   teamFoulBonusAt: 5,
   bonusFreeThrows: 2,
-  foulOutAt: 6
+  foulOutAt: 6,
+  // 7 team timeouts per game — the real modern NBA budget (the real rule
+  // also caps usage at 4 in the fourth period / 2 in the last three minutes;
+  // that refinement is future work, see the interface note).
+  timeoutsPerGame: 7
 };
 
 /** placeholder stubs — tuned packs land with the league-expansion milestone */
@@ -110,7 +123,10 @@ export const NCAA: RulePack = {
   shotClockOffRebSec: 20,
   // bonus kicks in later (7 team fouls) but disqualification is stricter (5 personal fouls, not 6).
   teamFoulBonusAt: 7,
-  foulOutAt: 5
+  foulOutAt: 5,
+  // NCAA: 4 timeouts (3×30s + 1×60s) in the flat per-game simplification —
+  // media-timeout structure is out of scope, same as the NBA note above.
+  timeoutsPerGame: 4
 };
 
 /** like NCAA, a structural stub — real EuroLeague rule-book numbers below, but not independently probability-tuned; see the calibration-status note above. */
@@ -132,5 +148,8 @@ export const EUROLEAGUE: RulePack = {
   shotClockOffRebSec: 14,
   // bonus at 5 team fouls like the NBA, but disqualification is stricter (5 personal fouls, matching FIBA rules).
   teamFoulBonusAt: 5,
-  foulOutAt: 5
+  foulOutAt: 5,
+  // FIBA/EuroLeague: 2 first-half + 3 second-half timeouts, flattened to 5
+  // per game (same simplification as the other packs).
+  timeoutsPerGame: 5
 };

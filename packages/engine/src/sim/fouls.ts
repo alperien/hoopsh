@@ -15,6 +15,7 @@ import { checkSubs, replaceFouledOut } from './subs.js';
 import { applyFatigue, integrateMovement } from './movement.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
+import { noteScore } from './endgame.js';
 
 export interface FoulOutcome {
   fouledOut: boolean;
@@ -143,7 +144,10 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   const made = s.rng.chance(freeThrowP(s, shooter));
   ph.taken += 1;
   ph.lastMade = made;
-  if (made) s.score[ph.side] += 1;
+  if (made) {
+    s.score[ph.side] += 1;
+    noteScore(s, ph.side, 1); // unanswered-run tracker (endgame layer)
+  }
   emit(s, {
     type: 'free_throw',
     team: ph.side,

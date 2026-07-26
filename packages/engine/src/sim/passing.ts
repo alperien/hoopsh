@@ -18,6 +18,7 @@ import { assignedDefender, onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
 import { deadBall, endPeriod, endPossession, giveBall, startPossession } from './possession.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
+import { foulHuntSide } from './endgame.js';
 
 /**
  * Launch a pass from `from` to the player `toId`. The turnover/steal outcome
@@ -186,17 +187,30 @@ export function attemptReachIn(s: GameState, dt: number): void {
       if (!d || dist(cand.pos, h.pos) < dist(d.pos, h.pos)) d = cand;
     }
   }
+  // ENDGAME LAYER: intentional fouling rides THIS machinery — a trailing
+  // defense late in a close game (sim/endgame.ts foulHuntSide) doesn't get a
+  // new scripted action, it gets the same reach-in dice LOADED: a wider grab
+  // range, a drilled-deliberate rate, and a strip share near zero (a wrap-up
+  // is a whistle, not a poke). defense.ts presses the on-ball defender into
+  // range so the grab actually connects. Flag off, hunting is always false.
+  const hunting = s.endgame && foulHuntSide(s) === other(h.side);
+  const E = s.params.endgame;
   // 4.2ft: has to be tight, hand-check range — this is deliberately shorter
   // than onBallDefender's own 12ft "who guards him" radius, since a reach-in
   // needs the defender close enough to actually get a hand on the ball
   // (attacking widens it to gather range: strips happen at the gather)
   const F = s.params.foul;
-  if (!d || dist(d.pos, h.pos) > (attacking ? F.attackReachDistFt : F.reachDistFt)) return;
+  const reachRange = hunting ? E.foulHuntReachDistFt : attacking ? F.attackReachDistFt : F.reachDistFt;
+  if (!d || dist(d.pos, h.pos) > reachRange) return;
   // per-tick probability from a per-second rate (reachInPerSec * dt), boosted
   // up to +85% for a maximum-gambleSteal defender — aggressive gamblers reach
   // in far more often than conservative ones, at the cost of the foul risk below
+  // (a hunted grab replaces the gamble swing with the coach's order: the
+  // deliberate foulHuntRateMult)
   const exposure = attacking ? F.attackReachInMult : 1;
-  const p = F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
+  const p = hunting
+    ? F.reachInPerSec * dt * E.foulHuntRateMult
+    : F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
   if (!s.rng.chance(p)) return;
 
   // given a reach-in happens, stripP is the clean-strip share: a base, plus a
@@ -208,10 +222,15 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // attacking reach-ins skew cleaner: a poke at the gather is a strip far
   // more often than a hack (without the skew, the attack-exposure tax paid
   // out in fouls instead of the turnovers it exists to produce)
-  const stripP = clamp(
-    F.stripBase + (attacking ? F.attackStripBonus : 0) + F.stripStealSwing * n(d.p.attr.steal) - F.stripHandleSwing * n(h.p.attr.ballHandle),
-    F.stripMin, F.stripMax
-  );
+  // a hunted grab is a foul on purpose: the clean-strip share collapses to
+  // foulHuntStripShare (hands still find ball once in a while — the
+  // occasional legitimate endgame steal off the "foul" is real texture)
+  const stripP = hunting
+    ? E.foulHuntStripShare
+    : clamp(
+        F.stripBase + (attacking ? F.attackStripBonus : 0) + F.stripStealSwing * n(d.p.attr.steal) - F.stripHandleSwing * n(h.p.attr.ballHandle),
+        F.stripMin, F.stripMax
+      );
   if (s.rng.chance(stripP)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'lost_ball', stolenBy: d.p.id

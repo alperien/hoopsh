@@ -316,6 +316,126 @@ export interface SimParams {
   };
 
   /**
+   * ENDGAME LAYER (concept 6 — game-state urgency). Live ONLY when the game
+   * is run with `GameConfig.endgame: true`; with the flag off (the default)
+   * nothing in this block is read on any decision path, so the shipped
+   * 16/17-band calibration is untouched. Everything here is an EV/urgency
+   * MODULATION of the existing decision framework (the continuation curve,
+   * the reach-in machinery, the dead-ball choke point) — never a scripted
+   * playbook. See sim/ai/concepts.ts (concept 6) and sim/endgame.ts.
+   *
+   * NOT in harness/knobs.ts yet, deliberately: the sweep runs default
+   * config (flag off), where these knobs are unreachable — registering
+   * unreachable knobs is pure noise in the search space (params.ts header,
+   * "ONE EXCEPTION" spirit). Register them when the flag defaults on.
+   */
+  endgame: {
+    /** master scale on every concept-6 modulation (same budget-knob pattern as ai.*Scale) */
+    scale: number;
+    // --- clock management with a lead (final period / OT)
+    /** leading team milks inside this many clock seconds of the final period — REAL:
+     *  deliberate clock-kill offense is a final-~2:30 behavior, ramping toward the horn */
+    leadHoldClockSec: number;
+    /** continuation raise at full effect (× base continuation). At 0.5 a held
+     *  possession stays above typical look EV until the urgency window — the
+     *  shot comes at ~5-8 s of shot clock, real "milk to :07 then attack" */
+    leadHoldMaxBoost: number;
+    /** lead (pts) past which milking stops mattering: full effect at ≤ this,
+     *  fading to none by 2× (a 20-pt Q4 lead is garbage time, not clock-kill) */
+    leadHoldMarginRef: number;
+    // --- trailing hurry-up (final period / OT)
+    /** trailing team pushes tempo inside this many clock seconds — REAL: the
+     *  down-two-scores hurry starts around the 3:00 mark, ramping in */
+    hurryClockSec: number;
+    /** continuation cut at full desperation (× base). Lowering the value of
+     *  "keep working" is what makes early good-not-great looks fire — the
+     *  quick-shot texture of a chasing team, without scripting a play call */
+    hurryMaxCut: number;
+    /** deficit (pts) at which the hurry reaches full strength */
+    hurryDeficitRef: number;
+    /** hurriedness (0..1, sim/endgame.ts) above which the trailing handler
+     *  SPRINTS the ball up instead of the normal dribble-jog — the visible
+     *  push of a chasing team */
+    hurrySprintMin: number;
+    // --- chase arithmetic shared by hurry / fouling (possessions-left math)
+    /** assumed seconds per remaining CHASE possession (hurried offense + a
+     *  stop/foul cycle) when counting how many chances remain — REAL: a
+     *  hurrying team turns possessions over in ~10-14 s of game clock */
+    chasePossSec: number;
+    /** realistic points a chase recovers per remaining possession PAIR (your
+     *  score minus their expected answer) — sets where a deficit reads dead */
+    chaseMaxPtsPerPoss: number;
+    /** softness (pts) of the alive→dead fade — no hard cliff at the boundary */
+    chaseFadePts: number;
+    // --- period-end possession arithmetic (all periods)
+    /** inside this period clock the possession holder plays for the LAST shot
+     *  (≈ shot clock + inbound beat: the opponent can't get a full possession
+     *  back) — REAL: the universal "hold for one" at every quarter end */
+    holdForOneClockSec: number;
+    /** continuation raise while holding for one (× base) */
+    holdForOneBoost: number;
+    /** in the FINAL period, trailing by more than this many points abandons
+     *  last-shot patience for the hurry (down 1-3: one possession can tie/win;
+     *  down 4+: you need multiple possessions, waiting is fatal) — REAL */
+    lastShotDeficitMax: number;
+    /** 2-for-1 window (period clock, non-final periods): acting early enough
+     *  in [min,max] buys the team a second possession before the horn — REAL:
+     *  NBA teams hunt the ~0:28-0:38 release for exactly this arithmetic */
+    twoForOneMinClockSec: number;
+    twoForOneMaxClockSec: number;
+    /** continuation cut at the middle of the 2-for-1 window (× base): a
+     *  moderately worse-than-usual shot is worth an entire extra possession,
+     *  but not a terrible one (tent-shaped across the window) */
+    twoForOneCut: number;
+    // --- intentional fouling when trailing (final period / OT)
+    /** hunt window cap (game-clock seconds): even a large deficit doesn't
+     *  start the foul parade before this — REAL: ~0:35 is where trailing
+     *  teams begin trading 2 FTs for possession; the per-deficit window
+     *  below (one full shot clock per possession needed) narrows it further */
+    foulTrailMaxClockSec: number;
+    /** don't foul down fewer than this (down 1-2 a stop wins the game; a
+     *  foul just hands over points) — REAL coaching orthodoxy */
+    foulMinDeficit: number;
+    /** deficit past which fouling is pointless (walk-off territory) */
+    foulMaxDeficit: number;
+    /** don't hunt a foul once the opponent's shot clock is at/under this —
+     *  the violation/forced shot is coming anyway; play the possession out */
+    foulMinShotClock: number;
+    /** reach-in RATE multiplier while hunting (× foul.reachInPerSec): the
+     *  grab is drilled and deliberate, so it lands within ~a second of
+     *  contact range instead of the organic once-in-a-possession rate */
+    foulHuntRateMult: number;
+    /** clean-strip share of hunted grabs (overrides the stripP model): a
+     *  deliberate wrap-up is a whistle ~9 times in 10, but hands do
+     *  sometimes find ball — the occasional legit late-game strip is real */
+    foulHuntStripShare: number;
+    /** hand-check range for the hunt, ft (a lunging grab, wider than the
+     *  organic reachDistFt but still requires converging on the holder) */
+    foulHuntReachDistFt: number;
+    /** on-ball containment gap while hunting, ft — pressed up to grab, not
+     *  sagged into a cushion (defense.ts containOnBall override) */
+    foulHuntGapFt: number;
+    // --- timeouts (budget lives in rules.timeoutsPerGame — a league rule)
+    /** opponent unanswered points that trigger a stop-the-bleeding timeout —
+     *  REAL: coaches burn one at 8-0/10-0 to reset a run */
+    timeoutRunPts: number;
+    /** trailing inside this many final-period clock seconds spends a timeout
+     *  to ADVANCE the ball (inbound moves to the frontcourt) — REAL rule */
+    timeoutAdvanceClockSec: number;
+    /** advance timeouts only while the game is winnable: deficit ≤ this */
+    timeoutAdvanceDeficitMax: number;
+    /** wall-clock seconds a timeout freezes play (replay texture only — the
+     *  game clock never runs during a timeout regardless; kept well under a
+     *  real 75s huddle so replays don't bloat, but long enough to READ as a
+     *  stoppage rather than a hiccup) */
+    timeoutResumeSec: number;
+    /** frontcourt inbound spot after an advance timeout: distance from the
+     *  attacked rim, ft — the real advance puts the ball at the hashmark
+     *  (~28 ft out); this is a BEHAVIORAL spot (the possession starts there) */
+    timeoutAdvanceSpotFt: number;
+  };
+
+  /**
    * AI utility weights — the decision layer's knobs, fully sweepable.
    * These shape WHO does WHAT (shot diets, drive rates, ball movement,
    * defensive spacing); the sections above shape how attempts RESOLVE.
@@ -899,6 +1019,72 @@ export const defaultParams: SimParams = {
     crunchClockSec: 300,
     crunchMarginPts: 10,
     crunchEnergyMin: 35
+  },
+
+  endgame: {
+    // Concept-6 defaults are all FEEL — hand-set from real endgame texture
+    // (clutch FT share ~35%+, milked possessions releasing at ~5-8 s of shot
+    // clock, the ~0:30 foul point) and verified by the flow harness probe,
+    // NOT swept: the flag ships OFF, so no band constrains these yet. The
+    // basketball meaning of each is on its interface doc above.
+    scale: 1,
+    // a leading team starts protecting the ball inside ~2:30; the ramp means
+    // the full milk only shows in the final minute
+    leadHoldClockSec: 150,
+    // +50% continuation ≈ 2.2 expected points of "just keep it" at full ramp
+    // — above any shot the engine generates, so the holder waits for the
+    // urgency window (the boost itself fades inside urgencySec, see
+    // concepts.ts, so late-clock offense still fires and violations don't spike)
+    leadHoldMaxBoost: 0.5,
+    // full clock-kill up ~8, none by up ~16 — a 3-possession Q4 lead is
+    // managed, a 16-point one is garbage time
+    leadHoldMarginRef: 8,
+    // the chase starts inside ~3:00 and ramps toward the horn
+    hurryClockSec: 180,
+    // -45% continuation at full desperation drops the bar to ~0.8 expected
+    // points — any decent look fires immediately (possessions of 4-8 s)
+    hurryMaxCut: 0.45,
+    // down two scores (6) is the fully-urgent chase
+    hurryDeficitRef: 6,
+    // past ~a third of full urgency, the walk-up becomes a push
+    hurrySprintMin: 0.3,
+    // ~12 s per chase possession-pair; 1.6 net points recoverable per chance
+    // (score ~2.2, opponent answers ~0.6 through the foul game)
+    chasePossSec: 12,
+    chaseMaxPtsPerPoss: 1.6,
+    chaseFadePts: 6,
+    // shot clock (24) + an inbound beat: inside 26 s the opponent cannot get
+    // a full possession back if you hold
+    holdForOneClockSec: 26,
+    holdForOneBoost: 0.5,
+    lastShotDeficitMax: 3,
+    // the classic 2-for-1 release window
+    twoForOneMinClockSec: 28,
+    twoForOneMaxClockSec: 38,
+    // worth ~0.45 points of shot-quality concession at the window's center —
+    // roughly half an average possession, the real trade being made
+    twoForOneCut: 0.3,
+    // fouling starts at min(35 s, one full shot clock per possession needed)
+    foulTrailMaxClockSec: 35,
+    foulMinDeficit: 3,
+    foulMaxDeficit: 12,
+    foulMinShotClock: 5,
+    // 0.0165/s base × 55 ≈ 0.9/s within grab range — the foul lands ~1-1.5 s
+    // after the defender reaches the holder (real fouls-to-give cadence)
+    foulHuntRateMult: 55,
+    foulHuntStripShare: 0.12,
+    foulHuntReachDistFt: 6,
+    foulHuntGapFt: 1.5,
+    // stop-the-run threshold: 10-0 is the canonical "timeout, regroup"
+    timeoutRunPts: 10,
+    // advance timeouts live inside the final ~0:45 of a close game
+    timeoutAdvanceClockSec: 45,
+    timeoutAdvanceDeficitMax: 8,
+    // 8 s of wall-clock huddle: reads as a real stoppage in the replay
+    // without recording a 75 s empty gym
+    timeoutResumeSec: 8,
+    // hashmark inbound: possession starts ~28 ft from the attacked rim
+    timeoutAdvanceSpotFt: 28
   },
 
   ai: {
