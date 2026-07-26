@@ -1,0 +1,32 @@
+{
+ "provenance": {
+  "source": "Basketball-Reference, 2023-24 NBA Season Summary",
+  "url": "https://www.basketball-reference.com/leagues/NBA_2024.html",
+  "season": "2023-24",
+  "seasonType": "Regular Season",
+  "accessedAt": "2026-07-26T17:35:00Z",
+  "method": "single page view via browser; values transcribed verbatim from the 'League Average' tfoot rows of the #per_game-team and #advanced-team tables (data-stat attributes preserved below)",
+  "note": "stats.nba.com (the preferred official API) rejects both datacenter and residential automated clients (504/hang) — recorded so the fetch story is honest. Basketball-Reference used as a single cited page view, not a crawl.",
+  "unitNote": "per_game values are per TEAM per game"
+ },
+ "per_game": {
+  "g": 82, "mp": 241.4,
+  "fg": 42.2, "fga": 88.9, "fg_pct": 0.474,
+  "fg3": 12.8, "fg3a": 35.1, "fg3_pct": 0.366,
+  "fg2": 29.3, "fg2a": 53.8, "fg2_pct": 0.545,
+  "ft": 17.0, "fta": 21.7, "ft_pct": 0.784,
+  "orb": 10.6, "drb": 33.0, "trb": 43.5,
+  "ast": 26.7, "stl": 7.5, "blk": 5.1,
+  "tov": 13.6, "pf": 18.7, "pts": 114.2
+ },
+ "advanced": {
+  "off_rtg": 115.3, "pace": 98.5,
+  "fg3a_per_fga_pct": 0.395, "fta_per_fga_pct": 0.244,
+  "ts_pct": 0.580, "efg_pct": 0.547,
+  "tov_pct": 12.1, "orb_pct": 24.2, "drb_pct": 75.8, "ft_rate": 0.192
+ },
+ "derived": {
+  "tpaShareOfFga": 0.395,
+  "assistedShareOfFgm": null
+ }
+}
