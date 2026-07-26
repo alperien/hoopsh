@@ -142,7 +142,7 @@ export function decideBall(s: GameState): BallAction {
     const pay = commitmentPass(s, h, m, act0);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + adv.cutter + adv.swing + adv.pull + pay.entry + pay.dho
+      + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho
       - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {

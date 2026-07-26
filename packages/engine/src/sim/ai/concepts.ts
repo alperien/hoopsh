@@ -206,7 +206,7 @@ export function commitmentHold(
  */
 export function advantagePass(
   s: GameState, h: Agent, m: Agent, cutting: boolean, shotClockShare: number
-): { cutter: number; swing: number; pull: number } {
+): { cutter: number; swing: number; pull: number; passBack: number } {
   const A = s.params.ai;
   const cutter = cutting ? A.cutterBonus : 0;
   const swing =
@@ -215,10 +215,21 @@ export function advantagePass(
     ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
   const pull =
     (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * shotClockShare;
+  // the negative side of advancing: an immediate return pass UNDOES it —
+  // it recreates the geometry the last pass just left. Freshness-decayed;
+  // a true give-and-go survives because the returner is cutting (the
+  // cutter term prices the advancing half of the play). Texture incident:
+  // 26.8% of all passes were A->B->A returns inside 3s before this term.
+  const lp = s.poss.lastPass;
+  const age = lp ? s.t - lp.t : Infinity;
+  const passBack = lp && lp.from === m.p.id && age < A.passBackWindowSec
+    ? -A.passBackMalus * clamp(1 - age / A.passBackWindowSec, 0, 1)
+    : 0;
   return {
     cutter: cutter * A.advantageScale,
     swing: swing * A.advantageScale,
-    pull: pull * A.advantageScale
+    pull: pull * A.advantageScale,
+    passBack: passBack * A.advantageScale
   };
 }
 

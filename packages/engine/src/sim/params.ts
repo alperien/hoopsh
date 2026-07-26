@@ -216,6 +216,14 @@ export interface SimParams {
     postLeanShare: number;
     /** interior-vs-perimeter role-defense boundary for the contest model, ft */
     nearRimFt: number;
+    /** within this of the computed spot, off-ball players STOP (stillness-as-default) */
+    arrivalDeadbandFt: number;
+    /** defensive version: sag ideals drift with every ball move — reposition on the CATCH, not continuously */
+    defDeadbandFt: number;
+    /** defensive stance speed share when not sprinting (shuffle, don't glide) */
+    stanceSpeedMult: number;
+    /** off-ball spacing moves are WALKED (share of max) — spots are held, not chased */
+    offBallWalkMult: number;
   };
 
   fatigue: {
@@ -249,6 +257,8 @@ export interface SimParams {
     actionCommitScale: number;   // concept 2 — called-action payoff + patience
     advantageScale: number;      // concept 3 — cutter / swing / hierarchy passes
     tempoScale: number;          // concept 5 — transition urgency
+    passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
+    passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     // shot selection
     zoneTendBias: number;        // weight of zone shot-diet tendencies
     pullUpBias: number;          // weight of pull-up tendency on pull-ups
@@ -388,7 +398,7 @@ export const defaultParams: SimParams = {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
     baseRim: 0.5714,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.2858,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    basePaint: -0.3216,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.955,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
@@ -480,7 +490,7 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.445,
+    shootRim: 0.4183,
     shootPaint: 0.1,
     shootMid: 0.05,
     shootThree: 0.012,
@@ -498,7 +508,7 @@ export const defaultParams: SimParams = {
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0255
+    looseBallPerReb: 0.031
   },
 
   pass: {
@@ -597,7 +607,7 @@ export const defaultParams: SimParams = {
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
-    continuationCurve: 0.1615,
+    continuationCurve: 0.142,
     // Inside this many shot-clock seconds, urgency scales the continuation
     // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
@@ -647,7 +657,28 @@ export const defaultParams: SimParams = {
     // inside nearRimFt the interior-defense skill (interiorD) applies instead
     // of perimeterD. Approximately the paint distance where rim protection
     // begins to matter more than perimeter footwork. FEEL.
-    nearRimFt: 14   // FEEL — interior-vs-perimeter role-defense boundary, ft
+    nearRimFt: 14,  // FEEL — interior-vs-perimeter role-defense boundary, ft
+    // Stillness-as-default: within the deadband of the computed spot an
+    // off-ball player (either side) holds position instead of micro-chasing
+    // a drifting target every tick. Texture forensics found 8.67 ft/s
+    // average live speed vs the NBA's ~4.2 with only 28% of player-frames
+    // stationary — real spacing is HELD, not jogged. FEEL.
+    arrivalDeadbandFt: 1.4,
+    // Defense holds a WIDER deadband: the sag ideal drifts a little with
+    // every ball movement, and chasing each drift is the shuffle-noise the
+    // texture probe measured. Real defenders re-position on the catch.
+    // Containment, closeouts, helps, and denial are never deadbanded. FEEL.
+    defDeadbandFt: 2.6,
+    // Texture probe (by role, before these dials): defense averaged 8.7 ft/s
+    // — every small sag adjustment ran at FULL lateral speed. A defender in
+    // his stance shuffles; the 1.15x sprint multiplier still applies to
+    // closeouts, helps, and blitzes. FEEL.
+    stanceSpeedMult: 0.55,
+    // Off-ball offense averaged 7.4 ft/s: spot repositioning ran at the
+    // 0.72 cruise. Spacing is walked to and HELD (cuts/crashes/transition
+    // still sprint via the sprinting flag; the ball-holder keeps the cruise
+    // multiplier — this only walks off-ball spacing moves). FEEL.
+    offBallWalkMult: 0.3
   },
 
   fatigue: {
@@ -689,6 +720,16 @@ export const defaultParams: SimParams = {
     actionCommitScale: 1,
     advantageScale: 1,
     tempoScale: 1,
+    // Pass-back damping (concept 3's negative side): an immediate return
+    // pass UNDOES the advantage — it recreates the geometry the last pass
+    // just left, so it is worth less than the receiver's raw shot quality
+    // implies. Without it, near-tied pass utilities oscillate: the texture
+    // forensics measured 26.8% of ALL passes as A->B->A returns within 3s
+    // (the ping-pong the eye test caught). A genuine give-and-go survives
+    // the malus — the cutter bonus prices the advancing half of the play.
+    // FEEL — malus decays linearly across the window.
+    passBackWindowSec: 2.5,
+    passBackMalus: 0.22,
     zoneTendBias: 0.22,
     pullUpBias: 0.18,
     threeApptScale: 0.35,

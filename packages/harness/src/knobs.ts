@@ -65,8 +65,15 @@ export const SWEEPABLE: Knob[] = [
   // search corrected a modeling bug" and "the search invented a fictional
   // era" — the range is deliberately tight enough that big swings still
   // have to come from an explicit era-pack override, not sweep drift.
-  { path: 'decide.threeAppetite', lo: 0.8, hi: 1.1 },
-  { path: 'decide.driveAppetite', lo: 0.9, hi: 1.45 },
+  // threeAppetite hi widened 1.1 -> 1.45 after the texture increment:
+  // quieter off-ball defense (stillness deadbands) guards shooters closer,
+  // and pass-back damping cut swing volume — the catch-and-shoot economy
+  // needed a stronger era knob to reach the 33%+ 3PA-share band again.
+  { path: 'decide.threeAppetite', lo: 0.8, hi: 1.45 },
+  // driveAppetite lo widened 0.9 -> 0.7 for the same reason: slower
+  // defensive stances made drives cheap; the optimizer needs room to damp
+  // the flood directly rather than only via contest penalties.
+  { path: 'decide.driveAppetite', lo: 0.7, hi: 1.45 },
   { path: 'decide.transitionBonus', lo: 0.05, hi: 0.25 },
 
   // Shot resolution — the zone base rates and contest coefficient are THE

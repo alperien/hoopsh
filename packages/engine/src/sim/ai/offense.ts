@@ -181,9 +181,13 @@ export function offenseOffBallTick(s: GameState): void {
     }
 
     a.intent = 'spot';
-    a.sprinting = s.poss.phase !== 'halfcourt';
+    // sprint belongs to TRANSITION; the advance is brought up at a jog
+    // (sprinting the advance was half of the perpetual-motion texture bug)
+    a.sprinting = s.poss.phase === 'transition';
     const key = a.spotKey ?? 'corner_l';
     const spot = byKey.get(key);
-    if (spot) a.target = spot;
+    // stillness-as-default: at the spot means AT the spot — hold the ground,
+    // don't micro-chase the pixel (the other half of perpetual motion)
+    if (spot) a.target = dist(a.pos, spot) < s.params.move.arrivalDeadbandFt ? a.pos : spot;
   }
 }
