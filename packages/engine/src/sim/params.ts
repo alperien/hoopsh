@@ -260,6 +260,7 @@ export interface SimParams {
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
+    relocDeniedRatePerTick: number; // the denied shooter's self-scheduled baseline-run cadence (much rarer)
     relocateDriftFt: number;     // how far the shake drifts away from the defender
     relocDurationSec: number;    // how long the relocated ground is held
     // shot selection
@@ -414,7 +415,7 @@ export const defaultParams: SimParams = {
     // raised from 0.45 in the fidelity phase: at 0.45 a 99-rated shooter hit
     // 31.8% on a heavy pull-up diet — BELOW league average. Elite spread
     // widened; the sweep re-centers baseThree if the league mean drifts.
-    skillCoefThree: 0.62,
+    skillCoefThree: 0.66,
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
@@ -494,7 +495,7 @@ export const defaultParams: SimParams = {
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
     shootRim: 0.3916,
-    shootPaint: 0.1152,
+    shootPaint: 0.1304,
     shootMid: 0.05,
     shootThree: 0.012,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
@@ -502,7 +503,7 @@ export const defaultParams: SimParams = {
     contestFactor: 1.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0172,
+    reachInPerSec: 0.0175,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
@@ -617,7 +618,7 @@ export const defaultParams: SimParams = {
     // ERA KNOBS. Global multipliers on three-point and drive appetite —
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
-    threeAppetite: 1.15,
+    threeAppetite: 1.12,
     driveAppetite: 0.7864,
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
@@ -741,6 +742,11 @@ export const defaultParams: SimParams = {
     // refused more volume because contested 3P% would sink through its
     // floor (texture-increment finding). FEEL.
     relocateRatePerTick: 0.06,
+    // The denied shooter's own schedule: a couple of baseline escapes per
+    // possession, not a perpetual carousel — at 0.06 shared with the drive
+    // trigger the elite benchmark ran corners every 1.7s, was always open,
+    // and exploded to 34.9 PTS on 18 threes (fidelity incident). FEEL.
+    relocDeniedRatePerTick: 0.014,
     relocateDriftFt: 4,
     relocDurationSec: 1.6,
     zoneTendBias: 0.22,
@@ -901,7 +907,7 @@ export const defaultParams: SimParams = {
     postCallShare: 1.25,
     postCallCut: 0.1,
     postEntryBonus: 0.22,
-    postWorkBoost: 0.2,
+    postWorkBoost: 0.224,
     postBackdownSec: 2.2,
     // 7s covers: establish position (~1s) + wait for the entry (~1-2s) +
     // the 2.2s backdown + at least two shoot-or-spray decision windows.
@@ -912,7 +918,7 @@ export const defaultParams: SimParams = {
     // from 0.3: a 99-vision hub reached 'working' 7 times a game and sprayed
     // out of ~6 — pass options beat the shot in every near-tie (fidelity
     // probe). Real hubs finish over half their worked post-ups.
-    postShotBonus: 0.48,
+    postShotBonus: 0.552,
     isoCallShare: 0.7,
     isoDriveBonus: 0.15,
     isoDurationSec: 3.0,

@@ -56,7 +56,10 @@ export function defenseTick(s: GameState): void {
 
   // the blitz: an extreme-gravity HOLDER beyond the arc draws a second body —
   // denial's on-ball sibling, and what actually caps elite pull-up volume
-  // (the fidelity benchmark kept 15+ deep attempts against single coverage)
+  // (the fidelity benchmark kept 15+ deep attempts against single coverage).
+  // Probed and rejected: gating this on a live dribble (trap the action,
+  // not the reception) was a bit-identical no-op — by the time the helper
+  // arrives, the holder has always started his dribble anyway.
   const blitz =
     holder !== null && gravity(s, holder) > A.denyGravityCut &&
     dist(holder.pos, rim) > A.blitzBeyondFt;
