@@ -1,0 +1,169 @@
+{
+  "$comment": "PROPOSED NCAA men's D-I acceptance bands for hoopsh — same shape as packages/harness/src/bands.ts NBA_BANDS (metric/label/lo/hi/pct), extended with per-band provenance (source, grade, basis). NOT wired into the harness; proposals for the orchestrator. All per-game values are per team per 40-MINUTE game (NCAA regulation). metric keys deliberately match the existing LeagueAverages keys in packages/harness/src/aggregate.ts so wiring is 1:1. Grades: A = published multi-season data with methodology; B = credible analysis; C = thin/derived (derivation stated). See data/ncaa/README.md §5 for the full discussion and data/ncaa/sources/ for raw source snapshots (access date 2026-07-27).",
+  "league": "ncaa-mens-d1",
+  "gameMinutes": 40,
+  "seasonsBasis": "2019-20 through 2025-26 unless noted (post 3PT-line move to 22'1.75\" and 20s off-reb reset, both 2019-20)",
+  "paceNormalizationWarning": "packages/stats/src/box.ts computes pace on a hardcoded 48-minute basis (poss × 48/gameMinutes). The pace band below is stated in the real-world NCAA convention (possessions per 40-minute game). On the CURRENT unmodified pipeline a regulation NCAA game at 66-71 poss/40 reports pace 79.2-85.2. Use paceOn48MinBasis if wiring without making the harness rulepack-aware; do not mix conventions.",
+  "bands": [
+    {
+      "metric": "pace",
+      "label": "Pace (poss/40 per team)",
+      "lo": 66,
+      "hi": 71,
+      "paceOn48MinBasis": { "lo": 79.2, "hi": 85.2 },
+      "source": "KenPom D-I trends (raw tempo): 67.9-69.4 across 2019-2026 (2025: 68.0, 2026: 68.3). https://kenpom.com/trends.php via https://hoopr.sportsdataverse.org/reference/kp_trends.html",
+      "grade": "A",
+      "basis": "observed multi-season range 67.9-69.4, widened ~2 poss each side for era/roster variation; NBA plays ~83 poss/40-equivalent, safely out of band"
+    },
+    {
+      "metric": "pts",
+      "label": "Points per game",
+      "lo": 69,
+      "hi": 79,
+      "source": "Sports-Reference CBB game averages: 71.0-75.9 across 2019-20..2025-26 (2024-25: 73.9). https://www.sports-reference.com/cbb/seasons/game-averages.html",
+      "grade": "A",
+      "basis": "observed range widened ~2-3 pts each side; consistent with pace x ortg bands"
+    },
+    {
+      "metric": "fga",
+      "label": "FGA per game",
+      "lo": 55,
+      "hi": 61,
+      "source": "Sports-Reference CBB game averages: 57.7-58.8 across 2019-20..2025-26",
+      "grade": "A",
+      "basis": "observed range widened ~2 each side"
+    },
+    {
+      "metric": "fgPct",
+      "label": "FG%",
+      "lo": 0.43,
+      "hi": 0.465,
+      "pct": true,
+      "source": "Sports-Reference CBB game averages: 43.8-45.2% across 2019-20..2025-26",
+      "grade": "A",
+      "basis": "observed range +/- ~0.7pp; NBA (46.1-47.5%) lands above the band"
+    },
+    {
+      "metric": "tpaShare",
+      "label": "3PA share of FGA",
+      "lo": 0.34,
+      "hi": 0.42,
+      "pct": true,
+      "source": "KenPom D-I trends 3PA/FGA: 37.3-39.5% across 2019-2026 (2026: 39.5%); cross-checks SR 2024-25: 22.9/58.5 = 39.1%",
+      "grade": "A",
+      "basis": "observed range widened ~3pp each side (share is pace-invariant, same rationale as the NBA band); note college's share trails the modern NBA (39-42%) by only ~2-3pp"
+    },
+    {
+      "metric": "tpPct",
+      "label": "3P%",
+      "lo": 0.32,
+      "hi": 0.355,
+      "pct": true,
+      "source": "KenPom D-I trends / SR: 33.3-34.5% across 2019-2026, extremely stable",
+      "grade": "A",
+      "basis": "observed range +/- ~1pp; NBA 34.8-36.6% sits at/above the top edge"
+    },
+    {
+      "metric": "fta",
+      "label": "FTA per game",
+      "lo": 17,
+      "hi": 23,
+      "source": "Sports-Reference CBB game averages: 17.5-20.5 across 2019-20..2025-26 (2025-26: 20.5, rising with the FT-rate uptick)",
+      "grade": "A",
+      "basis": "observed range widened, more headroom on top because a correct one-and-one implementation (README R1) shifts FTA; KenPom FT-rate 30.3-35.0 FTA/FGA vs NBA ~24-27"
+    },
+    {
+      "metric": "ftPct",
+      "label": "FT%",
+      "lo": 0.69,
+      "hi": 0.735,
+      "pct": true,
+      "source": "KenPom D-I trends / SR: 70.4-72.5% across 2019-2026",
+      "grade": "A",
+      "basis": "observed range +/- ~1pp; the single widest NBA-vs-NCAA shooting gap (NBA 77.5-78.4%) — an NCAA sim shooting 76%+ from the line has NBA rosters"
+    },
+    {
+      "metric": "orbPct",
+      "label": "ORB%",
+      "lo": 0.27,
+      "hi": 0.32,
+      "pct": true,
+      "source": "KenPom D-I trends OR%: 28.0-30.6 across 2019-2026 (2026: 30.6)",
+      "grade": "A",
+      "basis": "observed range +/- ~1pp; deliberately does NOT overlap the NBA band's recent reality (22-26%) — college crashes the offensive glass"
+    },
+    {
+      "metric": "trb",
+      "label": "Rebounds per game",
+      "lo": 33,
+      "hi": 38,
+      "source": "Sports-Reference CBB game averages: 34.8-35.5 across 2019-20..2025-26",
+      "grade": "A",
+      "basis": "observed range widened ~2 each side (coupled to FGA/FG% bands via miss volume)"
+    },
+    {
+      "metric": "ast",
+      "label": "Assists per game",
+      "lo": 12,
+      "hi": 15.5,
+      "source": "Sports-Reference CBB game averages: 13.1-14.1 across 2019-20..2025-26",
+      "grade": "A",
+      "basis": "observed range widened ~1 each side"
+    },
+    {
+      "metric": "stl",
+      "label": "Steals per game",
+      "lo": 5.5,
+      "hi": 8,
+      "source": "Sports-Reference CBB game averages: 6.2-6.8 across 2019-20..2025-26; KenPom Stl% 8.6-9.7 per 100 poss",
+      "grade": "A",
+      "basis": "observed range widened ~0.7-1.2 each side; per-possession steal rate is HIGHER than the NBA's (~9.5 vs ~8.3 per 100, derived grade C)"
+    },
+    {
+      "metric": "blk",
+      "label": "Blocks per game",
+      "lo": 2.8,
+      "hi": 4.2,
+      "source": "Sports-Reference CBB game averages: 3.2-3.4 across 2019-20..2025-26; KenPom Blk% 8.8-9.5 of opp 2PA",
+      "grade": "A",
+      "basis": "observed range widened; per-2PA block rate is nearly identical to the NBA's (~9.5%) — the per-game count is lower purely from volume (grade C derivation)"
+    },
+    {
+      "metric": "tov",
+      "label": "Turnovers per game",
+      "lo": 10.5,
+      "hi": 14,
+      "source": "Sports-Reference CBB game averages: 11.5-13.2 across 2019-20..2025-26 (declining trend: 2025-26 = 11.5); KenPom TO% 16.7-18.9 of possessions",
+      "grade": "A",
+      "basis": "observed range widened ~1 each side; NOTE per-possession TO rate is ~20% above the NBA (17-18% vs ~14.5%) even though the per-game count looks similar to the NBA's 13.6-14.5 — the 40-min game and slower pace hide it; this is THE trap metric for per-game thinking"
+    },
+    {
+      "metric": "pf",
+      "label": "Fouls per game",
+      "lo": 15.5,
+      "hi": 19.5,
+      "source": "Sports-Reference CBB game averages: 16.6-17.8 across 2019-20..2025-26",
+      "grade": "A",
+      "basis": "observed range widened ~1-1.7 each side; per 100 possessions college fouls ~24-26 vs NBA ~19-20 (derived grade C) — foul-out at 5 in a foulier game drives real rotation pressure"
+    },
+    {
+      "metric": "ortg",
+      "label": "Offensive rating",
+      "lo": 100,
+      "hi": 110,
+      "source": "KenPom D-I trends raw efficiency: 100.8-108.5 across 2020-2026 (2025: 106.2, 2026: 108.5)",
+      "grade": "A",
+      "basis": "observed range widened ~1-1.5 each side; NBA 110.6-115.7 lands entirely above the band — the cleanest single 'still playing NBA ball' tripwire"
+    },
+    {
+      "metric": "astdShare",
+      "label": "Assisted share of FGM",
+      "lo": 0.48,
+      "hi": 0.56,
+      "pct": true,
+      "source": "KenPom D-I trends A% (assists per FGM): 50.7-52.6 across 2024-2026 (51.8-52.4 earlier in the decade); cross-checks SR 2024-25: 13.7 AST / 26.1 FGM = 52.5%",
+      "grade": "A",
+      "basis": "observed range widened ~2-3pp each side; same AST/FGM definition as the harness metric (aggregate.ts). College sits ~10pp BELOW the NBA on this ratio (NBA AST/FGM ~61-64% derived from B-R per-game, grade C) despite running more set plays"
+    }
+  ]
+}
