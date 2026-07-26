@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "sim": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/simone.ts",
+    "season": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/season-cli.ts",
     "batch": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/cli.ts",
     "bench": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/bench.ts",
     "test": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs --test \"packages/*/test/*.test.ts\"",
