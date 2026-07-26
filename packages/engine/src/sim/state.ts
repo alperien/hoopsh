@@ -234,6 +234,21 @@ export function onCourt(s: GameState, side: TeamSide): Agent[] {
   return s.lineup[side].map((id) => agent(s, id));
 }
 
+/**
+ * On-court players EXCLUDING the fouled-out. The bench-exhausted degenerate
+ * state legally leaves a fouled-out player standing in the lineup (see
+ * subs.ts replaceFouledOut's early return), so nearly every actor query —
+ * who can shoot, contest, steal, rebound, be passed to — must filter him
+ * out. That filter used to be a `.fouledOut` check hand-repeated at ~15
+ * call sites, where forgetting one meant a ghost actor (an audited
+ * invariant violation happened exactly this way). One definition now.
+ * Plain onCourt remains for lineup mechanics (slots, frames, matchup
+ * bookkeeping) where the body still physically exists on the floor.
+ */
+export function liveOnCourt(s: GameState, side: TeamSide): Agent[] {
+  return onCourt(s, side).filter((a) => !a.fouledOut);
+}
+
 export function other(side: TeamSide): TeamSide {
   return side === 0 ? 1 : 0;
 }

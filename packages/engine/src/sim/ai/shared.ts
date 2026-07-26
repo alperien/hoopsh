@@ -7,7 +7,7 @@
 
 import { dist } from '../../core/vec.js';
 import { lateralSpeed } from '../../model/derived.js';
-import { onCourt, other, type Agent, type GameState } from '../state.js';
+import { liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { currentMaxSpeed } from '../resolve.js';
 
 /**
@@ -22,12 +22,12 @@ export function creation(a: Agent): number {
 
 /** the defender ASSIGNED to this player (falls back to nearest on-ball man) */
 export function assignedDefender(s: GameState, man: Agent): Agent | null {
-  for (const d of onCourt(s, other(man.side))) {
+  for (const d of liveOnCourt(s, other(man.side))) {
     // Assignment leash (params.ai.assignLeashFt): a defender whose man is
     // within the leash counts as "assigned" to that man and is returned
     // directly — distinct from onBallRadiusFt (which gates who counts as
     // "on the ball" for reach-in/help purposes).
-    if (!d.fouledOut && d.manId === man.p.id && dist(d.pos, man.pos) < s.params.ai.assignLeashFt) return d;
+    if (d.manId === man.p.id && dist(d.pos, man.pos) < s.params.ai.assignLeashFt) return d;
   }
   return onBallDefender(s, man);
 }
@@ -35,8 +35,7 @@ export function assignedDefender(s: GameState, man: Agent): Agent | null {
 export function onBallDefender(s: GameState, holder: Agent): Agent | null {
   let best: Agent | null = null;
   let bestD = Infinity;
-  for (const d of onCourt(s, other(holder.side))) {
-    if (d.fouledOut) continue;
+  for (const d of liveOnCourt(s, other(holder.side))) {
     const dd = dist(d.pos, holder.pos);
     if (dd < bestD) { bestD = dd; best = d; }
   }

@@ -6,7 +6,7 @@
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
 import { spacingSpots } from '../../geometry/court.js';
-import { agent, attackedRim, onCourt, type Agent, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, type Agent, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
 import { creation, assignedDefender } from './shared.js';
 
@@ -128,8 +128,8 @@ export function actionTick(s: GameState): void {
   const myC = creation(h);
   let below = 0;
   let peers = 0;
-  for (const a of onCourt(s, s.poss.team)) {
-    if (a.p.id === holderId || a.fouledOut) continue;
+  for (const a of liveOnCourt(s, s.poss.team)) {
+    if (a.p.id === holderId) continue;
     peers++;
     const c = creation(a);
     below += c < myC ? 1 : c === myC ? 0.5 : 0;
@@ -142,8 +142,8 @@ export function actionTick(s: GameState): void {
   // is worse than no screen (audit: distance-blind choice left 93% of actions inert)
   let best: Agent | null = null;
   let bestScore = -Infinity;
-  for (const a of onCourt(s, s.poss.team)) {
-    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+  for (const a of liveOnCourt(s, s.poss.team)) {
+    if (a.p.id === holderId || s.t < a.cutUntil) continue;
     const travel = dist(a.pos, h.pos);
     if (travel > A.pnrMaxScreenDistFt) continue;
     const score =
@@ -156,13 +156,13 @@ export function actionTick(s: GameState): void {
   // posts, a low-iso handler never clears out (identity through tendencies).
   let poster: Agent | null = null;
   let posterScore = 0;
-  for (const a of onCourt(s, s.poss.team)) {
+  for (const a of liveOnCourt(s, s.poss.team)) {
     // the HOLDER is a legal poster: a hub big who is also his team's best
     // creator (the Jokić shape) initiates his own post-up by dribbling down
     // to the block — before this, the usage hierarchy routed him the ball
     // and the post action then required someone ELSE to hold it, so the
     // profile scored 7.9 ppg with 0.6 post touches (fidelity incident)
-    if (a.fouledOut || s.t < a.cutUntil) continue;
+    if (s.t < a.cutUntil) continue;
     // post appetite carries the score; strength/finishing make it credible
     const sc = ((a.p.tend.post - 40) / 100) * (0.6 + a.p.attr.strength / 300 + a.p.attr.finishing / 500);
     if (sc > posterScore) { posterScore = sc; poster = a; }
@@ -172,8 +172,8 @@ export function actionTick(s: GameState): void {
   // SHOOTER's action (the stun buys him his rise), so gravity carries it
   let dhoRecv: Agent | null = null;
   let dhoScore = 0;
-  for (const a of onCourt(s, s.poss.team)) {
-    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+  for (const a of liveOnCourt(s, s.poss.team)) {
+    if (a.p.id === holderId || s.t < a.cutUntil) continue;
     if (dist(a.pos, h.pos) > A.dhoSearchRadiusFt) continue;
     // DHO receiver score: gravity (shooter identity, 65%) + motion (movement
     // tendency, 35%). FEEL — a handoff buys a rise; it needs a shooter who

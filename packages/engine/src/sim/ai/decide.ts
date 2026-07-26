@@ -14,9 +14,9 @@
  */
 
 import { clamp } from '../../core/rng.js';
-import { dist, lerp, sub, type V2 } from '../../core/vec.js';
+import { dist, lerp, segmentT, type V2 } from '../../core/vec.js';
 import { n } from '../../model/derived.js';
-import { agent, attackedRim, onCourt, other, type Agent, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
 import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, tempo } from './concepts.js';
@@ -129,8 +129,8 @@ export function decideBall(s: GameState): BallAction {
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
   let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
-  for (const m of onCourt(s, h.side)) {
-    if (m.p.id === h.p.id || m.fouledOut) continue;
+  for (const m of liveOnCourt(s, h.side)) {
+    if (m.p.id === h.p.id) continue;
     const o = openness(s, m);
     const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
     // value the pass WITH my own delivery quality — the same term the make
@@ -274,20 +274,12 @@ export function decideBall(s: GameState): BallAction {
  */
 function defendersInLane(s: GameState, h: Agent, rim: V2): number {
   let count = 0;
-  for (const d of onCourt(s, other(h.side))) {
-    if (d.fouledOut) continue;
-    const t = laneT(h.pos, rim, d.pos);
+  for (const d of liveOnCourt(s, other(h.side))) {
+    const t = segmentT(h.pos, rim, d.pos);
     if (t > 0.15 && t < 0.95) {
       const lat = dist(d.pos, lerp(h.pos, rim, t));
       if (lat < 5) count += 1 - lat / 5;
     }
   }
   return count;
-}
-
-function laneT(a: V2, b: V2, p: V2): number {
-  const ab = sub(b, a);
-  const l2 = ab.x * ab.x + ab.y * ab.y;
-  if (l2 < 1e-9) return 0;
-  return clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / l2, 0, 1);
 }

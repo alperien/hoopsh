@@ -70,3 +70,16 @@ export function closestOnSegment(a: V2, b: V2, p: V2): V2 {
 export function distToSegment(a: V2, b: V2, p: V2): number {
   return dist(p, closestOnSegment(a, b, p));
 }
+
+/** clamped projection parameter of p onto segment ab: 0 at a, 1 at b.
+ *  The shared "how far along the line is this defender" primitive — the
+ *  drive-lane crowd check uses it directly, and closestOnSegment above is
+ *  this followed by the lerp. (This used to be re-implemented privately in
+ *  two sim modules; one definition now.) */
+export function segmentT(a: V2, b: V2, p: V2): number {
+  const ab = sub(b, a);
+  const l2 = ab.x * ab.x + ab.y * ab.y;
+  if (l2 < 1e-9) return 0;
+  const t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / l2;
+  return Math.max(0, Math.min(1, t));
+}

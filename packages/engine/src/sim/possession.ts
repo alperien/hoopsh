@@ -14,7 +14,7 @@
 import { dist, lerp, type V2 } from '../core/vec.js';
 import type { TeamSide } from '../core/events.js';
 import {
-  attackedRim, emit, onCourt, other, round1,
+  attackedRim, emit, liveOnCourt, onCourt, other, round1,
   type Agent, type GameState, type Phase
 } from './state.js';
 import { assignMatchups, assignSpots } from './ai.js';
@@ -52,7 +52,7 @@ export function tipWeightedWinner(s: GameState): TeamSide {
 
 /** Ball-handler picked to bring the ball up / receive the inbound: highest ballHandle rating on the floor. */
 export function bestHandler(s: GameState, side: TeamSide): Agent {
-  const eligible = onCourt(s, side).filter((x) => !x.fouledOut);
+  const eligible = liveOnCourt(s, side);
   // bench exhausted (every replacement used): play on with whoever is out there
   // rather than crashing — custom short rosters are legal input
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
@@ -304,8 +304,7 @@ export function tickScramble(s: GameState, dt: number): void {
   // plausibly be a rebounder on this carom" without pulling in players still
   // way out on the perimeter
   for (const side of [0, 1] as TeamSide[]) {
-    for (const a of onCourt(s, side)) {
-      if (a.fouledOut) continue;
+    for (const a of liveOnCourt(s, side)) {
       if (dist(a.pos, ph.landAt) < 18) {
         a.target = ph.landAt;
         a.sprinting = true;
@@ -323,14 +322,13 @@ export function tickScramble(s: GameState, dt: number): void {
   // actual scrum, just who was most likely to be in the pile
   const defSide = other(ph.offSide);
   if (s.rng.chance(s.params.foul.looseBallPerReb)) {
-    const fouler = onCourt(s, defSide)
-      .filter((a) => !a.fouledOut)
+    const fouler = liveOnCourt(s, defSide)
       .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0];
     if (fouler) {
       // prefer a victim who hasn't fouled out — a ghost free-throw shooter in
       // the bench-exhausted state would violate the no-fouled-out-actors rule
       const victims = onCourt(s, ph.offSide);
-      const liveVictims = victims.filter((a) => !a.fouledOut);
+      const liveVictims = liveOnCourt(s, ph.offSide);
       const victim = (liveVictims.length > 0 ? liveVictims : victims)
         .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0]!;
       const { inBonus } = recordFoul(s, fouler, 'loose_ball', victim);
@@ -338,10 +336,11 @@ export function tickScramble(s: GameState, dt: number): void {
         victim.usedPoss++; // bonus trip = possession used (usage bookkeeping)
         enterFreeThrows(s, victim, s.rules.bonusFreeThrows);
       } else {
-        // side out, offense keeps it: shot clock can't have ticked below 14
-        // off a loose-ball whistle (mirrors the real shot-clock-reset rule
-        // for a defensive foul with the offense retaining the ball)
-        s.poss.shotClock = Math.max(s.poss.shotClock, 14);
+        // side out, offense keeps it: shot clock is floored at the rule
+        // pack's short-clock reset (NBA 14s) off a loose-ball whistle —
+        // mirrors the real shot-clock-reset rule for a defensive foul with
+        // the offense retaining the ball
+        s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
         // 1.2s: shorter than the standard 1.8s dead-ball delay — this is a
         // continuation of the SAME possession (no team change), so the pause
         // just needs to cover the whistle, not a full re-set

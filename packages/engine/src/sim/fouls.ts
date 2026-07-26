@@ -93,9 +93,11 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
   // so the replay doesn't show players standing wherever the whistle caught them
   const rim = attackedRim(s, shooter.side);
   const dir = rim.x > s.court.midX ? -1 : 1;
-  // 13.75 ft: the real NBA free-throw-line-to-rim-center distance (the FT
-  // line itself sits at rimInsetFt + 13.75 from the baseline; see rulepack.ts)
-  const ftSpot = { x: rim.x + dir * 13.75, y: s.court.centerY };
+  // free-throw-line-to-rim-center distance, derived from the rule pack
+  // (NBA: 19 - 5.25 = 13.75 ft) — was a hardcoded 13.75 that silently
+  // diverged from any custom pack's ftLineFt/rimInsetFt
+  const ftDistFt = s.rules.ftLineFt - s.rules.rimInsetFt;
+  const ftSpot = { x: rim.x + dir * ftDistFt, y: s.court.centerY };
   shooter.target = ftSpot;
   let lane = 0;
   for (const a of [...onCourt(s, shooter.side), ...onCourt(s, other(shooter.side))]) {

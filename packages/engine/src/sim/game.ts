@@ -10,7 +10,7 @@ import type { Team } from '../model/player.js';
 import type { GameEvent, TeamSide } from '../core/events.js';
 import { defaultParams, withParams, type SimParams } from './params.js';
 import {
-  agent, attackedRim, emit, onCourt, round1,
+  agent, attackedRim, emit, liveOnCourt, round1,
   type Agent, type GameState
 } from './state.js';
 import { Rng } from '../core/rng.js';
@@ -255,8 +255,8 @@ function tickLive(s: GameState, dt: number): void {
     // 30 ft of the rim they protect (the same arrival principle as the
     // advance flip); transitionMaxSec is the chaos-state safety cap
     let back = 0;
-    for (const d of onCourt(s, other(h.side))) {
-      if (!d.fouledOut && dist(d.pos, rim) < 30) back++;
+    for (const d of liveOnCourt(s, other(h.side))) {
+      if (dist(d.pos, rim) < 30) back++;
     }
     if (back >= 4 || s.t - s.poss.startT > s.params.move.transitionMaxSec) {
       s.poss.phase = 'halfcourt';

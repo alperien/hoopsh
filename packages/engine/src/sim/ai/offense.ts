@@ -9,7 +9,7 @@ import { dist, lerp, norm, scale, sub, add } from '../../core/vec.js';
 import { clamp } from '../../core/rng.js';
 import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
-import { agent, attackedRim, onCourt, other, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, onCourt, other, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
 import { assignedDefender } from './shared.js';
 import { actionTick } from './actions.js';
@@ -17,8 +17,7 @@ import { actionTick } from './actions.js';
 /** react to a shot going up: crash the boards, box out, or get back on D */
 export function onShotReleased(s: GameState, offSide: TeamSide): void {
   const rim = attackedRim(s, offSide);
-  for (const a of onCourt(s, offSide)) {
-    if (a.fouledOut) continue;
+  for (const a of liveOnCourt(s, offSide)) {
     const near = dist(a.pos, rim) < s.params.ai.crashNearFt;
     const crash = near && s.rng.chance(
       s.params.ai.crashBase + (a.p.tend.crashOffReb / 100) * s.params.ai.crashTendScale
@@ -29,12 +28,15 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
       a.sprinting = true;
     } else {
       a.intent = 'getback';
-      a.target = lerp(attackedRim(s, other(offSide)), s.court.rims[rim.x > s.court.midX ? 0 : 1]!, 0.55);
+      // retreat to the rim this team defends. (This was a lerp between two
+      // expressions that are provably always the SAME rim — attackedRim of
+      // the other side and the opposite-end rims[] entry — i.e. dead
+      // geometry; simplified to what it always computed.)
+      a.target = { ...attackedRim(s, other(offSide)) };
       a.sprinting = false;
     }
   }
-  for (const d of onCourt(s, other(offSide))) {
-    if (d.fouledOut) continue;
+  for (const d of liveOnCourt(s, other(offSide))) {
     const man = d.manId ? s.agents.get(d.manId) : null;
     if (man && dist(man.pos, rim) >= 20) {
       // guard-crash economy: a defender guarding the PERIMETER mostly holds
@@ -71,7 +73,7 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   // fouled-out player remains when no substitute exists; custom short rosters
   // are legal input, and the adversarial audit produced this state at default
   // params with a foul-prone no-bench fixture)
-  const eligible = onCourt(s, side).filter((a) => !a.fouledOut);
+  const eligible = liveOnCourt(s, side);
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
 
   // ball handler (best handle) takes the top; shooters fill wings/corners;
@@ -120,8 +122,8 @@ export function offenseOffBallTick(s: GameState): void {
   const holderId = s.ball.holderId;
   const holder = holderId ? agent(s, holderId) : null;
 
-  for (const a of onCourt(s, side)) {
-    if (a.fouledOut || a.p.id === s.ball.holderId) continue;
+  for (const a of liveOnCourt(s, side)) {
+    if (a.p.id === s.ball.holderId) continue;
 
     // the DHO receiver sprints AT the hub — the handoff fires on proximity
     // (decideBall's dhoTarget check); reuses the cut intent so his defender

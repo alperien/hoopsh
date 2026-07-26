@@ -7,7 +7,7 @@
 import { clamp } from '../../core/rng.js';
 import { dist, lerp, norm, scale, sub, add, type V2 } from '../../core/vec.js';
 import type { TeamSide } from '../../core/events.js';
-import { agent, attackedRim, onCourt, other, type Agent, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
 
 /** assign man matchups: sort both lineups by size and pair them */
@@ -16,7 +16,7 @@ export function assignMatchups(s: GameState, defSide: TeamSide): void {
   // lineup has fouled out (legal with short rosters), play on rather than
   // index into an empty list — `o[...]!` crashed here in the audit fixture
   const pick = (side: TeamSide) => {
-    const live = onCourt(s, side).filter((a) => !a.fouledOut);
+    const live = liveOnCourt(s, side);
     return live.length > 0 ? live : onCourt(s, side);
   };
   const defenders = pick(defSide);
@@ -65,8 +65,7 @@ export function defenseTick(s: GameState): void {
     dist(holder.pos, rim) > A.blitzBeyondFt;
   const helper = pickHelper(s, defSide, rim, holder, blitz, helpAggr);
 
-  for (const d of onCourt(s, defSide)) {
-    if (d.fouledOut) continue;
+  for (const d of liveOnCourt(s, defSide)) {
     d.intent = 'defend';
     d.sprinting = false;
     const man = d.manId ? agent(s, d.manId) : null;
@@ -99,8 +98,8 @@ function pickHelper(
   // nearest weak-side defender whose man has the least gravity
   let helper: Agent | null = null;
   let bestScore = Infinity;
-  for (const d of onCourt(s, defSide)) {
-    if (d.fouledOut || !d.manId || d.manId === holder.p.id) continue;
+  for (const d of liveOnCourt(s, defSide)) {
+    if (!d.manId || d.manId === holder.p.id) continue;
     // Pick the helper: closest to the rim, but STRONGLY penalized for
     // leaving a shooter (gravity × 26 ft-equivalent). This is the real
     // help-defense dilemma — you rotate off the worst shooter, and elite

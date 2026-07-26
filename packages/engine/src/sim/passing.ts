@@ -12,7 +12,7 @@
 
 import { clamp } from '../core/rng.js';
 import { add, dist, lerp, scale } from '../core/vec.js';
-import { agent, attackedRim, emit, onCourt, other, type Agent, type GameState } from './state.js';
+import { agent, attackedRim, emit, liveOnCourt, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
 import { assignedDefender, onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
@@ -182,8 +182,7 @@ export function attemptReachIn(s: GameState, dt: number): void {
     // in traffic ANY converging defender can get a hand in — a beaten on-ball
     // man is behind the play, and the strip risk of attacking a crowd comes
     // from the helpers meeting the ball at the gather
-    for (const cand of onCourt(s, other(h.side))) {
-      if (cand.fouledOut) continue;
+    for (const cand of liveOnCourt(s, other(h.side))) {
       if (!d || dist(cand.pos, h.pos) < dist(d.pos, h.pos)) d = cand;
     }
   }
@@ -226,10 +225,11 @@ export function attemptReachIn(s: GameState, dt: number): void {
       enterFreeThrows(s, h, s.rules.bonusFreeThrows);
     } else {
       // not in the bonus: no free throws, offense just keeps the ball —
-      // shot clock is floored at 14 (defensive-foul reset) and never lowered,
-      // then a short 1.2s continuation delay (same possession, no team
-      // change) lets the whistle register before play resumes
-      s.poss.shotClock = Math.max(s.poss.shotClock, 14);
+      // shot clock is floored at the rule pack's short-clock reset (NBA 14s,
+      // defensive-foul reset) and never lowered, then a short 1.2s
+      // continuation delay (same possession, no team change) lets the
+      // whistle register before play resumes
+      s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
       deadBall(s, h.side, { clockRuns: false, continuation: true, resumeIn: 1.2 });
     }
   }
