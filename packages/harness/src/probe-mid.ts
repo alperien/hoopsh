@@ -69,6 +69,14 @@ for (const z of ['rim', 'paint', 'mid', 'three'] as const) {
   );
 }
 console.log(`14-19.5 ft band share of FGA: ${((band.length / fga) * 100).toFixed(2)}% (real NBA ~6.8%)`);
+// style split: a 5-out pace-and-space team living at ~3% is REAL (2018
+// Rockets shape); the post-oriented team should carry the league mid share
+const byTeamPrefix = (prefix: string) => {
+  const t = shots.filter((sh) => sh.shooter.startsWith(prefix));
+  const tm = t.filter((sh) => sh.zone === 'mid');
+  return `${((tm.length / Math.max(1, t.length)) * 100).toFixed(2)}% (${tm.length}/${t.length})`;
+};
+console.log(`per-style mid share: Breakers(5-out) ${byTeamPrefix('brk-')}  Monarchs(post) ${byTeamPrefix('mon-')}`);
 console.log(`mid-zone attempts: ${mids.length} (${((mids.length / fga) * 100).toFixed(2)}% of FGA)`);
 if (mids.length > 0) {
   console.log(`mid distance p10/p25/p50/p75/p90: ${[0.1, 0.25, 0.5, 0.75, 0.9].map((p) => q(p).toFixed(1)).join(' / ')}`);

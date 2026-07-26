@@ -12,8 +12,9 @@
  *
  *   1. DECISIVENESS (decisivenessScale) — a drilled shot fires in its trigger
  *      context: the open catch-and-shoot three, the transition pull-up, the
- *      worked post move. Green-light-gated: it belongs to shooters/post
- *      threats, never to the player the defense WANTS shooting.
+ *      worked post move, the conceded mid-range jumper. Green-light-gated:
+ *      it belongs to shooters/post threats/mid-range artists, never to the
+ *      player the defense WANTS shooting.
  *   2. ACTION COMMITMENT (actionCommitScale) — a called action is a plan:
  *      its designed payoff is preferred (entry feed, handoff, attack off the
  *      screen/clear-out) and its carrier waits for it to arrive (screen
@@ -49,7 +50,7 @@ import { dist } from '../../core/vec.js';
 import { other, type Agent, type GameState } from '../state.js';
 import type { TeamSide } from '../../core/events.js';
 import { hurriedness } from '../endgame.js';
-import { creation } from './shared.js';
+import { creation, midGreenLight } from './shared.js';
 
 type Action = GameState['poss']['action'];
 type ShotMove = 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post';
@@ -82,9 +83,35 @@ type ShotMove = 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post';
  *
  * worked post move: after the backdown the turnaround is the plan — without
  * this the spray won 8:1 and post scoring never materialized.
+ *
+ * mid-range game: the conceded in-between jumper — the elbow pull-up over a
+ * defender who went under or sat in drop, the pick-and-pop 16-footer the sag
+ * leaves open. Deliberately the one drilled shot whose EV does NOT clear the
+ * continuation bar on its own (a three is worth more; the make model prices
+ * that honestly, and buffing it to ~65% from 16 ft would be the wrong fix):
+ * real mid-range volume is an IDENTITY fact — the artists take it because it
+ * is their shot and the defense offers it all game — so the decision layer is
+ * where it lives. Pre-term the shot was structurally extinct: argmax in 0 of
+ * 780 instrumented decisions at 17-20 ft, mid share 1.4% vs the real 6.8%,
+ * and the few "mid" attempts were 20-ft arc-toes. Three gates, all earned:
+ * contest < midContestCeil (the drilled middy is a shot the defense at least
+ * PARTLY concedes — the ceiling sits above the arc gate's 0.5 because the mid
+ * game definitionally lives in front of drop coverage, a defender in the
+ * picture; truly smothered it is the bad habit contestBrake already taxes);
+ * the shared mid green light (ai/shared.ts midGreenLight — zero for
+ * rim-runners, whose open 16-footer is the defense's win); and distance ≤
+ * midGreenMaxFt, because the
+ * drilled shot is the 14-19.5 ft game, not the 20-23 ft long 2 modern
+ * offenses removed (ungated by distance the term would amplify the corner-
+ * spot junk 2 at ~21.6 ft — the D3 trickle — and the restored "mid-range"
+ * would still be all arc-toes). The pull-up flavor is additionally scaled by
+ * tend.pullUp (self-creation off the dribble is its own appetite); the
+ * catch-and-shoot flavor is not (the pop catch IS the trigger — a pop big
+ * like the postAnchor fixture has pullUp 12 but the elbow face-up is his
+ * bread and butter).
  */
 export function decisiveness(
-  s: GameState, h: Agent, shotMove: ShotMove, zone: string,
+  s: GameState, h: Agent, shotMove: ShotMove, zone: string, distFt: number,
   contestLevel: number, act0: Action
 ): number {
   const A = s.params.ai;
@@ -95,6 +122,39 @@ export function decisiveness(
     term = A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
   } else if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     term = A.postShotBonus;
+  } else if (
+    zone === 'mid' && distFt <= A.midGreenMaxFt &&
+    (h.spotKey === 'elbow_l' || h.spotKey === 'elbow_r') &&
+    (shotMove === 'catch_shoot' || (shotMove === 'pull_up' && h.dribblesSinceCatch === 0))
+  ) {
+    // the worked elbow shot: an elbow station is reachable ONLY through
+    // the identity-gated routes (the short pop and the elbow assignment,
+    // both cut on the same mid score), so — exactly like the worked post
+    // move — the plan itself is the green light and the bonus is flat.
+    // It covers the quick catch-and-shoot AND the patient catch-and-FACE
+    // (zero dribbles: survey, rise — the delayed rise is still the
+    // station's drilled shot, and the make model already charges it the
+    // pull-up difficulty). A LIVE-dribble pull-up is genuinely different —
+    // self-creation — and falls through to the tendency-gated term below
+    // (probe: 38 of 56 elbow-station decisions came after the 0.9 s catch
+    // window and died against a zero pullUp gate, which is wrong for a
+    // face-up big whose pullUp dial correctly says "no off-dribble game").
+    // Contest-gated: a recovered defender erases it and the popper swings.
+    term = A.midPopShotBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1);
+  } else if (
+    zone === 'mid' && distFt <= A.midGreenMaxFt &&
+    (shotMove === 'pull_up' || shotMove === 'catch_shoot')
+  ) {
+    // joint identity gate: a pull-up needs BOTH the mid appetite and the
+    // off-dribble appetite — as a geometric mean, because multiplying two
+    // sub-1 gates double-counts moderation (a 44-shotMid/68-pullUp
+    // microwave scorer fell to a 0.33 light and never fired; the mean
+    // keeps him at 0.57 while preserving the zero-veto: either appetite
+    // at/below the floor still kills the light entirely).
+    const moveGate = shotMove === 'pull_up'
+      ? Math.sqrt(midGreenLight(h) * clamp((h.p.tend.pullUp - 25) / 50, 0, 1))
+      : midGreenLight(h);
+    term = A.midRangeBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1) * moveGate;
   }
   return term * A.decisivenessScale;
 }
@@ -109,10 +169,16 @@ export function decisiveness(
  * the whole point of the action (any current holder may throw it).
  * handoff: once the DHO receiver has sprinted into range, handing it off IS
  * the play — the catch stuns his trailing defender (passing.ts).
+ * pop throwback: the handler comes off the screen reading the BIG. The roll
+ * half of that read was already priced (the roll is a cut, so the pocket
+ * pass earns the cutter bonus); the pop half had no designed feed, so the
+ * popped big stood at the elbow unused (probe: the short pop produced swing
+ * stations, not shots). Arrival-gated like the entry — the throwback goes
+ * to a popper standing AT his spot, not one mid-relocation.
  */
 export function commitmentPass(
   s: GameState, h: Agent, m: Agent, act0: Action
-): { entryTarget: boolean; dhoTarget: boolean; entry: number; dho: number } {
+): { entryTarget: boolean; dhoTarget: boolean; popTarget: boolean; entry: number; dho: number; pop: number } {
   const A = s.params.ai;
   const entryTarget =
     act0?.kind === 'post' && act0.phase === 'posting' &&
@@ -120,11 +186,18 @@ export function commitmentPass(
   const dhoTarget =
     act0?.kind === 'dho' && act0.hubId === h.p.id &&
     m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
+  const popTarget =
+    act0?.kind === 'pnr' && act0.phase === 'finishing' &&
+    m.p.id === act0.screenerId &&
+    (m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r') &&
+    dist(m.pos, m.target) < 4;
   return {
     entryTarget,
     dhoTarget,
+    popTarget,
     entry: (entryTarget ? A.postEntryBonus : 0) * A.actionCommitScale,
-    dho: (dhoTarget ? A.dhoHandoffBonus : 0) * A.actionCommitScale
+    dho: (dhoTarget ? A.dhoHandoffBonus : 0) * A.actionCommitScale,
+    pop: (popTarget ? A.pnrPopFeedBonus : 0) * A.actionCommitScale
   };
 }
 

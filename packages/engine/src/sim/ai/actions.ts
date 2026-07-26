@@ -8,7 +8,7 @@ import { dist } from '../../core/vec.js';
 import { spacingSpots } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, type Agent, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
-import { creation, assignedDefender } from './shared.js';
+import { creation, assignedDefender, midGreenLight } from './shared.js';
 
 /**
  * Pick-and-roll lifecycle. The action is deliberately thin scaffolding —
@@ -98,10 +98,25 @@ export function actionTick(s: GameState): void {
     }
 
     if (act.phase === 'set' && s.t - act.setAt > 0.5) {
-      // screener's next job: roll to the rim or pop to the arc
+      // screener's next job: roll to the rim, pop to the arc, or — the
+      // mid-range supply line — pop SHORT to the elbow
       act.phase = 'finishing';
       if (gravity(s, screener) < A.pnrRollGravityCut) {
-        screener.cutUntil = s.t + A.pnrRollCutSec; // the roll IS a cut — pocket pass emerges
+        // A low-gravity screener with a real in-between game (the shared
+        // midGreenLight × his midRange ability — the same green light the
+        // decisiveness term honors, so nobody is ever STATIONED at a spot
+        // he has no license to shoot from) mixes short pops into his roll
+        // diet: the classic mid-pop big. His defender sits in drop
+        // coverage by construction (low gravity ⇒ sag), so the elbow
+        // catch is the shot the defense concedes — which is where real
+        // mid-range volume comes from. Rim-runners (green light exactly
+        // 0) always roll, as before.
+        const midPop = midGreenLight(screener) * (screener.p.attr.midRange / 100);
+        if (midPop >= A.pnrMidPopScoreCut && s.rng.chance(A.pnrMidPopChance)) {
+          screener.spotKey = screener.pos.y < s.court.centerY ? 'elbow_l' : 'elbow_r';
+        } else {
+          screener.cutUntil = s.t + A.pnrRollCutSec; // the roll IS a cut — pocket pass emerges
+        }
       } else {
         screener.spotKey = screener.pos.y < s.court.centerY ? 'wing_l' : 'wing_r';
       }
@@ -146,11 +161,24 @@ export function actionTick(s: GameState): void {
     if (a.p.id === holderId || s.t < a.cutUntil) continue;
     const travel = dist(a.pos, h.pos);
     if (travel > A.pnrMaxScreenDistFt) continue;
+    const g = gravity(s, a);
+    // the mid-pop big's seat at the table: a screener who can actually
+    // SCORE off the short pop (midGreenLight × ability — the same gate the
+    // pop routing below uses) is a premier screen partner, because the
+    // defense must choose between conceding his pop (drop) and freeing the
+    // roll (hedge). Gravity-gated to the roll/short-pop population: an
+    // arc-popper's gravity already carries his value, and ungated the
+    // affinity handed screens to mid-happy GUARDS — whose pop goes to the
+    // wing anyway, serving nothing.
+    const popAffinity = g < A.pnrRollGravityCut
+      ? midGreenLight(a) * (a.p.attr.midRange / 100) * A.screenerMidPopWeight
+      : 0;
     const score =
-      (1 - gravity(s, a)) * A.screenerGravityWeight
+      (1 - g) * A.screenerGravityWeight
       + (a.p.heightIn - A.screenerHeightBaseIn) / A.screenerHeightDiv
       + a.p.attr.strength / A.screenerStrengthDiv
-      - travel / A.screenerTravelDiv;
+      - travel / A.screenerTravelDiv
+      + popAffinity;
     if (score > bestScore) { bestScore = score; best = a; }
   }
   // the call: screen, post entry, or a clear-out. One weighted roll across

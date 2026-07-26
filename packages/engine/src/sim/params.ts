@@ -563,6 +563,10 @@ export interface SimParams {
     driveAbortDiscount: number;  // share of a bad drive's downside actually paid (abort option)
     driveHoldBoost: number;      // hold bonus per remaining drive second (keep attacking)
     catchShootBonus: number;     // shoot bias for an open look in the catch window
+    midRangeBonus: number;       // drilled mid-range decisiveness (green-light gated; ai/concepts.ts)
+    midGreenMaxFt: number;       // distance ceiling of the mid green light — real mid-range, not long 2s
+    midPopShotBonus: number;     // shoot bias on the worked pop catch at the elbow (kin of postShotBonus)
+    midContestCeil: number;      // contest ceiling of the mid green light (the middy lives vs drop coverage)
     pnrDurationSec: number;      // action lifetime
     pnrScreenSetDistFt: number;  // screener-to-defender distance that counts as contact
     pnrStunOverSec: number;      // defender delay when fighting over the screen
@@ -570,6 +574,10 @@ export interface SimParams {
     pnrUnderSagFt: number;       // extra on-ball gap while going under (pull-up space)
     pnrUnderBase: number;        // base probability of going under vs handler gravity
     pnrRollGravityCut: number;   // screener gravity below this rolls; above pops
+    pnrMidPopScoreCut: number;   // min mid-pop score (mid green light × midRange ability) for the short pop
+    pnrMidPopChance: number;     // chance an eligible low-gravity screener pops to the elbow instead of rolling
+    pnrPopFeedBonus: number;     // pass-utility bonus for the throwback to the popped screener at his spot
+    screenerMidPopWeight: number; // screener-selection affinity for the mid-pop big (gravity-gated)
     pnrDropDepthFt: number;      // screener defender's drop-coverage depth from the rim
     pnrDriveBonus: number;       // handler drive-utility bonus coming off the screen
     pnrMinShotClock: number;     // don't start an action later than this
@@ -1342,6 +1350,57 @@ export const defaultParams: SimParams = {
     // to zero at contest 0.5, arc only); the make model already favors the
     // catch rhythm, this makes the DECISION match it
     catchShootBonus: 0.18,
+    // FEEL — the drilled in-between game (ai/concepts.ts decisiveness, mid
+    // flavor): the elbow/FT-line jumper a mid-range scorer rises into when
+    // the defense CONCEDES it (drop coverage, the under, the sag off a
+    // non-three big). Deliberately a decision-layer term, not a make-model
+    // buff: the shot IS lower-EV than a three (real mid-range runs ~0.85
+    // PPS vs ~1.08 for threes) and the sim prices that honestly — an elite
+    // open 16-ft pull-up (EV ~1.03) trails the continuation value (>=1.18)
+    // until the 5 s urgency window, so pre-fix the shot was NEVER argmax
+    // (instrumented: 0 of 780 decisions at 17-20 ft). Real players take it
+    // anyway because it is their identity shot and the defense offers it
+    // all game; that is exactly what a drilled-behavior term models. Sized
+    // to the measured gap: at full green light (tendency 75+) and full
+    // openness the term is worth ~0.35-0.5 expected points — enough to make
+    // an elite mid-range identity fire mid-clock — while fixture-level
+    // identities (shotMid 34-44) get a scaled fraction and fire in the
+    // 5-10 s window, matching the late-clock skew of real mid attempts.
+    midRangeBonus: 0.65,
+    // REAL — 19.5 ft: the analytic boundary between the mid-range game and
+    // the long 2 (the 14-19.5 ft band is the real-corpus reference: ~6.8%
+    // of NBA FGA). The green light stops here on purpose: the 20-23 ft
+    // toe-on-the-line two is the shot modern offenses REMOVED — no coach
+    // drills it, so the decisiveness term must not resurrect it (ungated,
+    // the term would also amplify the corner-spot junk 2 at ~21.6 ft that
+    // D3 deliberately left inside the line — see geometry/court.ts). Long
+    // 2s still occur under late-clock urgency, which is what they are.
+    midGreenMaxFt: 19.5,
+    // FEEL — the worked pop's payoff shot, same doctrine as postShotBonus
+    // (0.552): a big who screened, popped to the elbow, and took the
+    // throwback is IN his drilled shot — rising is the plan, and the
+    // identity check already happened at pop assignment (only a screener
+    // whose mid-pop score clears pnrMidPopScoreCut is ever stationed at
+    // the elbow), so the bonus is flat rather than tendency-scaled — the
+    // exact postShotBonus precedent (the post tendency gates the CALL,
+    // not the worked shot). Still contest-gated: a defender who recovers
+    // to the pop erases it and the popper swings instead. Without this
+    // term the pop was a passing station — the elbow catch lost to
+    // hold/re-swing (instrumented: 276 of 314 mid-band ball-handler
+    // decisions were argmax=hold).
+    midPopShotBonus: 0.75,
+    // REAL(ish) — the mid green light's contest ceiling, deliberately WIDER
+    // than the arc catch-and-shoot gate's 0.5: the mid-range game lives in
+    // front of DROP coverage, so its habitat reads as contest ~0.3-0.45 in
+    // this engine's contest model (a drop big 3-5 ft away, in the picture
+    // but conceding the rise). NBA tracking classifies most mid attempts
+    // as "tight" (defender 2-4 ft) — requiring arc-style openness selected
+    // away the shot's actual context and the probe showed the term firing
+    // almost exclusively on rare 0.0-contest catches. The make model still
+    // charges the contest honestly (contestCoef); this ceiling only widens
+    // which looks a mid-range IDENTITY is willing to take. Above it, the
+    // contestBrake's judgment stands: that is a bad shot for anyone.
+    midContestCeil: 0.65,
     pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
     pnrStunOverSec: 0.65,
@@ -1349,6 +1408,44 @@ export const defaultParams: SimParams = {
     pnrUnderSagFt: 3.5,
     pnrUnderBase: 0.8,
     pnrRollGravityCut: 0.52,
+    // The PnR short pop (the mid-range half of SUPPLY — a player who is
+    // never AT 16 ft can never shoot from 16 ft; pre-fix no spacing spot or
+    // action ever stationed anyone in the 14-20 ft band):
+    //   pnrMidPopScoreCut — a low-gravity screener whose mid-pop score
+    //     (midGreenLight × midRange/100, ai/shared.ts) clears this pops to
+    //     the ELBOW instead of rolling: the classic mid-pop big (the
+    //     Aldridge/Horford-shaped screen partner). FEEL — 0.1 requires a
+    //     real mid appetite (shotMid ≥ ~32) AND a credible jumper
+    //     (midRange ~70+ at that appetite): the postAnchor fixture (34/74,
+    //     score 0.13) pops; rimRunner (5/28, score 0) and benchBig (6/30,
+    //     score 0) can never pop — their defender parks in the paint and
+    //     an elbow catch would be the defense's win, exactly the shot the
+    //     green-light floor already refuses them.
+    //   pnrMidPopChance — an eligible big still mixes in rolls (his rim
+    //     dives keep the drop defender honest; a 100% pop diet would be
+    //     scoutable and would starve his lob/putback game). FEEL — just
+    //     under half his screens end in the short pop.
+    pnrMidPopScoreCut: 0.1,
+    pnrMidPopChance: 0.55,
+    // FEEL — the throwback: the handler comes off the screen reading the
+    // big. The ROLL half of that read was already priced (the roll is a
+    // cut, so the pocket pass earns cutterBonus 0.5); the POP half had no
+    // designed feed at all, so the popped big stood unused. 0.3 sits
+    // between postEntryBonus (0.22) and the cutter/handoff feeds (0.5):
+    // the throwback is a real designed outlet but the counter-read, not
+    // the primary rim-bound one. Gated to the popper standing AT his spot
+    // while the action lives (arrival check, same shape as entryTarget).
+    pnrPopFeedBonus: 0.3,
+    // FEEL — mid-pop bigs are PREMIER screening partners in real offenses
+    // (the defense must pick a poison: drop concedes the pop, hedge frees
+    // the roll), so the screener score gives the mid-pop score a seat.
+    // Gravity-gated to gravity < pnrRollGravityCut — an arc-popping or
+    // high-gravity screener gains nothing (his pop already goes to the
+    // wing), which keeps guards/wings from suddenly out-screening centers.
+    // At 1.5, a postAnchor-shaped PF (mid-pop score 0.13) closes most of a
+    // rim-running center's structural screener-score edge and takes a real
+    // share of the screens; a rim-runner (score 0) is unaffected.
+    screenerMidPopWeight: 1.5,
     pnrDropDepthFt: 11,
     pnrDriveBonus: 0.2,
     pnrMinShotClock: 8,

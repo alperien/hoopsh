@@ -11,7 +11,7 @@ import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, liveOnCourt, onCourt, other, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
-import { assignedDefender } from './shared.js';
+import { assignedDefender, midGreenLight } from './shared.js';
 import { actionTick } from './actions.js';
 
 /** react to a shot going up: crash the boards, box out, or get back on D */
@@ -133,7 +133,8 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
 
   // Best handler initiates from the top; everyone else fills by gravity —
-  // shooters get the wings and corners, the lowest-gravity big the dunker.
+  // shooters get the wings and corners, a low-gravity MID-RANGE big the
+  // elbow (see below), the lowest-gravity pure big the dunker.
   const sorted = [...players].sort((a, b) => b.p.attr.ballHandle - a.p.attr.ballHandle);
   const handler = sorted[0]!;
   const rest = sorted.slice(1).sort((a, b) => gravity(s, b) - gravity(s, a));
@@ -148,14 +149,35 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   // (catch-and-shoot share 58% -> 67%, bands 16/17 -> 7/17), so D3 needs
   // its own re-sweep, not a knob.
   const shooterKeys = ['wing_l', 'wing_r', 'corner_l', 'corner_r'];
+  const elbowKeys = ['elbow_l', 'elbow_r'];
+  let sk = 0; // next shooter spot to hand out
+  let ek = 0; // next elbow spot to hand out
   rest.forEach((a, i) => {
-    if (i < 3) {
-      map.set(a.p.id, shooterKeys[i]!);
+    // THE MID-RANGE STATION: a low-gravity player (the defense will not
+    // respect him beyond the arc — same threshold that routes to the
+    // dunker) who nevertheless has a real in-between game (the same
+    // green-light × ability score that gates the PnR short pop) spaces to
+    // the ELBOW, his actual habitat, instead of a corner. A corner catch
+    // for him is the junkiest shot in basketball (a 21.6 ft two the
+    // defense happily concedes — pre-fix the postAnchor fixture's "mid"
+    // diet was exactly that: 1.5 att/g at a 20.5 ft average); the elbow
+    // face-up at ~16 ft is his drilled shot, and his sagging defender
+    // must now step up to the FT line to take it away, which is the
+    // spacing pressure the mid game really exerts. Rim-runners and bench
+    // bigs (mid score 0) still fall through to the dunker as before.
+    const midScore = midGreenLight(a) * (a.p.attr.midRange / 100);
+    if (
+      ek < 2 && midScore >= s.params.ai.pnrMidPopScoreCut &&
+      gravity(s, a) < s.params.ai.dunkerGravityThreshold
+    ) {
+      map.set(a.p.id, elbowKeys[ek++]!);
+    } else if (i < 3) {
+      map.set(a.p.id, shooterKeys[sk++]!);
     } else {
       // gravity < dunkerGravityThreshold ≈ "the defense will not respect him out there",
       // so he is more useful on the baseline as a lob/putback threat than standing
       // in a corner being ignored (which would clog the spacing he can't use)
-      map.set(a.p.id, gravity(s, a) < s.params.ai.dunkerGravityThreshold ? 'dunker' : shooterKeys[3]!);
+      map.set(a.p.id, gravity(s, a) < s.params.ai.dunkerGravityThreshold ? 'dunker' : shooterKeys[sk]!);
     }
   });
 

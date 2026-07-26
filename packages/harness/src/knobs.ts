@@ -145,7 +145,16 @@ export const SWEEPABLE: Knob[] = [
   { path: 'ai.holdHalfcourt', lo: -0.08, hi: 0.05 },
   { path: 'ai.contestBrakeBase', lo: 0.3, hi: 0.75 },
   { path: 'ai.crashBase', lo: 0.15, hi: 0.4 },
-  { path: 'ai.cutRateScale', lo: 0.003, hi: 0.011 }
+  { path: 'ai.cutRateScale', lo: 0.003, hi: 0.011 },
+  // Mid-range restoration (wave2/midrange): the demand term's magnitude and
+  // the supply line's pop rate are the two calibration levers on mid-range
+  // volume (real 14-19.5 ft band ≈ 6.8% of FGA; the sim ran 1.4% before the
+  // mechanism landed). The green-light SHAPE (tendency floor, distance
+  // ceiling, pop-eligibility cut) is identity definition — what a mid-range
+  // player IS — and stays off the sweep surface, same doctrine as
+  // pnrRollGravityCut and dunkerGravityThreshold.
+  { path: 'ai.midRangeBonus', lo: 0.25, hi: 0.9 },
+  { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 }
 ];
 
 /** set a dot-path on a nested object (mutates) */
