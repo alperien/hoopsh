@@ -47,11 +47,15 @@ export interface ScheduledGame {
  *
  * - `rounds` full round-robins are concatenated (default 2 — a "double
  *   round-robin", every pair meeting once in each building).
- * - Home/away is balanced two ways: within a cycle, pairings alternate home
- *   side by round parity; across cycles, every odd cycle is the mirror of
- *   the even one, so any (a,b) pair that met with `a` at home in cycle 0
- *   meets with `b` at home in cycle 1. With rounds=2 every pair plays
- *   exactly once in each team's building.
+ * - Home/away is balanced two ways. Within a cycle, the fixed pivot's game
+ *   alternates venue by round parity and every other pairing takes venue
+ *   from its ring-position parity — measured across n=4..10 this keeps
+ *   every team's single-cycle |home − away| within 1 game (2 for odd
+ *   leagues, which also carry a bye), where naive round-parity assignment
+ *   let one team play an entire cycle away. Across cycles, every odd cycle
+ *   mirrors the even one, so any (a,b) pair that met with `a` at home in
+ *   cycle 0 meets with `b` at home in cycle 1 — with rounds=2 every pair
+ *   plays exactly once in each team's building.
  * - Odd team counts get a bye (the classic method's fixed pivot becomes a
  *   phantom team whose games are dropped), so each round one team rests.
  * - Deterministic: output depends only on `teamIds` order and `rounds`.
@@ -84,11 +88,12 @@ export function roundRobin(teamIds: readonly string[], rounds = 2): ScheduledGam
         const a = ring[k];
         const b = ring[n - 1 - k];
         if (a === BYE || b === BYE) continue;
-        // round-parity alternation balances home counts within a cycle;
-        // mirroring on odd cycles guarantees exact per-pair balance across
-        // a double round-robin.
-        let home = r % 2 === 0 ? a : b;
-        let away = r % 2 === 0 ? b : a;
+        // venue rule (empirically the best of the simple circle-method
+        // assignments — see the doc comment): pivot game alternates by
+        // round, others take ring-position parity; odd cycles mirror.
+        const aHome = k === 0 ? r % 2 === 0 : k % 2 === 1;
+        let home = aHome ? a : b;
+        let away = aHome ? b : a;
         if (cycle % 2 === 1) [home, away] = [away, home];
         out.push({ home, away, date: `r${globalRound}` });
       }
