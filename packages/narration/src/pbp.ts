@@ -2,9 +2,12 @@
  * Template play-by-play: every event rendered to broadcast-ready text with
  * seeded variety pools and repeat-avoidance. Deterministic per game seed.
  *
- * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
- * §6): kept as the reference consumer of the event stream, not a production
- * broadcast product. The engine never depends on this file or anything it
+ * V1 REFERENCE LAYER. The original freeze on this file was lifted by the
+ * project-level decision (2026-07) that commissioned the booth engine
+ * (docs/BROADCAST.md); this file stays behavior-frozen-in-place as the
+ * minimal reference consumer of the event stream, while the booth
+ * (booth.ts + beats.ts + sense.ts + personas.ts) is the production
+ * broadcast layer. The engine never depends on this file or anything it
  * produces — it's a one-way consumer of `GameEvent`s (AGENTS.md §1.3/§6).
  *
  * Template pools philosophy: every rendered line for a repeatable situation

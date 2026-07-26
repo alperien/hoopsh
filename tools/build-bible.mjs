@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Compile the six source documents into docs/BIBLE.md — one file containing
+// Compile the source documents into docs/BIBLE.md — one file containing
 // everything, for handing to an agent in a single context window or reading
 // offline. The Bible is GENERATED: never edit it directly, never let it become
 // a second source of truth. Regenerate with `npm run docs:bible` in the same
@@ -10,26 +10,27 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// canonical reading order: what → why → where → law → procedure → curriculum
+// canonical reading order: what → why → where → law → procedure → design → curriculum
 const SOURCES = [
   'README.md',
   'ARCHITECTURE.md',
   'docs/INTERNALS.md',
   'AGENTS.md',
   'docs/PLAYBOOK.md',
+  'docs/BROADCAST.md',
   'docs/ONBOARDING.md'
 ];
 
 const header = `<!-- ============================================================
   GENERATED FILE — DO NOT EDIT.
-  This is the hoopsh Bible: all six source documents compiled in canonical
+  This is the hoopsh Bible: all ${SOURCES.length} source documents compiled in canonical
   reading order. Edit the sources, then regenerate: npm run docs:bible
   Sources (in order): ${SOURCES.join(' · ')}
 ============================================================ -->
 
 # 📖 The hoopsh Bible — everything, one file
 
-> Generated from the six source documents. If this file and a source document
+> Generated from the ${SOURCES.length} source documents. If this file and a source document
 > disagree, the source is right and this file is stale — regenerate it.
 
 ## Contents

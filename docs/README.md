@@ -25,7 +25,8 @@ This is the hub. If you don't know which document you need, start here.
 | [`docs/INTERNALS.md`](./INTERNALS.md) | Module map, tick pipeline, two time axes, safety net | When looking for where something lives |
 | [`docs/ONBOARDING.md`](./ONBOARDING.md) | Two-evening guided path with checkpoints | Your first two evenings |
 | [`docs/PLAYBOOK.md`](./PLAYBOOK.md) | **The build procedure** — 8 steps, recipes A–G, STOP rules, report format | Every time you write new code |
-| [`docs/BIBLE.md`](./BIBLE.md) | ⚠ GENERATED — all six docs compiled into one file (`npm run docs:bible`) | When you want everything in one context/download |
+| [`docs/BROADCAST.md`](./BROADCAST.md) | The broadcast booth design — sense/beats/heat pipeline, voice packs, turn-taking, event-stream gaps | Working on narration, or consuming the beat/sense layers |
+| [`docs/BIBLE.md`](./BIBLE.md) | ⚠ GENERATED — all source docs compiled into one file (`npm run docs:bible`) | When you want everything in one context/download |
 
 ## Reading paths by role
 
@@ -45,6 +46,10 @@ header (possession accounting) + `stats/box.ts` header (folding rules).
 
 **Tuning realism** → `sim/params.ts` header primer → `harness/src/bands.ts` +
 `knobs.ts` headers → AGENTS §4.4 (calibration etiquette, the noise floor).
+
+**Building on the narration/broadcast layer** → `docs/BROADCAST.md` (the design +
+what the event stream can and cannot support) → `packages/narration/src/booth.ts`
+header → PLAYBOOK Recipe G (consumer tier).
 
 ## Which document answers which question
 

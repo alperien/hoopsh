@@ -58,7 +58,8 @@ event `wt` key on it). Do not mix them.
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (schemas,
-validation, archetypes, sample packs), `narration/` (frozen demo layer),
+validation, archetypes, sample packs), `narration/` (the broadcast booth —
+sense/beats/booth/personas, docs/BROADCAST.md — plus the v1 reference pbp layer),
 `harness/` (batch runner, bands, sweep, fidelity benchmarks, inverse solver), `packages/viewer/` (prototype).
 
 ## Design rules that maintain consistency across this codebase
@@ -226,4 +227,7 @@ when no substitute exists — reachable only with short/foul-storm rosters; the
 no-fouled-out-actors invariant applies whenever replacements exist, and every
 lineup-consuming site falls back consistently rather than crashing — hardened
 after the Stage 2 adversarial audit) ·
-narration/viewer are frozen prototypes.
+the viewer is a frozen prototype ·
+booth narration is template-based and cannot see what the stream doesn't emit:
+no team-action events (never calls "pick-and-roll"), no fatigue, no timeouts
+(docs/BROADCAST.md §3 lists the gaps and the Recipe D candidates that would close them).

@@ -2,15 +2,14 @@
  * Narrative context tracker: scoring runs, lead changes, milestones, clutch.
  * Both the template layer and LLM commentary providers feed on this.
  *
- * FROZEN PROTOTYPE per project decision (see docs/INTERNALS.md's "frozen
- * demo layer" note and ARCHITECTURE.md §6): kept as the reference consumer
- * of the event stream, showing what a narration/commentary experience built
- * on hoopsh's events looks like. The engine never depends on this package or
- * anything it decides — narration purely reads `GameEvent`s and never
- * influences game logic (AGENTS.md §1.3, §6). Frozen means: no new moment
- * kinds or threshold tuning is in scope here without a project-level
- * decision to unfreeze it; bugs found while reading this file are reported,
- * not silently fixed.
+ * V1 REFERENCE LAYER. The original freeze was lifted by the project-level
+ * decision (2026-07) that commissioned the booth engine (docs/BROADCAST.md);
+ * this tracker stays behavior-frozen-in-place as the minimal reference
+ * consumer, while the booth's GameSense (sense.ts) is the production
+ * context layer (it deliberately reuses this file's clutch definition so
+ * the two layers agree on "winning time"). The engine never depends on this
+ * package or anything it decides — narration purely reads `GameEvent`s and
+ * never influences game logic (AGENTS.md §1.3, §6).
  *
  * Moment taxonomy (the `NarrativeMoment['kind']` union below), each fired at
  * most where noted:

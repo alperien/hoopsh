@@ -32,7 +32,8 @@ npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
 npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
 npm run test                     # full suite via node:test (zero installs)
-npm run broadcast                # two-voice broadcast script for a game
+npm run broadcast                # two-voice booth broadcast script for a game
+npm run broadcast -- --booth latenight   # same game, different narrator personas
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
@@ -63,7 +64,7 @@ made/missed shot splashes.
 | `@hoopsh/engine` | Pure, zero-dependency, deterministic sim core (Node + browser) |
 | `@hoopsh/stats` | Event stream → box scores, exact minutes/±, advanced stats, shot charts |
 | `@hoopsh/data` | Player/team schemas, validation, archetype builders, sample teams |
-| `@hoopsh/narration` | Template play-by-play with run/milestone awareness + LLM commentary interfaces |
+| `@hoopsh/narration` | The broadcast booth: two-voice persona play-by-play + analyst with geography, running-stat memory, heat-scaled registers ([design](./docs/BROADCAST.md)) + LLM commentary interfaces |
 | `@hoopsh/harness` | Batch runner, NBA acceptance bands, benchmarks, calibration tooling |
 | `packages/viewer` | Single-file 2D canvas replay viewer (embed tool + drag-and-drop) |
 
@@ -127,7 +128,8 @@ Run it yourself: `npm run batch -- --games 50`.
 
 **Done:** replay viewer · broadcast demo · automated parameter sweep ·
 orchestrator refactor · pick-and-roll · invariant suite · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path)
+campaign (33% engine comment density, contributor covenant, onboarding path) ·
+broadcast booth (persona voice packs, two-voice turn-taking — docs/BROADCAST.md)
 
 **Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
 their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse

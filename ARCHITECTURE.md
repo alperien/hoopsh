@@ -168,16 +168,26 @@ archetype differentiation. Each stage locks before the next tunes.
 
 ## 6. Narration layer
 
-Consumes the event stream; never touches the engine.
+Consumes the event stream; never touches the engine. Full design: [docs/BROADCAST.md](./docs/BROADCAST.md).
 
-1. **Template PBP** — every event rendered to text with variety pools, seeded selection,
-   repeat-avoidance, and context trackers (scoring runs, lead changes, milestones,
-   clutch time).
-2. **`CommentaryProvider` interface** — receives windows of events + narrative context
-   (storylines, box score snapshots, momentum) and returns color commentary. LLM-backed
-   implementations plug in here; the template layer is the zero-cost fallback.
-3. **Broadcast audio** (roadmap) — two-voice play-by-play + color scripts rendered to
-   TTS for highlight reels and quarter recaps.
+1. **The booth** (production layer) — a staged pure pipeline: `GameSense` folds
+   events into running truth (box lines, streaks, droughts, runs, fouls/bonus,
+   possession context); a beat compiler adds semantic tags, court geography
+   from shot coordinates, and a leverage/heat score that selects a register
+   (flat / elevated / peak); a turn-taking director renders it through
+   **voice packs** — narrator personas as data (template pools per
+   kind × register, signature calls under per-game budgets). Two shipped
+   booths; deterministic per seed; cues timed on the wall clock for replay/TTS
+   alignment.
+2. **Template PBP** (v1 reference layer, behavior frozen-in-place) — every
+   event rendered to text with variety pools, seeded selection,
+   repeat-avoidance, and context trackers. The minimal example of consuming
+   the stream.
+3. **`CommentaryProvider` interface** — receives windows of events + narrative
+   context and returns color commentary. LLM-backed implementations plug in
+   here; the deterministic layers are the zero-cost fallback.
+4. **Broadcast audio** (roadmap) — the booth's cue timeline is TTS-ready
+   (wall-clock timed, per-voice); rendering it to audio is the remaining step.
 
 ## 7. Performance budget
 

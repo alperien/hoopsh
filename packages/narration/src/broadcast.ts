@@ -2,11 +2,13 @@
  * Broadcast script builder: merges play-by-play and color commentary into a
  * two-voice script — ready for text display or TTS rendering.
  *
- * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
- * §6): the reference example of wiring pbp.ts + a CommentaryProvider
- * (provider.ts) together into one merged script. The engine never depends on
- * this file — it only consumes `GameEvent`s already produced by a finished
- * sim (AGENTS.md §1.3/§6).
+ * V1 REFERENCE LAYER (freeze lifted 2026-07 with the booth decision,
+ * docs/BROADCAST.md): the reference example of wiring pbp.ts + a
+ * CommentaryProvider (provider.ts) together into one merged script. The
+ * production two-voice pipeline is now booth.ts (`npm run broadcast`); this
+ * one stays runnable via `npm run broadcast -- --legacy`. The engine never
+ * depends on this file — it only consumes `GameEvent`s already produced by
+ * a finished sim (AGENTS.md §1.3/§6).
  */
 
 import type { GameEvent, Team } from '@hoopsh/engine';

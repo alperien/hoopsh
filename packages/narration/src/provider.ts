@@ -8,10 +8,12 @@
  * (Keeping this async and stateless per-window makes it trivial to swap a
  * real LLM in — see the CommentaryProvider interface docs below.)
  *
- * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
- * §6): this is the reference shape for a commentary integration point, not a
- * shipped product. The engine never depends on this file — it only ever
- * consumes `GameEvent`s produced elsewhere (AGENTS.md §1.3/§6).
+ * V1 REFERENCE LAYER (freeze lifted 2026-07 with the booth decision,
+ * docs/BROADCAST.md): this remains the LLM integration seam — a future
+ * LLM-backed provider still implements this exact interface, and
+ * docs/BROADCAST.md §11 plans upgrading CommentaryWindow to carry the
+ * booth's Beat[]/SenseSnapshot. The engine never depends on this file — it
+ * only ever consumes `GameEvent`s produced elsewhere (AGENTS.md §1.3/§6).
  */
 
 import type { GameEvent, Team } from '@hoopsh/engine';
