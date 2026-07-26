@@ -1,8 +1,20 @@
 /**
- * Realism regression guard: a fast, WIDE-band check that fails only on
- * catastrophic drift (the fine-grained lock lives in `npm run batch` and the
- * sweep). Bands here are the NBA acceptance bands widened by 35% on each side
- * — if this test fails, an engine change broke basic statistical realism.
+ * Realism regression guard — the TRIPWIRE, not the lock.
+ *
+ * Role: fail `npm test` (and CI) only when an engine change breaks basic
+ * statistical realism. The fine-grained instruments are elsewhere: the lock
+ * is the three-seed 40-game verify (`npm run sweep -- --iters 0 --verify 40`)
+ * plus the fidelity gate and `npm run oos`. Keep the division of labor —
+ * a tripwire that cries wolf gets deleted, a tripwire that never fires is
+ * decoration.
+ *
+ * Calibration of the tripwire itself: bands are widened 30% of their width
+ * on each side, at 24 deterministic games. Why 30 and not tighter: the two
+ * RECORDED systematic residuals (FTA runs low, 3P% runs high — see
+ * docs/INTERNALS.md findings) sit up to ~20% of band-width outside the true
+ * band on some seed bases, so a widening much below ~30% would alarm on
+ * known, documented state rather than on drift. If those findings get fixed,
+ * tighten this widening in the same commit — that's the ratchet.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -12,7 +24,7 @@ import { sampleMatchup } from '@hoopsh/data';
 import { accumulate, emptyAcc, finalize } from '../src/aggregate.js';
 import { NBA_BANDS } from '../src/bands.js';
 
-const GAMES = 10;
+const GAMES = 24;
 
 describe('realism regression guard (wide bands)', () => {
   const acc = emptyAcc();
@@ -35,8 +47,8 @@ describe('realism regression guard (wide bands)', () => {
     // bands.ts Band.ratchet)
     if (band.ratchet) continue;
     const width = band.hi - band.lo;
-    const lo = band.lo - width * 0.35;
-    const hi = band.hi + width * 0.35;
+    const lo = band.lo - width * 0.30;
+    const hi = band.hi + width * 0.30;
     it(`${band.label}: inside wide band [${lo.toFixed(2)} .. ${hi.toFixed(2)}]`, () => {
       const v = avgs[band.metric]!;
       expect(v).toBeGreaterThanOrEqual(lo);
