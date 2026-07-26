@@ -32,6 +32,7 @@
     "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
     "nba:fetch": "node tools/fetch-nba.mjs",
     "nba:parse": "node tools/parse-nba.mjs",
+    "rosters:fit": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fit-roster.ts",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",
     "docs:bible": "node tools/build-bible.mjs"
