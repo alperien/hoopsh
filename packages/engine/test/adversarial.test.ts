@@ -33,6 +33,16 @@ describe('adversarial input', () => {
       .toThrow(/non-finite rating/);
   });
 
+  it('a game that cannot finish throws instead of returning a fake result', () => {
+    // The tick-loop safety cap is a bug tripwire. An earlier version emitted
+    // a legitimate-looking game_end when it tripped — a stalled game could
+    // masquerade as a valid result. safetyCapTicks is the diagnostics
+    // override that lets us prove the loud-failure path in milliseconds.
+    const { home, away } = sampleMatchup();
+    expect(() => simulateGame({ seed: 'adv-cap', home, away, collectFrames: false, safetyCapTicks: 50 }))
+      .toThrow(/safety cap/);
+  });
+
   it('Rng.weighted rejects non-finite weights loudly', () => {
     const rng = new Rng('adv-weights');
     expect(() => rng.weighted([NaN, 1, 1])).toThrow(/non-finite weight/);

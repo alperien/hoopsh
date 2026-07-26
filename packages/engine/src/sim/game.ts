@@ -36,6 +36,13 @@ export interface GameConfig {
   rules?: RulePack;
   params?: Parameters<typeof withParams>[0];
   collectFrames?: boolean;
+  /**
+   * DIAGNOSTICS ONLY: override the tick-loop safety cap (default: 4× the
+   * longest legal game). The cap exists to catch engine bugs — a game that
+   * hits it throws rather than returning a fake result — and this override
+   * exists so tests can prove that behavior without simulating for hours.
+   */
+  safetyCapTicks?: number;
 }
 
 export interface GameResult {
@@ -441,13 +448,22 @@ export function simulateGame(cfg: GameConfig): GameResult {
   const dt = 1 / s.params.tickHz;
   const hardCapSeconds =
     (s.rules.periods * s.rules.periodMinutes + 12 * s.rules.otMinutes) * 60 + 900;
-  let safety = Math.ceil(hardCapSeconds / dt) * 4;
+  let safety = cfg.safetyCapTicks ?? Math.ceil(hardCapSeconds / dt) * 4;
 
   while (!s.over && safety-- > 0) {
     tick(s, dt);
   }
   if (!s.over) {
-    emit(s, { type: 'game_end' });
+    // The cap tripping means the game FAILED to finish — an engine bug (or a
+    // deliberately tiny safetyCapTicks). An earlier version emitted a
+    // legitimate-looking game_end here, which let a stalled game masquerade
+    // as a valid result; an external review flagged it. Fail loudly instead:
+    // a result you get back from simulateGame is always a finished game.
+    throw new Error(
+      `simulateGame: tick-loop safety cap exhausted before game_end — engine bug, not a valid game ` +
+      `(seed=${String(cfg.seed)}, period=${s.period}, clock=${s.clock.toFixed(1)}s, ` +
+      `phase=${s.phase.kind}, score=${s.score[0]}-${s.score[1]}, events=${s.events.length})`
+    );
   }
   // guarantee the final positions and game_end instant are representable
   recordFrame(s, true);
