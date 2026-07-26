@@ -675,7 +675,16 @@ export const defaultParams: SimParams = {
     // and putbacks are high-percentage because the defense is out of position.
     movePullUp: -0.22,    // off the dribble, defender attached
     moveDrive: -0.08,     // moving finish through traffic
-    moveCutFinish: 0.18,  // caught in stride at the rim (STAGED move type)
+    // caught in stride at the rim. HISTORY (wave-2 taxonomy fix): this value
+    // was set while cut_finish was STAGED — assigned by NO code path — so it
+    // had never once been applied to a real attempt. When the taxonomy fix
+    // wired the type up, it landed on ~30% of all attempts at once and drove
+    // league FG% to 51.0% (band 44-49.5). Measured at n=12: 0.18 -> 51.0%,
+    // 0.00 -> 45.7%, -0.10 -> 45.0%. It is now a LIVE, load-bearing dial on
+    // a large share of shots and must be re-fit by the coordinated sweep
+    // rather than trusted as a hand-set FEEL value; parked at 0 pending that
+    // sweep, because a never-exercised bonus is not evidence for its size.
+    moveCutFinish: 0.0,
     movePost: -0.05,      // FEEL — back-to-basket craft costs a touch vs a clean look
     movePutback: 0.1,     // already inside, defense scrambling
     moveHeave: -2.6,      // ≈ 7% — a desperation launch, correctly awful
