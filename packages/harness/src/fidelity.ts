@@ -36,7 +36,7 @@ const curry: Player = {
   attr: {
     speed: 84, accel: 90, lateral: 70, stamina: 90, strength: 45, vertical: 65,
     finishing: 84, midRange: 90, three: 99, freeThrow: 99, drawFoul: 68,
-    ballHandle: 96, passAcc: 86, passVision: 78,
+    ballHandle: 96, passAcc: 86, passVision: 72,
     perimeterD: 55, interiorD: 25, steal: 68, block: 12, contestSkill: 45,
     offReb: 22, defReb: 48, boxout: 25,
     decisions: 90, consistency: 85
@@ -113,10 +113,24 @@ const team = (id: string, name: string, abbrev: string, star: Player, cast: Play
 });
 
 /** motion-and-gravity cast: a connector forward, shooting, and a rim-runner */
+// The point-forward hub is the CAST mechanism that shapes the real elite
+// shooter's assist profile: the offense INITIATES through the forward while
+// the star plays off-ball, so the star's assists cap in the 5-7 range and
+// his own makes become assisted catch-and-shoots. Authored after the noise
+// floor measured his 40-game AST center at 9.64 vs the 4.5-8.5 identity
+// range (+2σ) — the engine was giving him his hub's assists because the
+// cast had no second creator to route through.
+const dGreen = glueForward({ id: 'gsw-4', name: 'D. Green', pos: 'PF' });
+dGreen.attr.passVision = 90;
+dGreen.attr.passAcc = 86;
+dGreen.attr.ballHandle = 74;
+dGreen.tend.passOut = 78;
+dGreen.tend.usage = 28; // initiates constantly, consumes possessions rarely
+
 const curryTeam = team('fid-gsw', 'Bay Splash', 'BAY', curry, [
   comboGuard({ id: 'gsw-2', name: 'K. Poole', pos: 'SG' }),
   threeAndD({ id: 'gsw-3', name: 'A. Wiggs', pos: 'SF' }),
-  glueForward({ id: 'gsw-4', name: 'D. Green', pos: 'PF' }),
+  dGreen,
   rimRunner({ id: 'gsw-5', name: 'K. Looney', pos: 'C' }),
   benchScorer({ id: 'gsw-6', name: 'B. Six', pos: 'SG' }),
   threeAndD({ id: 'gsw-7', name: 'B. Seven', pos: 'SF' }),
@@ -214,7 +228,7 @@ export const TARGETS: Record<string, Target[]> = {
 
 export const BENCHMARKS: Team[] = [curryTeam, lebronTeam, jokicTeam];
 
-export function runBenchmark(bench: Team, starId: string, games: number): AggLine {
+export function runBenchmark(bench: Team, starId: string, games: number, seedBase = 'fid'): AggLine {
   let agg: AggLine | null = null;
   for (let i = 0; i < games; i++) {
     const { home, away } = sampleMatchup();
@@ -222,7 +236,7 @@ export function runBenchmark(bench: Team, starId: string, games: number): AggLin
     const flip = i % 4 >= 2;               // alternate home court
     const h = flip ? opp : bench;
     const a = flip ? bench : opp;
-    const result = simulateGame({ seed: `fid-${starId}-${i}`, home: h, away: a, collectFrames: false });
+    const result = simulateGame({ seed: `${seedBase}-${starId}-${i}`, home: h, away: a, collectFrames: false });
     const box = boxScore(result.events, [h, a]);
     const line = box.players.find((p) => p.id === starId);
     if (!line) throw new Error(`no line for ${starId}`);

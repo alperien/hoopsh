@@ -118,10 +118,11 @@ complete with invariants intact.
 3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
    re-center; bake the printed diff into `params.ts` defaults; verify with
    `npm run sweep -- --iters 0 --verify 40`.
-4. Expect the noise floor: at 40-game samples, single bands graze edges by ~1-2%
-   on some seeds, with the missing edges drifting between seeds. Nearly-all
-   checks passing with only that drifting residual is a locked state; a repeat
-   miss on the same band across seeds is a systematic finding — record it below.
+4. The noise floor is measured, not assumed: `npm run noisefloor` writes the
+   sampling distribution of every gated statistic (noise-floor.gen.ts) and
+   the permanent gates derive widths from it (edge ± 3·sd). Judge lock state
+   by measured CENTERS at 40 games: every center inside its band = locked; a
+   center on or beyond an edge is a systematic finding — record it below.
 
 **What "locked" does and does not claim.** The bands are league-mean aggregates
 on the repo's own rosters, and the sweep tunes the same knobs the bands grade —
@@ -133,15 +134,41 @@ out-of-sample roster check in the harness; distributional realism (score
 variance, blowout rate, quarter profiles) is reported but not yet enforced.
 Treat band-locked as "necessary, not sufficient".
 
+**Measured findings** (noise-floor era — magnitudes from `npm run noisefloor`
+at 20+ seed bases, superseding the earlier prose findings; the pre-texture
+FTA-low and 3P%-high residuals now PASS after the texture re-tune):
+- **Pace center sits ON the band floor** (measured 24-game mean 94.98 vs the
+  95.0 floor) and **ORtg center sits ON the band ceiling** (121.0 vs 121.0) —
+  one story: the sim scores ~1% too efficiently on slightly few possessions.
+  The z-gates absorb it; the centering itself is an open calibration item.
+- **Elite-shooter benchmark's assist center runs high**: measured 40-game
+  center 9.13 vs the 4.5-8.5 identity range, after two honest authoring
+  fixes (a real point-forward hub in his cast; passVision 78→72) moved it
+  down from 9.64. Residual cause: relocation-era openness converts his
+  passes at elite-hub rates. Candidate mechanism work, not knob work.
+- **Pass volume runs low**: ~2.3 passes/possession vs the NBA's ~3.2 after
+  pass-back damping (baseline was 2.95) — the swing economy thinned; open
+  texture item.
+
 **Out-of-sample status** (`npm run oos` — generated rosters the sweep never
-saw): 15/17 bands generalize, including assisted share and the pace/efficiency
-cluster. Two findings, recorded not hidden: the three-point DIET
-under-expresses on shooter-poor random rosters (3PA share ~30% vs the 33%
-floor — the appetite calibration leans on the sample teams' shooter mix), and
-the distributional report shows games slightly too decisive (avg margin ~13.7
-vs the NBA's ~11-12, blowouts ~23% vs 15-20%, overtime ~2.5% vs 5-7% — one
-coherent story: game-to-game variance runs high). Both are open calibration
-items, not claims.
+saw): re-run at each landing. The texture increment improved the
+distributional report as a side effect — avg margin 12.2 (was 13.7, NBA
+11-12) and blowout share 17% (was 23%, NBA 15-20%) are now in range;
+overtime share (3.3% vs 5-7%) and margin spread (sd ~12 vs 8-9) remain the
+game-state-coupling gap: nothing yet pulls diverging games back together
+or tightens finishes (timeouts, trailing-team urgency, tempo kill).
+Distributional misses are mechanism candidates first, fitting targets
+second — see the roadmap's validation arc.
+
+**Texture (measured by `npm run texture`, before → after the texture
+increment):** average live speed 8.67 → 6.55 ft/s (NBA ~4.2; the residual
+is an open item — real spacing is held even more than the sim holds it),
+stationary share 28% → 33%, ping-pong share of passes 26.8% → 12.4%
+(the eye-test oscillation, largely gone), passes/possession 2.95 → 2.23
+(NBA ~3.2 — the damping overshot; open item). Mechanisms: pass-back
+damping (concept 3's negative side), stillness deadbands with walked
+spacing moves, purposeful relocation with the denied shooter's baseline
+escape.
 
 ## Known simplifications (deliberate, documented)
 
