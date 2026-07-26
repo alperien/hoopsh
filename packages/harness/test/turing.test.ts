@@ -63,6 +63,13 @@ describe('turing dry renderer: bbref shot grammar', () => {
       .toBe('A. Carver makes 2-pt layup from 1 ft');
   });
 
+  it('shot-clock violations are TEAM turnovers, like bbref (never charged to a player)', () => {
+    const tov = { type: 'turnover', team: 0, player: 'sh', kind: 'shot_clock', ...base } as GameEvent;
+    expect(renderEvent(tov, name)).toBe('Turnover by Team (shot clock)');
+    const bad = { type: 'turnover', team: 0, player: 'sh', kind: 'bad_pass', stolenBy: 'p2', ...base } as GameEvent;
+    expect(renderEvent(bad, name)).toBe('Turnover by A. Carver (bad pass; steal by B. Whitfield)');
+  });
+
   it('team rebounds read exactly like bbref: "rebound by Team"', () => {
     const teamDef = { type: 'rebound', team: 1, offensive: false, x: 30, y: 10, ...base } as GameEvent;
     expect(renderEvent(teamDef, name)).toBe('Defensive rebound by Team');

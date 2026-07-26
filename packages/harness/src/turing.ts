@@ -98,11 +98,13 @@ export function renderEvent(
       // playerless = team rebound; "rebound by Team" is bbref's exact phrasing
       return `${e.offensive ? 'Offensive' : 'Defensive'} rebound by ${e.player ? name(e.player) : 'Team'}`;
     case 'turnover': {
+      // bbref charges shot-clock violations to the TEAM, never a player
+      // (10/10 in the reference corpus: "Turnover by Team (shot clock)")
+      if (e.kind === 'shot_clock') return 'Turnover by Team (shot clock)';
       const kind =
         e.kind === 'bad_pass' ? 'bad pass' :
         e.kind === 'lost_ball' ? 'lost ball' :
-        e.kind === 'off_foul' ? 'offensive foul' :
-        e.kind === 'shot_clock' ? 'shot clock' : 'out of bounds';
+        e.kind === 'off_foul' ? 'offensive foul' : 'out of bounds';
       const stl = e.stolenBy ? `; steal by ${name(e.stolenBy)}` : '';
       return `Turnover by ${name(e.player)} (${kind}${stl})`;
     }
