@@ -365,9 +365,15 @@ export function resolveRebound(
       // vertical) because it's attacking from behind; the defense wins by
       // owning the space first (defReb, boxout). Height enters both at 0.6
       // per inch — dominant in absolute terms, as it should be.
+      // skill-forward weights: height matters, but at 0.6/inch it flattened
+      // the spread — every 7-footer rated within ~10% regardless of craft,
+      // and an all-league rebounder read as ordinary (fidelity incident:
+      // a 97-defReb/92-boxout center pulled 7.5 boards). Rebounding is a
+      // zero-sum lottery, so re-weighting redistributes WHO rebounds without
+      // moving league totals.
       const rebSkill = a.side === offSide
-        ? attr.offReb * 0.6 + attr.vertical * 0.25 + a.p.heightIn * 0.6
-        : attr.defReb * 0.45 + attr.boxout * 0.25 + attr.vertical * 0.12 + a.p.heightIn * 0.6;
+        ? attr.offReb * 0.8 + attr.vertical * 0.3 + a.p.heightIn * 0.45
+        : attr.defReb * 0.7 + attr.boxout * 0.35 + attr.vertical * 0.12 + a.p.heightIn * 0.45;
       const sideMult = a.side === offSide ? R.offWeightMult : 1;
       candidates.push(a);
       weights.push(prox * rebSkill * sideMult);

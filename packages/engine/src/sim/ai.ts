@@ -875,9 +875,15 @@ export function defenseTick(s: GameState): void {
 
     const onBall = holder !== null && man.p.id === holder.p.id;
     if (onBall && holder) {
+      // shooting threat CLOSES the gap; drive threat OPENS it — you play a
+      // downhill freight train from depth and concede the pull-up (this is
+      // why a 92-drive point-forward gets his ~5 threes a game: they're
+      // given, not taken; without it his pull-up never fired at 0.7 attempts)
+      const driveThreat = (man.p.tend.drive / 100) * (man.p.attr.speed / 100);
       let gap = Math.max(
         2.2,
         s.params.move.defGapBaseFt - gravity(man) * s.params.move.defGapGravityFt
+          + driveThreat * s.params.move.defGapDriveFt
       );
       // ducking under a screen: drop back, concede the pull-up
       if (s.t < d.navUnderUntil) gap += A.pnrUnderSagFt;

@@ -170,6 +170,8 @@ export interface SimParams {
     defGapBaseFt: number;
     /** gap shrink per unit of shooter gravity (three rating & tendency) */
     defGapGravityFt: number;
+    /** gap GROWTH per unit of drive threat (tend.drive x speed) — sag off the freight train */
+    defGapDriveFt: number;
     /** distance from rim where help defense triggers on a drive */
     helpTriggerFt: number;
     /** contest radius — defenders inside this affect the shot */
@@ -316,7 +318,7 @@ export const defaultParams: SimParams = {
     basePaint: -0.2759,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
-    baseThree: -0.932,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
+    baseThree: -0.94,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
     // How much a rating swings the logit, at rating 100 vs 50. A 0.5 coef
     // means an elite finisher gains ~+12 percentage points at the rim.
     // Three's coef is LOWER than the others on purpose: real three-point
@@ -350,7 +352,7 @@ export const defaultParams: SimParams = {
     // REAL — "on time, on target": teammates of elite passers measurably
     // shoot better; a 94-delivery passer adds ~+0.25 logit (~5-6 points of
     // make% on an open three) vs a neutral one
-    passQualityCoef: 0.18,
+    passQualityCoef: 0.22,
     // Legs at empty (energy 0) vs fresh: ~-8 points of FG%. Tired players
     // shoot worse, which is why rotations matter. FEEL.
     fatigueCoef: -0.35,
@@ -390,7 +392,7 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.4183,
+    shootRim: 0.452,
     shootPaint: 0.1,
     shootMid: 0.05,
     shootThree: 0.012,
@@ -501,6 +503,8 @@ export const defaultParams: SimParams = {
     // tighter, which is what a drive attacks. FEEL, high realism impact.
     defGapBaseFt: 5.0,
     defGapGravityFt: 2.2,
+    // FEEL — a full drive threat buys ~1.6 ft of cushion (concede the jumper)
+    defGapDriveFt: 1.6,
     // A drive inside this distance from the rim summons help — the trigger
     // that makes drive-and-kick emerge without scripting it. FEEL.
     helpTriggerFt: 15,
@@ -631,7 +635,7 @@ export const defaultParams: SimParams = {
     pnrMaxScreenDistFt: 26,
     // FEEL — post/iso action weights and windows; the post score is carried by
     // tend.post so a team without a post threat simply never rolls it
-    postCallShare: 1.0,
+    postCallShare: 1.25,
     postCallCut: 0.1,
     postEntryBonus: 0.22,
     postWorkBoost: 0.2,
