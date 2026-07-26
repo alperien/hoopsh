@@ -147,8 +147,10 @@ export function actionTick(s: GameState): void {
     const travel = dist(a.pos, h.pos);
     if (travel > A.pnrMaxScreenDistFt) continue;
     const score =
-      (1 - gravity(s, a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400
-      - travel / 40;
+      (1 - gravity(s, a)) * A.screenerGravityWeight
+      + (a.p.heightIn - A.screenerHeightBaseIn) / A.screenerHeightDiv
+      + a.p.attr.strength / A.screenerStrengthDiv
+      - travel / A.screenerTravelDiv;
     if (score > bestScore) { bestScore = score; best = a; }
   }
   // the call: screen, post entry, or a clear-out. One weighted roll across
@@ -164,7 +166,7 @@ export function actionTick(s: GameState): void {
     // profile scored 7.9 ppg with 0.6 post touches (fidelity incident)
     if (s.t < a.cutUntil) continue;
     // post appetite carries the score; strength/finishing make it credible
-    const sc = ((a.p.tend.post - 40) / 100) * (0.6 + a.p.attr.strength / 300 + a.p.attr.finishing / 500);
+    const sc = ((a.p.tend.post - A.posterTendOffset) / 100) * (A.posterScoreBase + a.p.attr.strength / A.posterStrengthDiv + a.p.attr.finishing / A.posterFinishingDiv);
     if (sc > posterScore) { posterScore = sc; poster = a; }
   }
   const isoScore = Math.max(0, (h.p.tend.iso - 50) / 100);
@@ -180,7 +182,7 @@ export function actionTick(s: GameState): void {
     // also sprints in. Numerically similar to the gravity() weights but a
     // distinct quantity (selecting who to run the DHO with, not how much
     // the defense respects the eventual shooter).
-    const sc = gravity(s, a) * 0.65 + (a.p.tend.offBallMotion / 100) * 0.35;
+    const sc = gravity(s, a) * A.dhoRecvGravityWeight + (a.p.tend.offBallMotion / 100) * A.dhoRecvMotionWeight;
     if (sc > dhoScore) { dhoScore = sc; dhoRecv = a; }
   }
   const wPnr = best ? 1 : 0;

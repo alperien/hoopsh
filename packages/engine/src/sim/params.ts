@@ -1,10 +1,22 @@
 /**
  * SimParams — THE calibration surface.
  *
- * Every tunable constant in the engine lives here, in one flat, serializable
- * object. Nothing else in the engine may hardcode a behavioral constant: the
- * harness sweeps THIS file (`npm run sweep`) against real NBA acceptance
- * bands, so a number hidden elsewhere is a number the optimizer cannot reach.
+ * Every tunable BEHAVIORAL constant in the engine lives here, in one flat,
+ * serializable object. Nothing else in the engine may hardcode a constant that
+ * affects outcomes: the harness sweeps THIS file (`npm run sweep`) against real
+ * NBA acceptance bands, so a number hidden elsewhere is a number the optimizer
+ * cannot reach.
+ *
+ * THE ONE EXCEPTION — cosmetic/replay-only positioning. A handful of constants
+ * that place bodies for the REPLAY and nothing else stay inline where they're
+ * used: the dead-ball freeze spots (possession.ts setupDeadTargets), the
+ * free-throw lane alignment (fouls.ts enterFreeThrows), and similar "looks
+ * plausible" geometry. No probability, EV, rate, or timing model reads them —
+ * they move pixels in the viewer, not outcomes — so they are deliberately NOT
+ * on the sweep surface (a knob the optimizer can't affect the bands with is
+ * noise in the search space). Each such site says so in a comment. If you find
+ * an inline number that feeds a make/foul/turnover/rebound/decision path, that
+ * IS a bug against this rule — move it here.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * HOW TO READ THESE NUMBERS
@@ -104,6 +116,17 @@ export interface SimParams {
     windupPost: number;
     windupPutback: number;
     windupHeave: number;
+    /** release-time contest share at startShot; the decision-time contest gets
+     *  the remaining 1 - this (a late closeout counts less than a set contest) */
+    contestReleaseBlend: number;
+    /** shooting-foul probability multiplier when the shot went IN (and-one is
+     *  rarer than a foul on a miss) */
+    andOneFoulMult: number;
+    /** shooting-foul probability multiplier when the shot was blocked */
+    blockedFoulMult: number;
+    /** shot flight time = flightBaseSec + distFt × flightPerFt (seconds) */
+    flightBaseSec: number;
+    flightPerFt: number;
   };
 
   foul: {
@@ -114,14 +137,33 @@ export interface SimParams {
     shootThree: number;
     /** multiplier range from contest tightness (tight contests foul more) */
     contestFactor: number;
+    /** foul-drawing craft swing: elite drawFoul draws this much more, per n() */
+    drawFoulSwing: number;
+    /** defender foulAggr swing: a max-aggression defender fouls this much more */
+    foulAggrSwing: number;
+    /** hard cap on any single shooting-foul probability */
+    shootFoulCap: number;
     /** chance per second of on-ball pressure that a reach-in occurs */
     reachInPerSec: number;
     /** reach-in rate multiplier while the holder is driving or backing down */
     attackReachInMult: number;
+    /** gambleSteal swing on the per-tick reach-in rate */
+    reachInGambleSwing: number;
+    /** hand-check range for a reach-in: tight normally, gather-range while attacking */
+    reachDistFt: number;
+    attackReachDistFt: number;
+    /** clean-strip share model: base ± steal/ballHandle swings, clamped */
+    stripBase: number;
+    stripStealSwing: number;
+    stripHandleSwing: number;
+    stripMin: number;
+    stripMax: number;
     /** added clean-strip share on attacking reach-ins (pokes at the gather) */
     attackStripBonus: number;
     /** offensive foul (charge) chance per drive */
     chargePerDrive: number;
+    /** per-tick multiplier folded into the charge roll (chargePerDrive × dt × this) */
+    chargeTickMult: number;
     /** loose-ball foul chance per contested rebound */
     looseBallPerReb: number;
   };
@@ -220,6 +262,10 @@ export interface SimParams {
     postLeanShare: number;
     /** interior-vs-perimeter role-defense boundary for the contest model, ft */
     nearRimFt: number;
+    /** ball-handler speed (ft/s) above which dribble accounting accrues */
+    dribbleSpeedFtS: number;
+    /** seconds of dribbling above that speed per counted dribble (assist window) */
+    dribbleSec: number;
     /** within this of the computed spot, off-ball players STOP (stillness-as-default) */
     arrivalDeadbandFt: number;
     /** defensive version: sag ideals drift with every ball move — reposition on the CATCH, not continuously */
@@ -249,10 +295,24 @@ export interface SimParams {
   sub: {
     /** energy threshold that queues a substitution at the next dead ball */
     tiredThreshold: number;
+    /** extra energy points a bench player is pulled earlier than a starter */
+    benchTiredBonus: number;
     rotationLeashScale: number;  // energy-leash points per 100% of minutes-pace deviation
     rotationLeashMax: number;    // leash adjustment cap (energy points)
     /** energy at which a bench player is considered ready */
     readyThreshold: number;
+    /** ready-bar relief for a behind-pace targeted player (returns eagerly) */
+    readyReliefBonus: number;
+    /** minutes-pace below which a targeted player counts as behind (returns eager) */
+    eagerReturnPace: number;
+    /** minutes-pace above which a rested targeted player is held back */
+    aheadHoldPace: number;
+    /** crunch time: final period, under this many clock seconds, close game */
+    crunchClockSec: number;
+    /** crunch margin: absolute score gap at/under which crunch rotation applies */
+    crunchMarginPts: number;
+    /** crunch energy floor: a starter this rested can be pulled back on late */
+    crunchEnergyMin: number;
   };
 
   /**
@@ -373,6 +433,22 @@ export interface SimParams {
     pnrMinShotClock: number;     // don't start an action later than this
     pnrWaitBoost: number;        // handler hold-utility boost while the screen arrives
     pnrMaxScreenDistFt: number;  // screener candidates farther than this are skipped
+    // screener-selection scoring (actionTick): low-gravity size makes a good
+    // screen (his man sags), discounted by travel distance. Were inline weights.
+    screenerGravityWeight: number; // weight of (1 - gravity) in the screener score
+    screenerHeightBaseIn: number;  // height baseline subtracted before scaling
+    screenerHeightDiv: number;     // divisor turning height-over-baseline into score
+    screenerStrengthDiv: number;   // divisor on strength's screener-score contribution
+    screenerTravelDiv: number;     // divisor penalizing how far the screener must travel
+    // poster-selection scoring (actionTick): post appetite carries it, strength
+    // and finishing make it credible. Were inline weights.
+    posterTendOffset: number;      // post-tendency neutral point for the poster score
+    posterScoreBase: number;       // base multiplier before strength/finishing add in
+    posterStrengthDiv: number;
+    posterFinishingDiv: number;
+    // DHO-receiver-selection scoring (actionTick): a shooter who also sprints in.
+    dhoRecvGravityWeight: number;
+    dhoRecvMotionWeight: number;
     // post-up action
     postCallShare: number;       // weight of the post option in the action-call roll
     postCallCut: number;         // minimum poster score to consider an entry
@@ -495,9 +571,23 @@ export const defaultParams: SimParams = {
     windupPullUp: 0.55,
     windupDrive: 0.45,
     windupCutFinish: 0.3,
-    windupPost: 0.65,   // STAGED
+    windupPost: 0.65,
     windupPutback: 0.25, // shortest: already up in the air
-    windupHeave: 0.3
+    windupHeave: 0.3,
+    // Contest at RELEASE is blended with contest at the decision instant: a
+    // late closeout bothers a shot less than a set contest. This is the
+    // release-time share (decision gets 1 - it). FEEL — was inline in
+    // shooting.ts startShot (0.55 decision / 0.45 release).
+    contestReleaseBlend: 0.45,
+    // A shooting foul on a MADE shot (and-one) is far rarer than one on a
+    // miss; a foul on a blocked shot is rarer still. FEEL — were inline
+    // damping factors in shooting.ts.
+    andOneFoulMult: 0.28,
+    blockedFoulMult: 0.35,
+    // Ball flight time to the rim = base + distance × per-ft. FEEL — was the
+    // inline `0.45 + loc.distFt * 0.021` in shooting.ts startShot.
+    flightBaseSec: 0.45,
+    flightPerFt: 0.021
   },
 
   foul: {
@@ -513,16 +603,40 @@ export const defaultParams: SimParams = {
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
     // (smothered). Ties foul rate to defensive aggression. FEEL.
     contestFactor: 1.6,
+    // Shooting-foul craft swings (were inline in resolve.ts shootingFoulP):
+    // an elite foul-drawer earns ~65% more whistles, a max-aggression
+    // defender fouls ~50% more, and no single attempt exceeds a 60% foul
+    // chance (hack-a-Shaq still leaves a clean-play chance). FEEL.
+    drawFoulSwing: 0.65,
+    foulAggrSwing: 0.5,
+    shootFoulCap: 0.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
     reachInPerSec: 0.0175,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
+    // gambleSteal swing on the per-tick reach-in rate; hand-check ranges (tight
+    // normally, gather-range while attacking). FEEL — were inline in passing.ts
+    // attemptReachIn.
+    reachInGambleSwing: 0.85,
+    reachDistFt: 4.2,
+    attackReachDistFt: 5.5,
+    // Clean-strip share once a reach-in happens: base, +steal / -ballHandle
+    // swings, clamped so the best/worst matchup still has a real chance either
+    // way. FEEL — were inline in passing.ts attemptReachIn's stripP.
+    stripBase: 0.3,
+    stripStealSwing: 0.3,
+    stripHandleSwing: 0.22,
+    stripMin: 0.08,
+    stripMax: 0.85,
     attackStripBonus: 0.25,
     // Charges per drive — deliberately rare; the offensive foul is the least
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
+    // Per-tick multiplier folded into the charge roll (game.ts tickLive:
+    // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
+    chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
     looseBallPerReb: 0.0365
   },
@@ -684,6 +798,11 @@ export const defaultParams: SimParams = {
     // of perimeterD. Approximately the paint distance where rim protection
     // begins to matter more than perimeter footwork. FEEL.
     nearRimFt: 14,  // FEEL — interior-vs-perimeter role-defense boundary, ft
+    // Dribble accounting for the assist window: while the holder moves faster
+    // than dribbleSpeedFtS, every dribbleSec of it counts as one dribble.
+    // FEEL — were inline literals in game.ts tickLive.
+    dribbleSpeedFtS: 3.5,
+    dribbleSec: 0.55,
     // Stillness-as-default: within the deadband of the computed spot an
     // off-ball player (either side) holds position instead of micro-chasing
     // a drifting target every tick. Texture forensics found 8.67 ft/s
@@ -754,11 +873,28 @@ export const defaultParams: SimParams = {
     // numbers ARE the rotation pattern: ~8-9 man rotations, starters ~30-34
     // minutes. FEEL, validated by the archetype minutes test.
     tiredThreshold: 62,
+    // FEEL — a reserve is pulled 12 energy points earlier than a starter
+    // (shorter leash, deeper bench rotation). Was inline in subs.ts checkSubs.
+    benchTiredBonus: 12,
     // FEEL — minutes-aware rotation: 10% behind a coach's minutes target buys
     // ~6 energy points of extra leash, capped so nobody plays to collapse
     rotationLeashScale: 60,
     rotationLeashMax: 14,
-    readyThreshold: 88
+    readyThreshold: 88,
+    // FEEL — rotation-controller gates, were inline in subs.ts checkSubs. A
+    // behind-pace targeted player returns eagerly (ready bar relieved by 8,
+    // pace < 0.97); an ahead-pace one is held back even when rested
+    // (pace > 1.08). 0.97/1.08 bracket the target from both sides so minutes
+    // settle at ~target (0.92 gate produced 33 of 36; these two tightened it).
+    readyReliefBonus: 8,
+    eagerReturnPace: 0.97,
+    aheadHoldPace: 1.08,
+    // FEEL — crunch time: the final scheduled period (or OT), inside 5:00,
+    // within 10 points; coaches ride starters who can still stand (energy
+    // > 35) regardless of the normal fatigue read. Were inline in checkSubs.
+    crunchClockSec: 300,
+    crunchMarginPts: 10,
+    crunchEnergyMin: 35
   },
 
   ai: {
@@ -948,6 +1084,21 @@ export const defaultParams: SimParams = {
     pnrMinShotClock: 8,
     pnrWaitBoost: 0.3,
     pnrMaxScreenDistFt: 26,
+    // FEEL — action-SELECTION scoring weights (actionTick), all previously
+    // inline literals. These pick WHICH teammate screens/posts/receives a
+    // DHO; they shape who-does-what outcomes, so they belong on the sweep
+    // surface even though no acceptance band targets them directly.
+    screenerGravityWeight: 1.5,
+    screenerHeightBaseIn: 70,
+    screenerHeightDiv: 28,
+    screenerStrengthDiv: 400,
+    screenerTravelDiv: 40,
+    posterTendOffset: 40,
+    posterScoreBase: 0.6,
+    posterStrengthDiv: 300,
+    posterFinishingDiv: 500,
+    dhoRecvGravityWeight: 0.65,
+    dhoRecvMotionWeight: 0.35,
     // FEEL — post/iso action weights and windows; the post score is carried by
     // tend.post so a team without a post threat simply never rolls it
     postCallShare: 1.875,

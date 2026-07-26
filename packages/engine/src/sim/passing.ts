@@ -190,13 +190,13 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // than onBallDefender's own 12ft "who guards him" radius, since a reach-in
   // needs the defender close enough to actually get a hand on the ball
   // (attacking widens it to gather range: strips happen at the gather)
-  if (!d || dist(d.pos, h.pos) > (attacking ? 5.5 : 4.2)) return;
   const F = s.params.foul;
+  if (!d || dist(d.pos, h.pos) > (attacking ? F.attackReachDistFt : F.reachDistFt)) return;
   // per-tick probability from a per-second rate (reachInPerSec * dt), boosted
   // up to +85% for a maximum-gambleSteal defender — aggressive gamblers reach
   // in far more often than conservative ones, at the cost of the foul risk below
   const exposure = attacking ? F.attackReachInMult : 1;
-  const p = F.reachInPerSec * dt * exposure * (1 + 0.85 * n(d.p.tend.gambleSteal));
+  const p = F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
   if (!s.rng.chance(p)) return;
 
   // given a reach-in happens, stripP is the clean-strip share: 0.3 base, +0.3
@@ -209,8 +209,8 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // more often than a hack (without the skew, the attack-exposure tax paid
   // out in fouls instead of the turnovers it exists to produce)
   const stripP = clamp(
-    0.3 + (attacking ? F.attackStripBonus : 0) + 0.3 * n(d.p.attr.steal) - 0.22 * n(h.p.attr.ballHandle),
-    0.08, 0.85
+    F.stripBase + (attacking ? F.attackStripBonus : 0) + F.stripStealSwing * n(d.p.attr.steal) - F.stripHandleSwing * n(h.p.attr.ballHandle),
+    F.stripMin, F.stripMax
   );
   if (s.rng.chance(stripP)) {
     emit(s, {

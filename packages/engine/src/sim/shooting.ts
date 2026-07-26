@@ -45,7 +45,8 @@ export function startShot(
   if (contest0 !== undefined) {
     // a late closeout bothers the shot less than a set contest:
     // blend the contest at decision time with the contest at release
-    contest.level = 0.55 * contest0 + 0.45 * contest.level;
+    const rel = s.params.shot.contestReleaseBlend;
+    contest.level = (1 - rel) * contest0 + rel * contest.level;
   }
   const loc = classifyShot(s.rules, s.court, rim, shooter.pos);
   const p = shotMakeP(s, shooter, loc.zone, loc.distFt, moveType, contest);
@@ -59,8 +60,8 @@ export function startShot(
 
   // shooting foul?
   let foul: PendingShot['foul'];
-  const pFoul = shootingFoulP(s, shooter, loc.zone, contest) * (blockedBy ? 0.35 : 1);
-  const foulRoll = s.rng.chance(made ? pFoul * 0.28 : pFoul);
+  const pFoul = shootingFoulP(s, shooter, loc.zone, contest) * (blockedBy ? s.params.shot.blockedFoulMult : 1);
+  const foulRoll = s.rng.chance(made ? pFoul * s.params.shot.andOneFoulMult : pFoul);
   if (foulRoll && contest.by) {
     foul = {
       by: contest.by,
@@ -108,7 +109,7 @@ export function startShot(
     return;
   }
 
-  const flightTime = 0.45 + loc.distFt * 0.021;
+  const flightTime = s.params.shot.flightBaseSec + loc.distFt * s.params.shot.flightPerFt;
   s.ball.flight = {
     kind: 'shot',
     from: { ...shooter.pos },

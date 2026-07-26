@@ -309,9 +309,9 @@ function tickLive(s: GameState, dt: number): void {
   }
 
   // dribble accounting (for assist windows)
-  if (len(h.vel) > 3.5) {
+  if (len(h.vel) > s.params.move.dribbleSpeedFtS) {
     h.dribbleAcc += dt;
-    if (h.dribbleAcc >= 0.55) {
+    if (h.dribbleAcc >= s.params.move.dribbleSec) {
       h.dribbleAcc = 0;
       h.dribblesSinceCatch += 1;
     }
@@ -339,7 +339,7 @@ function tickLive(s: GameState, dt: number): void {
   // charge check while driving — turnover first, THEN the foul: recordFoul
   // may foul the driver out and emit his replacement sub, and the turnover
   // must not appear to be committed by a player already off the floor
-  if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * 2)) {
+  if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * s.params.foul.chargeTickMult)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'off_foul'
     });

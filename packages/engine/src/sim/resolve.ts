@@ -252,13 +252,13 @@ export function shootingFoulP(
   //                biggest driver of individual FTA differences.
   //  aggr        — the DEFENDER's foulAggr tendency: hackers foul ~50% more
   const contestMult = 1 + (F.contestFactor - 1) * contest.level;
-  const draw = 1 + 0.65 * n(shooter.p.attr.drawFoul);
+  const draw = 1 + F.drawFoulSwing * n(shooter.p.attr.drawFoul);
   let aggr = 1;
   if (contest.by) {
-    aggr = 1 + 0.5 * n(agent(s, contest.by).p.tend.foulAggr);
+    aggr = 1 + F.foulAggrSwing * n(agent(s, contest.by).p.tend.foulAggr);
   }
-  // hard cap 60%: even a hack-a-Shaq scenario leaves some chance of a clean play
-  return clamp(base * contestMult * draw * aggr, 0, 0.6);
+  // hard cap (shootFoulCap): even a hack-a-Shaq scenario leaves some chance of a clean play
+  return clamp(base * contestMult * draw * aggr, 0, F.shootFoulCap);
 }
 
 // ---------- passing ----------

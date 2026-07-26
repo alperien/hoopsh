@@ -69,8 +69,8 @@ export function checkSubs(s: GameState, protect?: string): void {
   // when coaches ride their best five regardless of the clock's fatigue read
   const crunch =
     s.period >= s.rules.periods &&
-    s.clock < 300 &&
-    Math.abs(s.score[0] - s.score[1]) <= 10;
+    s.clock < P.crunchClockSec &&
+    Math.abs(s.score[0] - s.score[1]) <= P.crunchMarginPts;
 
   for (const side of [0, 1] as TeamSide[]) {
     const team = s.teams[side];
@@ -87,7 +87,7 @@ export function checkSubs(s: GameState, protect?: string): void {
         if (!starters.has(id)) {
           const starter = team.starters
             .map((sid) => agent(s, sid))
-            .find((x) => !x.onCourt && !x.fouledOut && x.energy > 35);
+            .find((x) => !x.onCourt && !x.fouledOut && x.energy > P.crunchEnergyMin);
           if (starter) swapPlayers(s, side, a, starter);
         }
         continue;
@@ -95,7 +95,7 @@ export function checkSubs(s: GameState, protect?: string): void {
       // starters run longer stints; bench players yield the floor back sooner —
       // a starter plays until tiredThreshold, a reserve is pulled 12 energy
       // points earlier (shorter leash, deeper bench rotation)
-      let tiredAt = starters.has(id) ? P.tiredThreshold : P.tiredThreshold + 12;
+      let tiredAt = starters.has(id) ? P.tiredThreshold : P.tiredThreshold + P.benchTiredBonus;
       // minutes-aware leash: with a coach's target (Team.rotationMinutes) a
       // behind-pace player is ridden deeper into fatigue and an ahead-of-pace
       // one rests earlier. Teams without targets are byte-identical to the
@@ -115,7 +115,7 @@ export function checkSubs(s: GameState, protect?: string): void {
         // ahead-hold at 1.08 brackets the target from both sides.
         const behindPace = (b: Agent) => {
           const bp = minutesPace(s, side, b);
-          return bp !== null && bp < 0.97;
+          return bp !== null && bp < P.eagerReturnPace;
         };
         const bench = team.players
           .map((p) => agent(s, p.id))
@@ -125,8 +125,8 @@ export function checkSubs(s: GameState, protect?: string): void {
             // HELD BACK even when rested — without this, most-rested sorting
             // returned the star at every dead ball and targets read 44 min
             const bp = minutesPace(s, side, b);
-            if (bp !== null && bp > 1.08) return false;
-            return b.energy >= (behindPace(b) ? P.readyThreshold - 8 : P.readyThreshold);
+            if (bp !== null && bp > P.aheadHoldPace) return false;
+            return b.energy >= (behindPace(b) ? P.readyThreshold - P.readyReliefBonus : P.readyThreshold);
           });
         if (bench.length === 0) continue;
         // prefer behind-pace targets, then a same-position replacement
