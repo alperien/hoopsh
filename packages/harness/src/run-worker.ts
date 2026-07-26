@@ -33,7 +33,10 @@ interface Job { task: GameTaskName; seedBase: string; start: number; count: numb
 const job = JSON.parse(readFileSync(jobPath, 'utf8')) as Partial<Job>;
 
 if (typeof job.task !== 'string' || !(GAME_TASK_NAMES as string[]).includes(job.task)) {
-  throw new Error(`run-worker: unknown task ${JSON.stringify(job.task)} (valid: ${GAME_TASK_NAMES.join(', ')})`);
+  // same phrasing as runGamesInProcess's own guard so callers/tests can
+  // match one string for "the task name was bad" regardless of which side
+  // of the process boundary caught it
+  throw new Error(`run-worker: unknown game task ${JSON.stringify(job.task)} (valid: ${GAME_TASK_NAMES.join(', ')})`);
 }
 if (typeof job.seedBase !== 'string' || job.seedBase.length === 0) {
   throw new Error(`run-worker: seedBase must be a non-empty string, got ${JSON.stringify(job.seedBase)}`);
