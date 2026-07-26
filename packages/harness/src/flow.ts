@@ -34,7 +34,9 @@
  *     seconds; FT sequences freeze t, matching how possession-length data
  *     is usually reported against the shot/game clock).
  *
- * Run: npm run flow [-- --games 48 --seed flow]
+ * Run: npm run flow [-- --games 48 --seed flow --endgame]
+ * (--endgame runs with GameConfig.endgame ON — the off/on comparison for
+ *  the endgame layer's target metrics: clutch FT share, Q4 shape, tails.)
  */
 
 import { simulateGame, type GameEvent } from '@hoopsh/engine';
@@ -197,7 +199,7 @@ export interface FlowAverages {
   secondChanceShare: number;
 }
 
-export function measureFlow(games: number, seedBase: string): FlowAverages {
+export function measureFlow(games: number, seedBase: string, endgame = false): FlowAverages {
   const flows: GameFlow[] = [];
   for (let i = 0; i < games; i++) {
     const { home, away } = sampleMatchup();
@@ -206,7 +208,8 @@ export function measureFlow(games: number, seedBase: string): FlowAverages {
       seed: `${seedBase}-${i}`,
       home: flip ? away : home,
       away: flip ? home : away,
-      collectFrames: false
+      collectFrames: false,
+      endgame
     });
     flows.push(gameFlow(r.events));
   }
@@ -244,9 +247,13 @@ const isMain = process.argv[1]?.endsWith('flow.ts');
 if (isMain) {
   const games = flagNumber(process.argv, '--games', 48);
   const seedBase = flagValue(process.argv, '--seed', 'flow');
-  console.log(`Measuring game flow over ${games} games (seed base "${seedBase}")...\n`);
+  // --endgame: run with the endgame layer ON (GameConfig.endgame) — this is
+  // the intended off/on comparison tool for exactly the metrics the layer
+  // exists to move (clutch FT share, Q4 profile, possession-length tails)
+  const endgame = process.argv.includes('--endgame');
+  console.log(`Measuring game flow over ${games} games (seed base "${seedBase}"${endgame ? ', endgame layer ON' : ''})...\n`);
   const t0 = performance.now();
-  const m = measureFlow(games, seedBase);
+  const m = measureFlow(games, seedBase, endgame);
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)}s)\n`);
 
   // reference values: data/nba/flow-reference.json (values + provenance)

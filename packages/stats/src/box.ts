@@ -69,7 +69,7 @@ export interface PlayerLine {
   zones: ZoneLine;
 }
 
-/** One team's game totals. `poss` is the possession_end count (see boxScore); `fastbreakPts` follows the convention documented at the 'shot' case in boxScore — it does not include free throws. */
+/** One team's game totals. `poss` is the possession_end count (see boxScore); `fastbreakPts` follows the convention documented at the 'shot' case in boxScore — it does not include free throws. `timeouts` counts `timeout` events (endgame-layer games only; always 0 for a default-config stream, which never emits one). */
 export interface TeamTotals {
   side: TeamSide;
   teamId: string;
@@ -90,6 +90,7 @@ export interface TeamTotals {
   pf: number;
   poss: number;
   fastbreakPts: number;
+  timeouts: number;
 }
 
 export interface BoxScore {
@@ -136,7 +137,7 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
     teamId: teams[side as TeamSide].id,
     pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
     orb: 0, drb: 0, trb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0,
-    poss: 0, fastbreakPts: 0
+    poss: 0, fastbreakPts: 0, timeouts: 0
   })) as [TeamTotals, TeamTotals];
 
   const onCourt: [Set<string>, Set<string>] = [new Set(), new Set()];
@@ -318,6 +319,13 @@ export function boxScore(events: GameEvent[], teams: [Team, Team]): BoxScore {
         const line = lines.get(e.on)!;
         line.pf += 1;
         totals[e.team].pf += 1;
+        break;
+      }
+      case 'timeout': {
+        // team-level only — a timeout belongs to no player's line. Folding
+        // it here (rather than the default arm) keeps the event visible in
+        // the box the same way a real one lists team timeouts used.
+        totals[e.team].timeouts += 1;
         break;
       }
       default: break;

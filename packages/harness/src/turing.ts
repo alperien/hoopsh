@@ -103,6 +103,11 @@ function renderEvent(e: GameEvent, name: (id: string) => string): string | null 
     }
     case 'substitution':
       return `${name(e.in[0]!)} enters the game for ${name(e.out[0]!)}`;
+    case 'timeout':
+      // the bbref dry register lists these as team timeouts — endgame-flag
+      // games only; without this line the layer's signature stoppages would
+      // silently vanish from exactly the excerpts the protocol judges
+      return `Team timeout`;
     default:
       return null;
   }

@@ -1061,9 +1061,12 @@ export const defaultParams: SimParams = {
     // the classic 2-for-1 release window
     twoForOneMinClockSec: 28,
     twoForOneMaxClockSec: 38,
-    // worth ~0.45 points of shot-quality concession at the window's center —
-    // roughly half an average possession, the real trade being made
-    twoForOneCut: 0.3,
+    // worth ~0.6 points of shot-quality concession at the window's center —
+    // roughly half an average possession, the real trade being made (probed
+    // at 0.3 the window's shot rate barely moved over flag-off: the tent
+    // shape means the AVERAGE cut across the window is about half the peak,
+    // and half of 0.3 didn't clear the continuation bar often enough)
+    twoForOneCut: 0.45,
     // fouling starts at min(35 s, one full shot clock per possession needed)
     foulTrailMaxClockSec: 35,
     foulMinDeficit: 3,
@@ -1075,7 +1078,9 @@ export const defaultParams: SimParams = {
     foulHuntStripShare: 0.12,
     foulHuntReachDistFt: 6,
     foulHuntGapFt: 1.5,
-    // stop-the-run threshold: 10-0 is the canonical "timeout, regroup"
+    // stop-the-run threshold: 10-0 is the canonical "timeout, regroup".
+    // Probed at 8 the coaches got chatty — 4.3 run timeouts/game combined,
+    // a panic button; at 10 it's ~1/game, the real once-or-twice cadence
     timeoutRunPts: 10,
     // advance timeouts live inside the final ~0:45 of a close game
     timeoutAdvanceClockSec: 45,

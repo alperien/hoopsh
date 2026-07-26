@@ -284,6 +284,23 @@ function renderEvent(
         `Loose-ball foul on ${who}`;
       return `${base}${extras.length ? ' — ' + extras.join(', ') : ''}.`;
     }
+    case 'timeout': {
+      // endgame-layer games only (a default-config stream never carries one).
+      // The two reasons read differently on a broadcast: a run-stopper is
+      // about the bleeding, an advance is pure late-game procedure.
+      const team = lk.teamName(e.team);
+      if (e.reason === 'advance') {
+        return pool.pick('to_adv', [
+          `Timeout ${team} — they'll advance the ball into the frontcourt.`,
+          `${team} use a timeout to move the ball up. ${e.remaining} left.`
+        ]);
+      }
+      return pool.pick('to_run', [
+        `Timeout ${team} — got to stop this run.`,
+        `${team} call time to regroup. ${e.remaining} remaining.`,
+        `That'll be a timeout from the ${team} bench.`
+      ]);
+    }
     case 'substitution':
       return null; // too noisy for PBP; viewers show these separately
     case 'possession_start':
