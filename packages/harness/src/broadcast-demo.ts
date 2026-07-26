@@ -1,6 +1,6 @@
 /**
  * Broadcast demo:
- *   npm run broadcast [-- --seed showcase-v2 --booth classic|latenight]
+ *   npm run broadcast [-- --seed showcase-v2 --booth classic|tnt]
  *   npm run broadcast -- --legacy          # the v1 pbp+color pipeline
  * Sims a game (deterministic by seed) and renders the two-voice BOOTH script
  * (docs/BROADCAST.md): play-by-play + analyst with geography, running-stat
@@ -42,10 +42,13 @@ if (legacy) {
   console.log(`final: ${home.abbrev} ${result.finalScore[0]} — ${away.abbrev} ${result.finalScore[1]}`);
   console.log(`${cues.length} cues (legacy pipeline) → ${file}`);
 } else {
-  const booth = BOOTH_PRESETS[boothId] ?? BOOTH_PRESETS.classic;
-  const cues = buildBoothScript(result.events, [home, away], { seed, booth: boothId in BOOTH_PRESETS ? boothId : 'classic' });
+  const validBooth = boothId in BOOTH_PRESETS ? boothId : 'classic';
+  const booth = BOOTH_PRESETS[validBooth];
+  const cues = buildBoothScript(result.events, [home, away], { seed, booth: validBooth });
   const script = formatBoothScript(cues, booth);
-  const file = `out/broadcast-${seed}.txt`;
+  // booth id in the filename so comparing pairings on one seed never
+  // overwrites the other script
+  const file = `out/broadcast-${seed}${validBooth === 'classic' ? '' : `-${validBooth}`}.txt`;
   writeFileSync(file, script);
 
   const pbpCount = cues.filter((c) => c.speaker === 'pbp').length;

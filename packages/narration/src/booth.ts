@@ -66,8 +66,13 @@ const FT_GAP_COOLDOWN_WT = 20; // spacing before free-throw-routine filler fires
 const SCORE_MENTION_EVERY_T = 150; // game-clock seconds of score silence before a re-anchor
 const SCORE_MENTION_LATE_T = 45; // tighter anchoring inside the last two minutes
 
-/** shared booth-level tag phrasings (persona-neutral connective tissue) */
-const ASSIST_TAGS = [' {assist} with the assist.', ' Feed from {assist}.', ' {assist} finds him.'];
+/**
+ * shared booth-level tag phrasings (persona-neutral connective tissue) —
+ * genre-standard credit formulas only; anything with personality belongs in
+ * a VoicePack, and anything cleverer than these is banned by the style
+ * contract (docs/BROADCAST.md).
+ */
+const ASSIST_TAGS = [' From {assist}.', ' {assist} with the assist.', ' Set up by {assist}.'];
 
 function nickname(team: Team): string {
   return team.name.split(' ').pop() ?? team.name;
@@ -157,6 +162,7 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
       reb: String(b.snap.reb),
       ast: String(b.snap.ast),
       hitStreak: String(b.snap.hitStreak),
+      tpm: String(b.snap.tpm),
       ftLine: `${b.snap.ftm}-of-${b.snap.fta}`,
       run: runText(b.note?.kind === 'run' ? (b.note.value ?? b.snap.run) : b.snap.run),
       runPts: String(b.note?.kind === 'run' ? (b.note.value ?? b.snap.run) : b.snap.run),
@@ -229,12 +235,12 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
     const byPost = [...team.players].sort((x, y) => y.tend.post - x.tend.post)[0]!;
     const { pace, threeBias } = team.tactics;
     if (pace >= 58 && threeBias >= 58) {
-      return `The ${nick} want pace and threes — they will happily trade twos for triples all night, and ${lk.name(byThree.id)} is the tip of the spear.`;
+      return `The ${nick} want to run — they play fast, they shoot the three, and it starts with ${lk.name(byThree.id)}.`;
     }
     if (pace <= 52 && threeBias <= 50) {
-      return `The ${nick} want this game in the mud: walk it up, punish you inside${byPost.tend.post >= 60 ? ` — ${lk.name(byPost.id)} doing the heavy lifting on the block` : ''} — and make every possession a fistfight.`;
+      return `The ${nick} want a slow game and points in the painted area${byPost.tend.post >= 60 ? ` — they will throw it in to ${lk.name(byPost.id)} and let him work` : ''}.`;
     }
-    return `The ${nick} take what the defense concedes, and ${lk.name(byThree.id)} makes you pay for the mistakes.`;
+    return `The ${nick} are balanced — they take what the defense gives them, and ${lk.name(byThree.id)} is the number one option.`;
   };
 
   const statNote = (b: Beat): string => {
@@ -256,7 +262,7 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
     const fbD = Math.abs(r.fb[0] - r.fb[1]);
     if (fbD >= 6) {
       const s = side(r.fb);
-      cands.push({ ratio: fbD / 6, text: `${nickname(teams[s])} are winning the footrace, ${r.fb[s]}-${r.fb[s === 0 ? 1 : 0]} on the break` });
+      cands.push({ ratio: fbD / 6, text: `${nickname(teams[s])} are outscoring them ${r.fb[s]}-${r.fb[s === 0 ? 1 : 0]} on the break` });
     }
     const tovD = Math.abs(r.tov[0] - r.tov[1]);
     if (tovD >= 3) {
@@ -265,7 +271,8 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
     }
     cands.sort((x, y) => y.ratio - x.ratio);
     if (cands.length > 0) return cands[0]!.text;
-    return b.snap.margin <= 4 ? `this one is a coin flip — ${leadPhrase(b.snap.score)}` : `${scorePhrase(b.snap.score)}, and it has felt that way`;
+    // no stat separates the teams — the score line is the honest note
+    return scorePhrase(b.snap.score);
   };
 
   const topNote = (b: Beat): string => {
@@ -408,8 +415,11 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
           lastScoreMentionT = e.t;
         }
         push(b, 'pbp', booth.pbp, 'free_throw', text);
-        // the trip's built-in dead time is the analyst's oldest slot
-        if (e.n === 1 && e.of >= 2 && b.event.wt - lastColorWt >= FT_GAP_COOLDOWN_WT && !b.tags.includes('garbage')) {
+        // the trip's built-in dead time is the analyst's oldest slot. Gated
+        // on fta >= 3 so the {ftLine} citation is a meaningful sample — on a
+        // shooter's first trip "1-of-1 tonight" is technically true but
+        // reads as a bookkeeping glitch, not commentary.
+        if (e.n === 1 && e.of >= 2 && b.snap.fta >= 3 && b.event.wt - lastColorWt >= FT_GAP_COOLDOWN_WT && !b.tags.includes('garbage')) {
           segment(b, 'ft_gap', ctx);
         }
         break;
@@ -440,7 +450,7 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
         const extras: string[] = [];
         if (e.personalCount >= 3) extras.push(`That’s ${e.personalCount} on ${ctx.player}.`);
         if (b.tags.includes('bonus')) extras.push(`${nickname(teams[e.team === 0 ? 1 : 0])} are in the bonus.`);
-        if (e.fouledOut) extras.push(`And that is ${ordinal(e.personalCount)} and OUT — his night is over.`);
+        if (e.fouledOut) extras.push(`That’s his ${ordinal(e.personalCount)} — he’s fouled out.`);
         if (prevShotFoul || prevCharge) {
           if (extras.length > 0) push(b, 'pbp', booth.pbp, 'foul', extras.join(' '));
           break;

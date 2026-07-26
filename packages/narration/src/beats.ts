@@ -53,6 +53,7 @@ export interface SenseSnapshot {
   pf: number;
   ftm: number;
   fta: number;
+  tpm: number;
   hitStreak: number;
   /** game-seconds the scoring team had gone scoreless before this beat (0 = n/a) */
   droughtSecs: number;
@@ -191,6 +192,7 @@ function snapshotFor(e: GameEvent, sense: GameSense, primary: string | undefined
     pf: line?.pf ?? 0,
     ftm: line?.ftm ?? 0,
     fta: line?.fta ?? 0,
+    tpm: line?.tpm ?? 0,
     hitStreak: line?.hitStreak ?? 0,
     droughtSecs: delta.droughtBrokenSecs ?? 0,
     passes: sense.poss?.passes ?? 0,
@@ -378,9 +380,12 @@ function noteBeats(e: GameEvent, sense: GameSense, delta: SenseDelta, regulation
   };
 
   if (delta.runReached) push('run', undefined, delta.runReached.team, delta.runReached.run, 0.3 + delta.runReached.run / 100);
-  if (delta.milestone) push('milestone', delta.milestone.playerId, undefined, delta.milestone.bar, 0.3 + delta.milestone.bar / 150);
-  if (delta.foulTrouble) push('foul_trouble', delta.foulTrouble.playerId, undefined, delta.foulTrouble.count, 0.3);
-  if (delta.doubleDouble) push('double_double', delta.doubleDouble.playerId, undefined, undefined, 0.28);
+  // player notes carry the player's own side so templates can reference the
+  // team and, critically, the OPPONENT ("you must go right at him") — an
+  // undefined team renders an empty {opp} slot mid-sentence.
+  if (delta.milestone) push('milestone', delta.milestone.playerId, sense.sideOf.get(delta.milestone.playerId), delta.milestone.bar, 0.3 + delta.milestone.bar / 150);
+  if (delta.foulTrouble) push('foul_trouble', delta.foulTrouble.playerId, sense.sideOf.get(delta.foulTrouble.playerId), delta.foulTrouble.count, 0.3);
+  if (delta.doubleDouble) push('double_double', delta.doubleDouble.playerId, sense.sideOf.get(delta.doubleDouble.playerId), undefined, 0.28);
   if (delta.clutchStart) push('clutch', undefined, undefined, undefined, 0.6);
   return out;
 }
