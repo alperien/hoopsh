@@ -155,6 +155,7 @@ function initState(cfg: GameConfig): GameState {
       kind: 'tip',
       lastPass: null,
       spotMap: new Map(),
+      spots: new Map(),
       action: null,
       ended: false
     },

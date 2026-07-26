@@ -89,6 +89,7 @@ export function startPossession(
     kind,
     lastPass: null,
     spotMap: new Map(),
+    spots: new Map(), // filled by assignSpots below (jittered per possession)
     action: null,
     ended: false
   };

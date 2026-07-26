@@ -335,6 +335,10 @@ export interface SimParams {
     relocDeniedRatePerTick: number; // the denied shooter's self-scheduled baseline-run cadence (much rarer)
     relocateDriftFt: number;     // how far the shake drifts away from the defender
     relocDurationSec: number;    // how long the relocated ground is held
+    /** per-possession spacing-spot jitter half-width, ft (uniform per axis) —
+     *  see assignSpots; corner spots' lateral component is clamped to stay
+     *  inside the corner-three line (D3 coupling) */
+    spotJitterFt: number;
     // shot selection
     zoneTendBias: number;        // weight of zone shot-diet tendencies
     pullUpBias: number;          // weight of pull-up tendency on pull-ups
@@ -935,6 +939,20 @@ export const defaultParams: SimParams = {
     relocDeniedRatePerTick: 0.014,
     relocateDriftFt: 4,
     relocDurationSec: 1.6,
+    // Spacing spots get a small seeded jitter each possession (uniform
+    // ±spotJitterFt per axis, rolled once in assignSpots) so five players
+    // don't occupy five bit-identical coordinates every trip. The Turing
+    // baseline's judges caught the artifact directly: every top-of-arc three
+    // logged at exactly 26 ft, every dunker-spot finish at the same 4-5 ft
+    // (data/nba/flow-reference.json meta.turingBaseline). Real halfcourt
+    // spots are ZONES a player re-picks each trip, not points — ±2 ft keeps
+    // a "26 ft" three varying across ~24-28 ft without moving anyone to a
+    // different basketball spot. Corner spots clamp their lateral component
+    // inside the corner-three line so jitter cannot un-do the D3 decision
+    // (corners deliberately live INSIDE the line — see geometry/court.ts).
+    // FEEL — sized to the tell, small vs every spacing constant that reads
+    // positions (defGapBaseFt 5.0, contestRadiusFt 6.5).
+    spotJitterFt: 2.0,
     zoneTendBias: 0.22,
     pullUpBias: 0.18,
     threeApptScale: 0.35,
