@@ -50,6 +50,15 @@ export function emptyAcc(): Accumulator {
 }
 
 /**
+ * The subset of a BoxScore that accumulate() actually reads: both teams'
+ * totals plus that game's pace. A full BoxScore satisfies it, but the
+ * parallel runner's workers (parallel.ts) ship exactly this shape across the
+ * process boundary — per-player lines and shot events never enter the
+ * accumulator, so sending them would only bloat IPC.
+ */
+export type TeamGameSummary = Pick<BoxScore, 'teams' | 'pace'>;
+
+/**
  * Fold one game's box score into `acc`, contributing TWO team-games (see the
  * file header) — one for each side, each seeing only its own counting stats
  * plus its opponent's totals where a metric needs both (orbPct: a team's
@@ -57,7 +66,7 @@ export function emptyAcc(): Accumulator {
  * defensive boards, so `orbPct(t, opp)` needs the other side's totals even
  * though this is nominally "this team's" line).
  */
-export function accumulate(acc: Accumulator, box: BoxScore): void {
+export function accumulate(acc: Accumulator, box: TeamGameSummary): void {
   for (const side of [0, 1] as const) {
     const t = box.teams[side];
     const opp = box.teams[side === 0 ? 1 : 0];

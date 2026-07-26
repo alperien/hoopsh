@@ -1,0 +1,299 @@
+/**
+ * Reusable parallel game-runner — spread N deterministic games across W
+ * worker subprocesses.
+ *
+ * This generalizes the sweep's proven worker pattern (sweep.ts +
+ * sweep-worker.ts): a job description goes to a temp JSON file, a standalone
+ * worker script (run-worker.ts) is spawned via execFile with the job path as
+ * argv[2], and the worker answers with ONE JSON blob on stdout. Same
+ * rationale as there — fresh process/module state per worker, an
+ * independently runnable script for debugging, and free process-level
+ * parallelism without hand-rolling IPC framing.
+ *
+ * WHAT CROSSES THE PROCESS BOUNDARY: per-game AGGREGATES only (a slim
+ * team-totals summary for 'batch', a GameFlow row for 'flow') — never raw
+ * event streams or frames. A game is a few thousand events; its summary is a
+ * few hundred bytes. Aggregation to per-game granularity happens INSIDE the
+ * worker; the cross-game reduction happens in the parent.
+ *
+ * DETERMINISM CONTRACT (the whole point — this repo's verification culture
+ * rests on byte-identical reproducibility):
+ *   1. Game i's inputs depend only on (seedBase, i): seed `${seedBase}-${i}`,
+ *      home/away mirrored on odd GLOBAL index i, rosters constructed fresh
+ *      per game. A worker owns a CONTIGUOUS slice of global indices, so
+ *      every game is simulated with exactly the inputs the single-process
+ *      path would use.
+ *   2. Workers return per-game summaries IN SLICE ORDER; the parent
+ *      concatenates slices in slice order, reconstructing global game order.
+ *   3. The cross-game reduction (accumulate/finalize, reduceFlows) runs in
+ *      the PARENT over that ordered array — the same floating-point
+ *      operations in the same order as a single-process run. JSON number
+ *      round-trips are exact for finite doubles, so worker-count N and
+ *      worker-count 1 produce bit-identical reports.
+ *   Enforced by test/parallel.test.ts (worker-count invariance).
+ *
+ * FAILURE POLICY: any worker failing — nonzero exit, unparsable stdout, or a
+ * result envelope that doesn't match the job — aborts the sibling workers
+ * and rejects the whole run with the worker's stderr attached. There is no
+ * partial-result path: you get all N games or a loud error.
+ */
+
+import { execFile } from 'node:child_process';
+import { unlinkSync, writeFileSync } from 'node:fs';
+import { availableParallelism, tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { simulateGame, type Team } from '@hoopsh/engine';
+import { boxScore } from '@hoopsh/stats';
+import { sampleMatchup } from '@hoopsh/data';
+import type { TeamGameSummary } from './aggregate.js';
+import { gameFlow, type GameFlow } from './flow-metrics.js';
+
+const execFileP = promisify(execFile);
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(HERE, '..', '..', '..');
+const REGISTER = path.join(REPO_ROOT, 'tools', 'register.mjs');
+const WORKER = path.join(HERE, 'run-worker.ts');
+
+/**
+ * Per-task result row types. Adding a workflow to the parallel runner means
+ * adding a key here plus its per-game function in GAME_TASKS below — the
+ * generic machinery (slicing, spawning, validation, ordering) is shared.
+ */
+export interface GameTaskResults {
+  /** slim box summary — exactly the fields aggregate.ts's accumulate() reads */
+  batch: TeamGameSummary;
+  /** per-game flow metrics — reduce with flow-metrics.ts's reduceFlows() */
+  flow: GameFlow;
+}
+export type GameTaskName = keyof GameTaskResults;
+
+/**
+ * Simulate global game index i's matchup under the house conventions shared
+ * by every batch-shaped workflow (run.ts's runBatch, sweep-worker.ts, the
+ * old flow.ts loop): seed `${seedBase}-${i}`, and odd indices swap home/away
+ * so any home-side bias cancels out of batch averages (see runBatch's
+ * `mirror` doc comment). Rosters are constructed FRESH per game — required
+ * for slice invariance, since a worker starting at game 12 has no way to
+ * share object state with games 0-11 (and must not need to).
+ */
+function playGame(seed: string, flip: boolean): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
+  const def = sampleMatchup();
+  const home = flip ? def.away : def.home;
+  const away = flip ? def.home : def.away;
+  const result = simulateGame({ seed, home, away, collectFrames: false });
+  return { events: result.events, teams: [home, away] };
+}
+
+type GameTaskFns = { [K in GameTaskName]: (seed: string, flip: boolean) => GameTaskResults[K] };
+
+const GAME_TASKS: GameTaskFns = {
+  batch: (seed, flip) => {
+    const { events, teams } = playGame(seed, flip);
+    const box = boxScore(events, teams);
+    // ship ONLY what accumulate() reads — drops per-player lines and shot
+    // events from the IPC payload (a full BoxScore would still be correct,
+    // just needlessly large)
+    return { teams: box.teams, pace: box.pace };
+  },
+  flow: (seed, flip) => gameFlow(playGame(seed, flip).events)
+};
+
+export const GAME_TASK_NAMES = Object.keys(GAME_TASKS) as GameTaskName[];
+
+/**
+ * Simulate games [start, start+count) of a batch in THIS process, returning
+ * per-game summaries in game order. This is both the workers' inner loop
+ * (run-worker.ts calls it with a slice) and the single-process path
+ * (runGames with workers=1 calls it with the whole range) — one code path,
+ * so the two can't drift apart.
+ */
+export function runGamesInProcess<K extends GameTaskName>(
+  task: K,
+  seedBase: string,
+  start: number,
+  count: number,
+  onGame?: (globalIndex: number) => void
+): GameTaskResults[K][] {
+  const fn = GAME_TASKS[task];
+  if (fn === undefined) {
+    throw new Error(`unknown game task "${String(task)}" (valid: ${GAME_TASK_NAMES.join(', ')})`);
+  }
+  const out: GameTaskResults[K][] = [];
+  for (let i = start; i < start + count; i++) {
+    out.push(fn(`${seedBase}-${i}`, i % 2 === 1));
+    onGame?.(i);
+  }
+  return out;
+}
+
+/**
+ * Parse a --workers flag value: 'auto' (the default) leaves one core for the
+ * parent/rest of the box — max(1, availableParallelism() - 1); anything else
+ * must be an integer >= 1. Loud on malformed input, per args.ts's
+ * silent-corruption doctrine (a NaN worker count must never quietly become
+ * "some default").
+ */
+export function resolveWorkerCount(raw: string): number {
+  if (raw === 'auto') return Math.max(1, availableParallelism() - 1);
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`--workers requires an integer >= 1 (or "auto"), got "${raw}"`);
+  }
+  return n;
+}
+
+export interface ParallelRunOptions<K extends GameTaskName> {
+  task: K;
+  games: number;
+  seedBase: string;
+  /** subprocess count; default max(1, availableParallelism() - 1). 1 = run in-process (no subprocess). */
+  workers?: number;
+  /** progress callback: per game in-process, per completed slice with workers */
+  onProgress?: (done: number, total: number) => void;
+}
+
+interface Slice { start: number; count: number }
+
+/** shape of run-worker.ts's stdout blob; echoes the job so a mixed-up or truncated result can't pass validation */
+interface WorkerEnvelope { task: string; start: number; count: number; results: unknown[] }
+
+let jobCounter = 0;
+
+async function runWorkerSlice(
+  task: GameTaskName,
+  seedBase: string,
+  slice: Slice,
+  signal: AbortSignal
+): Promise<unknown[]> {
+  const jobPath = path.join(tmpdir(), `hoopsh-runner-job-${process.pid}-${jobCounter++}.json`);
+  writeFileSync(jobPath, JSON.stringify({ task, seedBase, start: slice.start, count: slice.count }));
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileP(
+      process.execPath,
+      ['--disable-warning=ExperimentalWarning', '--import', REGISTER, WORKER, jobPath],
+      { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024, signal }
+    ));
+  } catch (err) {
+    // job file is deliberately KEPT on failure so the slice can be re-run by
+    // hand:  node --import ./tools/register.mjs packages/harness/src/run-worker.ts <jobPath>
+    const e = err as Error & { stderr?: string; code?: unknown; signal?: unknown };
+    const stderrTail = typeof e.stderr === 'string' && e.stderr.length > 0
+      ? `\n--- worker stderr (tail) ---\n${e.stderr.slice(-2000)}`
+      : '';
+    throw Object.assign(
+      new Error(`worker subprocess failed (exit code ${String(e.code)}${e.signal ? `, signal ${String(e.signal)}` : ''}); job kept at ${jobPath}${stderrTail}`),
+      { isAbort: e.code === 'ABORT_ERR' || e.name === 'AbortError' }
+    );
+  }
+  let envelope: Partial<WorkerEnvelope>;
+  try {
+    envelope = JSON.parse(stdout) as Partial<WorkerEnvelope>;
+  } catch {
+    throw new Error(`worker stdout is not valid JSON (${stdout.length} bytes, starts "${stdout.slice(0, 120)}"); job kept at ${jobPath}`);
+  }
+  if (
+    envelope.task !== task ||
+    envelope.start !== slice.start ||
+    !Array.isArray(envelope.results) ||
+    envelope.results.length !== slice.count
+  ) {
+    throw new Error(
+      `worker result envelope mismatch: expected {task:"${task}", start:${slice.start}, count:${slice.count}}, ` +
+      `got {task:"${String(envelope.task)}", start:${String(envelope.start)}, results.length:${Array.isArray(envelope.results) ? envelope.results.length : 'n/a'}}; job kept at ${jobPath}`
+    );
+  }
+  unlinkSync(jobPath); // success — clean up
+  return envelope.results;
+}
+
+/**
+ * Run `games` games of `task`, split contiguously across `workers`
+ * subprocesses, and return the per-game summaries in GLOBAL GAME ORDER
+ * (index 0..games-1). The caller owns the reduction (accumulate/finalize for
+ * batch, reduceFlows for flow) — see the header's determinism contract for
+ * why reduction must stay in the parent, in this order.
+ *
+ * workers=1 runs entirely in-process (no subprocess at all) — the escape
+ * hatch that keeps the old single-process behavior directly reachable via
+ * `--workers 1`.
+ */
+export async function runGames<K extends GameTaskName>(opts: ParallelRunOptions<K>): Promise<GameTaskResults[K][]> {
+  const { task, games, seedBase, onProgress } = opts;
+  if (!Number.isInteger(games) || games < 0) {
+    throw new Error(`runGames: games must be a non-negative integer, got ${String(games)}`);
+  }
+  const requested = opts.workers ?? Math.max(1, availableParallelism() - 1);
+  if (!Number.isInteger(requested) || requested < 1) {
+    throw new Error(`runGames: workers must be an integer >= 1, got ${String(opts.workers)}`);
+  }
+  // never spawn more workers than there are games
+  const workers = Math.min(requested, Math.max(1, games));
+
+  if (workers === 1) {
+    return runGamesInProcess(task, seedBase, 0, games, (i) => onProgress?.(i + 1, games));
+  }
+
+  // contiguous, near-even slices: the first (games % workers) slices carry
+  // one extra game, and slice boundaries tile 0..games-1 with no gaps
+  const slices: Slice[] = [];
+  const per = Math.floor(games / workers);
+  const extra = games % workers;
+  for (let w = 0, start = 0; w < workers; w++) {
+    const count = per + (w < extra ? 1 : 0);
+    slices.push({ start, count });
+    start += count;
+  }
+
+  // First failure aborts the siblings (no point simulating games we'll
+  // discard), then the whole run rejects listing every REAL failure —
+  // abort-collateral rejections are noise, not signal, and are only
+  // reported if somehow nothing else is.
+  const controller = new AbortController();
+  let done = 0;
+  const settled = await Promise.allSettled(
+    slices.map(async (slice) => {
+      try {
+        const results = await runWorkerSlice(task, seedBase, slice, controller.signal);
+        done += slice.count;
+        onProgress?.(done, games);
+        return results;
+      } catch (err) {
+        controller.abort();
+        throw err;
+      }
+    })
+  );
+
+  const failures: string[] = [];
+  const abortNoise: string[] = [];
+  for (let i = 0; i < settled.length; i++) {
+    const s = settled[i]!;
+    if (s.status === 'rejected') {
+      const reason = s.reason as Error & { isAbort?: boolean };
+      const msg = `worker ${i} (games ${slices[i]!.start}-${slices[i]!.start + slices[i]!.count - 1}): ${reason instanceof Error ? reason.message : String(reason)}`;
+      (reason?.isAbort ? abortNoise : failures).push(msg);
+    }
+  }
+  if (failures.length > 0 || abortNoise.length > 0) {
+    const listed = failures.length > 0 ? failures : abortNoise;
+    throw new Error(
+      `parallel run FAILED — ${listed.length} of ${workers} workers did not return valid results (no partial results are used):\n  ` +
+      listed.join('\n  ')
+    );
+  }
+
+  // concatenate slices in slice order -> global game order
+  const out: GameTaskResults[K][] = [];
+  for (const s of settled) {
+    if (s.status === 'fulfilled') out.push(...(s.value as GameTaskResults[K][]));
+  }
+  if (out.length !== games) {
+    // belt-and-braces: per-slice envelope validation should make this unreachable
+    throw new Error(`parallel run FAILED — assembled ${out.length} game results, expected ${games}`);
+  }
+  return out;
+}

@@ -9,10 +9,14 @@
 // not a public API.
 export { runBatch } from './run.js';
 export type { BatchOptions } from './run.js';
+// the parallel game-runner (run-worker.ts is its subprocess entry and, like
+// sweep-worker.ts, deliberately NOT re-exported)
+export { runGames, runGamesInProcess, resolveWorkerCount, GAME_TASK_NAMES } from './parallel.js';
+export type { GameTaskName, GameTaskResults, ParallelRunOptions } from './parallel.js';
 export {
   accumulate, emptyAcc, mergeAcc, finalize, evaluate, formatReport
 } from './aggregate.js';
-export type { Accumulator, LeagueAverages, BandResult } from './aggregate.js';
+export type { Accumulator, LeagueAverages, BandResult, TeamGameSummary } from './aggregate.js';
 export { NBA_BANDS } from './bands.js';
 export type { Band } from './bands.js';
 export {
