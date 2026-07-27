@@ -169,7 +169,15 @@ async function evaluateCandidate(cand: Candidate, games: number): Promise<{ scor
  *     a margin-mode calibration is pre-committed: it must survive the TIDY
  *     test (SWEPT values rounded to 2-3 digits without dropping a band).
  */
-const OBJECTIVE = argOf('--objective') ?? 'margin';
+const OBJECTIVE = argOf('--objective', 'margin');
+// Any unrecognized value (typo, forgotten value swallowing the next flag,
+// dangling flag) must fail loudly here: the CENTER_W/VIOL_W selection below
+// would otherwise silently fall through to the legacy weights and a full
+// calibration budget would optimize the wrong objective with no indication
+// in the output.
+if (OBJECTIVE !== 'margin' && OBJECTIVE !== 'legacy') {
+  throw new Error(`sweep: --objective must be 'margin' or 'legacy', got '${OBJECTIVE}'`);
+}
 const CENTER_W = OBJECTIVE === 'margin' ? 0.25 : 0.015;
 const VIOL_W = OBJECTIVE === 'margin' ? 4 : 1;
 
@@ -304,7 +312,7 @@ function perturb(base: Candidate, step: number): Candidate {
  * but without the probabilistic acceptance that name implies.
  */
 async function main(): Promise<void> {
-  console.log(`sweep: ${ITERS} iters × ${CANDS} candidates, ${GAMES} games × ${SEED_BASES.length} seed bases, ${WORKERS} workers`);
+  console.log(`sweep: ${ITERS} iters × ${CANDS} candidates, ${GAMES} games × ${SEED_BASES.length} seed bases, ${WORKERS} workers, objective ${OBJECTIVE}`);
   const t0 = performance.now();
 
   // The starting candidate is the empty override set — i.e. whatever's
