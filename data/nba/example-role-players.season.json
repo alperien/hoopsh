@@ -1,0 +1,50 @@
+{
+  "kind": "season-lines",
+  "provenance": "EXAMPLE ONLY — two generic modern role-player stat lines composed by an LLM (a 3&D wing and a lob-catching center); plausible but SYNTHETIC/UNVERIFIED, for exercising the fitter on non-star inputs. Not sourced data (see data/nba/README.md).",
+  "team": { "id": "example-role", "name": "Example Role Players", "abbrev": "EXR" },
+  "players": [
+    {
+      "name": "Example 3&D Wing",
+      "pos": "SF",
+      "heightIn": 79,
+      "weightLb": 220,
+      "mpg": 29.5,
+      "pts": 11.2,
+      "reb": 4.1,
+      "ast": 1.8,
+      "stl": 1.3,
+      "blk": 0.5,
+      "tov": 1.0,
+      "fga": 8.9,
+      "fgPct": 0.451,
+      "tpa": 5.6,
+      "tpPct": 0.389,
+      "fta": 1.4,
+      "ftPct": 0.81,
+      "orb": 0.7,
+      "pf": 2.4
+    },
+    {
+      "name": "Example Rim-Run Center",
+      "pos": "C",
+      "heightIn": 84,
+      "weightLb": 260,
+      "mpg": 26.0,
+      "pts": 12.4,
+      "reb": 9.8,
+      "ast": 1.1,
+      "stl": 0.6,
+      "blk": 1.6,
+      "tov": 1.5,
+      "fga": 7.8,
+      "fgPct": 0.671,
+      "tpa": 0.1,
+      "tpPct": 0.0,
+      "fta": 3.8,
+      "ftPct": 0.55,
+      "orb": 3.4,
+      "pf": 3.1,
+      "shotZones": { "rimShare2": 0.78, "midShare2": 0.06 }
+    }
+  ]
+}

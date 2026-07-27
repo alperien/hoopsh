@@ -76,7 +76,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 ## 2. The DO-NOT list
 
 1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
-   optimizer chose it against 48 acceptance-band checks. Rounding it de-calibrates the
+   optimizer chose it against the 17 acceptance-band checks (bands.ts NBA_BANDS). Rounding it de-calibrates the
    league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
@@ -115,8 +115,10 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 | What consumers can see | `core/events.ts` (the contract) + `replay/` |
 | What a rating means physically | `model/derived.ts` (curves) |
 | League rules | `rules/rulepack.ts` (data, not code) |
+| Late-game management (flag-gated, default OFF) | `sim/endgame.ts` + concept 6 in `sim/ai/concepts.ts` |
 | Stat math | `stats/` — pure event folding |
 | Realism measurement / tuning | `harness/` |
+| Multi-game runs (seasons, matchup Monte-Carlo) | `harness/` season layer — see `docs/SEASON.md` |
 | Editable content | `data/` (packs, archetypes, validation) |
 
 Full map with per-file detail: `docs/INTERNALS.md`.
@@ -133,7 +135,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # 69 tests incl. invariants + fidelity gate — ALWAYS, every change
+npm test                        # full suite: invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted

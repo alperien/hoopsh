@@ -15,6 +15,7 @@ import {
 import { type FoulOutcome, enterFreeThrows, recordFoul } from './fouls.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
+import { noteScore } from './endgame.js';
 
 /** windup time before the ball leaves the shooter's hands, by shot type */
 export function windupSec(s: GameState, moveType: ShotMoveType): number {
@@ -45,7 +46,8 @@ export function startShot(
   if (contest0 !== undefined) {
     // a late closeout bothers the shot less than a set contest:
     // blend the contest at decision time with the contest at release
-    contest.level = 0.55 * contest0 + 0.45 * contest.level;
+    const rel = s.params.shot.contestReleaseBlend;
+    contest.level = (1 - rel) * contest0 + rel * contest.level;
   }
   const loc = classifyShot(s.rules, s.court, rim, shooter.pos);
   const p = shotMakeP(s, shooter, loc.zone, loc.distFt, moveType, contest);
@@ -59,8 +61,8 @@ export function startShot(
 
   // shooting foul?
   let foul: PendingShot['foul'];
-  const pFoul = shootingFoulP(s, shooter, loc.zone, contest) * (blockedBy ? 0.35 : 1);
-  const foulRoll = s.rng.chance(made ? pFoul * 0.28 : pFoul);
+  const pFoul = shootingFoulP(s, shooter, loc.zone, contest) * (blockedBy ? s.params.shot.blockedFoulMult : 1);
+  const foulRoll = s.rng.chance(made ? pFoul * s.params.shot.andOneFoulMult : pFoul);
   if (foulRoll && contest.by) {
     foul = {
       by: contest.by,
@@ -69,13 +71,27 @@ export function startShot(
     };
   }
 
-  // assist bookkeeping
+  // assist bookkeeping — the "direct scoring move" rule. The dribble
+  // allowance is ZONE-AWARE (see params.ai.assistMaxDribbles*): a jumper
+  // taken off the bounce is self-created and earns the passer nothing,
+  // while an interior finish keeps its gather dribble. A uniform allowance
+  // credited self-created pull-ups league-wide (debt D1).
   let assist: string | undefined;
   const lp = s.poss.lastPass;
+  const interiorFinish = loc.zone === 'rim' || loc.zone === 'paint';
+  const dribbleAllowance = interiorFinish
+    ? s.params.ai.assistMaxDribblesInterior
+    : s.params.ai.assistMaxDribbles;
   if (
     made && lp &&
+    // only a shot off a CAUGHT PASS can be assisted: an offensive-rebound
+    // putback or a resumed dead-ball touch resets the play, but lastPass
+    // survives both (the possession continues) — before this gate, a
+    // pre-miss/pre-whistle pass was credited on the putback that followed
+    // (same acquisition-ignorance root as the catch_shoot mislabel)
+    shooter.acquiredBy === 'pass' &&
     s.t - shooter.catchT <= s.params.ai.assistWindowSec &&
-    shooter.dribblesSinceCatch <= s.params.ai.assistMaxDribbles &&
+    shooter.dribblesSinceCatch <= dribbleAllowance &&
     lp.from !== shooter.p.id &&
     // the passer can be substituted at a continuation dead ball between his
     // pass and this shot — no assists from the bench
@@ -108,7 +124,7 @@ export function startShot(
     return;
   }
 
-  const flightTime = 0.45 + loc.distFt * 0.021;
+  const flightTime = s.params.shot.flightBaseSec + loc.distFt * s.params.shot.flightPerFt;
   s.ball.flight = {
     kind: 'shot',
     from: { ...shooter.pos },
@@ -125,7 +141,10 @@ export function startShot(
 export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: string): void {
   const shooter = agent(s, shot.shooterId);
   const points = shot.made ? (shot.three ? 3 : 2) : 0;
-  if (shot.made) s.score[shot.side] += points as 2 | 3;
+  if (shot.made) {
+    s.score[shot.side] += points as 2 | 3;
+    noteScore(s, shot.side, points); // unanswered-run tracker (endgame layer)
+  }
 
   emit(s, {
     type: 'shot',

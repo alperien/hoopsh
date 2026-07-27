@@ -233,6 +233,21 @@ else {
 
 /* ================= viewer ================= */
 function boot(R) {
+  /* ---- format version gate ---- */
+  // Replay.version (engine replay/replay.ts — version history lives there).
+  // This viewer understands formats 1 and 2. A replay declaring a NEWER
+  // version still renders — best effort beats a blank page — but must say
+  // so visibly: silently mis-rendering a shape this file predates is the
+  // failure AGENTS.md DO-NOT #8 exists to prevent (v1 viewers drew
+  // "rebound undefined" from v2's playerless team rebounds).
+  const KNOWN_REPLAY_VERSION = 2; // newest format this viewer was written against
+  if (typeof R.version === 'number' && R.version > KNOWN_REPLAY_VERSION) {
+    const warn = document.createElement('div');
+    warn.textContent = `replay version ${R.version} is newer than this viewer — rendering may be incomplete`;
+    warn.style.cssText = 'flex:0 0 auto;padding:4px 10px;text-align:center;font-size:12px;background:#3a2a10;color:var(--accent);border-bottom:1px solid var(--line)';
+    document.body.prepend(warn);
+  }
+
   /* ---- meta ---- */
   const rules = R.rules;
   const L = rules.courtLengthFt, W = rules.courtWidthFt;
@@ -304,7 +319,7 @@ function boot(R) {
     evPtr = 0; feedPtr = 0; fxPtr = 0; lineupPtr = 0;
     score = [0, 0]; effects.length = 0; over = false;
     slots = [R.lineups.filter(l => l.side === 0)[0].slots.slice(), R.lineups.filter(l => l.side === 1)[0].slots.slice()];
-    feedEl.innerHTML = '';
+    feedEl.replaceChildren(); // clear the feed (DOM API only — see appendFeed's injection note)
   }
 
   function advancePointers() {
@@ -350,9 +365,24 @@ function boot(R) {
   /* ---- feed DOM ---- */
   const feedEl = $('feed');
   function appendFeed(item) {
+    // Built with createElement/textContent and NEVER with HTML-string
+    // interpolation: item.label and item.text embed player names straight
+    // from whatever replay JSON was loaded (the file picker accepts
+    // arbitrary files), so interpolating them into markup here was a real
+    // script-injection sink — a crafted player name executed the moment its
+    // line entered the feed. The scoreboard code already did this correctly
+    // with .textContent; this renderer was the one offender (review finding
+    // #4). A tripwire test bans the interpolation property by name in this
+    // whole file — which is also why this comment can't name it.
     const li = document.createElement('li');
-    li.innerHTML = `<span class="dot ${item.side === 0 ? 'h' : item.side === 1 ? 'a' : 'n'}"></span>` +
-      `<span class="t">${item.label}</span><span>${item.text}</span>`;
+    const dot = document.createElement('span');
+    dot.className = `dot ${item.side === 0 ? 'h' : item.side === 1 ? 'a' : 'n'}`;
+    const label = document.createElement('span');
+    label.className = 't';
+    label.textContent = item.label;
+    const text = document.createElement('span');
+    text.textContent = item.text;
+    li.append(dot, label, text);
     const prev = feedEl.querySelector('.new'); if (prev) prev.classList.remove('new');
     li.classList.add('new');
     feedEl.appendChild(li);
@@ -776,7 +806,7 @@ function buildFeed(R, lastNames) {
         break;
       }
       case 'free_throw': push(e, e.team, `${nm(e.shooter)} free throw ${e.n}/${e.of} ${e.made ? '✓' : '✗'}`); break;
-      case 'rebound': push(e, e.team, `${e.offensive ? 'Offensive' : 'Defensive'} rebound ${nm(e.player)}`); break;
+      case 'rebound': push(e, e.team, `${e.offensive ? 'Offensive' : 'Defensive'} rebound ${e.player ? nm(e.player) : 'by Team'}${e.deadBall ? ' (dead ball)' : ''}`); break;
       case 'turnover': {
         const k = e.kind === 'bad_pass' ? (e.stolenBy ? `pass stolen by ${nm(e.stolenBy)}` : 'throws it away')
           : e.kind === 'lost_ball' ? (e.stolenBy ? `stripped by ${nm(e.stolenBy)}` : 'loses the ball')
@@ -785,6 +815,7 @@ function buildFeed(R, lastNames) {
         break;
       }
       case 'foul': push(e, e.team, `${e.kind.replace('_', ' ')} foul on ${nm(e.on)} (${e.personalCount})${e.fouledOut ? ' — FOULED OUT' : ''}`); break;
+      case 'timeout': push(e, e.team, `Timeout ${R.teams[e.team].abbrev}${e.reason === 'advance' ? ' — ball advances' : ''} (${e.remaining} left)`); break;
       case 'substitution': push(e, e.team, `Sub: ${e.in.map(nm).join(', ')} in for ${e.out.map(nm).join(', ')}`); break;
     }
   }

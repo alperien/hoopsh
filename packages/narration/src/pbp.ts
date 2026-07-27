@@ -21,6 +21,7 @@
 
 import { Rng, type GameEvent, type Team, type TeamSide } from '@hoopsh/engine';
 import { ContextTracker, type NarrativeMoment } from './context.js';
+import { shotCall, type ShooterTraits } from './shotcall.js';
 
 export interface NarrationLine {
   t: number;
@@ -36,11 +37,19 @@ interface Lookup {
   last: (id: string) => string;
   teamName: (side: TeamSide) => string;
   abbrev: (side: TeamSide) => string;
+  /** shooter athleticism for the layup/dunk shot call (see shotcall.ts) */
+  traits: (id: string) => ShooterTraits | undefined;
 }
 
 export function makeLookup(teams: [Team, Team]): Lookup {
   const names = new Map<string, string>();
-  for (const t of teams) for (const p of t.players) names.set(p.id, p.name);
+  const traits = new Map<string, ShooterTraits>();
+  for (const t of teams) {
+    for (const p of t.players) {
+      names.set(p.id, p.name);
+      traits.set(p.id, { vertical: p.attr.vertical, finishing: p.attr.finishing });
+    }
+  }
   // disambiguate shared last names ("R. Vance" vs "E. Vance"). Counted
   // across BOTH teams together (not per-team) because two players who share
   // a last name across OPPOSING rosters are just as ambiguous in a line of
@@ -72,7 +81,8 @@ export function makeLookup(teams: [Team, Team]): Lookup {
       return last;
     },
     teamName: (side) => teams[side].name,
-    abbrev: (side) => teams[side].abbrev
+    abbrev: (side) => teams[side].abbrev,
+    traits: (id) => traits.get(id)
   };
 }
 
@@ -221,6 +231,23 @@ function renderEvent(
       ]);
     }
     case 'rebound': {
+      // the missed-non-final-FT formality: dead ball by rule, next attempt
+      // simply proceeds — a broadcast says nothing here
+      if (e.deadBall) return null;
+      if (!e.player) {
+        // TEAM rebound: the carom died out of bounds; a side is awarded the ball
+        return e.offensive
+          ? pool.pick('torb', [
+              `Knocked out of bounds — ${lk.teamName(e.team)} keep it.`,
+              `The carom skips out of play; ${lk.abbrev(e.team)} retain possession.`,
+              `Nobody controls it — out of bounds, still ${lk.teamName(e.team)}'s ball.`
+            ])
+          : pool.pick('tdrb', [
+              `The long rebound bounces out of bounds — ${lk.teamName(e.team)} ball.`,
+              `Tipped out of play; possession to ${lk.teamName(e.team)}.`,
+              `Nobody comes up with it — ${lk.abbrev(e.team)} will inbound.`
+            ]);
+      }
       const who = lk.last(e.player);
       return e.offensive
         ? pool.pick('orb', [
@@ -264,16 +291,42 @@ function renderEvent(
     }
     case 'foul': {
       const who = lk.last(e.on);
-      const base =
-        e.kind === 'shooting' ? `Whistle — shooting foul on ${who}` :
-        e.kind === 'reach' ? `Reach-in foul on ${who}` :
-        e.kind === 'loose_ball' ? `Loose-ball foul on ${who}` :
-        `Offensive foul on ${who}`;
       const extras: string[] = [];
       if (e.personalCount >= 4) extras.push(`that's ${e.personalCount} on him`);
       if (e.inBonus && e.kind !== 'offensive') extras.push(`${lk.abbrev(e.team === 0 ? 1 : 0)} are in the bonus`);
       if (e.fouledOut) extras.push(`and he's fouled out`);
+      // An offensive foul is ALWAYS the second half of a charge the engine
+      // just emitted as a `turnover` (kind 'off_foul' — see core/events.ts's
+      // TurnoverKind contract), and the turnover case above already narrated
+      // the play ("Charge! ..."). Rendering a generic line here too produced
+      // two adjacent sentences for one whistle on every single charge. Stay
+      // silent UNLESS this foul carries game-state news the charge line
+      // doesn't (foul trouble, a foul-out) — then narrate just that.
+      if (e.kind === 'offensive') {
+        return extras.length ? `On the offensive foul — ${extras.join(', ')}.` : null;
+      }
+      const base =
+        e.kind === 'shooting' ? `Whistle — shooting foul on ${who}` :
+        e.kind === 'reach' ? `Reach-in foul on ${who}` :
+        `Loose-ball foul on ${who}`;
       return `${base}${extras.length ? ' — ' + extras.join(', ') : ''}.`;
+    }
+    case 'timeout': {
+      // endgame-layer games only (a default-config stream never carries one).
+      // The two reasons read differently on a broadcast: a run-stopper is
+      // about the bleeding, an advance is pure late-game procedure.
+      const team = lk.teamName(e.team);
+      if (e.reason === 'advance') {
+        return pool.pick('to_adv', [
+          `Timeout ${team} — they'll advance the ball into the frontcourt.`,
+          `${team} use a timeout to move the ball up. ${e.remaining} left.`
+        ]);
+      }
+      return pool.pick('to_run', [
+        `Timeout ${team} — got to stop this run.`,
+        `${team} call time to regroup. ${e.remaining} remaining.`,
+        `That'll be a timeout from the ${team} bench.`
+      ]);
     }
     case 'substitution':
       return null; // too noisy for PBP; viewers show these separately
@@ -293,16 +346,33 @@ function renderShot(
   const who = lk.last(e.shooter);
   const open = e.contest < 0.18 ? 'wide-open ' : e.contest > 0.62 ? 'heavily contested ' : '';
 
+  // the shot's basketball NAME (layup/dunk/hook/tip-in/jump shot) comes from
+  // the shared classifier — the broadcast register then dresses it up by how
+  // the shot was created. This is the shot-type-monotony fix: short attempts
+  // used to all read as generic jumpers/paint shots (Turing baseline tell).
+  const call = shotCall(e, lk.traits(e.shooter));
   const shotDesc =
     e.moveType === 'heave' ? 'desperation heave from way downtown' :
-    e.moveType === 'putback' ? 'putback' :
-    e.moveType === 'drive' ? (e.zone === 'rim' ? 'driving layup' : `running ${DIST(e.distFt)}`) :
-    e.moveType === 'cut_finish' ? 'cutting finish at the rim' :
-    e.moveType === 'post' ? 'post move' :
+    call === 'tip-in' ? 'tip-in' :
+    call === 'dunk' ? (
+      e.moveType === 'putback' ? 'putback slam' :
+      e.moveType === 'drive' ? 'driving dunk' : 'dunk'
+    ) :
+    call === 'hook shot' ? `${DIST(e.distFt)} hook` :
+    call === 'layup' ? (
+      e.moveType === 'putback' ? 'putback layup' :
+      e.moveType === 'drive' ? 'driving layup' :
+      e.moveType === 'cut_finish' ? 'cutting layup' : 'layup'
+    ) :
+    // jump shots, by flavor of creation and range
+    e.moveType === 'post' ? 'turnaround out of the post' :
     e.three ? (e.moveType === 'pull_up' ? `pull-up three from ${Math.round(e.distFt)} feet` : 'catch-and-shoot three') :
-    e.zone === 'rim' ? 'shot at the rim' :
-    e.zone === 'mid' ? `${open ? '' : 'mid-range '}jumper from ${Math.round(e.distFt)} feet` :
-    `${DIST(e.distFt)} in the paint`;
+    e.zone === 'paint' ? (
+      (e.moveType === 'drive' || e.moveType === 'pull_up') && e.distFt <= 10
+        ? `floater from ${Math.round(e.distFt)} feet` // the runner/teardrop range
+        : `${DIST(e.distFt)} in the paint`
+    ) :
+    `${open ? '' : 'mid-range '}jumper from ${Math.round(e.distFt)} feet`;
 
   if (e.blockedBy) {
     return pool.pick('blk', [

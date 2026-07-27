@@ -57,7 +57,17 @@ export interface ValidationIssue {
 // TEND_KEYS in sync with @hoopsh/engine's Attributes/Tendencies types is a
 // manual responsibility of whoever adds a new rating there — TypeScript
 // won't catch a forgotten key here since these are plain string arrays.
-const ATTR_KEYS: (keyof Attributes)[] = [
+//
+// EXPORTED (along with the range constants below) so authoring tooling —
+// tools/gen-schema.mjs (the JSON Schema generator) and tools/roster-*.mjs —
+// derives its key lists and ranges from the SAME arrays this validator
+// enforces. That import edge is the anti-drift mechanism: there is no second
+// hand-copied key list anywhere for a new rating to be forgotten from. Add a
+// key here and every downstream tool picks it up on next run (the committed
+// data/schema/team-pack.schema.json is guarded by a regenerate-and-compare
+// test in packages/data/test/gen-schema.test.ts, so it can't go stale
+// silently either).
+export const ATTR_KEYS: (keyof Attributes)[] = [
   'speed', 'accel', 'strength', 'vertical', 'lateral', 'stamina',
   'finishing', 'midRange', 'three', 'freeThrow', 'drawFoul',
   'ballHandle', 'passAcc', 'passVision',
@@ -65,16 +75,34 @@ const ATTR_KEYS: (keyof Attributes)[] = [
   'offReb', 'defReb', 'boxout', 'decisions', 'consistency'
 ];
 
-const TEND_KEYS: (keyof Tendencies)[] = [
+export const TEND_KEYS: (keyof Tendencies)[] = [
   'shotRim', 'shotMid', 'shotThree', 'pullUp',
   'drive', 'passOut', 'iso', 'post',
   'offBallMotion', 'crashOffReb', 'gambleSteal', 'foulAggr', 'pushPace', 'usage'
 ];
 
+// The numeric rules the validator enforces, as named exports for the same
+// tooling-derivation reason as ATTR_KEYS/TEND_KEYS above. The validator
+// itself reads these constants (not re-typed literals), so a generated
+// schema and validateTeamPack() can only ever disagree if someone edits one
+// of these values and fails to regenerate — which the gen-schema test
+// catches. Values are the engine's own contracts: heightIn bounds are
+// generous human limits (5'0"–8'0"), MIN_PLAYERS is the smallest roster the
+// rotation model can run without fouling out into a forfeit corner, and
+// STARTERS_COUNT is basketball itself.
+export const RATING_MIN = 0;
+export const RATING_MAX = 100;
+export const POSITIONS: readonly string[] = ['PG', 'SG', 'SF', 'PF', 'C'];
+export const HEIGHT_MIN_IN = 60;
+export const HEIGHT_MAX_IN = 96;
+export const MIN_PLAYERS = 8;
+export const STARTERS_COUNT = 5;
+export const TACTICS_KEYS: readonly string[] = ['pace', 'threeBias', 'helpAggr'];
+
 // Every rating in this engine — attribute or tendency alike — lives on the
 // same 0-100 scale, so one helper covers both ATTR_KEYS and TEND_KEYS below.
 function isRating(x: unknown): boolean {
-  return typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 100;
+  return typeof x === 'number' && Number.isFinite(x) && x >= RATING_MIN && x <= RATING_MAX;
 }
 
 // Validates ONE player object, appending every issue found (not just the
@@ -90,11 +118,29 @@ function validatePlayer(p: unknown, path: string, issues: ValidationIssue[]): vo
   const pl = p as Partial<Player>;
   if (!pl.id || typeof pl.id !== 'string') issues.push({ path: `${path}.id`, message: 'missing id' });
   if (!pl.name || typeof pl.name !== 'string') issues.push({ path: `${path}.name`, message: 'missing name' });
-  if (!['PG', 'SG', 'SF', 'PF', 'C'].includes(pl.pos as string)) {
+  // weightLb is not cosmetic: defense.ts matchup-sorting reads it every game
+  // and simulateGame() hard-throws on a non-finite body measurement — a pack
+  // without it validates here only to crash at tip-off. Same crash-prevention
+  // rationale as the tactics check below. Finiteness only, no range: the
+  // engine itself imposes no weight range even in its strict tier, and the
+  // pack validator should not out-strict the engine (implausible-but-finite
+  // weights are roster-validate WARNING territory, not rejection).
+  if (typeof pl.weightLb !== 'number' || !Number.isFinite(pl.weightLb)) {
+    issues.push({ path: `${path}.weightLb`, message: 'weightLb must be a finite number' });
+  }
+  // wingspanIn is optional (derived.ts falls back to heightIn + 2), but a
+  // present-and-non-numeric value doesn't trigger that fallback — it flows
+  // into the standing-reach formula and NaNs every contest that player is
+  // involved in. Absent is fine; present means finite.
+  if (pl.wingspanIn !== undefined && (typeof pl.wingspanIn !== 'number' || !Number.isFinite(pl.wingspanIn))) {
+    issues.push({ path: `${path}.wingspanIn`, message: 'wingspanIn, when present, must be a finite number' });
+  }
+  if (!POSITIONS.includes(pl.pos as string)) {
     issues.push({ path: `${path}.pos`, message: `invalid position ${String(pl.pos)}` });
   }
-  if (typeof pl.heightIn !== 'number' || !Number.isFinite(pl.heightIn) || pl.heightIn < 60 || pl.heightIn > 96) {
-    issues.push({ path: `${path}.heightIn`, message: 'heightIn must be a finite number 60-96' });
+  if (typeof pl.heightIn !== 'number' || !Number.isFinite(pl.heightIn)
+    || pl.heightIn < HEIGHT_MIN_IN || pl.heightIn > HEIGHT_MAX_IN) {
+    issues.push({ path: `${path}.heightIn`, message: `heightIn must be a finite number ${HEIGHT_MIN_IN}-${HEIGHT_MAX_IN}` });
   }
   const attr = pl.attr as Record<string, unknown> | undefined;
   if (!attr) issues.push({ path: `${path}.attr`, message: 'missing attributes' });
@@ -137,6 +183,17 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
     return issues;
   }
   if (!team.id) issues.push({ path: '$.team.id', message: 'missing id' });
+  // name/abbrev are required by the Team type and displayed by every consumer
+  // (box score header, play-by-play score lines, replay metadata) — a pack
+  // without them doesn't crash, it produces "undefined 98, undefined 111"
+  // narration, which violates the pack-is-an-honest-description philosophy
+  // just as surely as a silently-defaulted rating would.
+  if (!team.name || typeof team.name !== 'string') {
+    issues.push({ path: '$.team.name', message: 'missing name' });
+  }
+  if (!team.abbrev || typeof team.abbrev !== 'string') {
+    issues.push({ path: '$.team.abbrev', message: 'missing abbrev' });
+  }
   // tactics is REQUIRED by the engine (ai reads threeBias/helpAggr
   // unconditionally, with no fallback) — a pack missing tactics wouldn't
   // fail gracefully at sim time, it would crash mid-game the first time the
@@ -147,12 +204,12 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
   if (!tactics || typeof tactics !== 'object') {
     issues.push({ path: '$.team.tactics', message: 'missing tactics — need { pace, threeBias, helpAggr } each 0-100' });
   } else {
-    for (const k of ['pace', 'threeBias', 'helpAggr']) {
+    for (const k of TACTICS_KEYS) {
       if (!isRating(tactics[k])) issues.push({ path: `$.team.tactics.${k}`, message: 'must be 0-100' });
     }
   }
-  if (!Array.isArray(team.players) || team.players.length < 8) {
-    issues.push({ path: '$.team.players', message: 'need at least 8 players' });
+  if (!Array.isArray(team.players) || team.players.length < MIN_PLAYERS) {
+    issues.push({ path: '$.team.players', message: `need at least ${MIN_PLAYERS} players` });
   } else {
     team.players.forEach((p, i) => validatePlayer(p, `$.team.players[${i}]`, issues));
     const ids = new Set(team.players.map((p) => p.id));
@@ -162,11 +219,41 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
     // Exactly 5, not "at least 5" — the engine's on-court model assumes
     // precisely five starters take the opening lineup; a 4- or 6-name
     // starters list isn't a smaller/larger valid roster, it's malformed.
-    if (!Array.isArray(team.starters) || team.starters.length !== 5) {
-      issues.push({ path: '$.team.starters', message: 'exactly 5 starters required' });
+    if (!Array.isArray(team.starters) || team.starters.length !== STARTERS_COUNT) {
+      issues.push({ path: '$.team.starters', message: `exactly ${STARTERS_COUNT} starters required` });
     } else {
       for (const sid of team.starters) {
         if (!ids.has(sid)) issues.push({ path: '$.team.starters', message: `starter ${sid} not on roster` });
+      }
+      // A REPEATED id also isn't five starters — ["a","a","b","c","d"] passes
+      // both checks above (length 5, every id on roster) yet hands the engine
+      // an opening lineup where the same player occupies two of the five
+      // on-court slots. game.ts's own validateTeam() has the same blind spot,
+      // so nothing downstream would save the author from a very confusing
+      // 4-player game; reject it here at load time like every other
+      // crash-shaped malformation.
+      if (new Set(team.starters).size !== STARTERS_COUNT) {
+        issues.push({ path: '$.team.starters', message: 'duplicate starter ids' });
+      }
+    }
+  }
+  // rotationMinutes is optional, but if present it must be shaped right:
+  // subs.ts multiplies each target into its minutes-pace leash, so a
+  // non-numeric value doesn't fail loudly — it turns into NaN and silently
+  // disables the leash comparisons for that player (a rotation that plays
+  // nothing like what the pack says, the exact failure mode this validator
+  // exists to prevent). Keys pointing at ids not on the roster are ignored
+  // harmlessly by the engine, so those are a roster-validate warning rather
+  // than a rejection here.
+  if (team.rotationMinutes !== undefined) {
+    const rot = team.rotationMinutes as Record<string, unknown>;
+    if (typeof rot !== 'object' || rot === null || Array.isArray(rot)) {
+      issues.push({ path: '$.team.rotationMinutes', message: 'must be an object of { playerId: minutes }' });
+    } else {
+      for (const [rid, v] of Object.entries(rot)) {
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+          issues.push({ path: `$.team.rotationMinutes.${rid}`, message: 'minutes target must be a finite number >= 0' });
+        }
       }
     }
   }

@@ -10,20 +10,21 @@ import type { Team } from '../model/player.js';
 import type { GameEvent, TeamSide } from '../core/events.js';
 import { defaultParams, withParams, type SimParams } from './params.js';
 import {
-  agent, attackedRim, emit, onCourt, round1,
+  agent, attackedRim, emit, liveOnCourt, round1,
   type Agent, type GameState
 } from './state.js';
 import { Rng } from '../core/rng.js';
 import { add, dist, len, lerp, norm, scale, sub } from '../core/vec.js';
 import {
-  decideBall, defenseTick, offenseOffBallTick, type BallAction
+  decideBall, defenseTick, midPullUpLight, offenseOffBallTick, type BallAction
 } from './ai.js';
-import { contestAt } from './resolve.js';
+import { contestAt, defendersBack } from './resolve.js';
 import {
   bestHandler, deadBall, endPeriod, endPossession, giveBall, setupDeadTargets,
   tickDead, tickScramble, tipWeightedWinner
 } from './possession.js';
 import { recordFoul, tickFreeThrows } from './fouls.js';
+import { hurriedness } from './endgame.js';
 import { resolveShotOutcome, startShot, windupSec } from './shooting.js';
 import { attemptReachIn, resolvePassArrival, startPass } from './passing.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
@@ -43,6 +44,19 @@ export interface GameConfig {
    * exists so tests can prove that behavior without simulating for hours.
    */
   safetyCapTicks?: number;
+  /**
+   * ENDGAME LAYER feature flag (default OFF). On, late-game basketball
+   * behaviors activate: clock-kill with a lead, trailing hurry-up and
+   * intentional fouling, hold-for-one / 2-for-1 period endings, and team
+   * timeouts (which add a `timeout` event type to the stream). All of it is
+   * EV/urgency modulation inside the existing decision framework — see
+   * sim/ai/concepts.ts (concept 6) and sim/endgame.ts; constants in
+   * params.endgame. OFF is byte-identical to the pre-layer engine, so the
+   * shipped band calibration is unaffected until this defaults on. Expect
+   * flag-ON games to shift league texture late (more FTs, longer leading-
+   * team possessions, more stoppages) — that is the point.
+   */
+  endgame?: boolean;
   /**
    * Input-contract tier. 'finite' (default) rejects only non-finite ratings
    * and measurements — out-of-range finite values are legal (custom content,
@@ -109,6 +123,7 @@ function initState(cfg: GameConfig): GameState {
         dribblesSinceCatch: 0,
         dribbleAcc: 0,
         catchT: -99,
+        acquiredBy: 'deadball',
         catchQuality: 0,
         usedPoss: 0,
         teamPossOnCourt: 0,
@@ -147,6 +162,9 @@ function initState(cfg: GameConfig): GameState {
     score: [0, 0],
     teamFoulsPeriod: [0, 0],
     tipWinner: 0,
+    endgame: cfg.endgame ?? false,
+    timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
+    runPts: [0, 0],
     poss: {
       team: 0,
       shotClock: rules.shotClockSec,
@@ -155,6 +173,7 @@ function initState(cfg: GameConfig): GameState {
       kind: 'tip',
       lastPass: null,
       spotMap: new Map(),
+      spots: new Map(),
       action: null,
       ended: false
     },
@@ -220,7 +239,7 @@ function tickLive(s: GameState, dt: number): void {
   const holderId = s.ball.holderId;
   if (!holderId) {
     // shouldn't happen in live phase; recover gracefully
-    giveBall(s, bestHandler(s, s.poss.team));
+    giveBall(s, bestHandler(s, s.poss.team), 'deadball');
     return;
   }
   const h = agent(s, holderId);
@@ -251,14 +270,15 @@ function tickLive(s: GameState, dt: number): void {
     // drive-gated advance phase after the jog economy; main had 36%)
     s.poss.phase = 'halfcourt';
   } else if (s.poss.phase === 'transition') {
-    // transition ends when the DEFENSE IS SET: 4+ defenders back inside
-    // 30 ft of the rim they protect (the same arrival principle as the
-    // advance flip); transitionMaxSec is the chaos-state safety cap
-    let back = 0;
-    for (const d of onCourt(s, other(h.side))) {
-      if (!d.fouledOut && dist(d.pos, rim) < 30) back++;
-    }
-    if (back >= 4 || s.t - s.poss.startT > s.params.move.transitionMaxSec) {
+    // transition ends when the DEFENSE IS SET: transSetBackCount+ defenders
+    // inside transBackRadiusFt of the rim they protect (the same arrival
+    // principle as the advance flip — shared definition in resolve.ts
+    // defendersBack, also read by the decision layer's transition
+    // continuation cut); transitionMaxSec is the chaos-state safety cap
+    if (
+      defendersBack(s, h.side) >= s.params.move.transSetBackCount ||
+      s.t - s.poss.startT > s.params.move.transitionMaxSec
+    ) {
       s.poss.phase = 'halfcourt';
     }
   }
@@ -300,7 +320,10 @@ function tickLive(s: GameState, dt: number): void {
     // stable target — regenerating it with jitter every tick made the
     // handler visibly vibrate while bringing the ball up
     h.target = { x: rim.x + dir * 26, y: s.court.centerY };
-    h.sprinting = s.poss.phase === 'transition';
+    // endgame hurry (flag-gated): a chasing team SPRINTS the ball up — the
+    // dribble-jog walk-up costs seconds it no longer has (sim/endgame.ts)
+    h.sprinting = s.poss.phase === 'transition' ||
+      (s.endgame && hurriedness(s, h.side) >= s.params.endgame.hurrySprintMin);
   } else {
     h.intent = 'spot';
     h.sprinting = false;
@@ -309,9 +332,9 @@ function tickLive(s: GameState, dt: number): void {
   }
 
   // dribble accounting (for assist windows)
-  if (len(h.vel) > 3.5) {
+  if (len(h.vel) > s.params.move.dribbleSpeedFtS) {
     h.dribbleAcc += dt;
-    if (h.dribbleAcc >= 0.55) {
+    if (h.dribbleAcc >= s.params.move.dribbleSec) {
       h.dribbleAcc = 0;
       h.dribblesSinceCatch += 1;
     }
@@ -339,7 +362,7 @@ function tickLive(s: GameState, dt: number): void {
   // charge check while driving — turnover first, THEN the foul: recordFoul
   // may foul the driver out and emit his replacement sub, and the turnover
   // must not appear to be committed by a player already off the floor
-  if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * 2)) {
+  if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * s.params.foul.chargeTickMult)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'off_foul'
     });
@@ -377,13 +400,34 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       break;
     case 'drive': {
       {
-        // arrival-based commit: penetrate until you REACH the rim vicinity
-        // (launch distance / planning speed), clamped to [floor, ceiling] —
-        // a fixed window expired mid-lane on long launches and drives died
-        // as 15-ft pull-ups (drive-collapse forensic)
         const D = s.params.decide;
+        const A = s.params.ai;
         const launchDist = dist(h.pos, attackedRim(s, h.side));
-        h.driveUntil = s.t + Math.min(D.driveCommitMaxSec, Math.max(D.driveCommitSec, launchDist / D.driveSpeedFtSec));
+        // THE SNAKE STOP-SHORT: a mid-range identity sometimes attacks TO
+        // HIS SPOT, not the rim — the drive that ends in a stop-on-a-dime
+        // pull-up at the FT-line/elbow band (the signature self-created
+        // middy). Gated on the shared midPullUpLight (ai/shared.ts: the
+        // same joint green light the decisiveness term honors, so the
+        // player who snakes and the player who rises are the same player)
+        // and only from OUTSIDE the band — a snake attacks INTO it;
+        // launches already inside it are the ordinary rim drive. The
+        // commit simply ends at driveMidStopFt instead of the rim: the
+        // beaten defender is still trailing when it expires, so the next
+        // decision is a pull-up in the band with real separation — and if
+        // the light doesn't fire there, the kick machinery takes over,
+        // which is how real snakes end too.
+        const stopShort =
+          launchDist > A.midGreenMaxFt &&
+          midPullUpLight(h) > 0 &&
+          s.rng.chance(midPullUpLight(h) * A.driveMidStopChance);
+        // non-snake: the arrival-based commit — penetrate until you REACH
+        // the rim vicinity (launch distance / planning speed), clamped to
+        // [floor, ceiling]; a fixed window expired mid-lane on long
+        // launches and drives died as 15-ft pull-ups (drive-collapse
+        // forensic)
+        h.driveUntil = stopShort
+          ? s.t + (launchDist - A.driveMidStopFt) / D.driveSpeedFtSec
+          : s.t + Math.min(D.driveCommitMaxSec, Math.max(D.driveCommitSec, launchDist / D.driveSpeedFtSec));
       }
       s.decisionAt = s.t + 0.5; // re-evaluate quickly mid-drive (finish or kick)
       break;

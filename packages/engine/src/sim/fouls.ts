@@ -9,16 +9,28 @@
  * whenever `s.phase.kind === 'freethrows'` — see docs/INTERNALS.md's pipeline.
  */
 
-import { attackedRim, agent, emit, onCourt, other, type Agent, type GameState, type Phase } from './state.js';
+import { attackedRim, agent, emit, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
+import { bonusFreeThrowAward, type BonusAward } from '../rules/rulepack.js';
 import { freeThrowP, sampleMissLanding } from './resolve.js';
 import { checkSubs, replaceFouledOut } from './subs.js';
-import { integrateMovement } from './movement.js';
+import { applyFatigue, integrateMovement } from './movement.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
+import { noteScore } from './endgame.js';
 
 export interface FoulOutcome {
   fouledOut: boolean;
   inBonus: boolean;
+  /**
+   * What THIS foul awards at the line under the bonus: null for offensive
+   * fouls (never shots) and whenever the fouling team isn't in the bonus.
+   * For non-shooting defensive fouls, `bonus !== null` exactly when
+   * `inBonus` — callers that send someone to the line must use this (shots
+   * + one-and-one flag) rather than reading rules.bonusFreeThrows directly,
+   * or the NCAA one-and-one tier silently becomes a flat two. Shooting-foul
+   * callers ignore it: their FT count comes from the shot (2/3/and-one).
+   */
+  bonus: BonusAward | null;
 }
 
 /**
@@ -43,6 +55,10 @@ export function recordFoul(
   const countsTeam = kind !== 'offensive'; // offensive fouls: personal only (v0.1)
   if (countsTeam) s.teamFoulsPeriod[side] += 1;
   const inBonus = s.teamFoulsPeriod[side] >= s.rules.teamFoulBonusAt;
+  // the award is looked up AFTER the team-foul bump, so the foul that puts a
+  // team at exactly teamFoulBonusAt (or doubleBonusAt) already pays at the
+  // new tier — matching how the rule reads ("on the seventh team foul…")
+  const bonus = countsTeam ? bonusFreeThrowAward(s.rules, s.teamFoulsPeriod[side]) : null;
   const fouledOut = fouler.fouls >= s.rules.foulOutAt;
   if (fouledOut) fouler.fouledOut = true;
   emit(s, {
@@ -57,7 +73,7 @@ export function recordFoul(
     fouledOut
   });
   if (fouledOut) replaceFouledOut(s, fouler);
-  return { fouledOut, inBonus };
+  return { fouledOut, inBonus, bonus };
 }
 
 // ------------------------------------------------------------- free throws
@@ -67,12 +83,15 @@ export function recordFoul(
  * `freethrows`, and arranges cosmetic lane positions for everyone else.
  * Called wherever a foul (or and-one) awards free throws — shooting fouls,
  * bonus reach-ins/loose-balls, and-ones. `count` is how many shots (1, 2, or
- * 3 depending on shot value / and-one / bonus rules upstream).
+ * 3 depending on shot value / and-one / bonus rules upstream). `oneAndOne`
+ * marks the trip as an NCAA-style one-and-one (count is the POTENTIAL 2;
+ * tickFreeThrows ends the trip with a live ball if the front end misses) —
+ * bonus callers pass it straight from FoulOutcome.bonus.
  * Trap: `checkSubs(s, shooter.p.id)` passes the shooter's id as the
  * `protect` argument specifically so the normal fatigue-rotation logic can't
  * yank the free-throw shooter off the floor between the whistle and his shot.
  */
-export function enterFreeThrows(s: GameState, shooter: Agent, count: number): void {
+export function enterFreeThrows(s: GameState, shooter: Agent, count: number, oneAndOne = false): void {
   s.ball.holderId = null;
   s.ball.flight = null;
   s.phase = {
@@ -85,7 +104,8 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
     // slightly quicker than a full dead-ball delay since the whistle already
     // stopped the action
     nextIn: 1.4,
-    lastMade: false
+    lastMade: false,
+    oneAndOne
   };
   checkSubs(s, shooter.p.id); // never sub out the man headed to the line
   // cosmetic positioning around the key — none of this affects the free-throw
@@ -93,9 +113,11 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
   // so the replay doesn't show players standing wherever the whistle caught them
   const rim = attackedRim(s, shooter.side);
   const dir = rim.x > s.court.midX ? -1 : 1;
-  // 13.75 ft: the real NBA free-throw-line-to-rim-center distance (the FT
-  // line itself sits at rimInsetFt + 13.75 from the baseline; see rulepack.ts)
-  const ftSpot = { x: rim.x + dir * 13.75, y: s.court.centerY };
+  // free-throw-line-to-rim-center distance, derived from the rule pack
+  // (NBA: 19 - 5.25 = 13.75 ft) — was a hardcoded 13.75 that silently
+  // diverged from any custom pack's ftLineFt/rimInsetFt
+  const ftDistFt = s.rules.ftLineFt - s.rules.rimInsetFt;
+  const ftSpot = { x: rim.x + dir * ftDistFt, y: s.court.centerY };
   shooter.target = ftSpot;
   let lane = 0;
   for (const a of [...onCourt(s, shooter.side), ...onCourt(s, other(shooter.side))]) {
@@ -121,8 +143,9 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
  * Per-tick driver for the `freethrows` phase. Dispatched from `game.ts`'s
  * tick switch every tick while `s.phase.kind === 'freethrows'`. Counts down
  * to the next attempt, resolves it through `freeThrowP`, updates the score,
- * emits the event, and — once the full sequence (`taken === of`) is done —
- * either returns the ball to the other team (make) or spins up a live-rebound
+ * emits the event, and — once the sequence is done (`taken === of`, or a
+ * one-and-one front end missed and forfeited the rest) — either returns the
+ * ball to the other team (make) or spins up a live-rebound
  * scramble off the rim (miss). Free throws never generate an assist or
  * change shot-clock state; the sequence itself doesn't run the game clock
  * (only made/missed FT dead-ball transitions do, via `deadBall`/`enterScramble`).
@@ -130,6 +153,10 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number): vo
 export function tickFreeThrows(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
   integrateMovement(s, dt);
+  // fatigue accrues here like every other phase handler — this was the sole
+  // omission (energy silently froze through every trip to the line);
+  // landed with the M1 margin re-sweep (REFACTOR.md D4)
+  applyFatigue(s, dt);
   ph.nextIn -= dt;
   if (ph.nextIn > 0) return;
 
@@ -137,24 +164,58 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   const made = s.rng.chance(freeThrowP(s, shooter));
   ph.taken += 1;
   ph.lastMade = made;
-  if (made) s.score[ph.side] += 1;
+  if (made) {
+    s.score[ph.side] += 1;
+    noteScore(s, ph.side, 1); // unanswered-run tracker (endgame layer)
+  }
   emit(s, {
     type: 'free_throw',
     team: ph.side,
     shooter: ph.shooterId,
     n: ph.taken,
     of: ph.of,
-    made
+    made,
+    // stamped only on one-and-one trips: conditional spread (not an
+    // always-present false) so every other league's event objects — and
+    // therefore the golden fingerprint corpus — stay byte-identical
+    ...(ph.oneAndOne ? { oneAndOne: true } : {})
   });
 
-  if (ph.taken < ph.of) {
+  // A missed one-and-one FRONT END forfeits the second attempt — by rule the
+  // ball is live off the rim (NCAA men, data/ncaa/README.md R1). Skipping
+  // the "more attempts remain" branch below routes this straight into the
+  // sequence-complete miss path: a real rebound scramble, not the dead-ball
+  // formality rebound a missed non-final FT would log.
+  const frontEndMiss = ph.oneAndOne && !made && ph.taken === 1;
+
+  if (ph.taken < ph.of && !frontEndMiss) {
+    if (!made) {
+      // The scorekeeping formality real logs print after every missed
+      // NON-final free throw: "Offensive rebound by Team". The ball is dead
+      // by rule — nobody rebounds anything, the next attempt just proceeds
+      // — so the event carries deadBall: true and every stat consumer
+      // excludes it from rebound totals (official-scoring convention; see
+      // core/events.ts ReboundEvent). Emitted for play-by-play fidelity:
+      // its total absence was a Turing-baseline tell.
+      const rim = attackedRim(s, ph.side);
+      emit(s, {
+        type: 'rebound',
+        team: ph.side,
+        offensive: true,
+        deadBall: true,
+        x: round1(rim.x),
+        y: round1(rim.y)
+      });
+    }
     // 0.9s between subsequent attempts: shorter than the 1.4s lead-in since
     // the shooter is already set at the line — just the ritual dribble/pause
     ph.nextIn = 0.9;
     return;
   }
 
-  // sequence complete
+  // sequence complete (all awarded attempts taken, or a one-and-one front
+  // end just missed — in which case `made` is false and the miss branch
+  // below hands out the live rebound the rule calls for)
   if (made) {
     endPossession(s, 'made_ft');
     if (s.clock < 1e-6) { endPeriod(s); return; }

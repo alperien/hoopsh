@@ -35,9 +35,14 @@ function argOf(flag: string): string | undefined {
   return i !== -1 ? process.argv[i + 1] : undefined;
 }
 const MODE = argOf('--mode') ?? 'all';
-const LEAGUE_BASES = Number(argOf('--leagueBases') ?? 20);
-const STAR_BASES_12 = Number(argOf('--starBases12') ?? 8);
-const STAR_BASES_40 = Number(argOf('--starBases40') ?? 4);
+// Defaults MATCH the checked-in artifact's sample sizes (noise-floor.gen.ts
+// meta: 40/16/8). They had drifted to half these values, so a naive
+// `npm run noisefloor` silently regenerated the gate basis at half the
+// statistical power — halving n widens every sd·z gate. Keep these in sync
+// with the artifact's meta block; override per-run with the flags if needed.
+const LEAGUE_BASES = Number(argOf('--leagueBases') ?? 40);
+const STAR_BASES_12 = Number(argOf('--starBases12') ?? 16);
+const STAR_BASES_40 = Number(argOf('--starBases40') ?? 8);
 
 interface Moments { mean: number; sd: number; n: number }
 function moments(xs: number[]): Moments {

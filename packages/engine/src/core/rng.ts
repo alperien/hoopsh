@@ -72,6 +72,10 @@ export class Rng {
 
   /** index sampled proportionally to non-negative weights (all-zero -> uniform) */
   weighted(weights: readonly number[]): number {
+    // an empty array used to fall through to int(0) and "sample" index 0 of
+    // nothing — the caller then indexed its own empty array and got undefined
+    // silently. Same fail-loud policy as the non-finite guard below.
+    if (weights.length === 0) throw new Error('Rng.weighted: empty weights array');
     let total = 0;
     for (const w of weights) {
       // fail loudly on corrupt weights: a NaN here used to fall through to

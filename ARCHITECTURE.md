@@ -65,13 +65,15 @@ packages/
   stats/       event stream → box scores, advanced stats, shot charts
   data/        player/team JSON schemas, validation, sample fictional rosters
   narration/   template play-by-play + LLM color-commentary interfaces
-  harness/     batch runner, acceptance bands, benchmarks, calibration tools
+  harness/     batch runner, acceptance bands, benchmarks, calibration tools,
+               season/matchup driver, stats→ratings fitter (docs/SEASON.md,
+               docs/ROSTERS.md)
   viewer/      single-file 2D canvas replay viewer (working prototype; frozen)
 ```
 
 Dependency rule: `engine` imports nothing. Everything else imports `engine`.
 Experiences (GM, MyPlayer, editor UI) will live outside these packages and speak to the
-engine only through its public API: `simulateGame(config) → { events, replay, result }`.
+engine only through its public API: `simulateGame(config) → GameResult` (`{ seed, events, finalScore, frames, rules, params, teams }`; a `Replay` is assembled separately from that result via `buildReplay`).
 
 ## 4. Engine internals
 
@@ -87,7 +89,11 @@ engine only through its public API: `simulateGame(config) → { events, replay, 
 `RulePack` is data, not code: period count/length, OT length, shot clock (+ offensive
 rebound reset), team-foul bonus thresholds, personal foul-out limit, three-point
 geometry (arc radius, corner distance, corner break), court dimensions, clock-stopping
-rules. NBA ships first; NCAA/EuroLeague are follow-ups. Custom leagues are just JSON.
+rules. NBA ships first. An NCAA pack exists and is selectable through the
+harness `--league` flag (rule pack + bands + pace basis travel together);
+its rule coverage is partial — unwired fields are labeled in
+`rules/rulepack.ts` and registered in REFACTOR.md. EuroLeague is a
+follow-up. Custom leagues are just JSON.
 
 ### 4.3 Player model
 
@@ -134,6 +140,10 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   charges (rare). Team-foul bonus and foul-outs from the rule pack. FT sequences.
 - Live-ball turnovers and defensive rebounds trigger transition: if the defense isn't
   set, early-offense quality bonuses apply. Fast-break points emerge.
+- Endgame management (timeouts, intentional fouling, hold-for-last, two-for-one,
+  clock burn) exists as a flag-gated layer (`GameConfig.endgame`, default OFF)
+  that modulates the same EV framework rather than scripting plays; turning it
+  on by default is an open calibration decision (REFACTOR.md register).
 
 ### 4.7 Event stream & replay
 
@@ -189,6 +199,8 @@ Consumes the event stream; never touches the engine.
 
 ## 8. Roadmap after v0.1
 
-season layer (schedules, rotations, fatigue across games, injuries) → progression/aging
-→ NCAA + EuroLeague rule packs → era packs → deep editor UI → GM & MyPlayer experiences
-→ defensive schemes → broadcast audio → possible WASM core.
+cross-game season state (the stateless season driver exists — docs/SEASON.md
+records the seams; fatigue carryover, injuries, home-court are the missing
+pieces) → progression/aging → EuroLeague rule pack + NCAA calibration → era
+packs → deep editor UI → GM & MyPlayer experiences → defensive schemes →
+broadcast audio → possible WASM core.

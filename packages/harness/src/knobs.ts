@@ -134,10 +134,38 @@ export const SWEEPABLE: Knob[] = [
   // intrinsic value is a STYLE lever; bands cannot see creation structure,
   // so the range must not let the optimizer trade it away.
   { path: 'ai.swingBase', lo: 0.0, hi: 0.045 },
+  // Flow-tier levers (added with the game-flow gates; see
+  // data/nba/flow-reference.json): steal->score-in-6s ran 13% vs the real
+  // ~29% before the wave2 steal-break premium (decide.stealBreakBonus) —
+  // these knobs keep transition texture reachable by the sweep.
+  //
+  // putbackChance RE-AIMED (wave2): the old [0.1, 0.5] range was built on a
+  // WRONG reference — the anchor's 0.33 divided by all OREB rows including
+  // ~38% team-rebound bookkeeping; the corrected 184-game corpus value is
+  // 0.716 of PLAYER OREBs (flow-reference.json putbackWithin6sShareOfOreb,
+  // grade A), so the sim's ~50% is too LOW, not too high. The range must
+  // not invite the optimizer to suppress putbacks. Note the knob SATURATES
+  // upward (probed 0.4532 -> 0.65: share flat at ~52% — the auto branch
+  // only reaches <6 ft rim grabs); the remaining gap lives in post-OREB
+  // patience (14s-clock continuation ≈ 1.36 vs a contested second-chance
+  // look), which belongs to the decide-tier knobs.
+  { path: 'reb.putbackChance', lo: 0.35, hi: 0.8 },
+  { path: 'ai.driveTransitionMult', lo: 1.0, hi: 2.4 },
+  { path: 'ai.transitionPullUpBonus', lo: 0.2, hi: 0.8 },
   { path: 'ai.holdHalfcourt', lo: -0.08, hi: 0.05 },
   { path: 'ai.contestBrakeBase', lo: 0.3, hi: 0.75 },
   { path: 'ai.crashBase', lo: 0.15, hi: 0.4 },
-  { path: 'ai.cutRateScale', lo: 0.003, hi: 0.011 }
+  { path: 'ai.cutRateScale', lo: 0.003, hi: 0.011 },
+  // Mid-range restoration (wave2/midrange): the demand term's magnitude and
+  // the supply line's pop rate are the two calibration levers on mid-range
+  // volume (real 14-19.5 ft band ≈ 6.8% of FGA; the sim ran 1.4% before the
+  // mechanism landed). The green-light SHAPE (tendency floor, distance
+  // ceiling, pop-eligibility cut) is identity definition — what a mid-range
+  // player IS — and stays off the sweep surface, same doctrine as
+  // pnrRollGravityCut and dunkerGravityThreshold.
+  { path: 'ai.midRangeBonus', lo: 0.25, hi: 0.9 },
+  { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 },
+  { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 }
 ];
 
 /** set a dot-path on a nested object (mutates) */

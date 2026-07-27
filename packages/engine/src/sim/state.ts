@@ -20,6 +20,19 @@ export type MoveIntent =
   | 'getback'   // transition defense retreat
   | 'freeze';   // dead-ball repositioning
 
+/**
+ * How the current holder came to have the ball — the acquisition context a
+ * shot/assist taxonomy needs. A caught PASS is the only acquisition that
+ * makes a no-dribble quick shot a CATCH-and-shoot (and the only one whose
+ * delivery quality legitimately rides the release); a rebound grabbed at the
+ * rim and put straight back up is a putback; a steal or a dead-ball resume
+ * is a self-generated touch. Before this existed, decide.ts labeled every
+ * quick 0-dribble shot `catch_shoot` — 22% of ALL attempts were interior
+ * shots wearing a jump-shot label, and the passQuality term read a stale
+ * delivery from a pass caught possessions earlier (wave2 diagnostic).
+ */
+export type BallAcquisition = 'pass' | 'rebound' | 'steal' | 'deadball';
+
 export interface Agent {
   p: Player;
   side: TeamSide;
@@ -40,6 +53,9 @@ export interface Agent {
   dribblesSinceCatch: number;
   dribbleAcc: number;          // accumulator converting hold-time to dribbles
   catchT: number;              // t when this agent received the ball
+  /** how this touch was acquired (stamped by giveBall) — gates the quick-shot
+   *  taxonomy (catch_shoot vs cut_finish vs putback) and assist eligibility */
+  acquiredBy: BallAcquisition;
   /** delivery quality of the LAST pass caught, n-space [-1,1] — set on every
    *  catch from the passer's passAcc/passVision; feeds the catch-and-shoot
    *  make model ("on time, on target" — teammates shoot better next to a
@@ -153,15 +169,24 @@ export type Phase =
       possKind: 'inbound' | 'tip';
       /** same possession continues (e.g. non-shooting foul, no turnover) */
       continuation?: boolean;
+      /**
+       * an 'advance' timeout was called during this dead ball: the inbound
+       * sets up in the FRONTcourt (sim/possession.ts setupDeadTargets reads
+       * this) — endgame layer only (sim/endgame.ts maybeTimeout)
+       */
+      advanceInbound?: boolean;
     }
   | {
       kind: 'freethrows';
       shooterId: string;
       side: TeamSide;
       taken: number;
+      /** attempts the trip can reach — for a one-and-one this is the potential 2; a front-end miss ends the trip early (fouls.ts tickFreeThrows) */
       of: number;
       nextIn: number;
       lastMade: boolean;
+      /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
+      oneAndOne: boolean;
     }
   | {
       kind: 'scramble'; // live rebound up for grabs
@@ -178,6 +203,17 @@ export interface Possession {
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip';
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
+  /**
+   * THIS possession's spacing-spot coordinates: the geometric template
+   * (geometry/court.ts spacingSpots) plus a small seeded per-possession
+   * jitter (params.ai.spotJitterFt), rolled once in assignSpots. Every
+   * consumer of a spot position during the possession (off-ball spacing,
+   * relocations, post-block targets) reads THIS map, never the raw
+   * template — that's what keeps the same trip internally coherent while
+   * different trips stop reproducing five bit-identical coordinates (the
+   * repeated "26 ft"/"5 ft" shot-distance tell from the Turing baseline).
+   */
+  spots: Map<string, V2>;
   /** the running set action, if any (e.g. an active pick-and-roll) */
   action: TeamAction | null;
   /** guard: possession_end has been emitted for this possession */
@@ -202,6 +238,19 @@ export interface GameState {
   score: [number, number];
   teamFoulsPeriod: [number, number];
   tipWinner: TeamSide;
+
+  /**
+   * ENDGAME LAYER (GameConfig.endgame). `endgame` gates every late-game
+   * behavior (concept 6, intentional fouling, timeouts) — false is the
+   * default and the byte-identical legacy path. `timeoutsLeft` /`runPts`
+   * are always maintained (cheap bookkeeping, no rng) but only READ when
+   * the flag is on: runPts mirrors the unanswered-points definition the
+   * narration ContextTracker uses (a team's own score accrues, an opponent
+   * score zeroes it) and feeds the stop-the-run timeout trigger.
+   */
+  endgame: boolean;
+  timeoutsLeft: [number, number];
+  runPts: [number, number];
 
   poss: Possession;
   phase: Phase;
@@ -232,6 +281,21 @@ export function agent(s: GameState, id: string): Agent {
 
 export function onCourt(s: GameState, side: TeamSide): Agent[] {
   return s.lineup[side].map((id) => agent(s, id));
+}
+
+/**
+ * On-court players EXCLUDING the fouled-out. The bench-exhausted degenerate
+ * state legally leaves a fouled-out player standing in the lineup (see
+ * subs.ts replaceFouledOut's early return), so nearly every actor query —
+ * who can shoot, contest, steal, rebound, be passed to — must filter him
+ * out. That filter used to be a `.fouledOut` check hand-repeated at ~15
+ * call sites, where forgetting one meant a ghost actor (an audited
+ * invariant violation happened exactly this way). One definition now.
+ * Plain onCourt remains for lineup mechanics (slots, frames, matchup
+ * bookkeeping) where the body still physically exists on the floor.
+ */
+export function liveOnCourt(s: GameState, side: TeamSide): Agent[] {
+  return onCourt(s, side).filter((a) => !a.fouledOut);
 }
 
 export function other(side: TeamSide): TeamSide {

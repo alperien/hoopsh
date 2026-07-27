@@ -9,16 +9,15 @@ import { dist, lerp, norm, scale, sub, add } from '../../core/vec.js';
 import { clamp } from '../../core/rng.js';
 import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
-import { agent, attackedRim, onCourt, other, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, onCourt, other, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
-import { assignedDefender } from './shared.js';
+import { assignedDefender, midGreenLight } from './shared.js';
 import { actionTick } from './actions.js';
 
 /** react to a shot going up: crash the boards, box out, or get back on D */
 export function onShotReleased(s: GameState, offSide: TeamSide): void {
   const rim = attackedRim(s, offSide);
-  for (const a of onCourt(s, offSide)) {
-    if (a.fouledOut) continue;
+  for (const a of liveOnCourt(s, offSide)) {
     const near = dist(a.pos, rim) < s.params.ai.crashNearFt;
     const crash = near && s.rng.chance(
       s.params.ai.crashBase + (a.p.tend.crashOffReb / 100) * s.params.ai.crashTendScale
@@ -29,12 +28,15 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
       a.sprinting = true;
     } else {
       a.intent = 'getback';
-      a.target = lerp(attackedRim(s, other(offSide)), s.court.rims[rim.x > s.court.midX ? 0 : 1]!, 0.55);
+      // retreat to the rim this team defends. (This was a lerp between two
+      // expressions that are provably always the SAME rim — attackedRim of
+      // the other side and the opposite-end rims[] entry — i.e. dead
+      // geometry; simplified to what it always computed.)
+      a.target = { ...attackedRim(s, other(offSide)) };
       a.sprinting = false;
     }
   }
-  for (const d of onCourt(s, other(offSide))) {
-    if (d.fouledOut) continue;
+  for (const d of liveOnCourt(s, other(offSide))) {
     const man = d.manId ? s.agents.get(d.manId) : null;
     if (man && dist(man.pos, rim) >= 20) {
       // guard-crash economy: a defender guarding the PERIMETER mostly holds
@@ -61,24 +63,78 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
 
 // ------------------------------------------------------------ offense setup
 
+/**
+ * Roll THIS possession's spot coordinates: the geometric template plus a
+ * small seeded jitter (params.ai.spotJitterFt, uniform per axis), stored on
+ * s.poss.spots for every downstream consumer. One roll per spot per
+ * possession — the draw count is fixed (all spots, every call), so the RNG
+ * stream stays deterministic regardless of personnel or spot usage.
+ *
+ * Why: with exact template coordinates, every trip produced bit-identical
+ * shot locations — the Turing baseline judges read the repeated "26 ft"
+ * threes and "5 ft" twos as a generator artifact (flow-reference.json
+ * meta.turingBaseline). Real spots are zones re-picked each trip.
+ *
+ * Two guards keep jitter from changing what a spot MEANS (both bit the
+ * first time around — assisted share drifted over its band edge on the
+ * 24-game guard):
+ *  - Corners deliberately sit INSIDE the 22 ft corner-three line (the D3
+ *    decision — behind-the-line corners are coupled to the assist economy,
+ *    see spacingSpots). Jitter must neither un-make that call (outward)
+ *    nor systematically SHORTEN the corner into an easier junk 2 (inward),
+ *    so corners jitter along the baseline only: lateral stays pinned at
+ *    the template offset.
+ *  - Top/wing spots are three-point spacing: a real shooter stands BEHIND
+ *    the line on purpose. Unguarded jitter parked them on/inside the arc
+ *    and minted 23-ft catch-and-shoot twos, so those spots keep
+ *    params.ai.spotJitterArcMarginFt of clearance behind the arc (pushed
+ *    back out radially when a roll lands too close).
+ */
+function rollSpots(s: GameState, rim: { x: number; y: number }): Map<string, { x: number; y: number }> {
+  const j = s.params.ai.spotJitterFt;
+  const byKey = new Map<string, { x: number; y: number }>();
+  for (const { key, pos } of spacingSpots(s.court, rim)) {
+    // two draws per spot, EVERY spot, every possession — fixed rng
+    // consumption keeps the stream deterministic across code paths
+    const dx = s.rng.range(-j, j);
+    const dy = s.rng.range(-j, j);
+    const p = { x: pos.x + dx, y: pos.y + dy };
+    if (key === 'corner_l' || key === 'corner_r') {
+      p.y = pos.y; // baseline-depth jitter only; lateral is the spot's meaning
+    } else if (key === 'top' || key === 'wing_l' || key === 'wing_r') {
+      const minR = s.rules.three.arcRadiusFt + s.params.ai.spotJitterArcMarginFt;
+      const d = dist(p, rim);
+      if (d < minR && d > 1e-9) {
+        // push back out along the rim->spot ray to the clearance floor
+        const k = minR / d;
+        p.x = rim.x + (p.x - rim.x) * k;
+        p.y = rim.y + (p.y - rim.y) * k;
+      }
+    }
+    // same court margin the relocation drift respects — nobody spaces out of bounds
+    p.x = clamp(p.x, 2, s.court.length - 2);
+    p.y = clamp(p.y, 2, s.court.width - 2);
+    byKey.set(key, p);
+  }
+  return byKey;
+}
+
 /** assign spacing spots for the possession by personnel */
 export function assignSpots(s: GameState, side: TeamSide): void {
   const rim = attackedRim(s, side);
-  const spots = spacingSpots(s.court, rim);
-  const byKey = new Map(spots.map((x) => [x.key, x.pos]));
+  const byKey = rollSpots(s, rim);
+  s.poss.spots = byKey;
   // bench exhausted and every on-court player fouled out: play on with who's
   // out there rather than crashing (mirrors bestHandler — NBA rule analog: a
   // fouled-out player remains when no substitute exists; custom short rosters
   // are legal input, and the adversarial audit produced this state at default
   // params with a foul-prone no-bench fixture)
-  const eligible = onCourt(s, side).filter((a) => !a.fouledOut);
+  const eligible = liveOnCourt(s, side);
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
 
-  // ball handler (best handle) takes the top; shooters fill wings/corners;
-  // the worst shooter lives at the dunker spot
   // Best handler initiates from the top; everyone else fills by gravity —
-  // shooters get the wings and corners (where their gravity stretches the
-  // defense), the lowest-gravity big goes to the dunker spot.
+  // shooters get the wings and corners, a low-gravity MID-RANGE big the
+  // elbow (see below), the lowest-gravity pure big the dunker.
   const sorted = [...players].sort((a, b) => b.p.attr.ballHandle - a.p.attr.ballHandle);
   const handler = sorted[0]!;
   const rest = sorted.slice(1).sort((a, b) => gravity(s, b) - gravity(s, a));
@@ -86,15 +142,42 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const map = s.poss.spotMap;
   map.clear();
   map.set(handler.p.id, 'top');
+  // NOTE (D3, REFACTOR.md): a best-fit assignment model (appetite-ranked
+  // corners + interior block stationing) is built and validated per-metric
+  // in the D3 trail, but stays reverted — the D1 assist-crediting fix did
+  // NOT unblock it. Behind-the-line corners change the offense globally
+  // (catch-and-shoot share 58% -> 67%, bands 16/17 -> 7/17), so D3 needs
+  // its own re-sweep, not a knob.
   const shooterKeys = ['wing_l', 'wing_r', 'corner_l', 'corner_r'];
+  const elbowKeys = ['elbow_l', 'elbow_r'];
+  let sk = 0; // next shooter spot to hand out
+  let ek = 0; // next elbow spot to hand out
   rest.forEach((a, i) => {
-    if (i < 3) {
-      map.set(a.p.id, shooterKeys[i]!);
+    // THE MID-RANGE STATION: a low-gravity player (the defense will not
+    // respect him beyond the arc — same threshold that routes to the
+    // dunker) who nevertheless has a real in-between game (the same
+    // green-light × ability score that gates the PnR short pop) spaces to
+    // the ELBOW, his actual habitat, instead of a corner. A corner catch
+    // for him is the junkiest shot in basketball (a 21.6 ft two the
+    // defense happily concedes — pre-fix the postAnchor fixture's "mid"
+    // diet was exactly that: 1.5 att/g at a 20.5 ft average); the elbow
+    // face-up at ~16 ft is his drilled shot, and his sagging defender
+    // must now step up to the FT line to take it away, which is the
+    // spacing pressure the mid game really exerts. Rim-runners and bench
+    // bigs (mid score 0) still fall through to the dunker as before.
+    const midScore = midGreenLight(a) * (a.p.attr.midRange / 100);
+    if (
+      ek < 2 && midScore >= s.params.ai.pnrMidPopScoreCut &&
+      gravity(s, a) < s.params.ai.dunkerGravityThreshold
+    ) {
+      map.set(a.p.id, elbowKeys[ek++]!);
+    } else if (i < 3) {
+      map.set(a.p.id, shooterKeys[sk++]!);
     } else {
       // gravity < dunkerGravityThreshold ≈ "the defense will not respect him out there",
       // so he is more useful on the baseline as a lob/putback threat than standing
       // in a corner being ignored (which would clog the spacing he can't use)
-      map.set(a.p.id, gravity(s, a) < s.params.ai.dunkerGravityThreshold ? 'dunker' : shooterKeys[3]!);
+      map.set(a.p.id, gravity(s, a) < s.params.ai.dunkerGravityThreshold ? 'dunker' : shooterKeys[sk]!);
     }
   });
 
@@ -112,16 +195,20 @@ export function assignSpots(s: GameState, side: TeamSide): void {
 export function offenseOffBallTick(s: GameState): void {
   const side = s.poss.team;
   const rim = attackedRim(s, side);
-  const spots = spacingSpots(s.court, rim);
-  const byKey = new Map(spots.map((x) => [x.key, x.pos]));
+  // THIS possession's jittered spot table (see rollSpots). The map is filled
+  // by assignSpots at possession start; the defensive fallback only covers a
+  // degenerate empty map (e.g. a hand-built GameState in a test).
+  const byKey = s.poss.spots.size > 0
+    ? s.poss.spots
+    : new Map(spacingSpots(s.court, rim).map((x) => [x.key, x.pos]));
 
   actionTick(s);
   const act = s.poss.action;
   const holderId = s.ball.holderId;
   const holder = holderId ? agent(s, holderId) : null;
 
-  for (const a of onCourt(s, side)) {
-    if (a.fouledOut || a.p.id === s.ball.holderId) continue;
+  for (const a of liveOnCourt(s, side)) {
+    if (a.p.id === s.ball.holderId) continue;
 
     // the DHO receiver sprints AT the hub — the handoff fires on proximity
     // (decideBall's dhoTarget check); reuses the cut intent so his defender

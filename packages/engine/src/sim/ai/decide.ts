@@ -14,15 +14,17 @@
  */
 
 import { clamp } from '../../core/rng.js';
-import { dist, lerp, sub, type V2 } from '../../core/vec.js';
+import { dist, lerp, segmentT, type V2 } from '../../core/vec.js';
 import { n } from '../../model/derived.js';
-import { agent, attackedRim, onCourt, other, type Agent, type GameState } from '../state.js';
-import { anticipatedContest, openness, passRisk, shotEV } from '../resolve.js';
+import type { ShotMoveType } from '../../core/events.js';
+import { classifyShot } from '../../geometry/court.js';
+import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
+import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, tempo } from './concepts.js';
 
 export type BallAction =
-  | { kind: 'shoot'; moveType: 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post' }
+  | { kind: 'shoot'; moveType: ShotMoveType }
   | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' }
   | { kind: 'drive' }
   | { kind: 'hold' };
@@ -47,6 +49,11 @@ export function decideBall(s: GameState): BallAction {
   const sc = Math.max(0, s.poss.shotClock);
   let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
   if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
+  // CONCEPT 6: GAME-STATE URGENCY (endgame layer, GameConfig.endgame only) —
+  // scoreboard and game clock reshape the yardstick itself: clock-kill with
+  // a lead, hurry-up when chasing, hold-for-one / 2-for-1 at period ends.
+  // Doctrine in ai/concepts.ts; flag off never reaches this call.
+  if (s.endgame) continuation = endgameContinuation(s, h.side, continuation);
 
   // Desperation heave: with <1.2s of shot clock (or a period expiring inside
   // 2.5s) and no chance to get closer than 32 ft, just launch it. Bypasses the
@@ -57,23 +64,45 @@ export function decideBall(s: GameState): BallAction {
   }
 
   // Which KIND of shot this would be — drives the difficulty adjustment and
-  // the windup length. The catch-and-shoot window is 0.9s and zero dribbles:
-  // rise up immediately off the catch, or it becomes a (harder) pull-up.
+  // the windup length. A 0-dribble shot inside the quick window
+  // (decide.quickCatchSec) is an off-the-touch release, and WHAT it is
+  // depends on where it's from and how the ball arrived (h.acquiredBy):
+  //   • perimeter (mid/three): a catch-and-shoot jumper — the tracking
+  //     definition (0 dribbles, quick touch) regardless of acquisition; only
+  //     a real caught pass carries delivery quality (giveBall neutralizes
+  //     catchQuality on non-pass touches, so the passQ term stays honest).
+  //   • interior (rim/paint) off a PASS: a cut finish — caught in stride and
+  //     laid in (moveCutFinish/windupCutFinish existed for exactly this but
+  //     were assigned nowhere; the shot wore a jump-shot label instead).
+  //   • interior off a REBOUND: a putback — the decision-layer sibling of
+  //     possession.ts's automatic putback branch.
+  //   • interior off a steal/dead-ball touch (rare): a scramble finish
+  //     through traffic — 'drive' is the honest difficulty for going up
+  //     amid bodies without a delivery.
+  // Before acquisition-aware labels, ANY quick 0-dribble shot was
+  // 'catch_shoot': 22% of all attempts were interior shots counted as
+  // catch-and-shoot jumpers, poisoning the shot-mix report (wave2 diagnostic).
   const driving = s.t < h.driveUntil;
   const sinceCatch = s.t - h.catchT;
   const act0 = s.poss.action;
   // working the block: shots from a live post-up resolve as post moves
   // (windupPost + movePost in the shot model) instead of hurried pull-ups
   const postingUp = act0?.kind === 'post' && act0.posterId === h.p.id && act0.phase === 'working';
-  const shotMove: Extract<BallAction, { kind: 'shoot' }>['moveType'] =
+  const quickTouch = sinceCatch < D.quickCatchSec && h.dribblesSinceCatch === 0;
+  const loc = classifyShot(s.rules, s.court, rim, h.pos);
+  const interior = loc.zone === 'rim' || loc.zone === 'paint';
+  const shotMove: ShotMoveType =
     // post-shot zone boundary — 14 ft from the rim is the outer edge of the
     // traditional post area. FEEL — same numerical value as move.nearRimFt
     // (the contest model's interior boundary) but a distinct physical concept:
     // this gates the SHOT TYPE (post vs pull-up), not the defensive role blend.
     postingUp && distToRim < 14 ? 'post'
       : driving && distToRim < 12 ? 'drive'
-      : sinceCatch < 0.9 && h.dribblesSinceCatch === 0 ? 'catch_shoot'
-      : 'pull_up';
+      : !quickTouch ? 'pull_up'
+      : !interior ? 'catch_shoot'
+      : h.acquiredBy === 'rebound' ? 'putback'
+      : h.acquiredBy === 'pass' ? 'cut_finish'
+      : 'drive';
 
   // judge the shot against the contest expected AT RELEASE, not right now —
   // a defender sprinting into a closeout makes the look worse than it seems
@@ -81,7 +110,9 @@ export function decideBall(s: GameState): BallAction {
   const windup =
     shotMove === 'catch_shoot' ? W.windupCatchShoot :
     shotMove === 'pull_up' ? W.windupPullUp :
-    shotMove === 'post' ? W.windupPost : W.windupDrive;
+    shotMove === 'post' ? W.windupPost :
+    shotMove === 'cut_finish' ? W.windupCutFinish :
+    shotMove === 'putback' ? W.windupPutback : W.windupDrive;
   const contest = anticipatedContest(s, h, h.pos, windup);
   const myShot = shotEV(s, h, h.pos, shotMove, contest);
 
@@ -102,9 +133,9 @@ export function decideBall(s: GameState): BallAction {
     shootBias += (D.threeAppetite - 1) * A.threeApptScale * (h.p.tend.shotThree / 50) + ((tactics.threeBias - 50) / 100) * A.tacticsThreeScale;
   }
   // CONCEPT 1: DECISIVENESS — drilled green-light shots (catch-and-shoot
-  // three, transition pull-up, worked post move). The doctrine and every
-  // gate's incident history live in ai/concepts.ts.
-  shootBias += decisiveness(s, h, shotMove, myShot.zone, contest.level, act0);
+  // three, transition pull-up, worked post move, conceded mid-range jumper).
+  // The doctrine and every gate's incident history live in ai/concepts.ts.
+  shootBias += decisiveness(s, h, shotMove, myShot.zone, myShot.distFt, contest.level, act0);
   // USAGE PRESSURE — the closed loop that makes load an identity. The dial
   // (tend.usage) sets a target share of team offense; the gap between it and
   // the REALIZED share this game biases the self-creation options. An
@@ -122,22 +153,30 @@ export function decideBall(s: GameState): BallAction {
   const contestBrake =
     clamp(contest.level - A.contestBrakeAt, 0, 1) *
     (A.contestBrakeBase + ((h.p.attr.decisions - 50) / 100) * A.contestBrakeIQ);
-  // CONCEPT 5: TEMPO — transition looks are worth extra before the defense sets
+  // CONCEPT 5: TEMPO — transition looks are worth extra before the defense
+  // sets (flat early-offense term + the steal-break premium; concepts.ts)
   const T = tempo(s);
   const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake;
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
   let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
-  for (const m of onCourt(s, h.side)) {
-    if (m.p.id === h.p.id || m.fouledOut) continue;
+  for (const m of liveOnCourt(s, h.side)) {
+    if (m.p.id === h.p.id) continue;
     const o = openness(s, m);
     const catchContest = { level: clamp((1 - o) * A.catchContestScale, 0, 1), by: null, heightAdvFt: 0.5 };
     // value the pass WITH my own delivery quality — the same term the make
     // model applies at resolution (self-consistency: chooser and outcome
     // share one belief about what my pass is worth to his shot)
     const myDelivery = n((h.p.attr.passAcc + h.p.attr.passVision) / 2);
-    const theirShot = shotEV(s, m, m.pos, 'catch_shoot', catchContest, myDelivery);
+    // ...and with the same TYPE resolution would assign his immediate rise:
+    // an interior receiver's quick catch is a cut finish (caught in stride),
+    // not a jump shot — the chooser must price the pass the way the make
+    // model will resolve it, or it systematically undervalues the feed the
+    // taxonomy now rewards (self-consistency, same rule as the delivery term)
+    const mLoc = classifyShot(s.rules, s.court, rim, m.pos);
+    const mMove: ShotMoveType = mLoc.zone === 'rim' || mLoc.zone === 'paint' ? 'cut_finish' : 'catch_shoot';
+    const theirShot = shotEV(s, m, m.pos, mMove, catchContest, myDelivery);
     if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
     const risk = passRisk(s, h, m);
     // CONCEPT 3: ADVANCE THE ADVANTAGE (cutter / swing / hierarchy pull) and
@@ -149,7 +188,7 @@ export function decideBall(s: GameState): BallAction {
     const pay = commitmentPass(s, h, m, act0);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
-      + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho
+      + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
       - continuation * A.passContinuationScale;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
@@ -172,8 +211,16 @@ export function decideBall(s: GameState): BallAction {
     // Where the drive would END: 5 ft short of the rim (a layup/floater spot,
     // not the rim itself — nobody finishes AT the center of the hoop).
     const projected = lerp(h.pos, rim, clamp((distToRim - 5) / distToRim, 0, 1));
+    // the projected-contest FLOOR is defender-aware: driveProjContestBase
+    // prices the help expected to arrive by the finish, and help can only
+    // come from defenders who are actually back — on a set floor (back ≥
+    // transSetBackCount) the full base applies, on a naked rim there is no
+    // one to project. Before this, the flat 0.35 floor contested an EMPTY
+    // floor and drives never beat the continuation after a steal (wave2
+    // diagnostic: driveEv ~1.01 vs cont 1.47 on the break).
+    const backShare = clamp(defendersBack(s, h.side) / s.params.move.transSetBackCount, 0, 1);
     const projContest = {
-      level: clamp(A.driveProjContestBase + laneCrowd * A.driveProjContestCrowd, 0, 1),
+      level: clamp(A.driveProjContestBase * backShare + laneCrowd * A.driveProjContestCrowd, 0, 1),
       by: null,
       heightAdvFt: 0
     };
@@ -274,20 +321,12 @@ export function decideBall(s: GameState): BallAction {
  */
 function defendersInLane(s: GameState, h: Agent, rim: V2): number {
   let count = 0;
-  for (const d of onCourt(s, other(h.side))) {
-    if (d.fouledOut) continue;
-    const t = laneT(h.pos, rim, d.pos);
+  for (const d of liveOnCourt(s, other(h.side))) {
+    const t = segmentT(h.pos, rim, d.pos);
     if (t > 0.15 && t < 0.95) {
       const lat = dist(d.pos, lerp(h.pos, rim, t));
       if (lat < 5) count += 1 - lat / 5;
     }
   }
   return count;
-}
-
-function laneT(a: V2, b: V2, p: V2): number {
-  const ab = sub(b, a);
-  const l2 = ab.x * ab.x + ab.y * ab.y;
-  if (l2 < 1e-9) return 0;
-  return clamp(((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / l2, 0, 1);
 }

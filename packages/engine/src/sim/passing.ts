@@ -12,12 +12,13 @@
 
 import { clamp } from '../core/rng.js';
 import { add, dist, lerp, scale } from '../core/vec.js';
-import { agent, attackedRim, emit, onCourt, other, type Agent, type GameState } from './state.js';
+import { agent, attackedRim, emit, liveOnCourt, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
 import { assignedDefender, onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
 import { deadBall, endPeriod, endPossession, giveBall, startPossession } from './possession.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
+import { foulHuntSide } from './endgame.js';
 
 /**
  * Launch a pass from `from` to the player `toId`. The turnover/steal outcome
@@ -143,7 +144,7 @@ export function resolvePassArrival(s: GameState): void {
     // and swallowed the open three the stun had just bought)
     s.poss.action = null; // the action delivered; normal offense resumes
   }
-  giveBall(s, to);
+  giveBall(s, to, 'pass');
   // a catch after the buzzer is a dead play — the ball must be shot before 0.0
   // (passes in flight while the clock expires were scoring post-buzzer baskets)
   if (s.clock < 1e-6) { endPeriod(s); return; }
@@ -182,37 +183,54 @@ export function attemptReachIn(s: GameState, dt: number): void {
     // in traffic ANY converging defender can get a hand in — a beaten on-ball
     // man is behind the play, and the strip risk of attacking a crowd comes
     // from the helpers meeting the ball at the gather
-    for (const cand of onCourt(s, other(h.side))) {
-      if (cand.fouledOut) continue;
+    for (const cand of liveOnCourt(s, other(h.side))) {
       if (!d || dist(cand.pos, h.pos) < dist(d.pos, h.pos)) d = cand;
     }
   }
+  // ENDGAME LAYER: intentional fouling rides THIS machinery — a trailing
+  // defense late in a close game (sim/endgame.ts foulHuntSide) doesn't get a
+  // new scripted action, it gets the same reach-in dice LOADED: a wider grab
+  // range, a drilled-deliberate rate, and a strip share near zero (a wrap-up
+  // is a whistle, not a poke). defense.ts presses the on-ball defender into
+  // range so the grab actually connects. Flag off, hunting is always false.
+  const hunting = s.endgame && foulHuntSide(s) === other(h.side);
+  const E = s.params.endgame;
   // 4.2ft: has to be tight, hand-check range — this is deliberately shorter
   // than onBallDefender's own 12ft "who guards him" radius, since a reach-in
   // needs the defender close enough to actually get a hand on the ball
   // (attacking widens it to gather range: strips happen at the gather)
-  if (!d || dist(d.pos, h.pos) > (attacking ? 5.5 : 4.2)) return;
   const F = s.params.foul;
+  const reachRange = hunting ? E.foulHuntReachDistFt : attacking ? F.attackReachDistFt : F.reachDistFt;
+  if (!d || dist(d.pos, h.pos) > reachRange) return;
   // per-tick probability from a per-second rate (reachInPerSec * dt), boosted
   // up to +85% for a maximum-gambleSteal defender — aggressive gamblers reach
   // in far more often than conservative ones, at the cost of the foul risk below
+  // (a hunted grab replaces the gamble swing with the coach's order: the
+  // deliberate foulHuntRateMult)
   const exposure = attacking ? F.attackReachInMult : 1;
-  const p = F.reachInPerSec * dt * exposure * (1 + 0.85 * n(d.p.tend.gambleSteal));
+  const p = hunting
+    ? F.reachInPerSec * dt * E.foulHuntRateMult
+    : F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
   if (!s.rng.chance(p)) return;
 
-  // given a reach-in happens, stripP is the clean-strip share: 0.3 base, +0.3
-  // swing for an elite-steal defender, -0.22 swing for an elite ball-handler
+  // given a reach-in happens, stripP is the clean-strip share: a base, plus a
+  // swing for an elite-steal defender, minus a swing for an elite ball-handler
   // (ball security beats a defender's hands, but not as much as the
-  // defender's hands beat a poor handler) — clamped to [0.08, 0.7] so even
-  // the best/worst matchups still have a real chance either way, never a
-  // guaranteed foul or guaranteed strip
+  // defender's hands beat a poor handler) — clamped to [stripMin, stripMax] so
+  // even the best/worst matchups still have a real chance either way, never a
+  // guaranteed foul or guaranteed strip (all five constants live in params.foul)
   // attacking reach-ins skew cleaner: a poke at the gather is a strip far
   // more often than a hack (without the skew, the attack-exposure tax paid
   // out in fouls instead of the turnovers it exists to produce)
-  const stripP = clamp(
-    0.3 + (attacking ? F.attackStripBonus : 0) + 0.3 * n(d.p.attr.steal) - 0.22 * n(h.p.attr.ballHandle),
-    0.08, 0.85
-  );
+  // a hunted grab is a foul on purpose: the clean-strip share collapses to
+  // foulHuntStripShare (hands still find ball once in a while — the
+  // occasional legitimate endgame steal off the "foul" is real texture)
+  const stripP = hunting
+    ? E.foulHuntStripShare
+    : clamp(
+        F.stripBase + (attacking ? F.attackStripBonus : 0) + F.stripStealSwing * n(d.p.attr.steal) - F.stripHandleSwing * n(h.p.attr.ballHandle),
+        F.stripMin, F.stripMax
+      );
   if (s.rng.chance(stripP)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'lost_ball', stolenBy: d.p.id
@@ -220,16 +238,19 @@ export function attemptReachIn(s: GameState, dt: number): void {
     endPossession(s, 'turnover');
     startPossession(s, d.side, 'steal', d);
   } else {
-    const { inBonus } = recordFoul(s, d, 'reach', h);
-    if (inBonus) {
+    const { bonus } = recordFoul(s, d, 'reach', h);
+    if (bonus) {
       h.usedPoss++; // a bonus trip uses the possession (usage bookkeeping)
-      enterFreeThrows(s, h, s.rules.bonusFreeThrows);
+      // award comes from FoulOutcome.bonus, not rules.bonusFreeThrows: under
+      // NCAA rules team fouls 7-9 are a one-and-one, not a flat two
+      enterFreeThrows(s, h, bonus.shots, bonus.oneAndOne);
     } else {
       // not in the bonus: no free throws, offense just keeps the ball —
-      // shot clock is floored at 14 (defensive-foul reset) and never lowered,
-      // then a short 1.2s continuation delay (same possession, no team
-      // change) lets the whistle register before play resumes
-      s.poss.shotClock = Math.max(s.poss.shotClock, 14);
+      // shot clock is floored at the rule pack's short-clock reset (NBA 14s,
+      // defensive-foul reset) and never lowered, then a short 1.2s
+      // continuation delay (same possession, no team change) lets the
+      // whistle register before play resumes
+      s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
       deadBall(s, h.side, { clockRuns: false, continuation: true, resumeIn: 1.2 });
     }
   }

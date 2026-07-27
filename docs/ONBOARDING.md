@@ -16,9 +16,9 @@ This is the guided path. The other documents state *what's true*; this file stat
 **2. Run everything** (~20 min):
 ```bash
 npm run sim -- --seed my-first-game     # box score + play-by-play in the console
-npm test                                # 69 tests: invariants, realism guard, archetypes, fidelity gate
+npm test                                # full suite: invariants, realism guard, archetypes, fidelity gate
 npm run batch -- --games 24             # the NBA realism band report
-npm run bench                           # ~6 games/sec
+npm run bench                           # throughput; budget >= 1 game/sec (hardware-dependent, ~3-6 typical)
 ```
 Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.json`
 onto it, press space. Watch a full possession. Scrub around a free throw.

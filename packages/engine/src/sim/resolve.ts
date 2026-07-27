@@ -7,12 +7,12 @@
  */
 
 import { sigmoid, clamp } from '../core/rng.js';
-import { dist, type V2 } from '../core/vec.js';
+import { dist, distToSegment, type V2 } from '../core/vec.js';
 import { n, reachFt, sprintSpeed } from '../model/derived.js';
 import type { ShotMoveType, ShotZone, TeamSide } from '../core/events.js';
 import { classifyShot } from '../geometry/court.js';
 import {
-  agent, attackedRim, onCourt, other,
+  agent, attackedRim, liveOnCourt, onCourt, other,
   type Agent, type GameState
 } from './state.js';
 
@@ -24,16 +24,30 @@ export interface Contest {
   heightAdvFt: number; // shooter reach minus best contester reach (ft)
 }
 
-/** contest level on a shot released by `shooter` at `pos` */
-export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
+/**
+ * Shared contest model — one skill/stun/proximity definition for both the
+ * present-time contest and the anticipated one. `projLeadSec` projects each
+ * defender forward along his velocity before measuring: he closes ground
+ * while the shooter gathers, but not perfectly (he must also decelerate to
+ * contest rather than run past). Passing 0 degenerates the projection to the
+ * defender's actual position, so both entry points below share every line of
+ * this loop — these used to be two hand-kept copies that only differed in
+ * the projection step (review duplication finding).
+ */
+function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number): Contest {
   const radius = s.params.move.contestRadiusFt;
   const rim = attackedRim(s, shooter.side);
   let best = 0;
   let by: string | null = null;
   let bestReach = 0;
-  for (const d of onCourt(s, other(shooter.side))) {
-    if (d.fouledOut) continue;
-    const dd = dist(d.pos, pos);
+  for (const d of liveOnCourt(s, other(shooter.side))) {
+    const proj = {
+      x: d.pos.x + d.vel.x * projLeadSec,
+      y: d.pos.y + d.vel.y * projLeadSec
+    };
+    // the defender contests from wherever is CLOSER — his spot or his
+    // projected closeout; a lead of 0 makes both the same point
+    const dd = Math.min(dist(d.pos, pos), dist(proj, pos));
     if (dd > radius) continue;
     // contest = proximity × technique × availability
     //  closing: linear falloff — a defender ON the shooter contests 1.0, one at
@@ -41,7 +55,7 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
     const closing = 1 - dd / radius;
     //  skill: technique blended with role defense — interiorD when the defender
     //         is protecting the rim area, perimeterD outside (move.contestDBlend
-    //         sets the mix). 0.55 floor: presence alone bothers a shot.
+    //         sets the mix).
     const nearRim = dist(d.pos, rim) < s.params.move.nearRimFt;
     const roleD = nearRim ? d.p.attr.interiorD : d.p.attr.perimeterD;
     const blend = s.params.move.contestDBlend;
@@ -65,11 +79,17 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
   return { level: clamp(best, 0, 1), by, heightAdvFt };
 }
 
+/** contest level on a shot released by `shooter` at `pos`, right now */
+export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
+  return contestCore(s, shooter, pos, 0);
+}
+
 /**
  * Contest the shooter should EXPECT at release: defenders' positions are
  * projected ahead by the shot windup, so a flying closeout discourages the
  * catch-and-shoot even though the defender hasn't arrived yet. Good shooters
- * account for the man sprinting at them — so should the AI.
+ * account for the man sprinting at them — so should the AI. The share keeps
+ * anticipation honest rather than clairvoyant (see windupProjShare).
  */
 export function anticipatedContest(
   s: GameState,
@@ -77,42 +97,7 @@ export function anticipatedContest(
   pos: V2,
   windupSec: number
 ): Contest {
-  const radius = s.params.move.contestRadiusFt;
-  const rim = attackedRim(s, shooter.side);
-  let best = 0;
-  let by: string | null = null;
-  let bestReach = 0;
-  for (const d of onCourt(s, other(shooter.side))) {
-    if (d.fouledOut) continue;
-    // project the defender forward by windupProjShare of the windup: he closes
-    // ground while the shooter gathers, but not perfectly (he must also
-    // decelerate to contest rather than run past). The share keeps anticipation
-    // honest rather than clairvoyant.
-    const lead = windupSec * s.params.ai.windupProjShare;
-    const proj = {
-      x: d.pos.x + d.vel.x * lead,
-      y: d.pos.y + d.vel.y * lead
-    };
-    const dd = Math.min(dist(d.pos, pos), dist(proj, pos));
-    if (dd > radius) continue;
-    const closing = 1 - dd / radius;
-    // same role-defense blend as contestAt so anticipation and resolution use
-    // one skill definition (interiorD near the rim, perimeterD outside)
-    const nearRim = dist(d.pos, rim) < s.params.move.nearRimFt;
-    const roleD = nearRim ? d.p.attr.interiorD : d.p.attr.perimeterD;
-    const blend = s.params.move.contestDBlend;
-    const defSkill = d.p.attr.contestSkill * (1 - blend) + roleD * blend;
-    const skill = s.params.ai.contestSkillFloor + s.params.ai.contestSkillRange * (defSkill / 100);
-    const stunned = s.t < d.screenStunUntil ? s.params.ai.pnrStunContestMult : 1; // same stun rule as contestAt
-    const level = closing * skill * stunned;
-    if (level > best) {
-      best = level;
-      by = d.p.id;
-      bestReach = reachFt(d.p);
-    }
-  }
-  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5; // same uncontested default as contestAt
-  return { level: clamp(best, 0, 1), by, heightAdvFt };
+  return contestCore(s, shooter, pos, windupSec * s.params.ai.windupProjShare);
 }
 
 // ---------- shooting ----------
@@ -267,13 +252,13 @@ export function shootingFoulP(
   //                biggest driver of individual FTA differences.
   //  aggr        — the DEFENDER's foulAggr tendency: hackers foul ~50% more
   const contestMult = 1 + (F.contestFactor - 1) * contest.level;
-  const draw = 1 + 0.65 * n(shooter.p.attr.drawFoul);
+  const draw = 1 + F.drawFoulSwing * n(shooter.p.attr.drawFoul);
   let aggr = 1;
   if (contest.by) {
-    aggr = 1 + 0.5 * n(agent(s, contest.by).p.tend.foulAggr);
+    aggr = 1 + F.foulAggrSwing * n(agent(s, contest.by).p.tend.foulAggr);
   }
-  // hard cap 60%: even a hack-a-Shaq scenario leaves some chance of a clean play
-  return clamp(base * contestMult * draw * aggr, 0, 0.6);
+  // hard cap (shootFoulCap): even a hack-a-Shaq scenario leaves some chance of a clean play
+  return clamp(base * contestMult * draw * aggr, 0, F.shootFoulCap);
 }
 
 // ---------- passing ----------
@@ -293,12 +278,11 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
   const a = from.pos;
   const b = to.pos;
   const passLen = Math.max(4, dist(a, b));
-  for (const d of onCourt(s, other(from.side))) {
-    if (d.fouledOut) continue;
+  for (const d of liveOnCourt(s, other(from.side))) {
     // Lane occlusion: how badly defenders clog the passing line.
     // laneDangerFt is the reach-plus-step envelope around a pass lane — beyond
     // that a defender is irrelevant to this pass.
-    const dLane = distToLane(a, b, d.pos);
+    const dLane = distToSegment(a, b, d.pos);
     if (dLane > P.laneDangerFt) continue;
     const along = clamp(1 - dLane / P.laneDangerFt, 0, 1);
     // steal rating 0→0.5, 100→1.0: anyone in the lane is a hazard; ball-hawks
@@ -321,16 +305,6 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
   return { turnoverP: sigmoid(logit), dangerId };
 }
 
-function distToLane(a: V2, b: V2, p: V2): number {
-  // distance from p to segment a-b
-  const abx = b.x - a.x, aby = b.y - a.y;
-  const l2 = abx * abx + aby * aby;
-  if (l2 < 1e-9) return dist(a, p);
-  let t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / l2;
-  t = clamp(t, 0, 1);
-  return dist(p, { x: a.x + abx * t, y: a.y + aby * t });
-}
-
 // ---------- rebounding ----------
 
 /** sample where a missed shot lands */
@@ -350,18 +324,21 @@ export function sampleMissLanding(s: GameState, rim: V2, shotDistFt: number): V2
   };
 }
 
-/** weighted scramble: who comes down with a live rebound at `spot` */
-export function resolveRebound(
+/**
+ * The scramble lottery shared by player rebounds and team-rebound side
+ * awards: every live on-court player within reach, weighted by positioning
+ * and craft.
+ */
+function reboundLottery(
   s: GameState,
   spot: V2,
   offSide: TeamSide
-): Agent {
+): { candidates: Agent[]; weights: number[] } {
   const R = s.params.reb;
   const candidates: Agent[] = [];
   const weights: number[] = [];
   for (const side of [0, 1] as TeamSide[]) {
-    for (const a of onCourt(s, side)) {
-      if (a.fouledOut) continue;
+    for (const a of liveOnCourt(s, side)) {
       // beyond reboundCutoffFt you're not getting to this rebound
       const d = dist(a.pos, spot);
       if (d > R.reboundCutoffFt) continue;
@@ -389,14 +366,39 @@ export function resolveRebound(
       weights.push(prox * rebSkill * sideMult);
     }
   }
+  return { candidates, weights };
+}
+
+/**
+ * Which SIDE a dead carom (team rebound) is awarded to: the same
+ * positioning-weighted lottery a player rebound runs, aggregated by side —
+ * so the offensive/defensive split of team rebounds matches the split the
+ * diverted player rebounds would have had, and ORB%'s expectation doesn't
+ * move when params.reb.deadBallCaromChance diverts caroms. Consumes exactly
+ * one rng draw. With nobody in reach the weights are all zero and the draw
+ * degrades to a fair coin (Rng.weighted's uniform fallback).
+ */
+export function resolveTeamReboundSide(s: GameState, spot: V2, offSide: TeamSide): TeamSide {
+  const { candidates, weights } = reboundLottery(s, spot, offSide);
+  const sideW: [number, number] = [0, 0];
+  candidates.forEach((a, i) => { sideW[a.side] += weights[i]!; });
+  return s.rng.weighted(sideW) as TeamSide;
+}
+
+/** weighted scramble: who comes down with a live rebound at `spot` */
+export function resolveRebound(
+  s: GameState,
+  spot: V2,
+  offSide: TeamSide
+): Agent {
+  const { candidates, weights } = reboundLottery(s, spot, offSide);
   if (candidates.length === 0) {
     // nobody near (shouldn't happen) — closest player gets it. Prefer players
     // who haven't fouled out: the main loop filters them, and this fallback
     // handing a ghost actor the ball was an audited invariant violation in
     // the bench-exhausted degenerate state.
-    const all = [...onCourt(s, 0), ...onCourt(s, 1)];
-    const live = all.filter((x) => !x.fouledOut);
-    const pool = live.length > 0 ? live : all;
+    const live = [...liveOnCourt(s, 0), ...liveOnCourt(s, 1)];
+    const pool = live.length > 0 ? live : [...onCourt(s, 0), ...onCourt(s, 1)];
     pool.sort((x, y) => dist(x.pos, spot) - dist(y.pos, spot));
     return pool[0]!;
   }
@@ -408,6 +410,25 @@ export function resolveRebound(
 /** 0 = smothered .. 1 = wide open, from the shooter's perspective right now */
 export function openness(s: GameState, a: Agent): number {
   return 1 - contestAt(s, a, a.pos).level;
+}
+
+/**
+ * How many live defenders are BACK against the side attacking — inside
+ * move.transBackRadiusFt of the rim they protect. THE shared "is the defense
+ * set" measure: game.ts ends the transition phase once
+ * move.transSetBackCount are back, and the decision layer reads the same
+ * count to scale the transition continuation value (use-it-or-lose-it — see
+ * ai/concepts.ts concept 5) and the projected drive contest floor (help can
+ * only come from defenders who are actually back). One definition, so the
+ * phase machinery and the EV brain can never disagree about what "set" means.
+ */
+export function defendersBack(s: GameState, offSide: TeamSide): number {
+  const rim = attackedRim(s, offSide);
+  let back = 0;
+  for (const d of liveOnCourt(s, other(offSide))) {
+    if (dist(d.pos, rim) < s.params.move.transBackRadiusFt) back++;
+  }
+  return back;
 }
 
 /** shooter gravity: how far out and how tightly a defense must respect this player */
@@ -425,6 +446,29 @@ export function openness(s: GameState, a: Agent): number {
 export function gravity(s: GameState, a: Agent): number {
   const A = s.params.ai;
   return clamp((a.p.attr.three / 100) * A.gravityThreeWeight + (a.p.tend.shotThree / 100) * A.gravityTendWeight, 0, 1);
+}
+
+/**
+ * Position-aware MID-RANGE respect ∈ [0,1] — gravity()'s in-between sibling.
+ * gravity() is deliberately a three-point concept (it prices standing beyond
+ * the arc), which left a hole the mid-range restoration exposed: a defender
+ * sagging off a low-gravity big kept sagging when that big stood AT the
+ * elbow, so every elbow catch was free and the mid game had no counter
+ * (probe: the stationed postAnchor took 7 mid shots/game at 57% — hub-level
+ * volume the defense never answered). Real defenses guard the jumper within
+ * its range: the same ability-weighted/willingness-weighted blend as
+ * gravity() (one respect doctrine, one pair of weights — see the gravity
+ * comment for why both terms are needed), applied to the MID skill pair, and
+ * live only while the man actually stands inside jumper range
+ * (midGreenMaxFt — beyond it the mid threat is latent and the three-point
+ * model owns the question). Consumed by off-ball guard distance and helper
+ * selection in ai/defense.ts; a rim-runner's blend stays low (ability 28 /
+ * appetite 5 ≈ 0.2), so sagging off HIM in the paint is still correct.
+ */
+export function midRespect(s: GameState, a: Agent): number {
+  const A = s.params.ai;
+  if (dist(a.pos, attackedRim(s, a.side)) > A.midGreenMaxFt) return 0;
+  return clamp((a.p.attr.midRange / 100) * A.gravityThreeWeight + (a.p.tend.shotMid / 100) * A.gravityTendWeight, 0, 1);
 }
 
 /** rough top speed available right now, accounting for fatigue */

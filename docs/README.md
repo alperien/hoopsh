@@ -10,7 +10,8 @@ This is the hub. If you don't know which document you need, start here.
   `AGENTS.md` (the law you work under).
 - **`docs/`** holds the *deep guides* you reach for while working:
   `INTERNALS.md` (where everything lives) · `ONBOARDING.md` (how to learn it) ·
-  `PLAYBOOK.md` (how to build new things) · `BIBLE.md` (all of the above, one file).
+  `PLAYBOOK.md` (how to build new things) · `ROSTERS.md` (how to author team content) ·
+  `SEASON.md` (the multi-game layer) · `BIBLE.md` (all of the above, one file).
 - **Code comments are the ground truth for specifics.** Documents describe the
   system; the comment next to a number explains *that number*. When a doc and a
   fresher code comment disagree, the code comment wins — flag the discrepancy.
@@ -25,7 +26,9 @@ This is the hub. If you don't know which document you need, start here.
 | [`docs/INTERNALS.md`](./INTERNALS.md) | Module map, tick pipeline, two time axes, safety net | When looking for where something lives |
 | [`docs/ONBOARDING.md`](./ONBOARDING.md) | Two-evening guided path with checkpoints | Your first two evenings |
 | [`docs/PLAYBOOK.md`](./PLAYBOOK.md) | **The build procedure** — 8 steps, recipes A–G, STOP rules, report format | Every time you write new code |
-| [`docs/BIBLE.md`](./BIBLE.md) | ⚠ GENERATED — all six docs compiled into one file (`npm run docs:bible`) | When you want everything in one context/download |
+| [`docs/ROSTERS.md`](./ROSTERS.md) | **The roster-authoring guide** — the 38 dials in basketball language, archetypes, scaffold → validate → sim loop | When writing a team pack |
+| [`docs/SEASON.md`](./SEASON.md) | **The season layer** — schedules, standings, Monte-Carlo matchups, and the deliberate absence of cross-game state | When driving multi-game runs or predictions |
+| [`docs/BIBLE.md`](./BIBLE.md) | ⚠ GENERATED — every source doc compiled into one file (`npm run docs:bible`) | When you want everything in one context/download |
 
 ## Reading paths by role
 
@@ -46,6 +49,16 @@ header (possession accounting) + `stats/box.ts` header (folding rules).
 **Tuning realism** → `sim/params.ts` header primer → `harness/src/bands.ts` +
 `knobs.ts` headers → AGENTS §4.4 (calibration etiquette, the noise floor).
 
+**Writing a roster (real or invented team)** → ROSTERS.md end to end (it's the
+whole loop) → `model/player.ts` comments for any dial the guide's plain-language
+version doesn't settle → `packages/data/src/archetypes.ts` for calibrated
+reference profiles.
+
+**Running seasons or matchup predictions** → SEASON.md end to end (schedule
+determinism, standings definitions, Monte-Carlo CI math, and — read before
+trusting any prediction — what the deliberate absence of cross-game state
+costs in accuracy).
+
 ## Which document answers which question
 
 | Question | Answer lives in |
@@ -54,6 +67,8 @@ header (possession accounting) + `stats/box.ts` header (folding rules).
 | "Where is X / where do I change Y?" | `docs/INTERNALS.md` |
 | "Am I allowed to do this?" | `AGENTS.md` |
 | "HOW do I build this new thing?" | `docs/PLAYBOOK.md` |
+| "How do I write a team/roster pack?" | `docs/ROSTERS.md` |
+| "How do I run a season / predict a matchup?" | `docs/SEASON.md` |
 | "How do I learn this codebase?" | `docs/ONBOARDING.md` |
 | "What does this number mean?" | The comment next to it |
 | "What can consumers rely on?" | `core/events.ts` (documented as an API) |
@@ -63,7 +78,8 @@ header (possession accounting) + `stats/box.ts` header (folding rules).
 
 1. Architectural changes update `ARCHITECTURE.md`/`INTERNALS.md` **in the same
    commit** (AGENTS §5).
-2. Any edit to the six source documents regenerates the Bible in the same commit:
+2. Any edit to a Bible source document (the `SOURCES` list in
+   `tools/build-bible.mjs`) regenerates the Bible in the same commit:
    `npm run docs:bible`.
 3. Never edit `docs/BIBLE.md` by hand — it is overwritten on regeneration.
 4. New documents get a row in this hub's table, a reading-path mention, and a

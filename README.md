@@ -5,9 +5,11 @@
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
 resolve through **probability models fed by spatial context, calibrated against
-author-recalled NBA ranges** — honesty note: the acceptance targets are currently
-authored from memory, not generated from sourced data; grounding them in citable
-data (and fitting to distributions, not means) is the active roadmap arc. Games
+author-recalled NBA ranges** — honesty note: the acceptance BANDS are still
+authored from memory, not generated from sourced data (the game-flow references
+in `data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games);
+grounding the bands in citable data (and fitting to distributions, not means)
+remains the active roadmap arc. Games
 follow basketball rules and season-scale statistics fall inside those ranges. Every point
 in a box score traces back to a simulated shot at an (x, y) location — a
 2D probability model with position as an input, not a physics sim (there is
@@ -30,9 +32,16 @@ git clone https://github.com/alperien/hoopsh && cd hoopsh
 npm run sim                      # simulate one game: box score + play-by-play + replay
 npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
-npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
+npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice broadcast script for a game
+
+npm run roster:new               # scaffold your own team from archetypes (wizard)
+npm run roster:validate -- t.json  # human-grade pack linting: fixes + plausibility warnings
+npm run sim -- --home t.json     # ...and watch your team play (docs/ROSTERS.md is the guide)
+
+npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
+npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
@@ -126,22 +135,34 @@ Run it yourself: `npm run batch -- --games 50`.
 ## Roadmap
 
 **Done:** replay viewer · broadcast demo · automated parameter sweep ·
-orchestrator refactor · pick-and-roll · invariant suite · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path)
+orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
+usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
+invariant suite · full documentation campaign (contributor covenant, onboarding path) ·
+real-game corpus (184 parsed NBA games) grounding the flow references ·
+worker-pool parallel runner (determinism across worker counts tested) ·
+roster tooling (schema gen, scaffold wizard, validator, stats→ratings fitter) ·
+stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
+endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
+burn) implemented flag-gated, default OFF pending its calibration decision ·
+NCAA rule pack behind the harness `--league` flag (partially wired — see
+REFACTOR.md's register)
 
-**Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
-their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
-solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
+**Phase 2R (current — tuning, not building):** the mechanics above are implemented
+and wired; the open work is calibration and verification — the coordinated
+re-sweep of the integrated engine, the endgame-flag decision, fidelity residuals
+(hub post-up share), and the open items in REFACTOR.md's register.
 
-**Next (validation arc):** measured noise floor for every gate · mechanism audit of
-the distributional misses · game-state coupling (trailing-team urgency, tempo kill,
-crunch time) · sourced NBA data in-repo with provenance, bands/targets generated
-not typed · distribution-level fitting with a held-out season the solver never sees.
+**Next (validation arc):** mechanism audit of the distributional misses ·
+30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
+windows) · prediction backtest (Brier, calibration curves) via the season layer ·
+sourced NBA data in-repo with provenance, bands/targets generated not typed ·
+distribution-level fitting with a held-out season the solver never sees.
 
-**Beyond:** season layer (schedules, fatigue across games, injuries) · progression &
-aging · NCAA + EuroLeague rule-pack tuning · era packs (1995 vs 2015 shot diets) ·
-deep player editor UI · GM & MyPlayer experiences · defensive schemes ·
-broadcast TTS audio · WASM hot path if the perf budget ever demands it.
+**Beyond:** cross-game season state (fatigue carryover, injuries — the seams are
+documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack +
+NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor UI ·
+GM & MyPlayer experiences · defensive schemes · broadcast TTS audio · WASM hot
+path if the perf budget ever demands it.
 
 ## License
 

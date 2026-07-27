@@ -14,16 +14,23 @@ export type ShotZone = 'rim' | 'paint' | 'mid' | 'three';
 /**
  * How a shot was created, in basketball terms — feeds both the make-probability
  * model (resolve.ts shotMakeP's moveAdj term) and narration/stat breakdowns.
- * Currently produced by the AI (sim/shooting.ts, sim/ai.ts, sim/possession.ts,
- * sim/fouls.ts): `catch_shoot` (spot-up jumper within ~0.9s of the catch, no
- * dribbles), `pull_up` (off-the-dribble jumper after that window), `drive`
- * (shot attempt at the rim while driving), `putback` (immediate rebound
- * put-back attempt), `heave` (desperation end-of-clock/end-of-period shot from
- * distance, resolved with a heavy make-probability penalty). STAGED — modeled
- * in SimParams (movement/foul adjustments exist) but no current code path
- * assigns them to an actual attempt: `cut_finish` (finishing an off-ball cut)
- * and `post` (post-up shot) await the iso/post actions (tend.iso, tend.post)
- * landing in a later stage; see docs/INTERNALS.md.
+ * Produced by the AI (sim/ai/decide.ts's acquisition-aware quick-touch
+ * taxonomy, plus sim/possession.ts's automatic putback branch):
+ * `catch_shoot` — a PERIMETER (mid/three) 0-dribble jumper released within
+ * the quick window (params.decide.quickCatchSec) of gaining the ball; only a
+ * caught pass carries delivery quality into it (see Agent.acquiredBy).
+ * `cut_finish` — an interior (rim/paint) 0-dribble quick finish off a caught
+ * pass: hit in stride and laid in.
+ * `putback` — an offensive-rebound touch put straight back up, via either
+ * possession.ts's automatic branch or the decision layer's quick window.
+ * `pull_up` — an off-the-dribble jumper after the quick window (or any
+ * dribbled-into shot).
+ * `drive` — a shot at the rim off a live drive commitment, or a scramble
+ * finish off a steal/dead-ball touch inside the quick window.
+ * `post` — a shot from a worked post-up (assigned once the post action
+ * reaches its 'working' phase).
+ * `heave` — desperation end-of-clock/end-of-period launch from distance,
+ * resolved with a heavy make-probability penalty.
  */
 export type ShotMoveType =
   | 'catch_shoot'
@@ -76,8 +83,11 @@ export type FoulKind = 'shooting' | 'reach' | 'offensive' | 'loose_ball';
  * possession: `made_ft` if that FT sequence's last attempt goes in,
  * otherwise the sequence's live-rebound scramble decides it (`def_rebound`,
  * or the offense keeps the same possession alive on an offensive rebound
- * with no possession_end in between). `def_rebound` — the defense secured a
- * live-ball rebound (missed shot or missed final free throw).  `turnover` —
+ * with no possession_end in between). `def_rebound` — the defense secured
+ * the rebound off a missed shot or missed final free throw: either a
+ * live-ball board by a player (next possession starts as 'live_rebound') or
+ * a dead carom awarded to the defense as a TEAM rebound (next possession
+ * starts as a dead-ball 'inbound' — see ReboundEvent below). `turnover` —
  * any TurnoverKind. `period_end` — the period horn sounded with the
  * possession still live (a no-shot buzzer-beater situation).
  */
@@ -180,9 +190,12 @@ export interface PossessionEndEvent extends Base {
  * never produces a `pass` event). `kind` — 'normal': a standard halfcourt
  * pass; 'kickout': a pass out of a live drive (sim/ai.ts decideBall labels
  * any pass while `driving` a kickout); 'outlet': a pass during transition
- * phase (fast break ball movement); 'entry': the feed to a posted big (post action); 'handoff': a dribble-handoff — the hub screens for the receiver as he hands it off (dho action)
- * — the type exists but no current AI code path assigns it (it awaits the
- * post-up action; see the tend.post STAGED note in model/player.ts).
+ * phase (fast break ball movement); 'entry': the feed to a posted big
+ * (assigned by sim/ai/decide.ts when the post action is 'posting' and the
+ * poster is settled on the block); 'handoff': a dribble-handoff — the hub
+ * screens for the receiver as he hands it off (assigned by sim/ai/decide.ts
+ * when the DHO receiver has sprinted into range; the catch stuns his trailing
+ * defender, see sim/passing.ts). Both are live AI code paths today.
  */
 export interface PassEvent extends Base {
   type: 'pass';
@@ -242,6 +255,15 @@ export interface ShotEvent extends Base {
  * itself is never split across two separate shooting fouls. The sequence's
  * final attempt (n === of) is what can trigger `possession_end` — see
  * sim/fouls.ts tickFreeThrows.
+ *
+ * ONE-AND-ONE trips (rules.bonusRule 'oneAndOne', team fouls in
+ * [teamFoulBonusAt, doubleBonusAt) — NCAA men): `of` is the POTENTIAL 2. A
+ * made front end earns the second attempt as usual, but a missed front end
+ * (`n: 1, made: false, oneAndOne: true`) ends the trip immediately with a
+ * LIVE ball — no `n: 2` event and no dead-ball formality rebound; the next
+ * rebound event is a real scramble result. `oneAndOne` is stamped on every
+ * attempt of such a trip and ABSENT everywhere else, so leagues without the
+ * rule emit byte-identical events.
  */
 export interface FreeThrowEvent extends Base {
   type: 'free_throw';
@@ -250,14 +272,42 @@ export interface FreeThrowEvent extends Base {
   n: number;
   of: number;
   made: boolean;
+  oneAndOne?: boolean;
 }
 
-/** A live-ball rebound (miss or missed-final-free-throw scramble). `offensive` is true when `team` matches the side that took the missed shot. `x`/`y` are the ball's landing/contest spot, not the rebounder's position. */
+/**
+ * A rebound. `offensive` is true when `team` matches the side that took the
+ * missed shot. `x`/`y` are the ball's landing/contest spot, not the
+ * rebounder's position.
+ *
+ * Three flavors, distinguished by `player`/`deadBall`:
+ *  - `player` set — a live-ball rebound secured by that individual (miss or
+ *    missed-final-free-throw scramble). The only flavor before team
+ *    rebounds landed; every stat consumer credits it to the player.
+ *  - `player` absent, no `deadBall` — a TEAM rebound: the live carom died
+ *    without any individual securing it (skipped out of bounds / rolled
+ *    dead), and the officials award `team` the ball at a dead-ball inbound
+ *    (sim/possession.ts tickScramble, rate params.reb.deadBallCaromChance;
+ *    the side is drawn from the same positioning-weighted lottery a player
+ *    rebound uses, so ORB%'s expectation is unchanged). Real logs read
+ *    "Defensive rebound by Team". Counts toward TEAM rebound totals with no
+ *    player line — official-scoring convention (stats/box.ts).
+ *  - `deadBall: true` (always playerless, always offensive) — the
+ *    scorekeeping FORMALITY logged after a missed NON-final free throw:
+ *    the ball is dead by rule, nobody rebounds anything, the next attempt
+ *    simply proceeds (sim/fouls.ts tickFreeThrows). Real logs print
+ *    "Offensive rebound by Team" here; official scoring EXCLUDES these
+ *    dead-ball rebounds from all rebound totals, and stats/box.ts does the
+ *    same. Emitted for play-by-play fidelity, not for the box score.
+ */
 export interface ReboundEvent extends Base {
   type: 'rebound';
   team: TeamSide;
-  player: string;
+  /** rebounder id — ABSENT for a team rebound (no individual credit) */
+  player?: string;
   offensive: boolean;
+  /** scorekeeping formality after a missed non-final FT (see above) */
+  deadBall?: boolean;
   x: number;
   y: number;
 }
@@ -298,6 +348,29 @@ export interface FoulEvent extends Base {
 }
 
 /**
+ * A team timeout (endgame layer — only ever emitted when the game was run
+ * with `GameConfig.endgame: true`; a default-config stream never contains
+ * one). Fires at a dead ball, called by the team that will inbound
+ * (possession requirement, like the real rule — see sim/endgame.ts
+ * maybeTimeout, invoked from sim/possession.ts deadBall). `reason` —
+ * 'stop_run': the opponent has scored `params.endgame.timeoutRunPts`
+ * unanswered and the coach stops the bleeding; 'advance': a trailing team
+ * late in the final period burns a timeout so the ensuing inbound starts in
+ * the FRONTcourt (the real advance-the-ball rule — the mechanical payoff is
+ * the inbound spot, see sim/possession.ts setupDeadTargets). `remaining` is
+ * the calling team's budget AFTER this timeout (budget per game:
+ * rules.timeoutsPerGame). The game clock never runs during the timeout;
+ * `wt` keeps advancing so replays show the huddle as real elapsed time.
+ */
+export interface TimeoutEvent extends Base {
+  type: 'timeout';
+  team: TeamSide;
+  reason: 'stop_run' | 'advance';
+  /** timeouts the calling team has left AFTER this one */
+  remaining: number;
+}
+
+/**
  * A lineup change. `out`/`in` are parallel arrays (`out[i]` is replaced by
  * `in[i]`) but every current caller (sim/subs.ts swapPlayers) only ever
  * swaps one player at a time, so in practice both arrays always have exactly
@@ -328,6 +401,7 @@ export type GameEvent =
   | ReboundEvent
   | TurnoverEvent
   | FoulEvent
+  | TimeoutEvent
   | SubstitutionEvent;
 
 /** Just the `type` tags of GameEvent, e.g. for building `Record<GameEventType, ...>` handler tables. */

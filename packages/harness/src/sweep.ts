@@ -36,12 +36,10 @@ import { promisify } from 'node:util';
 import { defaultParams } from '@hoopsh/engine';
 import { NBA_BANDS } from './bands.js';
 import { evaluate, type LeagueAverages } from './aggregate.js';
-// NOTE: `setPath` is imported but never called in this file — every write
-// to a nested SimParams path here goes through evaluateCandidate's own
-// nested-object builder (see the loop over `cand` entries below), and
-// `getPath` alone is used for reads (reading defaults, computing the diff).
-// Left in place for this docs-only pass; flagged rather than removed per
-// AGENTS.md §2.5/§7.
+// Reads use getPath (defaults, the candidate diff); writes go through
+// evaluateCandidate's own nested-object builder, so setPath isn't needed
+// here and isn't imported. (A prior comment here claimed setPath was
+// "imported but never called" — it was never imported at all; corrected.)
 import { SWEEPABLE, getPath } from './knobs.js';
 
 const execFileP = promisify(execFile);
@@ -150,6 +148,39 @@ async function evaluateCandidate(cand: Candidate, games: number): Promise<{ scor
  * identical, and the search could get stuck refusing small steps that
  * temporarily cross an edge en route to a better overall optimum.
  */
+/**
+ * OBJECTIVE MODES (--objective, default 'margin'):
+ *
+ *   'legacy' — the original weights: centering pressure capped at 0.015 per
+ *     band. That pressure existed but was ~67x weaker than one band-width of
+ *     violation, so in practice the search treated everything inside a band
+ *     as equally good and parked metrics on edges. The measured consequence
+ *     (knob-sensitivity probe, REFACTOR.md): a calibration where rounding
+ *     SWEPT values to 2 decimals tips bands, and every correct mechanics fix
+ *     regresses the report — a robustness radius smaller than a bug fix.
+ *
+ *   'margin' — centering is a real force (CENTER_W per unit of normalized
+ *     distance-to-center) and violations are steepened (VIOL_W per band-width
+ *     past the edge, plus the CENTER_W continuity offset so the score stays
+ *     continuous at edges exactly as before). Centering a band from edge to
+ *     mid buys CENTER_W; pushing another band out costs VIOL_W per width —
+ *     so the search buys interior slack aggressively but never trades a pass
+ *     away for it unless the violation is tiny. The acceptance criterion for
+ *     a margin-mode calibration is pre-committed: it must survive the TIDY
+ *     test (SWEPT values rounded to 2-3 digits without dropping a band).
+ */
+const OBJECTIVE = argOf('--objective', 'margin');
+// Any unrecognized value (typo, forgotten value swallowing the next flag,
+// dangling flag) must fail loudly here: the CENTER_W/VIOL_W selection below
+// would otherwise silently fall through to the legacy weights and a full
+// calibration budget would optimize the wrong objective with no indication
+// in the output.
+if (OBJECTIVE !== 'margin' && OBJECTIVE !== 'legacy') {
+  throw new Error(`sweep: --objective must be 'margin' or 'legacy', got '${OBJECTIVE}'`);
+}
+const CENTER_W = OBJECTIVE === 'margin' ? 0.25 : 0.015;
+const VIOL_W = OBJECTIVE === 'margin' ? 4 : 1;
+
 function scoreResults(seedResults: SeedResult[]): number {
   let score = 0;
   for (const sr of seedResults) {
@@ -165,12 +196,12 @@ function scoreResults(seedResults: SeedResult[]): number {
       // out-of-band cost includes the max in-band centering cost so the score
       // is CONTINUOUS at the band edge (a value just outside can never score
       // better than a value just inside)
-      if (v < band.lo) score += 0.015 + (band.lo - v) / width;
-      else if (v > band.hi) score += 0.015 + (v - band.hi) / width;
+      if (v < band.lo) score += CENTER_W + VIOL_W * (band.lo - v) / width;
+      else if (v > band.hi) score += CENTER_W + VIOL_W * (v - band.hi) / width;
       else {
-        // tiny centering pressure to prefer robust interiors
+        // centering pressure — the margin objective's whole point
         const mid = (band.lo + band.hi) / 2;
-        score += 0.015 * Math.abs(v - mid) / (width / 2);
+        score += CENTER_W * Math.abs(v - mid) / (width / 2);
       }
     }
   }
@@ -281,7 +312,7 @@ function perturb(base: Candidate, step: number): Candidate {
  * but without the probabilistic acceptance that name implies.
  */
 async function main(): Promise<void> {
-  console.log(`sweep: ${ITERS} iters × ${CANDS} candidates, ${GAMES} games × ${SEED_BASES.length} seed bases, ${WORKERS} workers`);
+  console.log(`sweep: ${ITERS} iters × ${CANDS} candidates, ${GAMES} games × ${SEED_BASES.length} seed bases, ${WORKERS} workers, objective ${OBJECTIVE}`);
   const t0 = performance.now();
 
   // The starting candidate is the empty override set — i.e. whatever's
@@ -334,10 +365,10 @@ async function main(): Promise<void> {
   console.log(`\nVERIFY (${VERIFY_GAMES} games × ${SEED_BASES.length} seeds): score ${verify.score.toFixed(3)}, band-fails ${failCount(verify.seedResults)}`);
   for (const sr of verify.seedResults) {
     const fails = evaluate(sr.avgs, NBA_BANDS).filter((r) => !r.pass);
-    // NOTE: `16` here is NBA_BANDS.length hardcoded rather than referenced —
-    // correct today (bands.ts has exactly 16 entries) but would silently
-    // misreport the passing fraction if a band were ever added or removed
-    // without updating this literal too. Left as-is for this docs-only pass.
+    // passing fraction is computed dynamically from NBA_BANDS.length (17
+    // today) — no hardcoded count to drift. (A prior comment here described a
+    // hardcoded `16` on this line; there was none, and the count was already
+    // 17 — corrected.)
     console.log(`  ${sr.seedBase}: ${NBA_BANDS.length - fails.length}/${NBA_BANDS.length} ${fails.length ? '(' + fails.map((f) => `${f.band.metric}=${f.value.toFixed(2)}`).join(', ') + ')' : ''}`);
   }
 

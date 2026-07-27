@@ -80,7 +80,24 @@ export interface LineupSnapshot {
 
 /** The complete self-contained replay artifact — serializable, and sufficient on its own to render a full game with no access to the engine's internal simulation state. */
 export interface Replay {
-  version: 1;
+  /**
+   * Replay format version. Bump whenever the serialized shape of this
+   * artifact changes — INCLUDING the embedded `GameEvent` shapes — and
+   * update packages/viewer in the same change (AGENTS.md DO-NOT #8): the
+   * viewer HTML is designed to be saved standalone, so externally-held
+   * copies have this field as their only way to detect a shape they
+   * predate.
+   *
+   * History:
+   * - 2 (2026-07-27): `ReboundEvent.player` went required → optional and
+   *   gained `deadBall?` (playerless team/dead-ball rebounds occur in every
+   *   default game via `reb.deadBallCaromChance`); `TimeoutEvent` joined the
+   *   `GameEvent` union; `FreeThrowEvent.oneAndOne?` added. Frame row
+   *   layout unchanged. Consumers typed against v1 (`player` required)
+   *   must treat a playerless rebound as a team rebound.
+   * - 1: initial format.
+   */
+  version: 2;
   seed: string;
   rules: {
     id: string;
@@ -146,7 +163,9 @@ export function buildReplay(result: GameResult): Replay {
   }
 
   return {
-    version: 1,
+    // must stay in lockstep with the `Replay.version` literal type above —
+    // the version history lives at that field's doc comment
+    version: 2,
     seed: result.seed,
     rules: {
       id: result.rules.id,

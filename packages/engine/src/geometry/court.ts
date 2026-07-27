@@ -115,9 +115,11 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  * "4-out-1-in" slot). ai.ts assignSpots hands these out by personnel: best
  * ball-handler to `top`, the four best-gravity shooters to the
  * wings/corners, and the worst shooter to `dunker` if he's a true
- * non-shooter. `elbow_l/r` and `short_roll` aren't part of the initial
- * assignment — they're used as ad hoc landing spots during actions (e.g. a
- * popping screener) rather than a starting formation slot.
+ * non-shooter. `elbow_l/r` are the mid-range supply line: assignSpots
+ * stations a low-gravity big with a real in-between game there (instead
+ * of wasting a corner on him), and ai/actions.ts routes a mid-pop
+ * screener there after the screen. `short_roll` is reached via the cut
+ * machinery rather than assignment.
  *
  * Every position below is a named REAL basketball spot:
  *  - `top`: top of the key / top of the arc, dead center, the traditional
@@ -127,12 +129,10 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  *    three-point range (21 ft out, ~15.5 ft off the center line) — the
  *    classic catch-and-shoot / drive-either-way spot for a team's other
  *    perimeter shooters.
- *  - `corner_l`/`corner_r`: the corner threes, sitting at 21.5 ft LATERAL
- *    distance from the rim's center line. This deliberately mirrors the real
- *    cornerDistFt geometry from classifyShot (22 ft) minus a small margin —
- *    a shooter standing here is just inside the three-point line, not
- *    straddling or stepping on it, and the shot is the shortest three on the
- *    floor (see the classifyShot corner-vs-arc note above).
+ *  - `corner_l`/`corner_r`: the corner spots at 21.5 ft LATERAL distance
+ *    from the rim's center line — just INSIDE classifyShot's 22 ft corner
+ *    line (see the D3 note on the entries below for why moving them behind
+ *    the line waits on the assist-economy fix).
  *  - `dunker`: the dunker's spot — deep in the paint right next to the
  *    baseline (4 ft from the rim), where a non-shooting big parks himself to
  *    stay out of the primary driver's lane while remaining a lob/dump-off
@@ -140,7 +140,8 @@ export function classifyShot(rules: RulePack, court: Court, rim: V2, p: V2): Sho
  *    non-shooter on the perimeter would let his defender sag off and
  *    congest the paint instead — hence assignSpots routing by gravity.
  *  - `elbow_l`/`elbow_r`: the elbows — where the free-throw line meets the
- *    lane lines, a classic pass-and-cut or pick-and-pop landing spot.
+ *    lane lines, a classic pass-and-cut or pick-and-pop landing spot. The
+ *    canonical mid-range real estate: a catch here is the 16-footer.
  *  - `short_roll`: the "short roll" area, roughly the front of the rim at
  *    mid-paint depth — where a screener who rolled to the basket but got cut
  *    off pulls up short to become a passing-window threat instead of
@@ -159,14 +160,33 @@ export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] 
     { key: 'top', pos: spot(26, cy) },
     { key: 'wing_l', pos: spot(21, cy - 15.5) },
     { key: 'wing_r', pos: spot(21, cy + 15.5) },
+    // Corner spot at 21.5 ft lateral — just inside the 22 ft corner line,
+    // producing a small junk-corner-2 rate (REFACTOR.md D3). Moving corners
+    // genuinely behind the line was attempted THREE ways during M1 (naive,
+    // gravity-gated, appetite-ranked + block stationing — full trail in
+    // REFACTOR.md): each iteration fixed its target metric, and the final
+    // best-fit model restored Jokic's 3PA/TRB/post trajectory — but real
+    // behind-the-line corners raise kick EV enough that the primary
+    // creator's assists inflate to 12-14/game, amplifying the PRE-EXISTING
+    // structural assist-economy overshoot (D1). D3 is therefore COUPLED to
+    // D1: land the assist-model fix first, then this becomes safe. Until
+    // then the junk-2 trickle is the lesser distortion.
     { key: 'corner_l', pos: { x: baselineX + dir * 4, y: cy - 21.5 } },
     { key: 'corner_r', pos: { x: baselineX + dir * 4, y: cy + 21.5 } },
     { key: 'dunker', pos: spot(4, cy + 9) },
     // low blocks — post-up real estate, ~first hash beside the key
     { key: 'post_l', pos: spot(3.5, cy - 6.5) },
     { key: 'post_r', pos: spot(3.5, cy + 6.5) },
-    { key: 'elbow_l', pos: spot(16, cy - 8) },
-    { key: 'elbow_r', pos: spot(16, cy + 8) },
+    // True elbow geometry: the NBA free-throw line sits 13.75 ft from the
+    // rim center (ftLineFt 19 − rimInsetFt 5.25) and the lane lines ±8 ft
+    // off the center line; the elbow jumper is taken from a step behind
+    // that intersection — dx 14 puts the spot sqrt(14² + 8²) ≈ 16.1 ft
+    // from the rim, the canonical 16-footer (was dx 16 ≈ 17.9 ft while
+    // the spots sat unconsumed; the mid-pop supply line made the distance
+    // load-bearing: it must land inside the 14-19.5 ft real-mid band with
+    // jitter, not straddle the long-2 boundary).
+    { key: 'elbow_l', pos: spot(14, cy - 8) },
+    { key: 'elbow_r', pos: spot(14, cy + 8) },
     { key: 'short_roll', pos: spot(11, cy) }
   ];
 }

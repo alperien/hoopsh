@@ -1,13 +1,13 @@
 <!-- ============================================================
   GENERATED FILE — DO NOT EDIT.
-  This is the hoopsh Bible: all six source documents compiled in canonical
+  This is the hoopsh Bible: all eight source documents compiled in canonical
   reading order. Edit the sources, then regenerate: npm run docs:bible
-  Sources (in order): README.md · ARCHITECTURE.md · docs/INTERNALS.md · AGENTS.md · docs/PLAYBOOK.md · docs/ONBOARDING.md
+  Sources (in order): README.md · ARCHITECTURE.md · docs/INTERNALS.md · AGENTS.md · docs/PLAYBOOK.md · docs/ROSTERS.md · docs/SEASON.md · docs/ONBOARDING.md
 ============================================================ -->
 
 # 📖 The hoopsh Bible — everything, one file
 
-> Generated from the six source documents. If this file and a source document
+> Generated from the eight source documents. If this file and a source document
 > disagree, the source is right and this file is stale — regenerate it.
 
 ## Contents
@@ -16,7 +16,9 @@
 3. **docs/INTERNALS.md**
 4. **AGENTS.md**
 5. **docs/PLAYBOOK.md**
-6. **docs/ONBOARDING.md**
+6. **docs/ROSTERS.md**
+7. **docs/SEASON.md**
+8. **docs/ONBOARDING.md**
 
 
 
@@ -32,9 +34,11 @@
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
 resolve through **probability models fed by spatial context, calibrated against
-author-recalled NBA ranges** — honesty note: the acceptance targets are currently
-authored from memory, not generated from sourced data; grounding them in citable
-data (and fitting to distributions, not means) is the active roadmap arc. Games
+author-recalled NBA ranges** — honesty note: the acceptance BANDS are still
+authored from memory, not generated from sourced data (the game-flow references
+in `data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games);
+grounding the bands in citable data (and fitting to distributions, not means)
+remains the active roadmap arc. Games
 follow basketball rules and season-scale statistics fall inside those ranges. Every point
 in a box score traces back to a simulated shot at an (x, y) location — a
 2D probability model with position as an input, not a physics sim (there is
@@ -57,9 +61,16 @@ git clone https://github.com/alperien/hoopsh && cd hoopsh
 npm run sim                      # simulate one game: box score + play-by-play + replay
 npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
-npm run bench                    # games/sec benchmark (budget: ≥1; typical: ~6)
+npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
 npm run test                     # full suite via node:test (zero installs)
 npm run broadcast                # two-voice broadcast script for a game
+
+npm run roster:new               # scaffold your own team from archetypes (wizard)
+npm run roster:validate -- t.json  # human-grade pack linting: fixes + plausibility warnings
+npm run sim -- --home t.json     # ...and watch your team play (docs/ROSTERS.md is the guide)
+
+npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
+npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
@@ -153,22 +164,34 @@ Run it yourself: `npm run batch -- --games 50`.
 ## Roadmap
 
 **Done:** replay viewer · broadcast demo · automated parameter sweep ·
-orchestrator refactor · pick-and-roll · invariant suite · full documentation
-campaign (33% engine comment density, contributor covenant, onboarding path)
+orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
+usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
+invariant suite · full documentation campaign (contributor covenant, onboarding path) ·
+real-game corpus (184 parsed NBA games) grounding the flow references ·
+worker-pool parallel runner (determinism across worker counts tested) ·
+roster tooling (schema gen, scaffold wizard, validator, stats→ratings fitter) ·
+stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
+endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
+burn) implemented flag-gated, default OFF pending its calibration decision ·
+NCAA rule pack behind the harness `--league` flag (partially wired — see
+REFACTOR.md's register)
 
-**Phase 2R (current):** usage hierarchy & re-initiation (make floor generals lead
-their teams in assists) · post-up game · dump-off reads · fidelity harness + inverse
-solver · Curry/LeBron/Jokić profiles validated against real-life stat ranges.
+**Phase 2R (current — tuning, not building):** the mechanics above are implemented
+and wired; the open work is calibration and verification — the coordinated
+re-sweep of the integrated engine, the endgame-flag decision, fidelity residuals
+(hub post-up share), and the open items in REFACTOR.md's register.
 
-**Next (validation arc):** measured noise floor for every gate · mechanism audit of
-the distributional misses · game-state coupling (trailing-team urgency, tempo kill,
-crunch time) · sourced NBA data in-repo with provenance, bands/targets generated
-not typed · distribution-level fitting with a held-out season the solver never sees.
+**Next (validation arc):** mechanism audit of the distributional misses ·
+30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
+windows) · prediction backtest (Brier, calibration curves) via the season layer ·
+sourced NBA data in-repo with provenance, bands/targets generated not typed ·
+distribution-level fitting with a held-out season the solver never sees.
 
-**Beyond:** season layer (schedules, fatigue across games, injuries) · progression &
-aging · NCAA + EuroLeague rule-pack tuning · era packs (1995 vs 2015 shot diets) ·
-deep player editor UI · GM & MyPlayer experiences · defensive schemes ·
-broadcast TTS audio · WASM hot path if the perf budget ever demands it.
+**Beyond:** cross-game season state (fatigue carryover, injuries — the seams are
+documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack +
+NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor UI ·
+GM & MyPlayer experiences · defensive schemes · broadcast TTS audio · WASM hot
+path if the perf budget ever demands it.
 
 ## License
 
@@ -247,13 +270,15 @@ packages/
   stats/       event stream → box scores, advanced stats, shot charts
   data/        player/team JSON schemas, validation, sample fictional rosters
   narration/   template play-by-play + LLM color-commentary interfaces
-  harness/     batch runner, acceptance bands, benchmarks, calibration tools
+  harness/     batch runner, acceptance bands, benchmarks, calibration tools,
+               season/matchup driver, stats→ratings fitter (docs/SEASON.md,
+               docs/ROSTERS.md)
   viewer/      single-file 2D canvas replay viewer (working prototype; frozen)
 ```
 
 Dependency rule: `engine` imports nothing. Everything else imports `engine`.
 Experiences (GM, MyPlayer, editor UI) will live outside these packages and speak to the
-engine only through its public API: `simulateGame(config) → { events, replay, result }`.
+engine only through its public API: `simulateGame(config) → GameResult` (`{ seed, events, finalScore, frames, rules, params, teams }`; a `Replay` is assembled separately from that result via `buildReplay`).
 
 ## 4. Engine internals
 
@@ -269,7 +294,11 @@ engine only through its public API: `simulateGame(config) → { events, replay, 
 `RulePack` is data, not code: period count/length, OT length, shot clock (+ offensive
 rebound reset), team-foul bonus thresholds, personal foul-out limit, three-point
 geometry (arc radius, corner distance, corner break), court dimensions, clock-stopping
-rules. NBA ships first; NCAA/EuroLeague are follow-ups. Custom leagues are just JSON.
+rules. NBA ships first. An NCAA pack exists and is selectable through the
+harness `--league` flag (rule pack + bands + pace basis travel together);
+its rule coverage is partial — unwired fields are labeled in
+`rules/rulepack.ts` and registered in REFACTOR.md. EuroLeague is a
+follow-up. Custom leagues are just JSON.
 
 ### 4.3 Player model
 
@@ -316,6 +345,10 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   charges (rare). Team-foul bonus and foul-outs from the rule pack. FT sequences.
 - Live-ball turnovers and defensive rebounds trigger transition: if the defense isn't
   set, early-offense quality bonuses apply. Fast-break points emerge.
+- Endgame management (timeouts, intentional fouling, hold-for-last, two-for-one,
+  clock burn) exists as a flag-gated layer (`GameConfig.endgame`, default OFF)
+  that modulates the same EV framework rather than scripting plays; turning it
+  on by default is an open calibration decision (REFACTOR.md register).
 
 ### 4.7 Event stream & replay
 
@@ -371,9 +404,11 @@ Consumes the event stream; never touches the engine.
 
 ## 8. Roadmap after v0.1
 
-season layer (schedules, rotations, fatigue across games, injuries) → progression/aging
-→ NCAA + EuroLeague rule packs → era packs → deep editor UI → GM & MyPlayer experiences
-→ defensive schemes → broadcast audio → possible WASM core.
+cross-game season state (the stateless season driver exists — docs/SEASON.md
+records the seams; fatigue carryover, injuries, home-court are the missing
+pieces) → progression/aging → EuroLeague rule pack + NCAA calibration → era
+packs → deep editor UI → GM & MyPlayer experiences → defensive schemes →
+broadcast audio → possible WASM core.
 
 
 ---
@@ -425,10 +460,12 @@ event `wt` key on it). Do not mix them.
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
 | `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
 | `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
+| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one) | decision bias terms, late-clock behavior |
 | `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
 | `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
+| `sim/endgame.ts` | flag-gated endgame layer (`GameConfig.endgame`, default OFF): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
@@ -441,8 +478,38 @@ event `wt` key on it). Do not mix them.
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (schemas,
-validation, archetypes, sample packs), `narration/` (frozen demo layer),
-`harness/` (batch runner, bands, sweep, fidelity benchmarks, inverse solver), `packages/viewer/` (prototype).
+validation, archetypes, sample packs), `narration/` (template PBP + broadcast
+scripts; `shotcall.ts` classifies which basketball NAME an attempt gets —
+layup/dunk/hook/tip-in/jump shot — from ShotEvent data alone),
+`packages/viewer/` (frozen prototype).
+
+Harness map — `packages/harness/src/` (measurement and tooling; rows for the
+modules an agent is likely to be pointed at):
+
+| File | Owns |
+|---|---|
+| `bands.ts` + `cli.ts` | the NBA acceptance bands (count them HERE, per AGENTS §4.4) + the gated batch runner |
+| `sweep.ts` / `knobs.ts` / `solve.ts` | parameter search over SimParams (margin objective) |
+| `noisefloor.ts` / `calreport.ts` | measured noise floor (40 bases → `noise-floor.gen.ts`); n40 center positions vs band edges |
+| `fidelity.ts` | star-fixture identity gates (Curry/LeBron/Jokić profiles) |
+| `texture.ts` | frame-level feel forensics: speeds, stillness, ping-pong passing |
+| `flow.ts` + `flow-metrics.ts` | game-arc forensics + event grammar (CLI/report + doctrine in flow.ts; pure metric library in flow-metrics.ts) |
+| `turing.ts` | blind PBP discrimination protocol vs real bbref logs |
+| `oos.ts` | out-of-sample generated-roster bands + the distributional report |
+| `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
+| `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
+| `parallel.ts` | worker-pool game runner; determinism across worker counts is the acceptance test |
+| `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
+| `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
+| `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
+
+Roster-authoring tooling (`tools/gen-schema.mjs`, `roster-new.mjs`,
+`roster-validate.mjs` — `npm run schema:gen` / `roster:new` / `roster:validate`)
+sits outside the packages: it consumes `@hoopsh/data`'s exported schema
+definitions and archetypes, and emits/validates the hand-edited packs. The
+editor JSON Schema at `data/schema/team-pack.schema.json` is GENERATED — see
+`docs/ROSTERS.md` for the authoring loop and `packages/data/src/schema.ts` for
+the single source of truth it derives from.
 
 ## Design rules that maintain consistency across this codebase
 
@@ -474,10 +541,10 @@ validation, archetypes, sample packs), `narration/` (frozen demo layer),
 ## The safety net (run all of it before pushing)
 
 ```bash
-npm run test     # 69 tests: determinism, geometry, archetypes, narration, schema,
+npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
-npm run bench    # ≥1 game/sec budget (typical ~6)
+npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote)
 ```
 
 `packages/engine/test/invariants.test.ts` permanently enforces what two adversarial
@@ -522,6 +589,29 @@ positions from `npm run calreport`, which quotes n40 grand-mean centers with
 standard errors — quoting a smaller nested window's mean as "the center" was
 an error the third review caught, twice, in our own write-up. The pre-texture
 FTA-low and 3P%-high residuals PASS after the texture re-tune):
+- **CURRENT STATE (measured 2026-07-27; single seed base where noted —
+  indicative per AGENTS §4.4; systematic claims corroborated by the
+  committed 40-base noise floor. Re-measure: `npm run batch -- --games 24`,
+  `npm run calreport`, `npm run oos`):**
+  - **Fouls band FAILS — branch-introduced.** batch-24 (single base): pf
+    23.7 vs band 16.0-22.5, +1.2 over the ceiling. Systematic, not draw
+    noise: the n40 grand-mean center is 22.69 ±0.08se — OUTSIDE the 22.5
+    ceiling (−2.4se) on the branch's own re-baselined 40-base floor
+    (generated 2026-07-26) — and oos-60 reads 23.3. `main` measures 21.7
+    (OK) on the same command/base: wave 2 traded the assisted-share miss
+    for a fouls miss. By §4.4's definition the tip is NOT locked; the fix
+    belongs to the coordinated re-sweep (REFACTOR.md register) or an
+    explicitly recorded exception.
+  - **Two more centers edge-unresolved (calreport, n40):** fga 92.07
+    ±0.11 vs the 92.0 ceiling (−0.6se, leaning outside) and ftPct 80.5%
+    ±0.1 sitting ON its 80.5% ceiling (−0.4se). The edge-set composition
+    changed vs the historical signature: fta hugs its floor; fga, tpPct,
+    ftPct, tov, and pf group at ceilings (calreport's own signature line:
+    read as one defect with a direction).
+  - **Assisted share RESOLVED** (formerly the long-standing structural
+    miss): 58.3% at batch-24, 57.7% at oos-60, n40 center 59.0% ±0.2se —
+    inside, +2.1σ from the 62% ceiling. The wave-2 shot-mix work closed
+    it; the fouls miss above took its place as the one batch-24 FAIL.
 - **RESOLVED by the arrival-based drive commit (speed-fix cluster)**: the
   ORtg unreachability and the friction floors were ONE mechanism short —
   drives with a fixed commit window expired mid-lane (picks equal to the
@@ -532,73 +622,130 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
   now: advance flips at 36 ft, transition when 4+ defenders are back).
   Post-fix at 40-game verify: ORtg ~116-118 mid-band (from 121-on-ceiling
   then 124-126 during the cluster), steals and turnovers back in band.
-  Successor systematic finding: ASSISTED SHARE ~0.65 vs the 0.62 ceiling,
-  repeating on all three seed bases — the drive-and-kick era converts
-  collapses into assisted makes; unassisted-creation economy (post, iso)
-  was boosted (postCallShare 1.875, isoCallShare 0.91) but the hub's post
-  volume remains under his identity floor. Open item with a named cause.
-- **THE FRICTION SIGNATURE (historical — resolved above)** (the review computed it from our own table; the
-  calreport now emits it): friction/volume statistics pin near band FLOORS
-  (pace edge-unresolved at +1.5se, trb/stl/blk/tov hugging at ~1σ gate
-  distance, fta/orbPct at ~2σ) while accuracy/efficiency statistics pin near
-  CEILINGS (ORtg edge-unresolved at +0.6se, 3P% hugging, FG%/FT%/assisted
-  share at ~1.6-1.9σ). Read as ONE defect with a direction: the sim plays
-  frictionless, hyper-efficient basketball at slightly few possessions.
-  Prime mechanical suspect: movement speed (6.55 ft/s vs NBA ~4.2) feeding
-  every spatial computation. **Speed-pin experiment (run 2026-07-26,
-  reviewer-designed): all speeds × 0.64 ≈ NBA-equivalent, every shot/contest
+  Successor systematic finding at the time: ASSISTED SHARE ~0.65 vs the
+  0.62 ceiling, repeating on all three seed bases — the drive-and-kick era
+  converted collapses into assisted makes. Since RESOLVED by the wave-2
+  shot-mix work (see the CURRENT STATE block above: 59.0% ±0.2se n40
+  center, inside). The hub's post volume remains under his identity floor
+  (jokic post shots 1.18 vs the 1.8 identity floor, 10.6se out at n40 —
+  the largest fidelity residual on the board).
+- **THE FRICTION SIGNATURE (historical — resolved above; its speed reading
+  was a UNITS ARTIFACT)** (the review computed the signature from our own
+  table; the calreport now emits it): friction/volume statistics pinned
+  near band FLOORS while accuracy/efficiency statistics pinned near
+  CEILINGS — one defect with a direction, closed by the arrival-based
+  drive commit (a mechanism, not global slowing). The era's "prime
+  mechanical suspect: movement speed (6.55 ft/s vs NBA ~4.2)" compared a
+  ft/s measurement against a miles-per-hour figure: the NBA tracking
+  average is 4.22 mph = 6.19 ft/s (2023-24 team AVG_SPEED, NBA.com Speed &
+  Distance tracking — an all-movements-including-standing average), so the
+  sim's 6.55 ft/s was 4.47 mph, ~6% hot, not ~1.5× too fast (1.56 is a
+  ft/s number divided by a mph number). The speed-pin experiment
+  (2026-07-26, reviewer-designed: all speeds × 0.64, every shot/contest
   constant held fixed → pace 95.3→86.5, FG% 48.0%→50.1%, ORtg 120.8→126.8,
-  blocks 3.8→2.5 at 24 games.** Large moves everywhere = the shooting
-  calibration HAS absorbed the kinematics error (the current constants are
-  fitted to a world where defenders arrive ~1.5× too fast). Consequence,
-  binding on the validation arc: fix movement speed BEFORE fitting shot
-  models to real data, or the absorption gets a citation attached.
-- **Elite-shooter benchmark's assist center runs high**: 9.51 ±0.16se at
-  8×40-game bases vs the 4.5-8.5 identity range. (An earlier 4-draw probe
-  read 9.13 — the sample-size lesson applied to ourselves: quote the floor's
-  larger sample, not a hand probe.) The cast fix (point-forward hub authored
-  in) plus the passVision trim moved the center only 9.64→~9.5 — LITTLE,
-  which sharpens the engine-level audit question the fixture change cannot
-  answer: the decision layer appears to over-generate assists for high-usage
-  shooters regardless of cast structure. Promoted in the audit ranking.
-- **Position updates at 40 league bases**: pace center RESOLVED inside its
-  band (95.42, +3.5se above the 95.0 floor); ORtg center 121.08 ±0.27se —
-  edge-unresolved, leaning just above the 121 ceiling. The friction
-  signature persists (floors: trb/blk/tov ~1σ; ceilings: 3P%/ORtg).
-- **Pass volume runs low**: ~2.3 passes/possession vs the NBA's ~3.2 after
-  pass-back damping (baseline was 2.95) — the swing economy thinned; open
-  texture item.
-- **Endgame management is missing, distinctly from mid-game coupling** (the
-  review's sharpest cut): conditional on a game being close, OT arrives ~9%
-  of the time vs the league's ~26% (3.3/37 vs ~6/23) — near-ties are played
-  out instead of MANAGED (no timeouts, intentional fouling, hold-for-last,
-  two-for-one, clock burn). Margin sd high (~12 vs 8-9) AND close-game share
-  high (37% vs 20-26%): fat middle, fat tails, missing shoulders — TWO
-  mechanism gaps (mid-game coupling; endgame management), not one.
+  blocks 3.8→2.5 at 24 games) pinned the sim to 4.19 ft/s = 2.86 mph —
+  walking pace for all ten players averaged over live play — and its
+  result is the over-slowing signature (defenders arrive late → cleaner
+  looks → efficiency inflates while possessions shrink). It was evidence
+  FOR the units error, misread at the time as "the shooting calibration
+  absorbed the kinematics error". The units verdict landed 2026-07-26
+  (commit `00e2cda`; `harness/src/texture.ts` header records that this
+  paragraph's uncorrected text nearly drove a further round of engine
+  slowing). The former binding directive "fix movement speed BEFORE
+  fitting shot models to real data" is DISCHARGED: post-jog-economy the
+  sim measured 6.24 ft/s = 4.25 mph (`00e2cda`), on the corrected target —
+  movement speed is NOT an open blocker for the fit-to-real-data arc.
+  Definitional caveat before any speed BAND is promoted: NBA's AVG_SPEED
+  column provably does not equal distance ÷ minutes (4.22 vs 4.52 mph, a
+  systematic ~7% gap both tracked seasons; the denominator is
+  unpublished), and the texture tool measures live-clock chord-sampled
+  speed — treat sim-vs-NBA average-speed deltas under ~10-15% as
+  definitional noise until a same-convention, cited gate lands in
+  `data/nba/`.
+- **Elite-shooter benchmark's assist center**: measured 8.49 ±0.19se at
+  the n40 floor (calreport, 2026-07-27) — inside the 4.5-8.5 identity
+  range by 0.01, i.e. sitting ON the ceiling: edge-unresolved, no longer
+  outside. The previously quoted 9.51 ±0.16se was the pre-wave-2 state.
+  (An earlier 4-draw probe read 9.13 — the sample-size lesson applied to
+  ourselves: quote the floor's larger sample, not a hand probe.) The
+  engine-level audit question — does the decision layer over-generate
+  assists for high-usage shooters regardless of cast structure? — remains
+  open in edge-unresolved form, at reduced magnitude.
+- **Position updates at 40 league bases (calreport, floor generated
+  2026-07-26; read 2026-07-27)**: pace center 98.41 ±0.14 — inside; ORtg
+  center 115.11 ±0.27 — inside, +3.0σ from the 121 ceiling. Earlier
+  quoted positions (pace 95.42; ORtg 121.08 edge-unresolved; floors
+  trb/blk/tov) describe superseded eras — the current edge set is the one
+  in the CURRENT STATE block above.
+- **Pass volume runs low**: 1.93 passes/possession measured 2026-07-27
+  (`npm run texture`, 8 games, single base — indicative) vs the cited NBA
+  ~2.84-2.86 (2023-24: 281.3 passes made per team-game, NBA.com tracking
+  Passing, ÷ ~99 possessions/game at B-Ref pace 98.5). The previously
+  quoted target "NBA ~3.2" was an uncited recollection; the corrected
+  reference makes the gap ~32%, not ~30%+ of a larger number. Open
+  texture item with the damping named as cause (baseline was 2.95, the
+  pass-back damping overshot).
+- **Endgame management: mechanisms IMPLEMENTED, flag-gated default-OFF;
+  the realism gap remains at the default.** The historical diagnosis (the
+  review's sharpest cut) held that near-ties are played out instead of
+  MANAGED. All five once-missing behaviors now exist behind
+  `GameConfig.endgame` (`sim/endgame.ts` + concept 6 in
+  `sim/ai/concepts.ts`): timeouts (advance + stop-the-run triggers,
+  budget from the rule pack), intentional fouling, hold-for-last,
+  two-for-one, clock burn, plus trailing-team hurry. Flag-off
+  byte-identity vs the pre-endgame engine is verified
+  (FINDINGS-REDTEAM.md item 2); flag-on probes pass budget/decrement
+  checks. Deliberately NOT in `harness/knobs.ts` until the flag defaults
+  on. Open items (REFACTOR.md register): the default-on decision + the
+  coordinated re-sweep; no flag-on re-measurement of the OT-share target
+  exists in-repo. With the flag off, OT share measured 1.7% at oos-60
+  (2026-07-27) vs the cited real 4.80% (2023-24 regular season, computed
+  from Basketball-Reference schedules, N=1230; long-run ~5.9%).
 
 **Out-of-sample status** (`npm run oos` — generated rosters the sweep never
-saw): re-run at each landing. The texture increment improved the
-distributional report as a side effect — avg margin 12.2 (was 13.7, NBA
-11-12) and blowout share 17% (was 23%, NBA 15-20%) are now in range;
-overtime share (3.3% vs 5-7%) and margin spread (sd ~12 vs 8-9) remain the
-game-state-coupling gap: nothing yet pulls diverging games back together
-or tightens finishes (timeouts, trailing-team urgency, tempo kill).
+saw): re-run at each landing — an obligation wave 2 missed; the numbers
+below are the 2026-07-27 re-measurement (60 games, 12 generated rosters,
+one generated set — indicative per §4.4, but the deltas dwarf draw noise).
+Bands 15/17: 3PA share 32.5% vs the 33.0 floor (a generalization gap — the
+acceptance-roster center is 36.8% ±0.1 at n40) and fouls 23.3 vs the 22.5
+ceiling (the same miss as the acceptance batch). Distributional report
+(REPORT-ONLY, ratchet convention) — measured vs cited 2023-24 regular
+season (computed from Basketball-Reference schedules, N=1230): avg final
+margin 15.1 vs real mean |margin| 12.58; blowout (20+) share 32% vs 19.1%;
+close-game (≤5) share 17% vs 23.3%; OT share 1.7% vs 4.80% (long-run
+~5.9%); margin sd 10.3. This is a distributional REGRESSION vs the
+previously documented state ("avg margin 12.2 / blowout 17% — in range",
+measured pre-wave-2): the wave-2 landing moved the report the wrong way
+and the report was not re-run at that landing. Close-game share also
+FLIPPED from above range (37%) to below (17%) — the old "fat middle, fat
+tails, missing shoulders" diagnosis no longer describes the tip.
 Distributional misses are mechanism candidates first, fitting targets
 second — see the roadmap's validation arc.
 
-**Texture (measured by `npm run texture`, before → after the texture
-increment):** average live speed 8.67 → 6.55 ft/s (NBA ~4.2; the residual
-is an open item — real spacing is held even more than the sim holds it),
-stationary share 28% → 33%, ping-pong share of passes 26.8% → 12.4%
-(the eye-test oscillation, largely gone), passes/possession 2.95 → 2.23
-(NBA ~3.2 — the damping overshot; open item). Mechanisms: pass-back
-damping (concept 3's negative side), stillness deadbands with walked
-spacing moves, purposeful relocation with the denied shooter's baseline
-escape.
+**Texture (measured by `npm run texture`; latest read 2026-07-27, 8 games,
+single base — indicative per §4.4):** average live speed 6.40 ft/s vs the
+cited reference 4.22 mph = 6.19 ft/s (2023-24 team AVG_SPEED, NBA.com
+Speed & Distance tracking) — on target within definitional noise; there is
+NO open speed residual. History: 8.67 → 6.55 ft/s across the texture
+increment, then 6.24 ft/s after the jog-economy fix (commit `00e2cda`,
+2026-07-26 — the units-verdict commit; this paragraph formerly compared
+those ft/s readings against "NBA ~4.2" WITHOUT units, a ft/s-vs-mph
+confusion whose full record is in the friction-signature history above).
+Stationary share 31%, walking (1-6 ft/s) 16%, running (>6 ft/s) 53%,
+ping-pong share of passes 13.5% (was 26.8% pre-increment — the eye-test
+oscillation, largely gone), passes/possession 1.93 vs the cited NBA
+~2.84-2.86 (see the pass-volume finding above) — the damping overshot;
+open item. Mechanisms: pass-back damping (concept 3's negative side),
+stillness deadbands with walked spacing moves, purposeful relocation with
+the denied shooter's baseline escape.
 
 ## Known simplifications (deliberate, documented)
 
-Simplified inbounds (timed reset, no inbound passer) · no timeouts · no backcourt/
+Simplified inbounds (timed reset, no inbound passer) · endgame management
+(timeouts, intentional fouling, hold-for-last, two-for-one, clock burn) is
+implemented but flag-gated default-OFF (`GameConfig.endgame` — so the default
+game still plays without timeouts; the default-on decision belongs to the
+coordinated re-sweep, REFACTOR.md register) · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
 (the Stage 2 assists/assisted-share gaps are CLOSED: usage pressure,
 delivery quality, and DHO conversion brought assisted share to ~57-61% and
@@ -609,7 +756,9 @@ when no substitute exists — reachable only with short/foul-storm rosters; the
 no-fouled-out-actors invariant applies whenever replacements exist, and every
 lineup-consuming site falls back consistently rather than crashing — hardened
 after the Stage 2 adversarial audit) ·
-narration/viewer are frozen prototypes.
+narration is a maintained template layer (wave-1 polish: shot-call
+classification, bbref-register turing renderer); the viewer is a frozen
+prototype.
 
 
 ---
@@ -695,7 +844,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 ## 2. The DO-NOT list
 
 1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
-   optimizer chose it against 48 acceptance-band checks. Rounding it de-calibrates the
+   optimizer chose it against the 17 acceptance-band checks (bands.ts NBA_BANDS). Rounding it de-calibrates the
    league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
@@ -734,8 +883,10 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 | What consumers can see | `core/events.ts` (the contract) + `replay/` |
 | What a rating means physically | `model/derived.ts` (curves) |
 | League rules | `rules/rulepack.ts` (data, not code) |
+| Late-game management (flag-gated, default OFF) | `sim/endgame.ts` + concept 6 in `sim/ai/concepts.ts` |
 | Stat math | `stats/` — pure event folding |
 | Realism measurement / tuning | `harness/` |
+| Multi-game runs (seasons, matchup Monte-Carlo) | `harness/` season layer — see `docs/SEASON.md` |
 | Editable content | `data/` (packs, archetypes, validation) |
 
 Full map with per-file detail: `docs/INTERNALS.md`.
@@ -752,7 +903,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # 69 tests incl. invariants + fidelity gate — ALWAYS, every change
+npm test                        # full suite: invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
@@ -1119,6 +1270,522 @@ Dispatcher rules:
 ---
 ---
 
+<!-- ================= SOURCE: docs/ROSTERS.md ================= -->
+
+# Writing rosters — the authoring guide
+
+How to put a real (or invented) team into hoopsh: scaffold a pack, understand
+the 38 dials, edit with live editor feedback, validate, and watch it play.
+
+This guide teaches the *model* — what the numbers mean in basketball terms and
+how they interact. The per-dial ground truth lives in
+[`packages/engine/src/model/player.ts`](../packages/engine/src/model/player.ts)
+(every key is commented with what it drives and where), and those same comments
+are surfaced as hover text in your editor via the generated JSON Schema, so you
+rarely need to leave the file you're editing. When this guide and a fresher
+code comment disagree, the code comment wins — that's repo law
+([`docs/README.md`](./README.md)).
+
+## The loop
+
+```bash
+npm run roster:new                                # wizard — Enter accepts every default
+npm run roster:new -- --list                      # browse the 11 archetypes first
+# ...edit the ratings in your editor (autocomplete + inline errors via $schema)...
+npm run roster:validate -- my-team.team.json      # errors with fixes + plausibility warnings
+npm run sim -- --home my-team.team.json           # play it (vs the built-in matchup's away team)
+npm run sim -- --home my-team.team.json --away packages/data/rosters/monarchs.team.json --seed x1
+```
+
+Scripted scaffolding (no prompts):
+
+```bash
+npm run roster:new -- --name "Oak City Owls" --abbrev OWL --size 12 \
+  --slots floorGeneral,scoringWing,threeAndD,glueForward,rimRunner,comboGuard,benchScorer,benchBig \
+  --pace 62 --three-bias 58 --out owls.team.json
+```
+
+Start from the scaffold even when transcribing a real NBA roster: pick the
+archetype closest to each player and adjust dials away from a profile whose 38
+numbers already agree with each other. Typing 38 raw numbers from scratch
+produces incoherent players (an 85 `three` with a 5 `shotThree` never shoots);
+editing a coherent one produces variations.
+
+## Editor setup
+
+Scaffolded packs begin with a `"$schema"` line pointing (relatively) at
+[`data/schema/team-pack.schema.json`](../data/schema/team-pack.schema.json).
+Any JSON-Schema-aware editor (VS Code out of the box) then gives you:
+
+- autocomplete for every key, including all 24 attributes and 14 tendencies
+- inline squiggles for out-of-range ratings, wrong types, missing keys, and
+  unknown keys (typos get flagged *at the typo*)
+- hover documentation per dial, extracted from `model/player.ts`
+
+For a hand-started file, add the line yourself (path relative to *your* file):
+
+```jsonc
+{ "$schema": "../../data/schema/team-pack.schema.json", "formatVersion": 2, "kind": "team", ... }
+```
+
+The schema is **generated** — `npm run schema:gen` derives it from the same
+constants `validateTeamPack()` enforces (`packages/data/src/schema.ts`), so it
+cannot drift from the loader. Two rules JSON Schema cannot express are only
+checked at load time: player-id uniqueness, and starters/rotationMinutes
+referring to real roster ids. Editor-green is necessary, `roster:validate`
+is sufficient.
+
+## Pack anatomy
+
+```jsonc
+{
+  "$schema": "../../data/schema/team-pack.schema.json",
+  "formatVersion": 2,          // exact match required; v2 added tend.usage
+  "kind": "team",
+  "team": {
+    "id": "owls", "name": "Oak City Owls", "abbrev": "OWL",
+    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — team style dials
+    "players": [ /* >= 8 players, each with all 38 ratings — see below */ ],
+    "starters": [ "owls-p01", "owls-p02", "owls-p03", "owls-p04", "owls-p05" ],  // exactly 5 distinct ids
+    "rotationMinutes": { "owls-p01": 36 }   // optional coach targets; omit to sub on fatigue alone
+  }
+}
+```
+
+Each player: `id`, `name`, `pos` (PG/SG/SF/PF/C — descriptive; matchups are
+assigned by body and skill), `heightIn` (60–96 **inches**: 6'7" = 79),
+`weightLb` (pounds), optional `wingspanIn` (engine assumes height + 2 when
+absent), then `attr` (24 keys) and `tend` (14 keys). Validation is strict and
+total: a pack either satisfies everything or is rejected with the complete
+issue list — no silent defaults, ever (`schema.ts` header explains why).
+
+## How the ratings work
+
+**Everything is 0–100.** For *attributes*, 50 is a literal league-average
+no-op: a 50 contributes exactly nothing to any probability model
+(`model/player.ts` DEFAULT_ATTR comment). You only pay for what you push away
+from 50, in either direction.
+
+**Attributes are CAN, tendencies are WANT.** `three` is how well he shoots
+threes; `shotThree` is how badly he wants to. Identity comes from the
+combination under spatial context: elite `three` + heavy `shotThree`/`pullUp` +
+high `offBallMotion` doesn't just score, it creates *gravity* that warps how
+defenses guard him (gravity blends the skill and the appetite — a career 40%
+shooter who never shoots doesn't scare anyone).
+
+**Shot-diet tendencies are relative weights, not percentages.**
+`shotRim`/`shotMid`/`shotThree` bias the AI's shot decisions against each
+other. Calibrated rosters sum roughly 99–158 across the three; what matters is
+the *ratio* (a 96/5/1 center virtually never leaves the restricted area).
+
+**`usage` is a closed loop, mapped to real USG%.** 50 ≈ 20% (league average),
+90 ≈ 30% (superstar), 10 ≈ 10% (screener). The engine continuously compares
+the target to the realized share: an under-fed star hunts, an over-fed one
+defers. Handy inversion when transcribing a real player:
+`usage ≈ 4 × (USG% − 7.5)` — e.g. 25% USG → 70. The mapping is approximate and
+compresses above ~30% USG; 90+ is "the offense runs through him", don't
+chase decimals. Usage is deliberately orthogonal to skill — a deferential
+genius and a low-skill chucker are both expressible, and `roster:validate`
+will not second-guess that combination.
+
+**Two dials are staged, honestly.** `consistency` (hot/cold variance) and
+`pushPace`/team `pace` are read by staged systems documented in
+[`docs/INTERNALS.md`](./INTERNALS.md); set them plausibly anyway so packs
+don't need editing when the stages land.
+
+Rough anchors, taken from the archetype file (`packages/data/src/archetypes.ts`
+— the calibrated reference points for what numbers *mean*): 99 = the
+unambiguous best in any roster (eliteShooter's `three`), 90 = elite/defining
+skill, 80 = legitimate weapon, 70 = plus starter, 60 = solid, 50 = average,
+below 40 = real weakness opponents attack, teens = non-factor
+(rimRunner's `three: 12` is "don't even close out").
+
+Quick physical mappings: `heightIn` = feet×12+inches (6'0"=72, 6'6"=78,
+7'0"=84); `freeThrow` ≈ FT% as points (0.84 shooter → 84).
+
+## The archetype catalog
+
+Eleven builders in [`packages/data/src/archetypes.ts`](../packages/data/src/archetypes.ts),
+each a coherent, test-anchored profile (the archetype suite asserts an "elite
+shooter" actually *behaves* like one at season scale). Numbers live there —
+run `npm run roster:new -- --list` for a live view with each archetype's top
+skills derived from the current source.
+
+| archetype | body | the player it approximates | signature dials |
+|---|---|---|---|
+| `floorGeneral` | PG 6'4" | pass-first table-setter, paint-to-kick | passVision 98, passAcc 97, decisions 95 |
+| `eliteShooter` | PG 6'2" | off-movement three-point assassin | three 99, offBallMotion 90, pullUp 82 |
+| `scoringWing` | SG 6'6" | three-level bucket-getter | finishing 88, drawFoul 82, iso 78 |
+| `threeAndD` | SF 6'7" | corner spacer, point-of-attack stopper | perimeterD 90, three 82, pullUp 12 |
+| `comboGuard` | SG 6'4" | steady no-weakness rotation guard | everything 60s–70s, no hole |
+| `glueForward` | PF 6'8" | does a little of everything | perimeterD 70 + interiorD 72, three 58 |
+| `postAnchor` | PF 6'10" | back-to-basket bruiser, soft touch | strength 90, post 78, midRange 74 |
+| `stretchBig` | C 7'0" | floor-spacing modern center | three 76, shotThree 78, interiorD 84 |
+| `rimRunner` | C 7'0" | lob-catching, glass-eating rim protector | finishing 94, offReb 92, block 90 |
+| `benchScorer` | SG 6'5" | microwave sixth man | pullUp 68, three 78, decisions 54 (the trade-off) |
+| `benchBig` | C 6'11" | energy reserve big | boxout 82, block 78, three 8 |
+
+Contrasts are deliberate and worth studying before you edit: eliteShooter vs
+threeAndD is *self-created* vs *spot-up* threes (pullUp 82 vs 12); rimRunner vs
+postAnchor is *above-the-rim* vs *back-to-basket* (midRange 28 vs 74);
+rimRunner vs benchBig is the same shape a tier apart.
+
+## Worked example — a real-ish player
+
+A downhill, foul-drawing star lead guard — the SGA/Harden shape: lives in the
+lane and at the line, good-not-elite three, high usage, real playmaking, solid
+but not lockdown defense. Closest archetype: `scoringWing` (self-creation,
+drawFoul), reshaped toward a guard.
+
+Reasoning per group, then the JSON:
+
+- **Body/physical**: 6'6" guard → `heightIn: 78`, `weightLb: 200`. First-step
+  burst is the weapon: `speed 88`, `accel 92`, `lateral 74` (good, not elite,
+  defensively).
+- **Scoring**: `finishing 92` (craft at the rim), `midRange 90` (the pull-up
+  middy is the counter), `three 74` (respectable, not the identity),
+  `freeThrow 88` (≈ .88 shooter), `drawFoul 95` — the defining skill, lives at
+  the line.
+- **Playmaking**: `ballHandle 94` (the whole game starts from the handle),
+  `passAcc 80`, `passVision 82` — a scorer who makes the right kickout, not a
+  floorGeneral.
+- **Defense/glass**: `perimeterD 72`, `steal 74` (active hands), `interiorD 40`,
+  `block 45` (guard-sized), rebounding 30s–50s.
+- **Mental**: `decisions 84`, `consistency 82` — stars deliver most nights.
+- **Tendencies**: shot diet rim-first, mid-heavy, three-light for a star guard:
+  `shotRim 70 / shotMid 55 / shotThree 35` (sum 160, just above the calibrated
+  band — a high-volume creator). `pullUp 72`, `drive 85` (downhill constantly),
+  `iso 65`, `passOut 55`, `post 8`. Off ball he rests: `offBallMotion 40`,
+  `crashOffReb 10`. `gambleSteal 55`, `foulAggr 30`. Usage: ~32% USG →
+  `4 × (32 − 7.5) = 98` → clamp the ambition to `92` (the loop compresses up
+  there anyway).
+
+```json
+{
+  "id": "owls-p01", "name": "Dex Calloway", "pos": "PG",
+  "heightIn": 78, "weightLb": 200,
+  "attr": {
+    "speed": 88, "accel": 92, "strength": 64, "vertical": 74, "lateral": 74, "stamina": 86,
+    "finishing": 92, "midRange": 90, "three": 74, "freeThrow": 88, "drawFoul": 95,
+    "ballHandle": 94, "passAcc": 80, "passVision": 82,
+    "perimeterD": 72, "interiorD": 40, "steal": 74, "block": 45, "contestSkill": 58,
+    "offReb": 25, "defReb": 50, "boxout": 32,
+    "decisions": 84, "consistency": 82
+  },
+  "tend": {
+    "shotRim": 70, "shotMid": 55, "shotThree": 35, "pullUp": 72,
+    "drive": 85, "passOut": 55, "iso": 65, "post": 8,
+    "offBallMotion": 40, "crashOffReb": 10,
+    "gambleSteal": 55, "foulAggr": 30, "pushPace": 58, "usage": 92
+  }
+}
+```
+
+Sanity-check the *interactions* before moving on: high `drive` + `drawFoul 95`
++ `finishing 92` is the trips-to-the-line engine; `shotThree 35` + `three 74`
+still projects enough gravity that defenses can't fully duck under; `usage 92`
+with `decisions 84` is a star who carries efficiently rather than a chucker.
+
+## Validate, then watch it play
+
+```bash
+npm run roster:validate -- owls.team.json            # exit 0 = loads
+npm run roster:validate -- owls.team.json --strict   # warnings fail too (CI-friendly)
+npm run roster:validate -- owls.team.json --json     # machine-readable report
+```
+
+Errors show the JSONPath, your value, the legal range, and a concrete fix
+(quoted numbers, centimeter heights, and typo'd starter ids are recognized and
+answered specifically). Errors are exactly `validateTeamPack()`'s verdicts —
+the CLI never adds or hides a rejection.
+
+**Warnings are advisory basketball judgment** — the pack loads; the numbers
+just don't resemble any known-good roster. Each states its reasoning so you
+can overrule it knowingly (a tanking squad may proudly ship `no-plus-skill`):
+
+| code | fires when | the basketball reason |
+|---|---|---|
+| `flat-profile` | a player's 24 attributes are all identical | identity comes from contrast; flat = anonymous |
+| `no-plus-skill` | nobody on the roster has any attribute ≥ 70 | no one can win a matchup — scrimmage ball |
+| `uniform-elite` | every rating on the roster ≥ 85 | flatness in reverse; nothing differentiates styles |
+| `no-rim-protection` | no starter with interiorD or block ≥ 65 | 5-out with no deterrent = layup line |
+| `no-initiator` | no starter with ballHandle ≥ 65 | nobody can start offense; turnovers spiral |
+| `shot-diet` | rim+mid+three appetite < 60 or > 240 | refuses every shot / drowns pass-drive channels |
+| `duplicate-names` | two players share a display name | box scores and PBP become unreadable |
+| `usage-overload` / `usage-vacuum` | starting-five usage mean > 62 / < 38 | one ball; 5×50 ≈ 100% of possessions |
+| `rotation-*` | unknown id / target > 48 min / targets > 245 total | silently ignored or unsatisfiable coach targets |
+
+Then play one game and read it like a scout, not a fan:
+
+```bash
+npm run sim -- --home owls.team.json --seed owls-1   # deterministic: same seed, same game
+```
+
+Check that the box score matches the story you wrote: does your usage-92 guard
+lead the team in FGA and FTA? Does the rimRunner's line look like dunks and
+boards (high FG%, no threes)? Is the team's three-point volume consistent with
+your `threeBias` and shooters? One game is one sample — re-run with a few seeds
+before concluding a dial is wrong, and see `npm run batch` if you want
+band-graded aggregates.
+
+## Troubleshooting
+
+| symptom | cause / fix |
+|---|---|
+| `$.formatVersion: expected 2` + many `tend.usage` errors | v1-era pack; add `"usage": 50` per player, set formatVersion 2 (the CLI prints this migration note) |
+| `heightIn must be a finite number 60-96`, value ~180–220 | centimeters — divide by 2.54 (the CLI computes it for you) |
+| `rating must be 0-100`, current `"88"` | quoted number; ratings are bare JSON numbers |
+| `starter X not on roster` | id typo — the CLI suggests the closest roster id |
+| editor shows no autocomplete | missing/wrong `"$schema"` relative path; regenerate with `npm run schema:gen` if the file moved |
+| pack valid but plays nothing like intended | re-read *CAN vs WANT* above — skill without the matching tendency (or vice versa) is the usual culprit |
+
+## How this stays honest
+
+The schema, the scaffold menu, and the validator share one source of truth:
+`packages/data/src/schema.ts` exports the key lists and ranges, `schema:gen`
+derives the JSON Schema from them, hover docs are extracted from
+`model/player.ts`, and the archetype menu is discovery-tested against
+`@hoopsh/data`'s exports. Tests ratchet all of it: the committed schema must
+match regeneration byte-for-byte, must accept the shipped rosters, must reject
+canonical breakage, and the warning heuristics must stay silent on every
+known-good roster. If you add a rating to the engine, the suite will walk you
+through every surface that needs to hear about it — including this doc's
+companion hover text, which regenerates for free.
+
+
+---
+---
+
+<!-- ================= SOURCE: docs/SEASON.md ================= -->
+
+# SEASON.md — the season layer
+
+The multi-game substrate on top of the single-game engine: schedules,
+deterministic season driving, standings, and a Monte-Carlo matchup API.
+Everything here is **harness-layer** (`packages/harness/src/season.ts`,
+`matchup.ts`, `league.ts`); the engine is consumed strictly through its
+public API and was not modified.
+
+```
+npm run season -- --teams 8 --seed 2026            # double round-robin, standings table
+npm run season -- --teams 8 --rounds 1             # single round-robin
+npm run season -- --teams 8 --games 40             # cap/extend the schedule
+npm run season -- --teams 4 --seed proof --json    # byte-stable JSON (pipe to sha256sum)
+npm run season -- --matchup 0,3 --sims 200         # Monte-Carlo one fixture
+```
+
+## API
+
+- **`roundRobin(teamIds, rounds=2)`** → `ScheduledGame[]` (`{home, away, date?}`).
+  Circle method; odd league sizes get a bye per round. Venue assignment keeps
+  every team's single-cycle |home − away| ≤ 1 (≤ 2 with byes), and odd cycles
+  mirror even ones so a double round-robin gives every pair exactly one game
+  in each building. `date` is the round label `"r<k>"`; games sharing a label
+  share no team (see "parallelism" below for why that matters).
+- **`runSeason({teams, schedule?, seedBase?, simulate?, onGame?})`** →
+  `{schedule, outcomes, standings}`. Accepts any explicit fixture list (a
+  real league's schedule imports as `{home, away, date}` rows) or defaults to
+  a double round-robin.
+- **`computeStandings(outcomes, teamIds?)`** — pure fold, exported separately
+  so standings can be recomputed from stored outcomes without re-simulating.
+- **`simulateMatchup(home, away, n, opts?)`** → `MatchupDistribution` (below).
+- **`makeLeague(n, seed)`** — deterministic fictional league for the CLI and
+  tests; `scaleTeam` / `cloneTeamWithIds` build "same team but stronger" and
+  "team vs itself" fixtures. These are tooling, NOT calibration rosters — the
+  two `@hoopsh/data` teams keep that job.
+
+## Determinism
+
+A season is a pure function of `(seedBase, schedule, rosters)`. Game `i`
+against the schedule gets seed `gameSeed(base, i, homeId, awayId)` =
+`` `${base}:g${i}:${away}@${home}` `` — schedule position is in the seed, so
+same seed base ⇒ the same season, byte for byte; and because the matchup ids
+are in the seed too, editing unrelated schedule entries doesn't perturb games
+that didn't move. Proof (run it yourself — the two hashes match, the third
+differs):
+
+```
+$ npm run season --silent -- --teams 4 --rounds 1 --seed proof --json | sha256sum
+c43ad6f0d1405fb64281844732e9631323a788b71b257cd35c4913fd6cc67131
+$ npm run season --silent -- --teams 4 --rounds 1 --seed proof --json | sha256sum
+c43ad6f0d1405fb64281844732e9631323a788b71b257cd35c4913fd6cc67131
+$ npm run season --silent -- --teams 4 --rounds 1 --seed other --json | sha256sum
+4b26463a9f8f2784edc9dc09e188b08c2834f18ec81fe1081dbf6b5a009e96b5
+```
+
+## Standings definitions (so nobody re-derives them differently)
+
+- **W/L, venue splits, point differential**: integer sums; league-wide
+  Σdiff = 0 exactly and ΣW = ΣL = games played (tested).
+- **Ties cannot happen**: the engine plays overtime until decided
+  (`possession.ts#endPeriod`); the standings fold throws on a tied score
+  rather than inventing a rule.
+- **Season averages**: counting stats are per-game means; ratio stats
+  (FG%/3P%/FT%) are **volume-weighted** (Σmakes/Σattempts), matching
+  `aggregate.ts`'s convention — never a mean of per-game percentages.
+- **SOS**: plain opponents' winning percentage (OWP) — the mean of opponents'
+  *final* win% over the team's games, with multiplicity. It does NOT exclude
+  games against the team itself from opponents' records, and does not recurse
+  into opponents' opponents (RPI-style OOWP). Cheap, standard, and good
+  enough to flag unbalanced schedules; upgrade when a consumer needs it.
+- **Sort order**: win% desc → point diff desc → team id (a total order, so
+  standings are byte-stable even among tied teams).
+
+## Monte-Carlo matchups (`simulateMatchup`)
+
+Returns a **distribution**, not a game: win probability with a **Wilson 95%
+CI**, margin mean/median/sample-sd, percentiles (p5/p25/p50/p75/p95), a
+binned margin histogram, and per-player stat-line distributions
+(min/pts/trb/ast, each with mean/sd/p10/p50/p90). Margins are from the home
+team's perspective; ties are impossible, so `P(margin > 0)` *is* the win
+probability.
+
+**CI math.** Wilson score interval:
+`center = (p̂ + z²/2n)/(1 + z²/n)`, `half = z·√(p̂(1−p̂)/n + z²/4n²)/(1 + z²/n)`,
+z = 1.96. Chosen over the naive Wald interval because lopsided matchups push
+p̂ toward 0/1, exactly where Wald's coverage collapses and its bounds leave
+[0, 1].
+
+**n-sensitivity — how many sims to resolve an edge?** The one-sample binomial
+power calculation (`simsToResolveEdge`, 95% confidence / 80% power, two-sided
+vs p₀ = 0.5):
+
+| true p | sims needed |
+|-------:|------------:|
+| 0.52   | ~4,895 |
+| 0.55   | **~783** |
+| 0.60   | ~194 |
+| 0.70   | ~47 |
+
+Equivalently by CI width (worst case p = 0.5, half-width ≈ 0.98/√n):
+n = 100 → ±9.8 pp, n = 400 → ±4.9 pp, n = 1600 → ±2.5 pp. **A 55%-vs-50%
+edge costs ~783 sims ≈ 4–5 wall-clock minutes single-process at the measured
+game cost below** — this is the honest price of small edges, and it is why
+the API always reports the CI instead of a bare point estimate.
+
+Measured sanity points (n = 30, seeds pinned in the tests):
+
+- identical rosters (team vs its re-id'd clone): p̂ = 0.467,
+  CI [0.302, 0.639] — contains 0.5; mean margin −0.5.
+- every attribute +8 vs −8: p̂ = 0.867, CI [0.703, 0.947]; mean margin +19.8.
+- equal-team margin sd ≈ **16.4 points** — noticeably above the real NBA's
+  ~13–14 for even matchups. Consequence for prediction: the engine maps a
+  given true skill gap to a win probability closer to 50% than reality would
+  (more game-level noise ⇒ flatter prob curve). Recheck this number after any
+  calibration change.
+
+## Measured cost (2-core shared box, Node 24 type-stripping, single process)
+
+| what | measured |
+|------|---------|
+| one game (calibration rosters) | mean 389 ms, median 345 ms |
+| one game (generated league) | mean 317 ms, median 294 ms |
+| 30-game double round-robin (6 teams) | ~10 s |
+| **1230-game NBA-scale season** | **~6.5–8 min (estimated — do not run casually)** |
+| 783-sim matchup (resolve 55/50) | ~4–5 min (estimated) |
+| 1000 × full-season Monte-Carlo | ~110–130 h single-core — **needs the parallel runner** |
+
+## Parallelism: a seam, deliberately not an implementation
+
+`wave1/runner` owns worker-pool parallelism. This layer *pre-shapes* the work
+for it and does nothing else:
+
+- `runSeason`/`simulateMatchup` build the **complete task list up front**
+  (`GameTask[]` — each task carries its seed and both full rosters, closing
+  over no season state) and pass it to one `SimulateGames` function:
+  `(tasks, onOutcome?) => GameOutcome[] | Promise<GameOutcome[]>`.
+- The default is a sequential in-process loop (`simulateTasksSequential`).
+  A worker pool drops in by implementing the same signature.
+- **Completion order cannot matter**: callers re-sort outcomes by
+  `task.index` before computing anything, and the standings fold is
+  order-insensitive (tested with a mock seam that completes games in reverse).
+- A seam returning the wrong number of outcomes fails loudly.
+
+## THE DECISION: cross-game state is deliberately absent
+
+**Today's model treats every game as strictly independent.** Rosters,
+ratings, tendencies, and tactics are identical in game 82 and game 1; the
+engine's within-game fatigue resets at the final horn. This is a decision,
+not an oversight — it keeps the season layer embarrassingly parallel and
+keeps prediction error attributable to the engine rather than to a
+half-built carryover model. Nothing below is implemented; this section
+records where each piece would attach and what its absence costs.
+
+### What is stateless today
+
+| real-world effect | status |
+|---|---|
+| home-court advantage | **not modeled at all** (engine is side-symmetric by design; `run.ts --mirror` exists to verify it stays that way) |
+| fatigue carryover / back-to-backs | not modeled (fatigue exists within a game, resets between) |
+| injuries | not modeled (rosters immortal) |
+| rest days / travel | not modeled (`ScheduledGame.date` is carried but unread) |
+| form / momentum / lineup changes | not modeled |
+
+### The seams where cross-game state would attach
+
+1. **Schedule metadata** — `ScheduledGame.date` already flows untouched into
+   `GameTask.date` and `GameOutcome.date`. Rest days and travel legs are
+   derivable from real dates here; the round labels `roundRobin` emits
+   (`"r<k>"`) already partition the schedule into no-shared-team waves.
+2. **Task construction (`buildTasks`)** — the single choke point where
+   rosters enter tasks. A carryover model is a function
+   `(team, seasonContextSoFar) => Team` applied per game here: fatigue as an
+   attribute/stamina debuff, injuries as roster/starter edits. The engine
+   needs no change — it already takes any `Team`.
+3. **Per-game params** — `GameConfig.params` (unused by `simulateTask`
+   today) is the hook for game-level modifiers that aren't roster edits,
+   e.g. a tired-legs shooting penalty.
+4. **Outcome feedback** — `GameOutcome.players[].min` already carries the
+   per-game minutes an injury/fatigue state machine would consume; the fold
+   in `computeStandings` stays pure either way.
+
+### The cost that must be paid when state arrives
+
+Independence is what lets a worker pool run all 1230 tasks concurrently.
+Cross-game state creates a dependency chain per team: game g of team T needs
+the outcomes of T's earlier games. The schedule's round structure is the
+escape hatch — games within a round share no team, so the parallel runner
+would process **round-by-round waves** (≈ n/2 games wide) instead of one flat
+batch. That is a scheduling change in the runner, not a rewrite of this
+layer: tasks would be built per-wave instead of all up front, through the
+same `SimulateGames` signature.
+
+### What statelessness costs in prediction accuracy (be honest with consumers)
+
+- **No home-court advantage is the largest systematic bias.** Real NBA home
+  teams win ~55–60% of games (≈ +2.5–3 pts); this layer predicts 50/50 for
+  equal teams regardless of venue. Any real-world consumer must add HCA
+  exogenously today, or every home-team prediction is ~5–10 pp too low.
+- **Rest/B2B/travel** effects are worth ~1–2 pts of margin in real data;
+  back-to-back-aware bettors systematically beat rest-blind models.
+- **Injuries** dominate season-total error in real backtests — a star's
+  20-game absence swings win totals by several games; an immortal-roster
+  model cannot see it. For the planned simulated-vs-real season backtest,
+  expect this to be the single biggest residual.
+- **Correlation structure**: with independent games, a simulated team's win
+  total is a sum of independent Bernoullis (variance ≤ 82·¼). Real season
+  outcomes are positively correlated within a team (injury regimes, trades,
+  tanking), so real win totals have FATTER tails — our season-total
+  distributions will be over-confident even if per-game probabilities are
+  perfect.
+- **Engine-level margin noise** (sd ≈ 16.4 vs ~13–14 real) flattens the
+  skill→win-probability curve, on top of the effects above.
+
+## Limitations (recap)
+
+- Home/away in `simulateMatchup` is positional, not an advantage (see above).
+- Generated leagues (`makeLeague`) are NOT calibrated; realism bands apply to
+  the two `@hoopsh/data` rosters only.
+- SOS is plain OWP (no self-exclusion, no OOWP recursion).
+- `--games` beyond one round-robin cycle tiles additional cycles and slices,
+  so a capped schedule can leave pair-counts unequal — fine for smoke runs,
+  not for fairness-sensitive experiments.
+- Everything is single-process until `wave1/runner` lands behind the seam.
+
+
+---
+---
+
 <!-- ================= SOURCE: docs/ONBOARDING.md ================= -->
 
 # Onboarding — a two-evening path
@@ -1139,9 +1806,9 @@ This is the guided path. The other documents state *what's true*; this file stat
 **2. Run everything** (~20 min):
 ```bash
 npm run sim -- --seed my-first-game     # box score + play-by-play in the console
-npm test                                # 69 tests: invariants, realism guard, archetypes, fidelity gate
+npm test                                # full suite: invariants, realism guard, archetypes, fidelity gate
 npm run batch -- --games 24             # the NBA realism band report
-npm run bench                           # ~6 games/sec
+npm run bench                           # throughput; budget >= 1 game/sec (hardware-dependent, ~3-6 typical)
 ```
 Open `packages/viewer/index.html` in a browser, drag `out/replay-my-first-game.json`
 onto it, press space. Watch a full possession. Scrub around a free throw.

@@ -6,9 +6,9 @@
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
 import { spacingSpots } from '../../geometry/court.js';
-import { agent, attackedRim, onCourt, type Agent, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, type Agent, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
-import { creation, assignedDefender } from './shared.js';
+import { creation, assignedDefender, midGreenLight } from './shared.js';
 
 /**
  * Pick-and-roll lifecycle. The action is deliberately thin scaffolding —
@@ -98,10 +98,25 @@ export function actionTick(s: GameState): void {
     }
 
     if (act.phase === 'set' && s.t - act.setAt > 0.5) {
-      // screener's next job: roll to the rim or pop to the arc
+      // screener's next job: roll to the rim, pop to the arc, or — the
+      // mid-range supply line — pop SHORT to the elbow
       act.phase = 'finishing';
       if (gravity(s, screener) < A.pnrRollGravityCut) {
-        screener.cutUntil = s.t + A.pnrRollCutSec; // the roll IS a cut — pocket pass emerges
+        // A low-gravity screener with a real in-between game (the shared
+        // midGreenLight × his midRange ability — the same green light the
+        // decisiveness term honors, so nobody is ever STATIONED at a spot
+        // he has no license to shoot from) mixes short pops into his roll
+        // diet: the classic mid-pop big. His defender sits in drop
+        // coverage by construction (low gravity ⇒ sag), so the elbow
+        // catch is the shot the defense concedes — which is where real
+        // mid-range volume comes from. Rim-runners (green light exactly
+        // 0) always roll, as before.
+        const midPop = midGreenLight(screener) * (screener.p.attr.midRange / 100);
+        if (midPop >= A.pnrMidPopScoreCut && s.rng.chance(A.pnrMidPopChance)) {
+          screener.spotKey = screener.pos.y < s.court.centerY ? 'elbow_l' : 'elbow_r';
+        } else {
+          screener.cutUntil = s.t + A.pnrRollCutSec; // the roll IS a cut — pocket pass emerges
+        }
       } else {
         screener.spotKey = screener.pos.y < s.court.centerY ? 'wing_l' : 'wing_r';
       }
@@ -128,8 +143,8 @@ export function actionTick(s: GameState): void {
   const myC = creation(h);
   let below = 0;
   let peers = 0;
-  for (const a of onCourt(s, s.poss.team)) {
-    if (a.p.id === holderId || a.fouledOut) continue;
+  for (const a of liveOnCourt(s, s.poss.team)) {
+    if (a.p.id === holderId) continue;
     peers++;
     const c = creation(a);
     below += c < myC ? 1 : c === myC ? 0.5 : 0;
@@ -142,13 +157,28 @@ export function actionTick(s: GameState): void {
   // is worse than no screen (audit: distance-blind choice left 93% of actions inert)
   let best: Agent | null = null;
   let bestScore = -Infinity;
-  for (const a of onCourt(s, s.poss.team)) {
-    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+  for (const a of liveOnCourt(s, s.poss.team)) {
+    if (a.p.id === holderId || s.t < a.cutUntil) continue;
     const travel = dist(a.pos, h.pos);
     if (travel > A.pnrMaxScreenDistFt) continue;
+    const g = gravity(s, a);
+    // the mid-pop big's seat at the table: a screener who can actually
+    // SCORE off the short pop (midGreenLight × ability — the same gate the
+    // pop routing below uses) is a premier screen partner, because the
+    // defense must choose between conceding his pop (drop) and freeing the
+    // roll (hedge). Gravity-gated to the roll/short-pop population: an
+    // arc-popper's gravity already carries his value, and ungated the
+    // affinity handed screens to mid-happy GUARDS — whose pop goes to the
+    // wing anyway, serving nothing.
+    const popAffinity = g < A.pnrRollGravityCut
+      ? midGreenLight(a) * (a.p.attr.midRange / 100) * A.screenerMidPopWeight
+      : 0;
     const score =
-      (1 - gravity(s, a)) * 1.5 + (a.p.heightIn - 70) / 28 + a.p.attr.strength / 400
-      - travel / 40;
+      (1 - g) * A.screenerGravityWeight
+      + (a.p.heightIn - A.screenerHeightBaseIn) / A.screenerHeightDiv
+      + a.p.attr.strength / A.screenerStrengthDiv
+      - travel / A.screenerTravelDiv
+      + popAffinity;
     if (score > bestScore) { bestScore = score; best = a; }
   }
   // the call: screen, post entry, or a clear-out. One weighted roll across
@@ -156,15 +186,15 @@ export function actionTick(s: GameState): void {
   // posts, a low-iso handler never clears out (identity through tendencies).
   let poster: Agent | null = null;
   let posterScore = 0;
-  for (const a of onCourt(s, s.poss.team)) {
+  for (const a of liveOnCourt(s, s.poss.team)) {
     // the HOLDER is a legal poster: a hub big who is also his team's best
     // creator (the Jokić shape) initiates his own post-up by dribbling down
     // to the block — before this, the usage hierarchy routed him the ball
     // and the post action then required someone ELSE to hold it, so the
     // profile scored 7.9 ppg with 0.6 post touches (fidelity incident)
-    if (a.fouledOut || s.t < a.cutUntil) continue;
+    if (s.t < a.cutUntil) continue;
     // post appetite carries the score; strength/finishing make it credible
-    const sc = ((a.p.tend.post - 40) / 100) * (0.6 + a.p.attr.strength / 300 + a.p.attr.finishing / 500);
+    const sc = ((a.p.tend.post - A.posterTendOffset) / 100) * (A.posterScoreBase + a.p.attr.strength / A.posterStrengthDiv + a.p.attr.finishing / A.posterFinishingDiv);
     if (sc > posterScore) { posterScore = sc; poster = a; }
   }
   const isoScore = Math.max(0, (h.p.tend.iso - 50) / 100);
@@ -172,15 +202,15 @@ export function actionTick(s: GameState): void {
   // SHOOTER's action (the stun buys him his rise), so gravity carries it
   let dhoRecv: Agent | null = null;
   let dhoScore = 0;
-  for (const a of onCourt(s, s.poss.team)) {
-    if (a.fouledOut || a.p.id === holderId || s.t < a.cutUntil) continue;
+  for (const a of liveOnCourt(s, s.poss.team)) {
+    if (a.p.id === holderId || s.t < a.cutUntil) continue;
     if (dist(a.pos, h.pos) > A.dhoSearchRadiusFt) continue;
     // DHO receiver score: gravity (shooter identity, 65%) + motion (movement
     // tendency, 35%). FEEL — a handoff buys a rise; it needs a shooter who
     // also sprints in. Numerically similar to the gravity() weights but a
     // distinct quantity (selecting who to run the DHO with, not how much
     // the defense respects the eventual shooter).
-    const sc = gravity(s, a) * 0.65 + (a.p.tend.offBallMotion / 100) * 0.35;
+    const sc = gravity(s, a) * A.dhoRecvGravityWeight + (a.p.tend.offBallMotion / 100) * A.dhoRecvMotionWeight;
     if (sc > dhoScore) { dhoScore = sc; dhoRecv = a; }
   }
   const wPnr = best ? 1 : 0;
@@ -198,9 +228,12 @@ export function actionTick(s: GameState): void {
     // feederId === posterId marks it, and the working transition waits for
     // ARRIVAL at the block rather than a catch (see the post branch above).
     const side = poster.pos.y < s.court.centerY ? 'post_l' : 'post_r';
-    const spot = spacingSpots(s.court, attackedRim(s, s.poss.team)).find((x) => x.key === side)!;
+    // read the possession's jittered spot table (see offense.ts rollSpots);
+    // the raw template is only a fallback for a degenerate hand-built state
+    const spotPos = s.poss.spots.get(side)
+      ?? spacingSpots(s.court, attackedRim(s, s.poss.team)).find((x) => x.key === side)!.pos;
     poster.spotKey = side;
-    poster.target = { ...spot.pos };
+    poster.target = { ...spotPos };
     s.poss.action = {
       kind: 'post', posterId: poster.p.id, feederId: holderId,
       phase: 'posting', until: s.t + A.postDurationSec, postedAt: 0

@@ -14,15 +14,16 @@
 import { dist, lerp, type V2 } from '../core/vec.js';
 import type { TeamSide } from '../core/events.js';
 import {
-  attackedRim, emit, onCourt, other, round1,
+  attackedRim, emit, liveOnCourt, onCourt, other, round1,
   type Agent, type GameState, type Phase
 } from './state.js';
 import { assignMatchups, assignSpots } from './ai.js';
-import { resolveRebound } from './resolve.js';
+import { resolveRebound, resolveTeamReboundSide } from './resolve.js';
 import { checkSubs } from './subs.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 import { startShot } from './shooting.js';
+import { maybeTimeout } from './endgame.js';
 
 /**
  * Decide who wins a jump ball (opening tip, each overtime period).
@@ -52,7 +53,7 @@ export function tipWeightedWinner(s: GameState): TeamSide {
 
 /** Ball-handler picked to bring the ball up / receive the inbound: highest ballHandle rating on the floor. */
 export function bestHandler(s: GameState, side: TeamSide): Agent {
-  const eligible = onCourt(s, side).filter((x) => !x.fouledOut);
+  const eligible = liveOnCourt(s, side);
   // bench exhausted (every replacement used): play on with whoever is out there
   // rather than crashing — custom short rosters are legal input
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
@@ -89,6 +90,7 @@ export function startPossession(
     kind,
     lastPass: null,
     spotMap: new Map(),
+    spots: new Map(), // filled by assignSpots below (jittered per possession)
     action: null,
     ended: false
   };
@@ -99,12 +101,18 @@ export function startPossession(
     a.cutUntil = -99;
     a.screenStunUntil = -99;
     a.navUnderUntil = -99;
+    a.relocUntil = -99; // was omitted — a relocation window leaked across
+                        // possessions (REFACTOR.md D5; landed with M1)
   }
   emit(s, { type: 'possession_start', team, kind });
   assignSpots(s, team);
   assignMatchups(s, other(team));
   const h = holder ?? bestHandler(s, team);
-  giveBall(s, h);
+  // acquisition taxonomy: the thief's touch is a steal, a live-rebound
+  // possession starts with the rebounder's grab, and inbound/tip possessions
+  // hand the ball over at a dead ball (an inbound catch is not a live PASS —
+  // the sim doesn't fly an inbound pass, it grants the touch)
+  giveBall(s, h, kind === 'steal' ? 'steal' : kind === 'live_rebound' ? 'rebound' : 'deadball');
   // 0.25s: the new holder needs at least one tick of "look around" before the
   // AI is allowed to shoot/pass/drive off the inbound — prevents an
   // instant no-look heave the moment the ball touches his hands
@@ -117,13 +125,25 @@ export function startPossession(
  * window and hand-check/strip mechanics. Called on every inbound, rebound,
  * steal, and completed pass — NOT on a shot release (that clears the holder
  * without assigning a new one; see `startShot`/`resolvePassArrival`).
+ *
+ * `acquisition` stamps HOW the touch arrived (see state.ts BallAcquisition):
+ * it gates the quick-shot taxonomy in decide.ts (catch_shoot / cut_finish /
+ * putback) and assist eligibility in shooting.ts. On any NON-pass acquisition
+ * the delivery-quality memory is reset to league-typical: catchQuality is a
+ * property of the pass that was caught, and a rebound/steal/dead-ball touch
+ * has no pass — before this, the passQ term in shotMakeP read a stale
+ * delivery from a pass caught possessions earlier (wave2 diagnostic).
+ * resolvePassArrival stamps the REAL delivery quality just before calling
+ * this with 'pass', so the order (stamp, then giveBall) preserves it.
  */
-export function giveBall(s: GameState, a: Agent): void {
+export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy']): void {
   s.ball.holderId = a.p.id;
   s.ball.flight = null;
   a.catchT = s.t;
   a.dribblesSinceCatch = 0;
   a.dribbleAcc = 0;
+  a.acquiredBy = acquisition;
+  if (acquisition !== 'pass') a.catchQuality = s.params.shot.passQualityCenter;
 }
 
 /**
@@ -180,6 +200,12 @@ export function deadBall(
     possKind: 'inbound',
     continuation: opts.continuation
   };
+  // endgame layer (GameConfig.endgame only): the inbounding team may call a
+  // timeout HERE — the one choke point every stoppage routes through, which
+  // is exactly where real timeouts live. May freeze the clock, stretch the
+  // dead-ball delay, and flag a frontcourt inbound (see sim/endgame.ts);
+  // flag off, it returns immediately.
+  maybeTimeout(s);
   checkSubs(s);
   setupDeadTargets(s, nextTeam);
 }
@@ -197,15 +223,34 @@ export function setupDeadTargets(s: GameState, offSide: TeamSide): void {
   const own = attackedRim(s, other(offSide)); // offense inbounds under its own defended basket
   const dir = rim.x > s.court.midX ? 1 : -1;
   const handler = bestHandler(s, offSide);
+  // an 'advance' timeout moves the whole inbound to the FRONTcourt (endgame
+  // layer): the handler sets up timeoutAdvanceSpotFt from the attacked rim —
+  // the real advance-the-ball payoff, delivered as positioning that the
+  // normal possession machinery then plays out (no scripted inbound play)
+  const advanced =
+    s.phase.kind === 'dead' && s.phase.advanceInbound === true && s.phase.nextTeam === offSide;
   for (const a of onCourt(s, offSide)) {
     a.intent = 'freeze';
     a.sprinting = false;
     if (a.p.id === handler.p.id) {
-      // inbounder stands ~4ft in front of the baseline he's inbounding from,
-      // a few feet off the centerline (own.x is the DEFENDED rim — the
-      // offense always takes the ball out under its own basket after a
-      // score/dead ball on this end)
-      a.target = { x: own.x + dir * 4, y: s.court.centerY - 6 };
+      a.target = advanced
+        // frontcourt hashmark, a step inside the sideline (6 ft keeps the
+        // walk-to spot clear of the boundary clamp — cosmetic offset; the
+        // BEHAVIORAL distance-from-rim is params.endgame.timeoutAdvanceSpotFt)
+        ? { x: rim.x - dir * s.params.endgame.timeoutAdvanceSpotFt, y: 6 }
+        // inbounder stands ~4ft in front of the baseline he's inbounding from,
+        // a few feet off the centerline (own.x is the DEFENDED rim — the
+        // offense always takes the ball out under its own basket after a
+        // score/dead ball on this end)
+        : { x: own.x + dir * 4, y: s.court.centerY - 6 };
+    } else if (advanced) {
+      // the other four space the frontcourt arc — the same fan the halfcourt
+      // spot machinery will refine once the possession starts (cosmetic)
+      const i = s.lineup[offSide].indexOf(a.p.id);
+      a.target = {
+        x: rim.x - dir * (14 + (i % 3) * 6),
+        y: 8 + i * (s.court.width - 16) / 4
+      };
     } else {
       // stagger the rest of the offense toward midcourt in parallel lanes so
       // they don't all clump on one spot; i*4 spaces each successive player
@@ -269,9 +314,10 @@ export function tickDead(s: GameState, dt: number): void {
   if (ph.resumeIn > 0) return;
 
   if (ph.continuation) {
-    // same possession resumes (non-shooting foul etc.)
+    // same possession resumes (non-shooting foul etc.) — a dead-ball touch,
+    // not a pass: the whistle broke whatever play the last pass created
     s.phase = { kind: 'live' };
-    giveBall(s, bestHandler(s, ph.nextTeam));
+    giveBall(s, bestHandler(s, ph.nextTeam), 'deadball');
     // 0.3s: slightly longer than startPossession's 0.25s "look around" beat —
     // this is a possession that was already flowing before the whistle, so
     // give the offense a beat longer to re-set rather than snap back to speed
@@ -304,8 +350,7 @@ export function tickScramble(s: GameState, dt: number): void {
   // plausibly be a rebounder on this carom" without pulling in players still
   // way out on the perimeter
   for (const side of [0, 1] as TeamSide[]) {
-    for (const a of onCourt(s, side)) {
-      if (a.fouledOut) continue;
+    for (const a of liveOnCourt(s, side)) {
       if (dist(a.pos, ph.landAt) < 18) {
         a.target = ph.landAt;
         a.sprinting = true;
@@ -323,25 +368,27 @@ export function tickScramble(s: GameState, dt: number): void {
   // actual scrum, just who was most likely to be in the pile
   const defSide = other(ph.offSide);
   if (s.rng.chance(s.params.foul.looseBallPerReb)) {
-    const fouler = onCourt(s, defSide)
-      .filter((a) => !a.fouledOut)
+    const fouler = liveOnCourt(s, defSide)
       .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0];
     if (fouler) {
       // prefer a victim who hasn't fouled out — a ghost free-throw shooter in
       // the bench-exhausted state would violate the no-fouled-out-actors rule
       const victims = onCourt(s, ph.offSide);
-      const liveVictims = victims.filter((a) => !a.fouledOut);
+      const liveVictims = liveOnCourt(s, ph.offSide);
       const victim = (liveVictims.length > 0 ? liveVictims : victims)
         .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0]!;
-      const { inBonus } = recordFoul(s, fouler, 'loose_ball', victim);
-      if (inBonus) {
+      const { bonus } = recordFoul(s, fouler, 'loose_ball', victim);
+      if (bonus) {
         victim.usedPoss++; // bonus trip = possession used (usage bookkeeping)
-        enterFreeThrows(s, victim, s.rules.bonusFreeThrows);
+        // award from FoulOutcome.bonus (NCAA 7-9 is a one-and-one), not a
+        // flat rules.bonusFreeThrows read — see fouls.ts FoulOutcome
+        enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne);
       } else {
-        // side out, offense keeps it: shot clock can't have ticked below 14
-        // off a loose-ball whistle (mirrors the real shot-clock-reset rule
-        // for a defensive foul with the offense retaining the ball)
-        s.poss.shotClock = Math.max(s.poss.shotClock, 14);
+        // side out, offense keeps it: shot clock is floored at the rule
+        // pack's short-clock reset (NBA 14s) off a loose-ball whistle —
+        // mirrors the real shot-clock-reset rule for a defensive foul with
+        // the offense retaining the ball
+        s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
         // 1.2s: shorter than the standard 1.8s dead-ball delay — this is a
         // continuation of the SAME possession (no team change), so the pause
         // just needs to cover the whistle, not a full re-set
@@ -349,6 +396,40 @@ export function tickScramble(s: GameState, dt: number): void {
       }
       return;
     }
+  }
+
+  // TEAM rebound: some caroms die without any individual securing them —
+  // tipped out of bounds, long skips off the scrum — and the officials
+  // award a side the ball at a dead-ball inbound. Real logs read
+  // "Defensive rebound by Team" (the Turing baseline judges used the sim's
+  // total lack of these as a definitely-real marker). The winning side runs
+  // the SAME positioning-weighted lottery a player rebound would, so this
+  // diverts individual credit without moving the ORB/DRB split; rate lives
+  // at params.reb.deadBallCaromChance (0 disables the mechanic entirely).
+  if (s.rng.chance(s.params.reb.deadBallCaromChance)) {
+    const side = resolveTeamReboundSide(s, ph.landAt, ph.offSide);
+    const offensive = side === ph.offSide;
+    emit(s, {
+      type: 'rebound',
+      team: side,
+      offensive,
+      x: round1(ph.landAt.x),
+      y: round1(ph.landAt.y)
+    });
+    if (offensive) {
+      // offense retains at a side out: shot clock floors at the rule pack's
+      // short-clock reset and the SAME possession continues — mirrors the
+      // loose-ball-foul side-out branch above
+      s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+      deadBall(s, ph.offSide, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+    } else {
+      // defense is awarded the ball out of bounds: the possession ended in a
+      // defensive rebound, but the next one starts from a dead-ball INBOUND
+      // (not a live_rebound) — no transition burst off a whistle
+      endPossession(s, 'def_rebound');
+      deadBall(s, side, { clockRuns: false });
+    }
+    return;
   }
 
   const winner = resolveRebound(s, ph.landAt, ph.offSide);
@@ -369,7 +450,7 @@ export function tickScramble(s: GameState, dt: number): void {
     // 20s left shouldn't get punished down to 14)
     s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
     s.poss.phase = 'halfcourt';
-    giveBall(s, winner);
+    giveBall(s, winner, 'rebound');
     const rim = attackedRim(s, winner.side);
     // putback eligibility: within 6ft of the rim (still right under the
     // basket) and the clock has more than a hundredth of a second left —
@@ -396,7 +477,8 @@ export function tickScramble(s: GameState, dt: number): void {
  * `tickScramble`, `tickFreeThrows` all check for it and route here) — the
  * single point where "the horn sounds" is handled. Ends the possession, and
  * if this was the last scheduled period with a clear winner, ends the game;
- * otherwise advances to the next period/overtime, resets team fouls, and
+ * otherwise advances to the next period/overtime, resets team fouls (unless
+ * the rule pack carries them into OT — teamFoulsCarryToOT), and
  * queues the next period's opening dead ball.
  */
 export function endPeriod(s: GameState): void {
@@ -418,7 +500,13 @@ export function endPeriod(s: GameState): void {
   s.period += 1;
   const isOT = s.period > s.rules.periods;
   s.clock = (isOT ? s.rules.otMinutes : s.rules.periodMinutes) * 60;
-  s.teamFoulsPeriod = [0, 0]; // team-foul bonus count resets each period, personals don't
+  // Team-foul bonus counts reset each regulation period (personals never
+  // do) — but a league with teamFoulsCarryToOT keeps the count through EVERY
+  // overtime: NCAA men reset only at the end of the first half, so OT
+  // continues the second half's count (and a 2nd OT continues the 1st's);
+  // FIBA/EuroLeague treat extra periods as an extension of the 4th. The NBA
+  // resets here like any other period (rules/rulepack.ts field doc).
+  if (!(isOT && s.rules.teamFoulsCarryToOT)) s.teamFoulsPeriod = [0, 0];
   emit(s, { type: 'period_start' });
 
   let team: TeamSide;

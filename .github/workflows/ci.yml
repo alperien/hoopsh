@@ -1,6 +1,15 @@
-# The verification ladder, off the honor system.
-# Zero-install by design: the repo runs on Node 24's native type stripping
-# (tools/register.mjs + hooks), so CI needs no npm install at all.
+# The verification ladder — with teeth.
+#
+# Two jobs:
+#   verify — zero-install by design: the repo runs on Node 24's native type
+#            stripping (tools/register.mjs + hooks), so nothing here needs
+#            npm install. Tests, gated acceptance bands, golden fingerprints,
+#            determinism, and docs drift.
+#   types  — the one job that DOES install: `tsc --noEmit` (strict +
+#            noUncheckedIndexedAccess) and the same suites under real vitest.
+#            Until this job existed the TypeScript in this repo had never been
+#            typechecked anywhere (the authoring environment had no registry
+#            access) — the strict flags in tsconfig were unverified claims.
 name: ci
 on:
   push:
@@ -17,8 +26,13 @@ jobs:
           node-version: 24
       - name: test suite (invariants, archetypes, wide-band guard, fidelity gate)
         run: npm test
-      - name: band smoke (8 games)
-        run: npm run batch -- --games 8
+      - name: acceptance bands (48 games, gated — exits nonzero below the ratchet floor)
+        # 48 games is where the band count is stable (at 24 several boundary
+        # bands flicker; see REFACTOR.md). The pass/fail floor lives in cli.ts
+        # as RATCHET_FLOOR next to the measurements that justify it.
+        run: npm run batch -- --games 48
+      - name: golden fingerprint corpus (24 seeds, events+frames byte-identical)
+        run: npm run fingerprint
       - name: fingerprint determinism (two runs must match)
         # normalize the wall-clock timing line — the SIMULATION is
         # deterministic, the "simulated in Xms" stopwatch is not (run #1
@@ -27,3 +41,22 @@ jobs:
           npm run sim -- --seed ci-fp | sed 's/simulated in [0-9]*ms/simulated in Xms/' > /tmp/fp1.txt
           npm run sim -- --seed ci-fp | sed 's/simulated in [0-9]*ms/simulated in Xms/' > /tmp/fp2.txt
           diff /tmp/fp1.txt /tmp/fp2.txt
+      - name: docs drift (BIBLE.md must regenerate to zero diff)
+        run: |
+          npm run docs:bible
+          git diff --exit-code docs/BIBLE.md
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: install dev toolchain (typescript, vitest)
+        # no lockfile by design (zero-install repo) — plain install
+        run: npm install --no-audit --no-fund
+      - name: typecheck (strict + noUncheckedIndexedAccess)
+        run: npm run typecheck
+      - name: test suite under real vitest (same files, real matchers)
+        run: npm run test:vitest

@@ -133,7 +133,7 @@ describe(`engine invariants over ${GAMES} games`, () => {
         const actors: string[] = [];
         if (e.type === 'shot') actors.push(e.shooter, ...(e.assist ? [e.assist] : []));
         if (e.type === 'free_throw') actors.push(e.shooter);
-        if (e.type === 'rebound') actors.push(e.player);
+        if (e.type === 'rebound' && e.player) actors.push(e.player); // team rebounds credit nobody
         if (e.type === 'pass') actors.push(e.from, e.to);
         for (const a of actors) {
           const boundary = outAt.get(a);
@@ -187,7 +187,7 @@ describe(`engine invariants over ${GAMES} games`, () => {
 
   it('no player teleports: per-frame movement stays under a physical ceiling', () => {
     // wall-clock frames record through stoppages, so no legitimate gap exists;
-    // 40 ft/s (well above elite sprint ~28) with the frame step gives headroom
+    // 45 ft/s (well above elite sprint ~28) with the frame step gives headroom
     // for substitution position handoffs which swap players in place
     for (const r of results) {
       const f = r.frames;

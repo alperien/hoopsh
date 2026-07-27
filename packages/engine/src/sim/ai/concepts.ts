@@ -12,8 +12,9 @@
  *
  *   1. DECISIVENESS (decisivenessScale) — a drilled shot fires in its trigger
  *      context: the open catch-and-shoot three, the transition pull-up, the
- *      worked post move. Green-light-gated: it belongs to shooters/post
- *      threats, never to the player the defense WANTS shooting.
+ *      worked post move, the conceded mid-range jumper. Green-light-gated:
+ *      it belongs to shooters/post threats/mid-range artists, never to the
+ *      player the defense WANTS shooting.
  *   2. ACTION COMMITMENT (actionCommitScale) — a called action is a plan:
  *      its designed payoff is preferred (entry feed, handoff, attack off the
  *      screen/clear-out) and its carrier waits for it to arrive (screen
@@ -26,6 +27,13 @@
  *      realized share biases self-creation. Kept where the loop lives.
  *   5. TEMPO (tempoScale) — transition urgency: looks are worth more before
  *      the defense sets, and the window closes fast.
+ *   6. GAME-STATE URGENCY (params.endgame.scale — the endgame layer,
+ *      GameConfig.endgame only) — the game clock and scoreboard reshape the
+ *      CONTINUATION VALUE itself: a leading team's live possession is worth
+ *      more unspent (clock-kill), a chasing team's is worth less (hurry),
+ *      the period horn is a second shot clock (last shot / 2-for-1). Never
+ *      a play call — the same softmax over the same utilities, with the
+ *      yardstick moved.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -39,11 +47,13 @@
 
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
-import { type Agent, type GameState } from '../state.js';
-import { creation } from './shared.js';
+import { other, type Agent, type GameState } from '../state.js';
+import type { ShotMoveType, TeamSide } from '../../core/events.js';
+import { hurriedness } from '../endgame.js';
+import { creation, midGreenLight, midPullUpLight } from './shared.js';
 
 type Action = GameState['poss']['action'];
-type ShotMove = 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post';
+type ShotMove = ShotMoveType;
 
 // ------------------------------------------------- 1. DECISIVENESS (shoot)
 
@@ -73,9 +83,35 @@ type ShotMove = 'catch_shoot' | 'pull_up' | 'drive' | 'heave' | 'post';
  *
  * worked post move: after the backdown the turnaround is the plan — without
  * this the spray won 8:1 and post scoring never materialized.
+ *
+ * mid-range game: the conceded in-between jumper — the elbow pull-up over a
+ * defender who went under or sat in drop, the pick-and-pop 16-footer the sag
+ * leaves open. Deliberately the one drilled shot whose EV does NOT clear the
+ * continuation bar on its own (a three is worth more; the make model prices
+ * that honestly, and buffing it to ~65% from 16 ft would be the wrong fix):
+ * real mid-range volume is an IDENTITY fact — the artists take it because it
+ * is their shot and the defense offers it all game — so the decision layer is
+ * where it lives. Pre-term the shot was structurally extinct: argmax in 0 of
+ * 780 instrumented decisions at 17-20 ft, mid share 1.4% vs the real 6.8%,
+ * and the few "mid" attempts were 20-ft arc-toes. Three gates, all earned:
+ * contest < midContestCeil (the drilled middy is a shot the defense at least
+ * PARTLY concedes — the ceiling sits above the arc gate's 0.5 because the mid
+ * game definitionally lives in front of drop coverage, a defender in the
+ * picture; truly smothered it is the bad habit contestBrake already taxes);
+ * the shared mid green light (ai/shared.ts midGreenLight — zero for
+ * rim-runners, whose open 16-footer is the defense's win); and distance ≤
+ * midGreenMaxFt, because the
+ * drilled shot is the 14-19.5 ft game, not the 20-23 ft long 2 modern
+ * offenses removed (ungated by distance the term would amplify the corner-
+ * spot junk 2 at ~21.6 ft — the D3 trickle — and the restored "mid-range"
+ * would still be all arc-toes). The pull-up flavor is additionally scaled by
+ * tend.pullUp (self-creation off the dribble is its own appetite); the
+ * catch-and-shoot flavor is not (the pop catch IS the trigger — a pop big
+ * like the postAnchor fixture has pullUp 12 but the elbow face-up is his
+ * bread and butter).
  */
 export function decisiveness(
-  s: GameState, h: Agent, shotMove: ShotMove, zone: string,
+  s: GameState, h: Agent, shotMove: ShotMove, zone: string, distFt: number,
   contestLevel: number, act0: Action
 ): number {
   const A = s.params.ai;
@@ -86,6 +122,36 @@ export function decisiveness(
     term = A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
   } else if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     term = A.postShotBonus;
+  } else if (
+    zone === 'mid' && distFt <= A.midGreenMaxFt &&
+    (h.spotKey === 'elbow_l' || h.spotKey === 'elbow_r') &&
+    (shotMove === 'catch_shoot' || (shotMove === 'pull_up' && h.dribblesSinceCatch === 0))
+  ) {
+    // the worked elbow shot: an elbow station is reachable ONLY through
+    // the identity-gated routes (the short pop and the elbow assignment,
+    // both cut on the same mid score), so — exactly like the worked post
+    // move — the plan itself is the green light and the bonus is flat.
+    // It covers the quick catch-and-shoot AND the patient catch-and-FACE
+    // (zero dribbles: survey, rise — the delayed rise is still the
+    // station's drilled shot, and the make model already charges it the
+    // pull-up difficulty). A LIVE-dribble pull-up is genuinely different —
+    // self-creation — and falls through to the tendency-gated term below
+    // (probe: 38 of 56 elbow-station decisions came after the 0.9 s catch
+    // window and died against a zero pullUp gate, which is wrong for a
+    // face-up big whose pullUp dial correctly says "no off-dribble game").
+    // Contest-gated: a recovered defender erases it and the popper swings.
+    term = A.midPopShotBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1);
+  } else if (
+    zone === 'mid' && distFt <= A.midGreenMaxFt &&
+    (shotMove === 'pull_up' || shotMove === 'catch_shoot')
+  ) {
+    // joint identity gate for pull-ups (midPullUpLight — the doctrine and
+    // the zero-veto/geometric-mean reasoning live on the helper in
+    // ai/shared.ts, shared with the drive stop-short so the snake and the
+    // rise belong to the same player); catches gate on the mid appetite
+    // alone.
+    const moveGate = shotMove === 'pull_up' ? midPullUpLight(h) : midGreenLight(h);
+    term = A.midRangeBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1) * moveGate;
   }
   return term * A.decisivenessScale;
 }
@@ -100,10 +166,16 @@ export function decisiveness(
  * the whole point of the action (any current holder may throw it).
  * handoff: once the DHO receiver has sprinted into range, handing it off IS
  * the play — the catch stuns his trailing defender (passing.ts).
+ * pop throwback: the handler comes off the screen reading the BIG. The roll
+ * half of that read was already priced (the roll is a cut, so the pocket
+ * pass earns the cutter bonus); the pop half had no designed feed, so the
+ * popped big stood at the elbow unused (probe: the short pop produced swing
+ * stations, not shots). Arrival-gated like the entry — the throwback goes
+ * to a popper standing AT his spot, not one mid-relocation.
  */
 export function commitmentPass(
   s: GameState, h: Agent, m: Agent, act0: Action
-): { entryTarget: boolean; dhoTarget: boolean; entry: number; dho: number } {
+): { entryTarget: boolean; dhoTarget: boolean; popTarget: boolean; entry: number; dho: number; pop: number } {
   const A = s.params.ai;
   const entryTarget =
     act0?.kind === 'post' && act0.phase === 'posting' &&
@@ -111,11 +183,18 @@ export function commitmentPass(
   const dhoTarget =
     act0?.kind === 'dho' && act0.hubId === h.p.id &&
     m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
+  const popTarget =
+    act0?.kind === 'pnr' && act0.phase === 'finishing' &&
+    m.p.id === act0.screenerId &&
+    (m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r') &&
+    dist(m.pos, m.target) < 4;
   return {
     entryTarget,
     dhoTarget,
+    popTarget,
     entry: (entryTarget ? A.postEntryBonus : 0) * A.actionCommitScale,
-    dho: (dhoTarget ? A.dhoHandoffBonus : 0) * A.actionCommitScale
+    dho: (dhoTarget ? A.dhoHandoffBonus : 0) * A.actionCommitScale,
+    pop: (popTarget ? A.pnrPopFeedBonus : 0) * A.actionCommitScale
   };
 }
 
@@ -233,19 +312,148 @@ export function advantagePass(
   };
 }
 
+// ------------------------------------- 6. GAME-STATE URGENCY (continuation)
+
+/**
+ * The endgame layer's ball-handler half (GameConfig.endgame only — decide.ts
+ * never calls this on the default path, so flag-off is byte-identical).
+ *
+ * The base continuation curve assumes an endless game: "what the remaining
+ * shot-clock seconds are worth" with no scoreboard and no horn. Real late-
+ * game basketball is exactly the places that assumption breaks, so every
+ * behavior here is a reshaping of that ONE number — the yardstick every
+ * action is already measured against — rather than any new action:
+ *
+ *  - HORN COLLAPSE: the period clock is a second shot clock. Inside the
+ *    urgency window of the HORN, the continuation collapses the same way it
+ *    already does for the shot clock (min of the two governs). Without
+ *    this, a team catching the ball with 8 s in a period idles into the
+ *    heave check; with it, quarter endings produce a real last shot.
+ *  - CLOCK-KILL (leading, final period): every second burned is worth
+ *    points — the opponent's chase needs possessions and the clock is
+ *    denying them. Continuation RISES (ramping toward the horn, fading in
+ *    blowouts), so early-clock looks that used to fire now lose to "keep
+ *    working" and the possession drains to the urgency window before the
+ *    offense attacks: milk to ~:07, then play. The boost itself fades
+ *    inside the urgency window (holdFade) — late-clock offense is
+ *    UNCHANGED, so shot-clock violations don't spike.
+ *  - HURRY (trailing, final period): the mirror image — a chasing team's
+ *    unspent seconds are a cost, not an asset. Continuation FALLS by the
+ *    shared hurriedness signal (sim/endgame.ts: clock ramp × deficit depth
+ *    × chase-aliveness), so good-not-great early looks fire immediately.
+ *  - HOLD FOR ONE: inside ~one possession of any period's horn (and, in the
+ *    final period, only when tied/leading or down ≤ lastShotDeficitMax —
+ *    down 4+ the hurry keeps the wheel), deny the opponent a rebuttal:
+ *    continuation rises until the horn collapse releases the last shot.
+ *  - 2-FOR-1 (non-final periods): in the ~0:28-0:38 window, acting early
+ *    buys a whole extra possession, so the remaining seconds of THIS
+ *    possession are worth less — a tent-shaped continuation cut produces
+ *    the early, slightly-worse shot that real 2-for-1 hunting is.
+ */
+export function endgameContinuation(
+  s: GameState, side: TeamSide, continuation: number
+): number {
+  const E = s.params.endgame;
+  const U = s.params.decide.urgencySec;
+  const sc = Math.max(0, s.poss.shotClock);
+  const clock = s.clock;
+  let mult = 1;
+
+  // horn collapse — bring the period clock into the urgency window the base
+  // curve already applies to the shot clock (factor of clamp(x/U) on the
+  // BINDING clock; divide out what the base already applied for sc)
+  if (clock < sc) {
+    const applied = sc < U ? sc / U : 1;
+    const desired = clamp(clock / U, 0, 1);
+    if (desired < applied) mult *= desired / Math.max(1e-6, applied);
+  }
+
+  // every HOLD-side boost dies inside the urgency window: milking never
+  // re-inflates a collapsing continuation (that would manufacture violations)
+  const eff = Math.min(sc, clock);
+  const holdFade = clamp((eff - U) / U, 0, 1);
+
+  const margin = s.score[side] - s.score[other(side)];
+  if (s.period >= s.rules.periods) {
+    if (margin > 0 && clock <= E.leadHoldClockSec) {
+      const ramp = 1 - clock / E.leadHoldClockSec;
+      // full effect while the lead is worth protecting, gone by 2× the ref
+      // (a 16+ point Q4 lead is garbage time, nobody is milking with intent)
+      const blowoutFade = clamp(2 - margin / E.leadHoldMarginRef, 0, 1);
+      mult *= 1 + E.scale * E.leadHoldMaxBoost * ramp * blowoutFade * holdFade;
+    } else if (margin === 0 && clock <= E.holdForOneClockSec) {
+      // tied, one possession left: the last shot wins the game — hold for it
+      mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
+    } else if (margin < 0) {
+      const deficit = -margin;
+      if (clock <= E.holdForOneClockSec && deficit <= E.lastShotDeficitMax) {
+        // down one score with one possession left: the shot that ties/wins
+        // is THE possession — patience, not panic
+        mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
+      } else {
+        mult *= 1 - E.scale * E.hurryMaxCut * hurriedness(s, side);
+      }
+    }
+  } else if (clock >= E.twoForOneMinClockSec && clock <= E.twoForOneMaxClockSec) {
+    // 2-for-1: tent across the window — strongest at its center, where the
+    // possession arithmetic is cleanest
+    const mid = (E.twoForOneMinClockSec + E.twoForOneMaxClockSec) / 2;
+    const half = Math.max(1e-6, (E.twoForOneMaxClockSec - E.twoForOneMinClockSec) / 2);
+    const tent = 1 - Math.abs(clock - mid) / half;
+    mult *= 1 - E.scale * E.twoForOneCut * tent;
+  } else if (clock <= E.holdForOneClockSec) {
+    // quarter-ending possession (any score): deny the rebuttal, take the last shot
+    mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
+  }
+  return continuation * mult;
+}
+
 // ------------------------------------------------------- 5. TEMPO (shoot/drive)
 
 /**
  * Transition urgency: looks are worth extra before the defense sets. The
  * drive channel weighs it by driveTransitionMult (getting downhill in
  * transition is the highest-value version of the window).
+ *
+ * Two layers, both dead once the defense is set (the phase flip at
+ * transSetBackCount back is itself the state gate):
+ *  - transitionBonus: the original flat early-offense term (SWEPT).
+ *  - stealBreakBonus: the live-ball break premium — a steal catches the
+ *    defense mid-offense (facing the wrong way, cross-matched, floor
+ *    balance gone), a categorically better break than the push off a
+ *    defensive rebound. REAL: ~1.2-1.3 PPP off steals vs ~1.05-1.1 off
+ *    rebounds. Deliberately FLAT through the phase rather than scaled by
+ *    defenders-back: the probe showed a headcount-scaled bonus fades
+ *    exactly when the finish decision arrives (defenders got back DURING
+ *    the push), gutting per-attempt quality — while the organized-vs-caught
+ *    distinction the premium prices outlives the raw headcount (a defense
+ *    that sprinted back off a steal is home but not matched up).
  */
 export function tempo(s: GameState): { shoot: number; drive: number } {
   const D = s.params.decide;
   const A = s.params.ai;
-  const term = s.poss.phase === 'transition' ? D.transitionBonus : 0;
+  let term = 0;
+  if (s.poss.phase === 'transition') {
+    term = D.transitionBonus + (s.poss.kind === 'steal' ? D.stealBreakBonus : 0);
+  }
   return {
     shoot: term * A.tempoScale,
     drive: term * A.driveTransitionMult * A.tempoScale
   };
 }
+
+/*
+ * NOTE (wave2/shotmix, probed-and-rejected): a state-aware CONTINUATION cut
+ * — continuation × (1 − cut × unsetness), unsetness from the shared
+ * defenders-back count — was the diagnostic's preferred design for
+ * transition urgency and was implemented and measured here in five shapes
+ * across two seed bases. Every shape lost to the flat, phase-gated
+ * stealBreakBonus above: the yardstick cut moves the PASS bar too, feeding
+ * the break to hit-ahead swings (assisted share +4-10pp over a band the
+ * engine already exceeds), and headcount scaling fades exactly as defenders
+ * get back DURING the push — gutting the finish decision the window exists
+ * to reward. The phase flip at transSetBackCount back (game.ts, shared
+ * definition in resolve.ts defendersBack) is itself the state gate; the
+ * surviving state-aware piece is the defender-aware projected drive contest
+ * in decide.ts. Numbers in params.decide.stealBreakBonus's comment.
+ */

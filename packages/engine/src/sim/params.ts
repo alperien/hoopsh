@@ -1,10 +1,22 @@
 /**
  * SimParams — THE calibration surface.
  *
- * Every tunable constant in the engine lives here, in one flat, serializable
- * object. Nothing else in the engine may hardcode a behavioral constant: the
- * harness sweeps THIS file (`npm run sweep`) against real NBA acceptance
- * bands, so a number hidden elsewhere is a number the optimizer cannot reach.
+ * Every tunable BEHAVIORAL constant in the engine lives here, in one flat,
+ * serializable object. Nothing else in the engine may hardcode a constant that
+ * affects outcomes: the harness sweeps THIS file (`npm run sweep`) against real
+ * NBA acceptance bands, so a number hidden elsewhere is a number the optimizer
+ * cannot reach.
+ *
+ * THE ONE EXCEPTION — cosmetic/replay-only positioning. A handful of constants
+ * that place bodies for the REPLAY and nothing else stay inline where they're
+ * used: the dead-ball freeze spots (possession.ts setupDeadTargets), the
+ * free-throw lane alignment (fouls.ts enterFreeThrows), and similar "looks
+ * plausible" geometry. No probability, EV, rate, or timing model reads them —
+ * they move pixels in the viewer, not outcomes — so they are deliberately NOT
+ * on the sweep surface (a knob the optimizer can't affect the bands with is
+ * noise in the search space). Each such site says so in a comment. If you find
+ * an inline number that feeds a make/foul/turnover/rebound/decision path, that
+ * IS a bug against this rule — move it here.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * HOW TO READ THESE NUMBERS
@@ -28,7 +40,7 @@
  *
  * 4. PROVENANCE. Values fall into three kinds, and the comments say which:
  *      • REAL — a measured basketball fact (free-throw % ≈ 71-78% league-wide).
- *      • SWEPT — found by the optimizer hunting the 16 acceptance bands. These
+ *      • SWEPT — found by the optimizer hunting the 17 acceptance bands. These
  *        carry odd precision (0.485, 1.449) precisely because a machine chose
  *        them; do not "tidy" them without re-running the sweep.
  *      • FEEL — hand-set for plausible motion/timing, not statistically
@@ -104,6 +116,17 @@ export interface SimParams {
     windupPost: number;
     windupPutback: number;
     windupHeave: number;
+    /** release-time contest share at startShot; the decision-time contest gets
+     *  the remaining 1 - this (a late closeout counts less than a set contest) */
+    contestReleaseBlend: number;
+    /** shooting-foul probability multiplier when the shot went IN (and-one is
+     *  rarer than a foul on a miss) */
+    andOneFoulMult: number;
+    /** shooting-foul probability multiplier when the shot was blocked */
+    blockedFoulMult: number;
+    /** shot flight time = flightBaseSec + distFt × flightPerFt (seconds) */
+    flightBaseSec: number;
+    flightPerFt: number;
   };
 
   foul: {
@@ -114,14 +137,33 @@ export interface SimParams {
     shootThree: number;
     /** multiplier range from contest tightness (tight contests foul more) */
     contestFactor: number;
+    /** foul-drawing craft swing: elite drawFoul draws this much more, per n() */
+    drawFoulSwing: number;
+    /** defender foulAggr swing: a max-aggression defender fouls this much more */
+    foulAggrSwing: number;
+    /** hard cap on any single shooting-foul probability */
+    shootFoulCap: number;
     /** chance per second of on-ball pressure that a reach-in occurs */
     reachInPerSec: number;
     /** reach-in rate multiplier while the holder is driving or backing down */
     attackReachInMult: number;
+    /** gambleSteal swing on the per-tick reach-in rate */
+    reachInGambleSwing: number;
+    /** hand-check range for a reach-in: tight normally, gather-range while attacking */
+    reachDistFt: number;
+    attackReachDistFt: number;
+    /** clean-strip share model: base ± steal/ballHandle swings, clamped */
+    stripBase: number;
+    stripStealSwing: number;
+    stripHandleSwing: number;
+    stripMin: number;
+    stripMax: number;
     /** added clean-strip share on attacking reach-ins (pokes at the gather) */
     attackStripBonus: number;
     /** offensive foul (charge) chance per drive */
     chargePerDrive: number;
+    /** per-tick multiplier folded into the charge roll (chargePerDrive × dt × this) */
+    chargeTickMult: number;
     /** loose-ball foul chance per contested rebound */
     looseBallPerReb: number;
   };
@@ -161,6 +203,10 @@ export interface SimParams {
     reboundCutoffFt: number;
     /** relative spread of miss-landing samples around the mean: std = mean × this factor */
     reboundSpreadFactor: number;
+    /** share of live-rebound scrambles whose carom dies (out of bounds /
+     *  rolls dead) and is awarded as a TEAM rebound at a dead-ball inbound
+     *  instead of credited to a player — see possession.ts tickScramble */
+    deadBallCaromChance: number;
     /** scramble rating blend — a coupled set shaping WHO wins each rebound lottery */
     blendOffReb: number;         // offensive: pursuit
     blendOffVertical: number;    // offensive: hops
@@ -175,6 +221,12 @@ export interface SimParams {
     intervalSec: number;
     /** softmax temperature over action utilities (higher = more random) */
     temperature: number;
+    /** the quick-release window off a touch: a 0-dribble shot decided within
+     *  this many seconds of gaining the ball is an off-the-catch release
+     *  (catch_shoot / cut_finish / putback by zone & acquisition — see
+     *  decide.ts); after it the gather is over and the shot is a self-created
+     *  pull-up */
+    quickCatchSec: number;
     /**
      * continuation value curve: expected points of "keep working the possession"
      * = continuationMax * (shotClock / fullClock) ^ continuationCurve
@@ -188,8 +240,13 @@ export interface SimParams {
     threeAppetite: number;
     /** global multiplier on drive appetite */
     driveAppetite: number;
-    /** EV bonus for open transition looks */
+    /** EV bonus for open transition looks (flat while the phase lasts) */
     transitionBonus: number;
+    /** additional shoot/drive EV bonus while a STEAL possession is still in
+     *  transition — the live-ball break premium on top of transitionBonus
+     *  (the drive channel weighs the sum by ai.driveTransitionMult); dies
+     *  with the phase (defense set), like the flat bonus */
+    stealBreakBonus: number;
     /** drive commitment window (seconds): a decided drive holds this long before re-evaluation */
     driveCommitSec: number;
     /** commit ceiling for long rampages (the floor is driveCommitSec); see game.ts arrival-based commit */
@@ -220,6 +277,10 @@ export interface SimParams {
     postLeanShare: number;
     /** interior-vs-perimeter role-defense boundary for the contest model, ft */
     nearRimFt: number;
+    /** ball-handler speed (ft/s) above which dribble accounting accrues */
+    dribbleSpeedFtS: number;
+    /** seconds of dribbling above that speed per counted dribble (assist window) */
+    dribbleSec: number;
     /** within this of the computed spot, off-ball players STOP (stillness-as-default) */
     arrivalDeadbandFt: number;
     /** defensive version: sag ideals drift with every ball move — reposition on the CATCH, not continuously */
@@ -236,6 +297,12 @@ export interface SimParams {
     crashWorkMult: number;
     /** transition hard cap, sec — safety only; the real end is the defense getting SET */
     transitionMaxSec: number;
+    /** the defense is SET once this many defenders are back — ends the
+     *  transition phase (game.ts) and zeroes the transition continuation cut
+     *  (ai/concepts.ts); shared definition lives in resolve.ts defendersBack */
+    transSetBackCount: number;
+    /** "back" = inside this distance of the rim being defended, ft */
+    transBackRadiusFt: number;
   };
 
   fatigue: {
@@ -249,10 +316,148 @@ export interface SimParams {
   sub: {
     /** energy threshold that queues a substitution at the next dead ball */
     tiredThreshold: number;
+    /** extra energy points a bench player is pulled earlier than a starter */
+    benchTiredBonus: number;
     rotationLeashScale: number;  // energy-leash points per 100% of minutes-pace deviation
     rotationLeashMax: number;    // leash adjustment cap (energy points)
     /** energy at which a bench player is considered ready */
     readyThreshold: number;
+    /** ready-bar relief for a behind-pace targeted player (returns eagerly) */
+    readyReliefBonus: number;
+    /** minutes-pace below which a targeted player counts as behind (returns eager) */
+    eagerReturnPace: number;
+    /** minutes-pace above which a rested targeted player is held back */
+    aheadHoldPace: number;
+    /** crunch time: final period, under this many clock seconds, close game */
+    crunchClockSec: number;
+    /** crunch margin: absolute score gap at/under which crunch rotation applies */
+    crunchMarginPts: number;
+    /** crunch energy floor: a starter this rested can be pulled back on late */
+    crunchEnergyMin: number;
+  };
+
+  /**
+   * ENDGAME LAYER (concept 6 — game-state urgency). Live ONLY when the game
+   * is run with `GameConfig.endgame: true`; with the flag off (the default)
+   * nothing in this block is read on any decision path, so the shipped
+   * 16/17-band calibration is untouched. Everything here is an EV/urgency
+   * MODULATION of the existing decision framework (the continuation curve,
+   * the reach-in machinery, the dead-ball choke point) — never a scripted
+   * playbook. See sim/ai/concepts.ts (concept 6) and sim/endgame.ts.
+   *
+   * NOT in harness/knobs.ts yet, deliberately: the sweep runs default
+   * config (flag off), where these knobs are unreachable — registering
+   * unreachable knobs is pure noise in the search space (params.ts header,
+   * "ONE EXCEPTION" spirit). Register them when the flag defaults on.
+   */
+  endgame: {
+    /** master scale on every concept-6 modulation (same budget-knob pattern as ai.*Scale) */
+    scale: number;
+    // --- clock management with a lead (final period / OT)
+    /** leading team milks inside this many clock seconds of the final period — REAL:
+     *  deliberate clock-kill offense is a final-~2:30 behavior, ramping toward the horn */
+    leadHoldClockSec: number;
+    /** continuation raise at full effect (× base continuation). At 0.5 a held
+     *  possession stays above typical look EV until the urgency window — the
+     *  shot comes at ~5-8 s of shot clock, real "milk to :07 then attack" */
+    leadHoldMaxBoost: number;
+    /** lead (pts) past which milking stops mattering: full effect at ≤ this,
+     *  fading to none by 2× (a 20-pt Q4 lead is garbage time, not clock-kill) */
+    leadHoldMarginRef: number;
+    // --- trailing hurry-up (final period / OT)
+    /** trailing team pushes tempo inside this many clock seconds — REAL: the
+     *  down-two-scores hurry starts around the 3:00 mark, ramping in */
+    hurryClockSec: number;
+    /** continuation cut at full desperation (× base). Lowering the value of
+     *  "keep working" is what makes early good-not-great looks fire — the
+     *  quick-shot texture of a chasing team, without scripting a play call */
+    hurryMaxCut: number;
+    /** deficit (pts) at which the hurry reaches full strength */
+    hurryDeficitRef: number;
+    /** deficit-depth floor inside hurriedness: even down a single score the
+     *  late clock pushes tempo — the clock ramp, not the deficit, carries
+     *  most of the urgency (share of full depth granted at deficit → 0) */
+    hurryDepthFloor: number;
+    /** hurriedness (0..1, sim/endgame.ts) above which the trailing handler
+     *  SPRINTS the ball up instead of the normal dribble-jog — the visible
+     *  push of a chasing team */
+    hurrySprintMin: number;
+    // --- chase arithmetic shared by hurry / fouling (possessions-left math)
+    /** assumed seconds per remaining CHASE possession (hurried offense + a
+     *  stop/foul cycle) when counting how many chances remain — REAL: a
+     *  hurrying team turns possessions over in ~10-14 s of game clock */
+    chasePossSec: number;
+    /** realistic points a chase recovers per remaining possession PAIR (your
+     *  score minus their expected answer) — sets where a deficit reads dead */
+    chaseMaxPtsPerPoss: number;
+    /** softness (pts) of the alive→dead fade — no hard cliff at the boundary */
+    chaseFadePts: number;
+    // --- period-end possession arithmetic (all periods)
+    /** inside this period clock the possession holder plays for the LAST shot
+     *  (≈ shot clock + inbound beat: the opponent can't get a full possession
+     *  back) — REAL: the universal "hold for one" at every quarter end */
+    holdForOneClockSec: number;
+    /** continuation raise while holding for one (× base) */
+    holdForOneBoost: number;
+    /** in the FINAL period, trailing by more than this many points abandons
+     *  last-shot patience for the hurry (down 1-3: one possession can tie/win;
+     *  down 4+: you need multiple possessions, waiting is fatal) — REAL */
+    lastShotDeficitMax: number;
+    /** 2-for-1 window (period clock, non-final periods): acting early enough
+     *  in [min,max] buys the team a second possession before the horn — REAL:
+     *  NBA teams hunt the ~0:28-0:38 release for exactly this arithmetic */
+    twoForOneMinClockSec: number;
+    twoForOneMaxClockSec: number;
+    /** continuation cut at the middle of the 2-for-1 window (× base): a
+     *  moderately worse-than-usual shot is worth an entire extra possession,
+     *  but not a terrible one (tent-shaped across the window) */
+    twoForOneCut: number;
+    // --- intentional fouling when trailing (final period / OT)
+    /** hunt window cap (game-clock seconds): even a large deficit doesn't
+     *  start the foul parade before this — REAL: ~0:35 is where trailing
+     *  teams begin trading 2 FTs for possession; the per-deficit window
+     *  below (one full shot clock per possession needed) narrows it further */
+    foulTrailMaxClockSec: number;
+    /** don't foul down fewer than this (down 1-2 a stop wins the game; a
+     *  foul just hands over points) — REAL coaching orthodoxy */
+    foulMinDeficit: number;
+    /** deficit past which fouling is pointless (walk-off territory) */
+    foulMaxDeficit: number;
+    /** don't hunt a foul once the opponent's shot clock is at/under this —
+     *  the violation/forced shot is coming anyway; play the possession out */
+    foulMinShotClock: number;
+    /** reach-in RATE multiplier while hunting (× foul.reachInPerSec): the
+     *  grab is drilled and deliberate, so it lands within ~a second of
+     *  contact range instead of the organic once-in-a-possession rate */
+    foulHuntRateMult: number;
+    /** clean-strip share of hunted grabs (overrides the stripP model): a
+     *  deliberate wrap-up is a whistle ~9 times in 10, but hands do
+     *  sometimes find ball — the occasional legit late-game strip is real */
+    foulHuntStripShare: number;
+    /** hand-check range for the hunt, ft (a lunging grab, wider than the
+     *  organic reachDistFt but still requires converging on the holder) */
+    foulHuntReachDistFt: number;
+    /** on-ball containment gap while hunting, ft — pressed up to grab, not
+     *  sagged into a cushion (defense.ts containOnBall override) */
+    foulHuntGapFt: number;
+    // --- timeouts (budget lives in rules.timeoutsPerGame — a league rule)
+    /** opponent unanswered points that trigger a stop-the-bleeding timeout —
+     *  REAL: coaches burn one at 8-0/10-0 to reset a run */
+    timeoutRunPts: number;
+    /** trailing inside this many final-period clock seconds spends a timeout
+     *  to ADVANCE the ball (inbound moves to the frontcourt) — REAL rule */
+    timeoutAdvanceClockSec: number;
+    /** advance timeouts only while the game is winnable: deficit ≤ this */
+    timeoutAdvanceDeficitMax: number;
+    /** wall-clock seconds a timeout freezes play (replay texture only — the
+     *  game clock never runs during a timeout regardless; kept well under a
+     *  real 75s huddle so replays don't bloat, but long enough to READ as a
+     *  stoppage rather than a hiccup) */
+    timeoutResumeSec: number;
+    /** frontcourt inbound spot after an advance timeout: distance from the
+     *  attacked rim, ft — the real advance puts the ball at the hashmark
+     *  (~28 ft out); this is a BEHAVIORAL spot (the possession starts there) */
+    timeoutAdvanceSpotFt: number;
   };
 
   /**
@@ -275,6 +480,16 @@ export interface SimParams {
     relocDeniedRatePerTick: number; // the denied shooter's self-scheduled baseline-run cadence (much rarer)
     relocateDriftFt: number;     // how far the shake drifts away from the defender
     relocDurationSec: number;    // how long the relocated ground is held
+    /** per-possession spacing-spot jitter half-width, ft (uniform per axis) —
+     *  see offense.ts rollSpots; corner spots jitter along the baseline only
+     *  (lateral pinned inside the corner-three line, D3 coupling) and
+     *  above-the-break three spots stay behind the arc */
+    spotJitterFt: number;
+    /** minimum clearance BEHIND the three-point arc a jittered top/wing spot
+     *  keeps (ft) — spacing shooters stand behind the line on purpose;
+     *  without this floor, jitter parks them on/inside it and mints junk
+     *  23-ft catch-and-shoot twos that shift the shot mix */
+    spotJitterArcMarginFt: number;
     // shot selection
     zoneTendBias: number;        // weight of zone shot-diet tendencies
     pullUpBias: number;          // weight of pull-up tendency on pull-ups
@@ -325,6 +540,7 @@ export interface SimParams {
     cutRunwayFt: number;         // off-ball player must be beyond this distance to trigger a cut
     // dunker-spot assignment
     dunkerGravityThreshold: number; // gravity below this → dunker spot; above → corner shooter
+
     // crash thresholds
     crashNearFt: number;         // offensive player must be within this to be eligible to crash
     // pick-and-roll roll timing (in cut machinery)
@@ -353,7 +569,10 @@ export interface SimParams {
     assignLeashFt: number;       // a defender within this of his man still counts as assigned to him
     // bookkeeping
     assistWindowSec: number;     // catch-to-shot window for assist credit
+    /** dribbles allowed before a jumper stops counting as assisted */
     assistMaxDribbles: number;
+    /** dribbles allowed before an INTERIOR finish stops counting as assisted */
+    assistMaxDribblesInterior: number;
     // pick-and-roll
     pnrRatePerTick: number;      // base chance per eligible halfcourt tick to call a screen
     pnrUsageFloor: number;       // action-rate share the lineup's weakest creator keeps
@@ -361,6 +580,12 @@ export interface SimParams {
     driveAbortDiscount: number;  // share of a bad drive's downside actually paid (abort option)
     driveHoldBoost: number;      // hold bonus per remaining drive second (keep attacking)
     catchShootBonus: number;     // shoot bias for an open look in the catch window
+    midRangeBonus: number;       // drilled mid-range decisiveness (green-light gated; ai/concepts.ts)
+    midGreenMaxFt: number;       // distance ceiling of the mid green light — real mid-range, not long 2s
+    midPopShotBonus: number;     // shoot bias on the worked pop catch at the elbow (kin of postShotBonus)
+    midContestCeil: number;      // contest ceiling of the mid green light (the middy lives vs drop coverage)
+    driveMidStopChance: number;  // snake stop-short rate at full midPullUpLight (game.ts drive commit)
+    driveMidStopFt: number;      // rim distance where a stop-short drive ends — the pull-up spot
     pnrDurationSec: number;      // action lifetime
     pnrScreenSetDistFt: number;  // screener-to-defender distance that counts as contact
     pnrStunOverSec: number;      // defender delay when fighting over the screen
@@ -368,11 +593,31 @@ export interface SimParams {
     pnrUnderSagFt: number;       // extra on-ball gap while going under (pull-up space)
     pnrUnderBase: number;        // base probability of going under vs handler gravity
     pnrRollGravityCut: number;   // screener gravity below this rolls; above pops
+    pnrMidPopScoreCut: number;   // min mid-pop score (mid green light × midRange ability) for the short pop
+    pnrMidPopChance: number;     // chance an eligible low-gravity screener pops to the elbow instead of rolling
+    pnrPopFeedBonus: number;     // pass-utility bonus for the throwback to the popped screener at his spot
+    screenerMidPopWeight: number; // screener-selection affinity for the mid-pop big (gravity-gated)
     pnrDropDepthFt: number;      // screener defender's drop-coverage depth from the rim
     pnrDriveBonus: number;       // handler drive-utility bonus coming off the screen
     pnrMinShotClock: number;     // don't start an action later than this
     pnrWaitBoost: number;        // handler hold-utility boost while the screen arrives
     pnrMaxScreenDistFt: number;  // screener candidates farther than this are skipped
+    // screener-selection scoring (actionTick): low-gravity size makes a good
+    // screen (his man sags), discounted by travel distance. Were inline weights.
+    screenerGravityWeight: number; // weight of (1 - gravity) in the screener score
+    screenerHeightBaseIn: number;  // height baseline subtracted before scaling
+    screenerHeightDiv: number;     // divisor turning height-over-baseline into score
+    screenerStrengthDiv: number;   // divisor on strength's screener-score contribution
+    screenerTravelDiv: number;     // divisor penalizing how far the screener must travel
+    // poster-selection scoring (actionTick): post appetite carries it, strength
+    // and finishing make it credible. Were inline weights.
+    posterTendOffset: number;      // post-tendency neutral point for the poster score
+    posterScoreBase: number;       // base multiplier before strength/finishing add in
+    posterStrengthDiv: number;
+    posterFinishingDiv: number;
+    // DHO-receiver-selection scoring (actionTick): a shooter who also sprints in.
+    dhoRecvGravityWeight: number;
+    dhoRecvMotionWeight: number;
     // post-up action
     postCallShare: number;       // weight of the post option in the action-call roll
     postCallCut: number;         // minimum poster score to consider an entry
@@ -404,7 +649,7 @@ export interface SimParams {
 
 export const defaultParams: SimParams = {
   // 10 Hz: fine enough that a 28 ft/s sprinter moves <3 ft per tick (smooth
-  // motion, accurate contests), coarse enough for ~6 games/sec. FEEL.
+  // motion, accurate contests), coarse enough for a >= 1 game/sec budget (hardware-dependent, ~3-6 typical). FEEL.
   tickHz: 10,
   // one replay frame per 2 ticks = 5 Hz: the viewer interpolates between them,
   // and it halves replay size (~1.8 MB/game). FEEL.
@@ -413,7 +658,7 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5798,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    baseRim: 0.5914,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.3574,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
@@ -440,7 +685,16 @@ export const defaultParams: SimParams = {
     // and putbacks are high-percentage because the defense is out of position.
     movePullUp: -0.22,    // off the dribble, defender attached
     moveDrive: -0.08,     // moving finish through traffic
-    moveCutFinish: 0.18,  // caught in stride at the rim (STAGED move type)
+    // caught in stride at the rim. HISTORY (wave-2 taxonomy fix): this value
+    // was set while cut_finish was STAGED — assigned by NO code path — so it
+    // had never once been applied to a real attempt. When the taxonomy fix
+    // wired the type up, it landed on ~30% of all attempts at once and drove
+    // league FG% to 51.0% (band 44-49.5). Measured at n=12: 0.18 -> 51.0%,
+    // 0.00 -> 45.7%, -0.10 -> 45.0%. It is now a LIVE, load-bearing dial on
+    // a large share of shots and must be re-fit by the coordinated sweep
+    // rather than trusted as a hand-set FEEL value; parked at 0 pending that
+    // sweep, because a never-exercised bonus is not evidence for its size.
+    moveCutFinish: 0.0,
     movePost: -0.05,      // FEEL — back-to-basket craft costs a touch vs a clean look
     movePutback: 0.1,     // already inside, defense scrambling
     moveHeave: -2.6,      // ≈ 7% — a desperation launch, correctly awful
@@ -472,7 +726,7 @@ export const defaultParams: SimParams = {
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
-    blockBase: 0.2754,
+    blockBase: 0.2859,
     blockSkillCoef: 0.5,
     // Within-zone distance penalty model. Both constants have real-world meaning:
     //   threes: each foot beyond the NBA three-point line costs ≈1.3 pp FG% —
@@ -495,9 +749,23 @@ export const defaultParams: SimParams = {
     windupPullUp: 0.55,
     windupDrive: 0.45,
     windupCutFinish: 0.3,
-    windupPost: 0.65,   // STAGED
+    windupPost: 0.65,
     windupPutback: 0.25, // shortest: already up in the air
-    windupHeave: 0.3
+    windupHeave: 0.3,
+    // Contest at RELEASE is blended with contest at the decision instant: a
+    // late closeout bothers a shot less than a set contest. This is the
+    // release-time share (decision gets 1 - it). FEEL — was inline in
+    // shooting.ts startShot (0.55 decision / 0.45 release).
+    contestReleaseBlend: 0.45,
+    // A shooting foul on a MADE shot (and-one) is far rarer than one on a
+    // miss; a foul on a blocked shot is rarer still. FEEL — were inline
+    // damping factors in shooting.ts.
+    andOneFoulMult: 0.28,
+    blockedFoulMult: 0.35,
+    // Ball flight time to the rim = base + distance × per-ft. FEEL — was the
+    // inline `0.45 + loc.distFt * 0.021` in shooting.ts startShot.
+    flightBaseSec: 0.45,
+    flightPerFt: 0.021
   },
 
   foul: {
@@ -506,32 +774,56 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.3916,
+    shootRim: 0.3998,
     shootPaint: 0.1304,
     shootMid: 0.05,
     shootThree: 0.012,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
     // (smothered). Ties foul rate to defensive aggression. FEEL.
     contestFactor: 1.6,
+    // Shooting-foul craft swings (were inline in resolve.ts shootingFoulP):
+    // an elite foul-drawer earns ~65% more whistles, a max-aggression
+    // defender fouls ~50% more, and no single attempt exceeds a 60% foul
+    // chance (hack-a-Shaq still leaves a clean-play chance). FEEL.
+    drawFoulSwing: 0.65,
+    foulAggrSwing: 0.5,
+    shootFoulCap: 0.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0175,
+    reachInPerSec: 0.0165,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
+    // gambleSteal swing on the per-tick reach-in rate; hand-check ranges (tight
+    // normally, gather-range while attacking). FEEL — were inline in passing.ts
+    // attemptReachIn.
+    reachInGambleSwing: 0.85,
+    reachDistFt: 4.2,
+    attackReachDistFt: 5.5,
+    // Clean-strip share once a reach-in happens: base, +steal / -ballHandle
+    // swings, clamped so the best/worst matchup still has a real chance either
+    // way. FEEL — were inline in passing.ts attemptReachIn's stripP.
+    stripBase: 0.3,
+    stripStealSwing: 0.3,
+    stripHandleSwing: 0.22,
+    stripMin: 0.08,
+    stripMax: 0.85,
     attackStripBonus: 0.25,
     // Charges per drive — deliberately rare; the offensive foul is the least
     // common whistle we model. SWEPT.
     chargePerDrive: 0.012,
+    // Per-tick multiplier folded into the charge roll (game.ts tickLive:
+    // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
+    chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0365
+    looseBallPerReb: 0.0368
   },
 
   pass: {
     // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -4.3,
+    riskBase: -4.1869,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -564,7 +856,7 @@ export const defaultParams: SimParams = {
     // Where a miss lands: mean distance from the rim = base + coef × shot
     // distance. Long shots produce long rebounds — a real, well-documented
     // effect that makes guards' rebounds on three-heavy nights plausible.
-    missDistBase: 4.7142,
+    missDistBase: 4.8116,
     missDistCoef: 0.16,
     // How sharply proximity dominates the scramble: weight ∝ 1/(1+d)^power.
     // Higher = rebounding is pure positioning; lower = size/skill matter more.
@@ -572,7 +864,7 @@ export const defaultParams: SimParams = {
     // Chance an offensive rebound caught at the rim goes straight back up
     // rather than resetting the offense. FEEL, and it produces the putback
     // shot type. SWEPT-adjacent.
-    putbackChance: 0.45,
+    putbackChance: 0.4532,
     // Rebound scramble geometry:
     //   reboundCutoffFt: beyond this nobody realistically gets there. FEEL —
     //     24 ft is approximately the three-point arc; a player who let the shot
@@ -582,6 +874,24 @@ export const defaultParams: SimParams = {
     //   the mean. 0.45 × mean gives a Gaussian std; floor at 1 ft prevents
     //   on-the-rim degenerate samples. Tracking-data validated. FEEL.
     reboundSpreadFactor: 0.45,  // FEEL — relative spread of miss-landing distribution
+    // TEAM rebounds: real missed-FG caroms die out of bounds (tipped OOB,
+    // long skips) at a measured 15.4% of misses in the six-game reference
+    // corpus (14.3/game, 59% awarded to the offense) — and the Turing
+    // baseline's judges used the sim's total LACK of "rebound by Team"
+    // lines as a definitely-real marker (flow-reference.json
+    // meta.turingBaseline). Modeled as a flat pre-roll on scramble
+    // resolution; the WINNING SIDE follows the same positioning-weighted
+    // lottery a player rebound uses, so ORB%'s expectation is unchanged and
+    // team rebound totals still count the board (official-scoring
+    // convention, stats/box.ts). Set slightly under the real 0.154 because
+    // every diverted carom is a player rebound nobody gets credited for —
+    // 0.08 keeps the interior-star TRB identity (fidelity gate) inside its
+    // tripwire — and every diverted OFFENSIVE carom replaces a putback
+    // chance (unassisted makes) with a halfcourt re-set, which nudges
+    // assisted share upward against its band ceiling — while still making
+    // team rebounds a normal sight in the log (~7/game plus the FT
+    // dead-ball formalities). REAL anchor, FEEL discount.
+    deadBallCaromChance: 0.08,
     // Scramble rating blend (FEEL — a COUPLED SET: re-tune together, never
     // hand-nudge one alone). Rebounding is a zero-sum lottery, so these
     // redistribute WHO rebounds without moving league totals. Height stays
@@ -606,6 +916,14 @@ export const defaultParams: SimParams = {
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
     temperature: 0.0732,
+    // REAL-ish — NBA tracking's catch-and-shoot definition is a 0-dribble
+    // jumper released within ~2s of the touch; the sim's decision cadence
+    // (intervalSec ≈ 0.66, jittered) makes 0.9s the equivalent "rise
+    // immediately off the catch" window. Was an inline 0.9 in decide.ts;
+    // promoted here when the quick-touch window started gating the
+    // cut_finish/putback taxonomy (a make-model input, so it belongs on the
+    // calibration surface per this file's house rule).
+    quickCatchSec: 0.9,
     // THE MOST IMPORTANT NUMBER IN THE ENGINE.
     // Expected points of "keep working this possession" with a full shot
     // clock ≈ 1.45. Every shot decision is a comparison against this: shoot
@@ -635,6 +953,29 @@ export const defaultParams: SimParams = {
     // Expected-points bonus for attacking before the defense is set. Drives
     // fast-break points; too high and teams never walk it up. SWEPT.
     transitionBonus: 0.05,
+    // The live-ball break premium: a steal catches the defense mid-offense —
+    // facing the wrong way, cross-matched, floor balance gone — which is a
+    // categorically better break than the push off a defensive rebound (the
+    // retreat is already downhill-facing). REAL: transition off steals runs
+    // ~1.2-1.3 PPP vs ~1.05-1.1 off rebounds, and the sim's measured gap
+    // was exactly here — after a steal the clock-only continuation reset to
+    // its MAXIMUM (~1.47), the thief's rim look priced at uShoot ≈ -0.41
+    // (P(shoot) 14.8%/decision), and steal->score-in-6s ran 12-17% vs the
+    // real 29.3% (flow-reference.json). Sized by 12-game probes on two seed
+    // bases: 0.35 lands conversion at 27.9/29.3% with league FGA at the
+    // taxonomy-fix level (~no pace cost) and assisted share slightly BELOW
+    // its pre-branch level. Probed-and-rejected shapes, for the record
+    // (wave2/shotmix): a state-aware CONTINUATION cut scaled by
+    // defenders-back (the diagnostic's preferred design) fed the window to
+    // hit-ahead passes league-wide (assisted share +4-10pp over a band it
+    // already exceeded, conversion saturated ~20-24%) — and when
+    // steal-gated, its headcount scaling faded exactly as defenders got
+    // back DURING the push, gutting per-attempt quality at the finish; a
+    // GLOBAL flat raise (transitionBonus 0.3) hit conversion but repriced
+    // every dreb push (+13% league FGA). Flat-through-the-phase,
+    // steal-gated won on conversion AND every side metric. FEEL
+    // (probe-verified, awaits the coordinated re-sweep).
+    stealBreakBonus: 0.35,
     // Drive commitment window: how long a drive decision keeps the ball-handler
     // heading at the rim before re-evaluation. Used in BOTH game.ts
     // (executeAction's drive branch) and passing.ts (DHO turn-the-corner grant),
@@ -684,6 +1025,11 @@ export const defaultParams: SimParams = {
     // of perimeterD. Approximately the paint distance where rim protection
     // begins to matter more than perimeter footwork. FEEL.
     nearRimFt: 14,  // FEEL — interior-vs-perimeter role-defense boundary, ft
+    // Dribble accounting for the assist window: while the holder moves faster
+    // than dribbleSpeedFtS, every dribbleSec of it counts as one dribble.
+    // FEEL — were inline literals in game.ts tickLive.
+    dribbleSpeedFtS: 3.5,
+    dribbleSec: 0.55,
     // Stillness-as-default: within the deadband of the computed spot an
     // off-ball player (either side) holds position instead of micro-chasing
     // a drifting target every tick. Texture forensics found 8.67 ft/s
@@ -728,7 +1074,16 @@ export const defaultParams: SimParams = {
     // incident). Transition now ends when the DEFENSE IS SET (4+ defenders
     // inside 30 ft of their rim — arrival-based, like the advance flip);
     // this cap is the chaos-state safety net only. FEEL.
-    transitionMaxSec: 7
+    transitionMaxSec: 7,
+    // "The defense is set" — the shared arrival definition (was inline in
+    // game.ts's phase flip; promoted when the decision layer started
+    // reading the same measure for the transition continuation cut and the
+    // defender-aware projected drive contest — resolve.ts defendersBack).
+    // 4 of 5 back is a set defense (one trailer is normal); 30 ft covers
+    // the arc plus a step — a defender beyond it cannot influence the
+    // first action at the rim. FEEL.
+    transSetBackCount: 4,
+    transBackRadiusFt: 30
   },
 
   fatigue: {
@@ -754,11 +1109,101 @@ export const defaultParams: SimParams = {
     // numbers ARE the rotation pattern: ~8-9 man rotations, starters ~30-34
     // minutes. FEEL, validated by the archetype minutes test.
     tiredThreshold: 62,
+    // FEEL — a reserve is pulled 12 energy points earlier than a starter
+    // (shorter leash, deeper bench rotation). Was inline in subs.ts checkSubs.
+    benchTiredBonus: 12,
     // FEEL — minutes-aware rotation: 10% behind a coach's minutes target buys
     // ~6 energy points of extra leash, capped so nobody plays to collapse
     rotationLeashScale: 60,
     rotationLeashMax: 14,
-    readyThreshold: 88
+    readyThreshold: 88,
+    // FEEL — rotation-controller gates, were inline in subs.ts checkSubs. A
+    // behind-pace targeted player returns eagerly (ready bar relieved by 8,
+    // pace < 0.97); an ahead-pace one is held back even when rested
+    // (pace > 1.08). 0.97/1.08 bracket the target from both sides so minutes
+    // settle at ~target (0.92 gate produced 33 of 36; these two tightened it).
+    readyReliefBonus: 8,
+    eagerReturnPace: 0.97,
+    aheadHoldPace: 1.08,
+    // FEEL — crunch time: the final scheduled period (or OT), inside 5:00,
+    // within 10 points; coaches ride starters who can still stand (energy
+    // > 35) regardless of the normal fatigue read. Were inline in checkSubs.
+    crunchClockSec: 300,
+    crunchMarginPts: 10,
+    crunchEnergyMin: 35
+  },
+
+  endgame: {
+    // Concept-6 defaults are all FEEL — hand-set from real endgame texture
+    // (clutch FT share ~35%+, milked possessions releasing at ~5-8 s of shot
+    // clock, the ~0:30 foul point) and verified by the flow harness probe,
+    // NOT swept: the flag ships OFF, so no band constrains these yet. The
+    // basketball meaning of each is on its interface doc above.
+    scale: 1,
+    // a leading team starts protecting the ball inside ~2:30; the ramp means
+    // the full milk only shows in the final minute
+    leadHoldClockSec: 150,
+    // +50% continuation ≈ 2.2 expected points of "just keep it" at full ramp
+    // — above any shot the engine generates, so the holder waits for the
+    // urgency window (the boost itself fades inside urgencySec, see
+    // concepts.ts, so late-clock offense still fires and violations don't spike)
+    leadHoldMaxBoost: 0.5,
+    // full clock-kill up ~8, none by up ~16 — a 3-possession Q4 lead is
+    // managed, a 16-point one is garbage time
+    leadHoldMarginRef: 8,
+    // the chase starts inside ~3:00 and ramps toward the horn
+    hurryClockSec: 180,
+    // -45% continuation at full desperation drops the bar to ~0.8 expected
+    // points — any decent look fires immediately (possessions of 4-8 s)
+    hurryMaxCut: 0.45,
+    // down two scores (6) is the fully-urgent chase
+    hurryDeficitRef: 6,
+    // a one-point deficit still carries 40% of full chase depth
+    hurryDepthFloor: 0.4,
+    // past ~a third of full urgency, the walk-up becomes a push
+    hurrySprintMin: 0.3,
+    // ~12 s per chase possession-pair; 1.6 net points recoverable per chance
+    // (score ~2.2, opponent answers ~0.6 through the foul game)
+    chasePossSec: 12,
+    chaseMaxPtsPerPoss: 1.6,
+    chaseFadePts: 6,
+    // shot clock (24) + an inbound beat: inside 26 s the opponent cannot get
+    // a full possession back if you hold
+    holdForOneClockSec: 26,
+    holdForOneBoost: 0.5,
+    lastShotDeficitMax: 3,
+    // the classic 2-for-1 release window
+    twoForOneMinClockSec: 28,
+    twoForOneMaxClockSec: 38,
+    // worth ~0.6 points of shot-quality concession at the window's center —
+    // roughly half an average possession, the real trade being made (probed
+    // at 0.3 the window's shot rate barely moved over flag-off: the tent
+    // shape means the AVERAGE cut across the window is about half the peak,
+    // and half of 0.3 didn't clear the continuation bar often enough)
+    twoForOneCut: 0.45,
+    // fouling starts at min(35 s, one full shot clock per possession needed)
+    foulTrailMaxClockSec: 35,
+    foulMinDeficit: 3,
+    foulMaxDeficit: 12,
+    foulMinShotClock: 5,
+    // 0.0165/s base × 55 ≈ 0.9/s within grab range — the foul lands ~1-1.5 s
+    // after the defender reaches the holder (real fouls-to-give cadence)
+    foulHuntRateMult: 55,
+    foulHuntStripShare: 0.12,
+    foulHuntReachDistFt: 6,
+    foulHuntGapFt: 1.5,
+    // stop-the-run threshold: 10-0 is the canonical "timeout, regroup".
+    // Probed at 8 the coaches got chatty — 4.3 run timeouts/game combined,
+    // a panic button; at 10 it's ~1/game, the real once-or-twice cadence
+    timeoutRunPts: 10,
+    // advance timeouts live inside the final ~0:45 of a close game
+    timeoutAdvanceClockSec: 45,
+    timeoutAdvanceDeficitMax: 8,
+    // 8 s of wall-clock huddle: reads as a real stoppage in the replay
+    // without recording a 75 s empty gym
+    timeoutResumeSec: 8,
+    // hashmark inbound: possession starts ~28 ft from the attacked rim
+    timeoutAdvanceSpotFt: 28
   },
 
   ai: {
@@ -795,15 +1240,35 @@ export const defaultParams: SimParams = {
     relocDeniedRatePerTick: 0.014,
     relocateDriftFt: 4,
     relocDurationSec: 1.6,
+    // Spacing spots get a small seeded jitter each possession (uniform
+    // ±spotJitterFt per axis, rolled once in assignSpots) so five players
+    // don't occupy five bit-identical coordinates every trip. The Turing
+    // baseline's judges caught the artifact directly: every top-of-arc three
+    // logged at exactly 26 ft, every dunker-spot finish at the same 4-5 ft
+    // (data/nba/flow-reference.json meta.turingBaseline). Real halfcourt
+    // spots are ZONES a player re-picks each trip, not points — ±2 ft keeps
+    // a "26 ft" three varying across ~24-28 ft without moving anyone to a
+    // different basketball spot. Two guards keep jitter from CHANGING the
+    // spots' basketball meaning (see offense.ts rollSpots): corners jitter
+    // along the baseline only (lateral pinned exactly at the template's
+    // inside-the-line offset — the D3 decision must not be silently
+    // reversed OR shortened into easier junk 2s), and top/wing spots keep
+    // spotJitterArcMarginFt of clearance behind the arc (a spacing shooter
+    // never deliberately stands on the line; unguarded jitter minted 23-ft
+    // catch-and-shoot twos and nudged assisted share over its band edge).
+    // FEEL — sized to the tell, small vs every spacing constant that reads
+    // positions (defGapBaseFt 5.0, contestRadiusFt 6.5).
+    spotJitterFt: 2.0,
+    spotJitterArcMarginFt: 0.5,
     zoneTendBias: 0.22,
     pullUpBias: 0.18,
     threeApptScale: 0.35,
     tacticsThreeScale: 0.18,
     contestBrakeAt: 0.35,
-    contestBrakeBase: 0.3,
+    contestBrakeBase: 0.3158,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
-    holdHalfcourt: 0.043,
+    holdHalfcourt: 0.0312,
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
@@ -814,11 +1279,11 @@ export const defaultParams: SimParams = {
     driveTendScale: 0.42,
     laneCrowdPenalty: 0.1,
     driveFlat: -0.05,
-    driveTransitionMult: 1.2,
+    driveTransitionMult: 1.1198,
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
     cutterBonus: 0.5,
-    swingBase: 0.045,
+    swingBase: 0.0341,
     swingPassOutScale: 0.16,
     swingVisionScale: 0.12,
     // FEEL — re-initiation pull: full-clock EV of feeding a teammate 100
@@ -863,6 +1328,7 @@ export const defaultParams: SimParams = {
     // 0.42 ≈ defense will ignore him on the perimeter; he's more useful as a
     // lob/putback threat at the baseline. FEEL.
     dunkerGravityThreshold: 0.42, // FEEL — gravity boundary for dunker-spot assignment
+
     // Crash eligibility: offensive player must be within crashNearFt of the rim
     // to be considered for a crash. Approximately the paint edge. FEEL.
     crashNearFt: 22,            // FEEL — max crash-eligible distance from rim, ft
@@ -912,12 +1378,28 @@ export const defaultParams: SimParams = {
     // is still his man; small enough that a full rotation resets assignment.
     // Distinct from onBallRadiusFt (who counts as "on the ball").
     assignLeashFt: 16,
-    // REAL — NBA scorekeeping credits a pass leading to a score through
-    // roughly two seconds / two dribbles of a "direct scoring move"; at
-    // 1.6s/1 dribble the engine's assisted-FGM share ran 46% vs the NBA's
-    // ~58% (Stage 2 measurement)
+    // REAL — NBA scorekeeping credits a pass only when it leads to a DIRECT
+    // SCORING MOVE, and the allowance is not uniform across the floor: a
+    // catch-and-rise jumper is the passer's shot, while the same catch
+    // followed by dribbles into a pull-up is the SHOOTER's shot. Interior
+    // finishes get one extra beat because the gather/drop-step off a feed
+    // is still the pass's basket.
+    //
+    // Measured against six real 2025-26 games (parsed play-by-play, same
+    // definitions): real assisted share by zone is three 87% / rim 51% /
+    // paint 46% / mid 32%. Under the old uniform 2-dribble allowance the
+    // engine credited three 97% / rim 66% / mid 57% — it was crediting
+    // SELF-CREATED shots, which is exactly what a "direct scoring move"
+    // rule exists to exclude, and it put league assisted share at 63-65%
+    // against the 54-62% band (debt D1) while inflating star assist totals
+    // past their real identities.
     assistWindowSec: 2.0,
-    assistMaxDribbles: 2,
+    /** perimeter/jumper allowance: the catch-and-rise is the pass's shot;
+     *  put it on the floor first and it becomes the shooter's */
+    assistMaxDribbles: 0,
+    /** interior (rim/paint) allowance: one gather/drop-step dribble off a
+     *  feed still reads as the pass's basket to a real scorekeeper */
+    assistMaxDribblesInterior: 1,
     // FEEL — base action-call rate; raised from 0.022 when usage-rank gating
     // landed so league screen volume held (redistribution, not reduction)
     pnrRatePerTick: 0.03,
@@ -936,6 +1418,72 @@ export const defaultParams: SimParams = {
     // to zero at contest 0.5, arc only); the make model already favors the
     // catch rhythm, this makes the DECISION match it
     catchShootBonus: 0.18,
+    // FEEL — the drilled in-between game (ai/concepts.ts decisiveness, mid
+    // flavor): the elbow/FT-line jumper a mid-range scorer rises into when
+    // the defense CONCEDES it (drop coverage, the under, the sag off a
+    // non-three big). Deliberately a decision-layer term, not a make-model
+    // buff: the shot IS lower-EV than a three (real mid-range runs ~0.85
+    // PPS vs ~1.08 for threes) and the sim prices that honestly — an elite
+    // open 16-ft pull-up (EV ~1.03) trails the continuation value (>=1.18)
+    // until the 5 s urgency window, so pre-fix the shot was NEVER argmax
+    // (instrumented: 0 of 780 decisions at 17-20 ft). Real players take it
+    // anyway because it is their identity shot and the defense offers it
+    // all game; that is exactly what a drilled-behavior term models. Sized
+    // to the measured gap: at full green light (tendency 75+) and full
+    // openness the term is worth ~0.35-0.5 expected points — enough to make
+    // an elite mid-range identity fire mid-clock — while fixture-level
+    // identities (shotMid 34-44) get a scaled fraction and fire in the
+    // 5-10 s window, matching the late-clock skew of real mid attempts.
+    midRangeBonus: 0.7,
+    // REAL — 19.5 ft: the analytic boundary between the mid-range game and
+    // the long 2 (the 14-19.5 ft band is the real-corpus reference: ~6.8%
+    // of NBA FGA). The green light stops here on purpose: the 20-23 ft
+    // toe-on-the-line two is the shot modern offenses REMOVED — no coach
+    // drills it, so the decisiveness term must not resurrect it (ungated,
+    // the term would also amplify the corner-spot junk 2 at ~21.6 ft that
+    // D3 deliberately left inside the line — see geometry/court.ts). Long
+    // 2s still occur under late-clock urgency, which is what they are.
+    midGreenMaxFt: 19.5,
+    // FEEL — the worked pop's payoff shot, same doctrine as postShotBonus
+    // (0.552): a big who screened, popped to the elbow, and took the
+    // throwback is IN his drilled shot — rising is the plan, and the
+    // identity check already happened at pop assignment (only a screener
+    // whose mid-pop score clears pnrMidPopScoreCut is ever stationed at
+    // the elbow), so the bonus is flat rather than tendency-scaled — the
+    // exact postShotBonus precedent (the post tendency gates the CALL,
+    // not the worked shot). Still contest-gated: a defender who recovers
+    // to the pop erases it and the popper swings instead. Without this
+    // term the pop was a passing station — the elbow catch lost to
+    // hold/re-swing (instrumented: 276 of 314 mid-band ball-handler
+    // decisions were argmax=hold).
+    midPopShotBonus: 0.75,
+    // REAL(ish) — the mid green light's contest ceiling, deliberately WIDER
+    // than the arc catch-and-shoot gate's 0.5: the mid-range game lives in
+    // front of DROP coverage, so its habitat reads as contest ~0.3-0.45 in
+    // this engine's contest model (a drop big 3-5 ft away, in the picture
+    // but conceding the rise). NBA tracking classifies most mid attempts
+    // as "tight" (defender 2-4 ft) — requiring arc-style openness selected
+    // away the shot's actual context and the probe showed the term firing
+    // almost exclusively on rare 0.0-contest catches. The make model still
+    // charges the contest honestly (contestCoef); this ceiling only widens
+    // which looks a mid-range IDENTITY is willing to take. Above it, the
+    // contestBrake's judgment stands: that is a bad shot for anyone.
+    midContestCeil: 0.65,
+    // FEEL — the snake stop-short (game.ts drive commit): at FULL
+    // midPullUpLight roughly a third of a mid-range artist's drives attack
+    // to the pull-up spot instead of the rim; scaled by the light, the
+    // benchScorer-shaped fixture (light 0.57) snakes about one drive in
+    // five, and everyone without the joint light never does. Kept well
+    // under 1.0 on purpose: the rim drive must stay the default or the
+    // player stops pressuring the basket and the defense stops dropping —
+    // which is the very coverage that makes the middy available.
+    driveMidStopChance: 0.4,
+    // REAL — 16 ft: the canonical pull-up spot, a step behind the
+    // free-throw line's 13.75 ft rim distance and the center of the
+    // 14-19.5 ft real-mid band. Matches the elbow spot's radial distance
+    // (geometry/court.ts) so the snake and the station describe the same
+    // piece of floor.
+    driveMidStopFt: 16,
     pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
     pnrStunOverSec: 0.65,
@@ -943,11 +1491,64 @@ export const defaultParams: SimParams = {
     pnrUnderSagFt: 3.5,
     pnrUnderBase: 0.8,
     pnrRollGravityCut: 0.52,
+    // The PnR short pop (the mid-range half of SUPPLY — a player who is
+    // never AT 16 ft can never shoot from 16 ft; pre-fix no spacing spot or
+    // action ever stationed anyone in the 14-20 ft band):
+    //   pnrMidPopScoreCut — a low-gravity screener whose mid-pop score
+    //     (midGreenLight × midRange/100, ai/shared.ts) clears this pops to
+    //     the ELBOW instead of rolling: the classic mid-pop big (the
+    //     Aldridge/Horford-shaped screen partner). FEEL — 0.1 requires a
+    //     real mid appetite (shotMid ≥ ~32) AND a credible jumper
+    //     (midRange ~70+ at that appetite): the postAnchor fixture (34/74,
+    //     score 0.13) pops; rimRunner (5/28, score 0) and benchBig (6/30,
+    //     score 0) can never pop — their defender parks in the paint and
+    //     an elbow catch would be the defense's win, exactly the shot the
+    //     green-light floor already refuses them.
+    //   pnrMidPopChance — an eligible big still mixes in rolls (his rim
+    //     dives keep the drop defender honest; a 100% pop diet would be
+    //     scoutable and would starve his lob/putback game). FEEL — just
+    //     under half his screens end in the short pop.
+    pnrMidPopScoreCut: 0.1,
+    pnrMidPopChance: 0.55,
+    // FEEL — the throwback: the handler comes off the screen reading the
+    // big. The ROLL half of that read was already priced (the roll is a
+    // cut, so the pocket pass earns cutterBonus 0.5); the POP half had no
+    // designed feed at all, so the popped big stood unused. 0.3 sits
+    // between postEntryBonus (0.22) and the cutter/handoff feeds (0.5):
+    // the throwback is a real designed outlet but the counter-read, not
+    // the primary rim-bound one. Gated to the popper standing AT his spot
+    // while the action lives (arrival check, same shape as entryTarget).
+    pnrPopFeedBonus: 0.3,
+    // FEEL — mid-pop bigs are PREMIER screening partners in real offenses
+    // (the defense must pick a poison: drop concedes the pop, hedge frees
+    // the roll), so the screener score gives the mid-pop score a seat.
+    // Gravity-gated to gravity < pnrRollGravityCut — an arc-popping or
+    // high-gravity screener gains nothing (his pop already goes to the
+    // wing), which keeps guards/wings from suddenly out-screening centers.
+    // At 1.5, a postAnchor-shaped PF (mid-pop score 0.13) closes most of a
+    // rim-running center's structural screener-score edge and takes a real
+    // share of the screens; a rim-runner (score 0) is unaffected.
+    screenerMidPopWeight: 1.5,
     pnrDropDepthFt: 11,
     pnrDriveBonus: 0.2,
     pnrMinShotClock: 8,
     pnrWaitBoost: 0.3,
     pnrMaxScreenDistFt: 26,
+    // FEEL — action-SELECTION scoring weights (actionTick), all previously
+    // inline literals. These pick WHICH teammate screens/posts/receives a
+    // DHO; they shape who-does-what outcomes, so they belong on the sweep
+    // surface even though no acceptance band targets them directly.
+    screenerGravityWeight: 1.5,
+    screenerHeightBaseIn: 70,
+    screenerHeightDiv: 28,
+    screenerStrengthDiv: 400,
+    screenerTravelDiv: 40,
+    posterTendOffset: 40,
+    posterScoreBase: 0.6,
+    posterStrengthDiv: 300,
+    posterFinishingDiv: 500,
+    dhoRecvGravityWeight: 0.65,
+    dhoRecvMotionWeight: 0.35,
     // FEEL — post/iso action weights and windows; the post score is carried by
     // tend.post so a team without a post threat simply never rolls it
     postCallShare: 1.875,
@@ -1010,12 +1611,25 @@ export function withParams(overrides?: DeepPartial<SimParams>): SimParams {
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
-function deepMerge(base: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+function deepMerge(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+  path = ''
+): Record<string, unknown> {
   for (const key of Object.keys(patch)) {
+    // Unknown keys fail loudly. TypeScript already rejects typos for typed
+    // callers, but sweep/solve/era-pack overrides are built dynamically at
+    // runtime — a typo'd path there used to be silently merged in and then
+    // read by nothing, so the "experiment" measured the unmodified engine
+    // while reporting the knob as applied. Same fail-loud doctrine as
+    // simulateGame's rating validation.
+    if (!(key in base)) {
+      throw new Error(`withParams: unknown SimParams key "${path}${key}" — not a field of defaultParams (typo?)`);
+    }
     const b = base[key];
     const p = patch[key];
     if (b && p && typeof b === 'object' && typeof p === 'object' && !Array.isArray(b) && !Array.isArray(p)) {
-      deepMerge(b as Record<string, unknown>, p as Record<string, unknown>);
+      deepMerge(b as Record<string, unknown>, p as Record<string, unknown>, `${path}${key}.`);
     } else if (p !== undefined) {
       base[key] = p;
     }

@@ -12,3 +12,5 @@ export { TemplateColorProvider } from './provider.js';
 export type { CommentaryProvider, CommentaryWindow, ColorLine } from './provider.js';
 export { buildBroadcastScript, formatScript } from './broadcast.js';
 export type { BroadcastCue } from './broadcast.js';
+export { shotCall, distPhrase } from './shotcall.js';
+export type { ShotCall, ShotLike, ShooterTraits } from './shotcall.js';

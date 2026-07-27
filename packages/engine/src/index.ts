@@ -15,12 +15,13 @@ export type {
   TurnoverKind, FoulKind, PossessionOutcome,
   ShotEvent, PassEvent, ReboundEvent, TurnoverEvent, FoulEvent,
   FreeThrowEvent, SubstitutionEvent, PossessionStartEvent, PossessionEndEvent,
-  GameStartEvent, GameEndEvent, PeriodStartEvent, PeriodEndEvent, TipOffEvent
+  GameStartEvent, GameEndEvent, PeriodStartEvent, PeriodEndEvent, TipOffEvent,
+  TimeoutEvent
 } from './core/events.js';
 
 // rules & court
-export { NBA, NCAA, EUROLEAGUE } from './rules/rulepack.js';
-export type { RulePack, ThreePointGeometry } from './rules/rulepack.js';
+export { NBA, NCAA, EUROLEAGUE, bonusFreeThrowAward } from './rules/rulepack.js';
+export type { RulePack, ThreePointGeometry, BonusAward } from './rules/rulepack.js';
 export { makeCourt, classifyShot, spacingSpots } from './geometry/court.js';
 export type { Court, ShotLocation } from './geometry/court.js';
 

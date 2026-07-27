@@ -7,8 +7,9 @@
 import { clamp } from '../../core/rng.js';
 import { dist, lerp, norm, scale, sub, add, type V2 } from '../../core/vec.js';
 import type { TeamSide } from '../../core/events.js';
-import { agent, attackedRim, onCourt, other, type Agent, type GameState } from '../state.js';
-import { gravity } from '../resolve.js';
+import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
+import { gravity, midRespect } from '../resolve.js';
+import { foulHuntSide } from '../endgame.js';
 
 /** assign man matchups: sort both lineups by size and pair them */
 export function assignMatchups(s: GameState, defSide: TeamSide): void {
@@ -16,7 +17,7 @@ export function assignMatchups(s: GameState, defSide: TeamSide): void {
   // lineup has fouled out (legal with short rosters), play on rather than
   // index into an empty list — `o[...]!` crashed here in the audit fixture
   const pick = (side: TeamSide) => {
-    const live = onCourt(s, side).filter((a) => !a.fouledOut);
+    const live = liveOnCourt(s, side);
     return live.length > 0 ? live : onCourt(s, side);
   };
   const defenders = pick(defSide);
@@ -64,14 +65,25 @@ export function defenseTick(s: GameState): void {
     holder !== null && gravity(s, holder) > A.denyGravityCut &&
     dist(holder.pos, rim) > A.blitzBeyondFt;
   const helper = pickHelper(s, defSide, rim, holder, blitz, helpAggr);
+  // ENDGAME LAYER: a trailing defense hunting an intentional foul
+  // (sim/endgame.ts) presses the ball — the on-ball defender abandons his
+  // containment cushion and closes to grab range so the loaded reach-in
+  // roll in passing.ts can actually connect. Flag off, never active.
+  const hunting = s.endgame && foulHuntSide(s) === defSide;
 
-  for (const d of onCourt(s, defSide)) {
-    if (d.fouledOut) continue;
+  for (const d of liveOnCourt(s, defSide)) {
     d.intent = 'defend';
     d.sprinting = false;
     const man = d.manId ? agent(s, d.manId) : null;
     if (!man) { d.target = lerp(rim, s.ball.pos, 0.4); continue; }
 
+    if (hunting && holder && man.p.id === holder.p.id) {
+      // chase the ball for the grab: cushion collapses to foulHuntGapFt
+      // (body-to-body, inside the loaded reach range), full sprint urgency
+      d.target = add(holder.pos, scale(norm(sub(rim, holder.pos)), s.params.endgame.foulHuntGapFt));
+      d.sprinting = true;
+      continue;
+    }
     if (helper && d.p.id === helper.p.id && holder) { positionHelper(s, d, holder, rim, blitz); continue; }
     if (holder && dropCoverage(s, d, man, holder, rim)) continue;
     if (holder && man.p.id === holder.p.id) { containOnBall(s, d, holder, rim); continue; }
@@ -99,8 +111,8 @@ function pickHelper(
   // nearest weak-side defender whose man has the least gravity
   let helper: Agent | null = null;
   let bestScore = Infinity;
-  for (const d of onCourt(s, defSide)) {
-    if (d.fouledOut || !d.manId || d.manId === holder.p.id) continue;
+  for (const d of liveOnCourt(s, defSide)) {
+    if (!d.manId || d.manId === holder.p.id) continue;
     // Pick the helper: closest to the rim, but STRONGLY penalized for
     // leaving a shooter (gravity × 26 ft-equivalent). This is the real
     // help-defense dilemma — you rotate off the worst shooter, and elite
@@ -111,7 +123,13 @@ function pickHelper(
     // reluctance), dropping to ceil−1 at helpAggr=1.0 — full aggression
     // still avoids leaving elite shooters open but rotates off of
     // average-gravity players much more willingly.
-    const score = dist(d.pos, rim) + gravity(s, man) * A.helperGravityWeight * (A.helperGravityCeil - helpAggr);
+    // ...respect is the max of the three-point threat and the live mid
+    // threat (midRespect — position-aware): helping off a mid big standing
+    // AT the elbow concedes his drilled 16-footer, and pre-fix he was
+    // always the first man chosen to rotate (lowest gravity near the rim),
+    // which made the stationed elbow a free outlet on every drive.
+    const respect = Math.max(gravity(s, man), midRespect(s, man));
+    const score = dist(d.pos, rim) + respect * A.helperGravityWeight * (A.helperGravityCeil - helpAggr);
     if (score < bestScore) { bestScore = score; helper = d; }
   }
   return helper;
@@ -179,7 +197,13 @@ function containOnBall(s: GameState, d: Agent, holder: Agent, rim: V2): void {
  */
 function positionOffBall(s: GameState, d: Agent, man: Agent, rim: V2, helpAggr: number): void {
   const A = s.params.ai;
-  const g = gravity(s, man);
+  // Respect what the man can hit FROM WHERE HE STANDS: the three-point
+  // threat everywhere (gravity), or the live mid-range threat when he is
+  // stationed inside jumper range (midRespect — the elbow big). Without the
+  // mid half, his defender sagged 6+ ft off the elbow and every catch there
+  // was a free 16-footer; guarding it honestly also pulls that defender out
+  // of the paint, which is the spacing pressure the mid game really exerts.
+  const g = Math.max(gravity(s, man), midRespect(s, man));
   // DENIAL: an all-time shooter doesn't get guarded, he gets denied — above
   // the gravity threshold the defender shades onto the man-BALL line (top-
   // lock) to take the catch away instead of protecting the drive line.
