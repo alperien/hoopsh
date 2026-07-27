@@ -118,6 +118,28 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
     expect(total).toBeGreaterThanOrEqual(3);
   });
 
+  it('the advance timeout belongs to the TRAILING team — never the leader', () => {
+    // maybeTimeout's advance trigger requires the caller's margin < 0: the
+    // point of burning a timeout to advance the ball is that the TRAILING
+    // team buys its chase possession a frontcourt start. A sign flip hands
+    // the mechanic to the winning team and every budget/countdown assertion
+    // above stays green (mutation probe) — so pin the side here. Timeout
+    // events don't move the score, so the stamped margin IS the margin
+    // maybeTimeout decided on.
+    let advances = 0;
+    for (const r of on) {
+      for (const to of timeouts(r)) {
+        if (to.reason !== 'advance') continue;
+        advances++;
+        expect(marginFor(to, to.team)).toBeLessThan(0);
+      }
+    }
+    // existence floor so the loop above can never pass vacuously — probed:
+    // 15 advance timeouts across this pool (same well-under-probed
+    // convention as the header documents)
+    expect(advances).toBeGreaterThanOrEqual(1);
+  });
+
   it('timeouts fold into the box score (no consumer drops the event)', () => {
     for (const r of on) {
       const box = boxScore(r.events, r.teams);

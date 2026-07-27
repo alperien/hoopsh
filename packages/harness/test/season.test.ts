@@ -166,6 +166,30 @@ describe('standings arithmetic', () => {
     }
   });
 
+  it('is RANKED best-first: winPct desc, diff desc, id asc — who is FIRST', () => {
+    // The one thing a standings table IS. Every other test in this block is
+    // order-agnostic arithmetic (sums, splits, reconciliation), so an
+    // inverted sort — worst team first — used to survive the whole suite
+    // (mutation probe, season.ts computeStandings comparator). This pins the
+    // documented contract "sorted standings (win pct desc, diff desc, id)".
+    expect(standings[0]!.winPct).toBe(Math.max(...standings.map((s) => s.winPct)));
+    // 4 teams x 3 games each: Σwins = 6 cannot split evenly across 4 teams,
+    // so this fixture always has a real best-vs-worst gap — the ordering
+    // checks below can never go vacuous on an all-tied table
+    expect(standings[0]!.winPct).toBeGreaterThan(standings[standings.length - 1]!.winPct);
+    for (let i = 1; i < standings.length; i++) {
+      const hi = standings[i - 1]!;
+      const lo = standings[i]!;
+      expect(hi.winPct).toBeGreaterThanOrEqual(lo.winPct);
+      if (hi.winPct === lo.winPct) {
+        expect(hi.diff).toBeGreaterThanOrEqual(lo.diff); // fixture exercises this tier: two 2-1 teams, two 1-2 teams
+        if (hi.diff === lo.diff) {
+          expect(hi.teamId < lo.teamId).toBe(true); // byte-stable total order on exact ties
+        }
+      }
+    }
+  });
+
   it('is order-insensitive: shuffled outcomes fold to identical standings', () => {
     const shuffled = [...seasonA.outcomes].reverse();
     const teamIds = LEAGUE.map((t) => t.id);
