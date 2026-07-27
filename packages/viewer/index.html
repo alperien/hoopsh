@@ -233,6 +233,21 @@ else {
 
 /* ================= viewer ================= */
 function boot(R) {
+  /* ---- format version gate ---- */
+  // Replay.version (engine replay/replay.ts — version history lives there).
+  // This viewer understands formats 1 and 2. A replay declaring a NEWER
+  // version still renders — best effort beats a blank page — but must say
+  // so visibly: silently mis-rendering a shape this file predates is the
+  // failure AGENTS.md DO-NOT #8 exists to prevent (v1 viewers drew
+  // "rebound undefined" from v2's playerless team rebounds).
+  const KNOWN_REPLAY_VERSION = 2; // newest format this viewer was written against
+  if (typeof R.version === 'number' && R.version > KNOWN_REPLAY_VERSION) {
+    const warn = document.createElement('div');
+    warn.textContent = `replay version ${R.version} is newer than this viewer — rendering may be incomplete`;
+    warn.style.cssText = 'flex:0 0 auto;padding:4px 10px;text-align:center;font-size:12px;background:#3a2a10;color:var(--accent);border-bottom:1px solid var(--line)';
+    document.body.prepend(warn);
+  }
+
   /* ---- meta ---- */
   const rules = R.rules;
   const L = rules.courtLengthFt, W = rules.courtWidthFt;
