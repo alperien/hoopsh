@@ -140,8 +140,8 @@ describe('roster:validate error enrichment', () => {
     const explained = issues.map((i) => explainIssue(pack, i) as any);
     expect(explained.length).toBe(issues.length);
     for (let i = 0; i < issues.length; i++) {
-      expect(explained[i].path).toBe(issues[i].path);
-      expect(explained[i].message).toBe(issues[i].message);
+      expect(explained[i].path).toBe(issues[i]!.path);
+      expect(explained[i].message).toBe(issues[i]!.message);
     }
   });
 

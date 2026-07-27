@@ -15,7 +15,8 @@ import { computeWarnings } from '../../../tools/roster-validate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const doc = readFileSync(path.join(ROOT, 'docs', 'ROSTERS.md'), 'utf8');
-const jsonBlocks = [...doc.matchAll(/```json\n([\s\S]*?)\n```/g)].map((m) => m[1]);
+// group 1 is unconditional in the pattern, so it exists in every match
+const jsonBlocks = [...doc.matchAll(/```json\n([\s\S]*?)\n```/g)].map((m) => m[1]!);
 
 describe('docs/ROSTERS.md examples', () => {
   it('every ```json fence parses (elided snippets must use ```jsonc)', () => {

@@ -123,9 +123,9 @@ describe('season determinism', () => {
   });
 
   it('buildTasks is loud on schedules that reference unknown teams', () => {
-    expect(() => buildTasks(LEAGUE, [{ home: 'ghost', away: LEAGUE[0].id }], 's'))
+    expect(() => buildTasks(LEAGUE, [{ home: 'ghost', away: LEAGUE[0]!.id }], 's'))
       .toThrow(/unknown home team "ghost"/);
-    expect(() => buildTasks(LEAGUE, [{ home: LEAGUE[0].id, away: LEAGUE[0].id }], 's'))
+    expect(() => buildTasks(LEAGUE, [{ home: LEAGUE[0]!.id, away: LEAGUE[0]!.id }], 's'))
       .toThrow(/cannot play itself/);
   });
 });
@@ -184,7 +184,7 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
   const mkTotals = (side: 0 | 1, teamId: string, pts: number): TeamTotals => ({
     side, teamId, pts, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
     orb: 0, drb: 0, trb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0,
-    poss: 0, fastbreakPts: 0
+    poss: 0, fastbreakPts: 0, timeouts: 0
   });
 
   it('outcomes may arrive in ANY order; runSeason re-sorts before folding', async () => {
@@ -343,14 +343,14 @@ describe('league generation fixtures', () => {
       expect(twin.players.some((p) => p.id === s)).toBe(true);
     }
     // same ratings, different identity
-    expect(twin.players[0].attr).toEqual(src.players[0].attr);
+    expect(twin.players[0]!.attr).toEqual(src.players[0]!.attr);
   });
 
   it('scaleTeam shifts every attribute, clamped to [1, 99]', () => {
     const src = cascadiaBreakers();
     const up = scaleTeam(src, 8, 'up');
-    const p0 = src.players[0];
-    const q0 = up.players[0];
+    const p0 = src.players[0]!;
+    const q0 = up.players[0]!;
     for (const k of Object.keys(p0.attr) as (keyof typeof p0.attr)[]) {
       expect(q0.attr[k]).toBe(Math.min(99, Math.max(1, Math.round(p0.attr[k] + 8))));
     }
