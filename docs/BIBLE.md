@@ -1,13 +1,13 @@
 <!-- ============================================================
   GENERATED FILE — DO NOT EDIT.
-  This is the hoopsh Bible: all seven source documents compiled in canonical
+  This is the hoopsh Bible: all eight source documents compiled in canonical
   reading order. Edit the sources, then regenerate: npm run docs:bible
-  Sources (in order): README.md · ARCHITECTURE.md · docs/INTERNALS.md · AGENTS.md · docs/PLAYBOOK.md · docs/ROSTERS.md · docs/ONBOARDING.md
+  Sources (in order): README.md · ARCHITECTURE.md · docs/INTERNALS.md · AGENTS.md · docs/PLAYBOOK.md · docs/ROSTERS.md · docs/SEASON.md · docs/ONBOARDING.md
 ============================================================ -->
 
 # 📖 The hoopsh Bible — everything, one file
 
-> Generated from the seven source documents. If this file and a source document
+> Generated from the eight source documents. If this file and a source document
 > disagree, the source is right and this file is stale — regenerate it.
 
 ## Contents
@@ -17,7 +17,8 @@
 4. **AGENTS.md**
 5. **docs/PLAYBOOK.md**
 6. **docs/ROSTERS.md**
-7. **docs/ONBOARDING.md**
+7. **docs/SEASON.md**
+8. **docs/ONBOARDING.md**
 
 
 
@@ -33,9 +34,11 @@
 Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
 closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
 resolve through **probability models fed by spatial context, calibrated against
-author-recalled NBA ranges** — honesty note: the acceptance targets are currently
-authored from memory, not generated from sourced data; grounding them in citable
-data (and fitting to distributions, not means) is the active roadmap arc. Games
+author-recalled NBA ranges** — honesty note: the acceptance BANDS are still
+authored from memory, not generated from sourced data (the game-flow references
+in `data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games);
+grounding the bands in citable data (and fitting to distributions, not means)
+remains the active roadmap arc. Games
 follow basketball rules and season-scale statistics fall inside those ranges. Every point
 in a box score traces back to a simulated shot at an (x, y) location — a
 2D probability model with position as an input, not a physics sim (there is
@@ -65,6 +68,9 @@ npm run broadcast                # two-voice broadcast script for a game
 npm run roster:new               # scaffold your own team from archetypes (wizard)
 npm run roster:validate -- t.json  # human-grade pack linting: fixes + plausibility warnings
 npm run sim -- --home t.json     # ...and watch your team play (docs/ROSTERS.md is the guide)
+
+npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
+npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
 ```
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
@@ -160,22 +166,32 @@ Run it yourself: `npm run batch -- --games 50`.
 **Done:** replay viewer · broadcast demo · automated parameter sweep ·
 orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
 usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
-invariant suite · full documentation campaign (contributor covenant, onboarding path)
+invariant suite · full documentation campaign (contributor covenant, onboarding path) ·
+real-game corpus (184 parsed NBA games) grounding the flow references ·
+worker-pool parallel runner (determinism across worker counts tested) ·
+roster tooling (schema gen, scaffold wizard, validator, stats→ratings fitter) ·
+stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
+endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
+burn) implemented flag-gated, default OFF pending its calibration decision ·
+NCAA rule pack behind the harness `--league` flag (partially wired — see
+REFACTOR.md's register)
 
-**Phase 2R (current — tuning, not building):** the actions above are implemented and
-wired; the open work is calibrating their volumes (e.g. hub post-up share) · dump-off
-reads · fidelity harness + inverse solver · Curry/LeBron/Jokić profiles validated
-against real-life stat ranges.
+**Phase 2R (current — tuning, not building):** the mechanics above are implemented
+and wired; the open work is calibration and verification — the coordinated
+re-sweep of the integrated engine, the endgame-flag decision, fidelity residuals
+(hub post-up share), and the open items in REFACTOR.md's register.
 
-**Next (validation arc):** measured noise floor for every gate · mechanism audit of
-the distributional misses · game-state coupling (trailing-team urgency, tempo kill,
-crunch time) · sourced NBA data in-repo with provenance, bands/targets generated
-not typed · distribution-level fitting with a held-out season the solver never sees.
+**Next (validation arc):** mechanism audit of the distributional misses ·
+30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
+windows) · prediction backtest (Brier, calibration curves) via the season layer ·
+sourced NBA data in-repo with provenance, bands/targets generated not typed ·
+distribution-level fitting with a held-out season the solver never sees.
 
-**Beyond:** season layer (schedules, fatigue across games, injuries) · progression &
-aging · NCAA + EuroLeague rule-pack tuning · era packs (1995 vs 2015 shot diets) ·
-deep player editor UI · GM & MyPlayer experiences · defensive schemes ·
-broadcast TTS audio · WASM hot path if the perf budget ever demands it.
+**Beyond:** cross-game season state (fatigue carryover, injuries — the seams are
+documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack +
+NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor UI ·
+GM & MyPlayer experiences · defensive schemes · broadcast TTS audio · WASM hot
+path if the perf budget ever demands it.
 
 ## License
 
@@ -254,7 +270,9 @@ packages/
   stats/       event stream → box scores, advanced stats, shot charts
   data/        player/team JSON schemas, validation, sample fictional rosters
   narration/   template play-by-play + LLM color-commentary interfaces
-  harness/     batch runner, acceptance bands, benchmarks, calibration tools
+  harness/     batch runner, acceptance bands, benchmarks, calibration tools,
+               season/matchup driver, stats→ratings fitter (docs/SEASON.md,
+               docs/ROSTERS.md)
   viewer/      single-file 2D canvas replay viewer (working prototype; frozen)
 ```
 
@@ -276,7 +294,11 @@ engine only through its public API: `simulateGame(config) → GameResult` (`{ se
 `RulePack` is data, not code: period count/length, OT length, shot clock (+ offensive
 rebound reset), team-foul bonus thresholds, personal foul-out limit, three-point
 geometry (arc radius, corner distance, corner break), court dimensions, clock-stopping
-rules. NBA ships first; NCAA/EuroLeague are follow-ups. Custom leagues are just JSON.
+rules. NBA ships first. An NCAA pack exists and is selectable through the
+harness `--league` flag (rule pack + bands + pace basis travel together);
+its rule coverage is partial — unwired fields are labeled in
+`rules/rulepack.ts` and registered in REFACTOR.md. EuroLeague is a
+follow-up. Custom leagues are just JSON.
 
 ### 4.3 Player model
 
@@ -323,6 +345,10 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   charges (rare). Team-foul bonus and foul-outs from the rule pack. FT sequences.
 - Live-ball turnovers and defensive rebounds trigger transition: if the defense isn't
   set, early-offense quality bonuses apply. Fast-break points emerge.
+- Endgame management (timeouts, intentional fouling, hold-for-last, two-for-one,
+  clock burn) exists as a flag-gated layer (`GameConfig.endgame`, default OFF)
+  that modulates the same EV framework rather than scripting plays; turning it
+  on by default is an open calibration decision (REFACTOR.md register).
 
 ### 4.7 Event stream & replay
 
@@ -378,9 +404,11 @@ Consumes the event stream; never touches the engine.
 
 ## 8. Roadmap after v0.1
 
-season layer (schedules, rotations, fatigue across games, injuries) → progression/aging
-→ NCAA + EuroLeague rule packs → era packs → deep editor UI → GM & MyPlayer experiences
-→ defensive schemes → broadcast audio → possible WASM core.
+cross-game season state (the stateless season driver exists — docs/SEASON.md
+records the seams; fatigue carryover, injuries, home-court are the missing
+pieces) → progression/aging → EuroLeague rule pack + NCAA calibration → era
+packs → deep editor UI → GM & MyPlayer experiences → defensive schemes →
+broadcast audio → possible WASM core.
 
 
 ---
@@ -432,10 +460,12 @@ event `wt` key on it). Do not mix them.
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
 | `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
 | `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
+| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one) | decision bias terms, late-clock behavior |
 | `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
 | `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
+| `sim/endgame.ts` | flag-gated endgame layer (`GameConfig.endgame`, default OFF): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
@@ -448,8 +478,30 @@ event `wt` key on it). Do not mix them.
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (schemas,
-validation, archetypes, sample packs), `narration/` (frozen demo layer),
-`harness/` (batch runner, bands, sweep, fidelity benchmarks, inverse solver), `packages/viewer/` (prototype).
+validation, archetypes, sample packs), `narration/` (template PBP + broadcast
+scripts; `shotcall.ts` classifies which basketball NAME an attempt gets —
+layup/dunk/hook/tip-in/jump shot — from ShotEvent data alone),
+`packages/viewer/` (frozen prototype).
+
+Harness map — `packages/harness/src/` (measurement and tooling; rows for the
+modules an agent is likely to be pointed at):
+
+| File | Owns |
+|---|---|
+| `bands.ts` + `cli.ts` | the NBA acceptance bands (count them HERE, per AGENTS §4.4) + the gated batch runner |
+| `sweep.ts` / `knobs.ts` / `solve.ts` | parameter search over SimParams (margin objective) |
+| `noisefloor.ts` / `calreport.ts` | measured noise floor (40 bases → `noise-floor.gen.ts`); n40 center positions vs band edges |
+| `fidelity.ts` | star-fixture identity gates (Curry/LeBron/Jokić profiles) |
+| `texture.ts` | frame-level feel forensics: speeds, stillness, ping-pong passing |
+| `flow.ts` + `flow-metrics.ts` | game-arc forensics + event grammar (CLI/report + doctrine in flow.ts; pure metric library in flow-metrics.ts) |
+| `turing.ts` | blind PBP discrimination protocol vs real bbref logs |
+| `oos.ts` | out-of-sample generated-roster bands + the distributional report |
+| `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
+| `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
+| `parallel.ts` | worker-pool game runner; determinism across worker counts is the acceptance test |
+| `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
+| `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
+| `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
 
 Roster-authoring tooling (`tools/gen-schema.mjs`, `roster-new.mjs`,
 `roster-validate.mjs` — `npm run schema:gen` / `roster:new` / `roster:validate`)
@@ -830,8 +882,10 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 | What consumers can see | `core/events.ts` (the contract) + `replay/` |
 | What a rating means physically | `model/derived.ts` (curves) |
 | League rules | `rules/rulepack.ts` (data, not code) |
+| Late-game management (flag-gated, default OFF) | `sim/endgame.ts` + concept 6 in `sim/ai/concepts.ts` |
 | Stat math | `stats/` — pure event folding |
 | Realism measurement / tuning | `harness/` |
+| Multi-game runs (seasons, matchup Monte-Carlo) | `harness/` season layer — see `docs/SEASON.md` |
 | Editable content | `data/` (packs, archetypes, validation) |
 
 Full map with per-file detail: `docs/INTERNALS.md`.
@@ -1496,6 +1550,236 @@ canonical breakage, and the warning heuristics must stay silent on every
 known-good roster. If you add a rating to the engine, the suite will walk you
 through every surface that needs to hear about it — including this doc's
 companion hover text, which regenerates for free.
+
+
+---
+---
+
+<!-- ================= SOURCE: docs/SEASON.md ================= -->
+
+# SEASON.md — the season layer
+
+The multi-game substrate on top of the single-game engine: schedules,
+deterministic season driving, standings, and a Monte-Carlo matchup API.
+Everything here is **harness-layer** (`packages/harness/src/season.ts`,
+`matchup.ts`, `league.ts`); the engine is consumed strictly through its
+public API and was not modified.
+
+```
+npm run season -- --teams 8 --seed 2026            # double round-robin, standings table
+npm run season -- --teams 8 --rounds 1             # single round-robin
+npm run season -- --teams 8 --games 40             # cap/extend the schedule
+npm run season -- --teams 4 --seed proof --json    # byte-stable JSON (pipe to sha256sum)
+npm run season -- --matchup 0,3 --sims 200         # Monte-Carlo one fixture
+```
+
+## API
+
+- **`roundRobin(teamIds, rounds=2)`** → `ScheduledGame[]` (`{home, away, date?}`).
+  Circle method; odd league sizes get a bye per round. Venue assignment keeps
+  every team's single-cycle |home − away| ≤ 1 (≤ 2 with byes), and odd cycles
+  mirror even ones so a double round-robin gives every pair exactly one game
+  in each building. `date` is the round label `"r<k>"`; games sharing a label
+  share no team (see "parallelism" below for why that matters).
+- **`runSeason({teams, schedule?, seedBase?, simulate?, onGame?})`** →
+  `{schedule, outcomes, standings}`. Accepts any explicit fixture list (a
+  real league's schedule imports as `{home, away, date}` rows) or defaults to
+  a double round-robin.
+- **`computeStandings(outcomes, teamIds?)`** — pure fold, exported separately
+  so standings can be recomputed from stored outcomes without re-simulating.
+- **`simulateMatchup(home, away, n, opts?)`** → `MatchupDistribution` (below).
+- **`makeLeague(n, seed)`** — deterministic fictional league for the CLI and
+  tests; `scaleTeam` / `cloneTeamWithIds` build "same team but stronger" and
+  "team vs itself" fixtures. These are tooling, NOT calibration rosters — the
+  two `@hoopsh/data` teams keep that job.
+
+## Determinism
+
+A season is a pure function of `(seedBase, schedule, rosters)`. Game `i`
+against the schedule gets seed `gameSeed(base, i, homeId, awayId)` =
+`` `${base}:g${i}:${away}@${home}` `` — schedule position is in the seed, so
+same seed base ⇒ the same season, byte for byte; and because the matchup ids
+are in the seed too, editing unrelated schedule entries doesn't perturb games
+that didn't move. Proof (run it yourself — the two hashes match, the third
+differs):
+
+```
+$ npm run season --silent -- --teams 4 --rounds 1 --seed proof --json | sha256sum
+c43ad6f0d1405fb64281844732e9631323a788b71b257cd35c4913fd6cc67131
+$ npm run season --silent -- --teams 4 --rounds 1 --seed proof --json | sha256sum
+c43ad6f0d1405fb64281844732e9631323a788b71b257cd35c4913fd6cc67131
+$ npm run season --silent -- --teams 4 --rounds 1 --seed other --json | sha256sum
+4b26463a9f8f2784edc9dc09e188b08c2834f18ec81fe1081dbf6b5a009e96b5
+```
+
+## Standings definitions (so nobody re-derives them differently)
+
+- **W/L, venue splits, point differential**: integer sums; league-wide
+  Σdiff = 0 exactly and ΣW = ΣL = games played (tested).
+- **Ties cannot happen**: the engine plays overtime until decided
+  (`possession.ts#endPeriod`); the standings fold throws on a tied score
+  rather than inventing a rule.
+- **Season averages**: counting stats are per-game means; ratio stats
+  (FG%/3P%/FT%) are **volume-weighted** (Σmakes/Σattempts), matching
+  `aggregate.ts`'s convention — never a mean of per-game percentages.
+- **SOS**: plain opponents' winning percentage (OWP) — the mean of opponents'
+  *final* win% over the team's games, with multiplicity. It does NOT exclude
+  games against the team itself from opponents' records, and does not recurse
+  into opponents' opponents (RPI-style OOWP). Cheap, standard, and good
+  enough to flag unbalanced schedules; upgrade when a consumer needs it.
+- **Sort order**: win% desc → point diff desc → team id (a total order, so
+  standings are byte-stable even among tied teams).
+
+## Monte-Carlo matchups (`simulateMatchup`)
+
+Returns a **distribution**, not a game: win probability with a **Wilson 95%
+CI**, margin mean/median/sample-sd, percentiles (p5/p25/p50/p75/p95), a
+binned margin histogram, and per-player stat-line distributions
+(min/pts/trb/ast, each with mean/sd/p10/p50/p90). Margins are from the home
+team's perspective; ties are impossible, so `P(margin > 0)` *is* the win
+probability.
+
+**CI math.** Wilson score interval:
+`center = (p̂ + z²/2n)/(1 + z²/n)`, `half = z·√(p̂(1−p̂)/n + z²/4n²)/(1 + z²/n)`,
+z = 1.96. Chosen over the naive Wald interval because lopsided matchups push
+p̂ toward 0/1, exactly where Wald's coverage collapses and its bounds leave
+[0, 1].
+
+**n-sensitivity — how many sims to resolve an edge?** The one-sample binomial
+power calculation (`simsToResolveEdge`, 95% confidence / 80% power, two-sided
+vs p₀ = 0.5):
+
+| true p | sims needed |
+|-------:|------------:|
+| 0.52   | ~4,895 |
+| 0.55   | **~783** |
+| 0.60   | ~194 |
+| 0.70   | ~47 |
+
+Equivalently by CI width (worst case p = 0.5, half-width ≈ 0.98/√n):
+n = 100 → ±9.8 pp, n = 400 → ±4.9 pp, n = 1600 → ±2.5 pp. **A 55%-vs-50%
+edge costs ~783 sims ≈ 4–5 wall-clock minutes single-process at the measured
+game cost below** — this is the honest price of small edges, and it is why
+the API always reports the CI instead of a bare point estimate.
+
+Measured sanity points (n = 30, seeds pinned in the tests):
+
+- identical rosters (team vs its re-id'd clone): p̂ = 0.467,
+  CI [0.302, 0.639] — contains 0.5; mean margin −0.5.
+- every attribute +8 vs −8: p̂ = 0.867, CI [0.703, 0.947]; mean margin +19.8.
+- equal-team margin sd ≈ **16.4 points** — noticeably above the real NBA's
+  ~13–14 for even matchups. Consequence for prediction: the engine maps a
+  given true skill gap to a win probability closer to 50% than reality would
+  (more game-level noise ⇒ flatter prob curve). Recheck this number after any
+  calibration change.
+
+## Measured cost (2-core shared box, Node 24 type-stripping, single process)
+
+| what | measured |
+|------|---------|
+| one game (calibration rosters) | mean 389 ms, median 345 ms |
+| one game (generated league) | mean 317 ms, median 294 ms |
+| 30-game double round-robin (6 teams) | ~10 s |
+| **1230-game NBA-scale season** | **~6.5–8 min (estimated — do not run casually)** |
+| 783-sim matchup (resolve 55/50) | ~4–5 min (estimated) |
+| 1000 × full-season Monte-Carlo | ~110–130 h single-core — **needs the parallel runner** |
+
+## Parallelism: a seam, deliberately not an implementation
+
+`wave1/runner` owns worker-pool parallelism. This layer *pre-shapes* the work
+for it and does nothing else:
+
+- `runSeason`/`simulateMatchup` build the **complete task list up front**
+  (`GameTask[]` — each task carries its seed and both full rosters, closing
+  over no season state) and pass it to one `SimulateGames` function:
+  `(tasks, onOutcome?) => GameOutcome[] | Promise<GameOutcome[]>`.
+- The default is a sequential in-process loop (`simulateTasksSequential`).
+  A worker pool drops in by implementing the same signature.
+- **Completion order cannot matter**: callers re-sort outcomes by
+  `task.index` before computing anything, and the standings fold is
+  order-insensitive (tested with a mock seam that completes games in reverse).
+- A seam returning the wrong number of outcomes fails loudly.
+
+## THE DECISION: cross-game state is deliberately absent
+
+**Today's model treats every game as strictly independent.** Rosters,
+ratings, tendencies, and tactics are identical in game 82 and game 1; the
+engine's within-game fatigue resets at the final horn. This is a decision,
+not an oversight — it keeps the season layer embarrassingly parallel and
+keeps prediction error attributable to the engine rather than to a
+half-built carryover model. Nothing below is implemented; this section
+records where each piece would attach and what its absence costs.
+
+### What is stateless today
+
+| real-world effect | status |
+|---|---|
+| home-court advantage | **not modeled at all** (engine is side-symmetric by design; `run.ts --mirror` exists to verify it stays that way) |
+| fatigue carryover / back-to-backs | not modeled (fatigue exists within a game, resets between) |
+| injuries | not modeled (rosters immortal) |
+| rest days / travel | not modeled (`ScheduledGame.date` is carried but unread) |
+| form / momentum / lineup changes | not modeled |
+
+### The seams where cross-game state would attach
+
+1. **Schedule metadata** — `ScheduledGame.date` already flows untouched into
+   `GameTask.date` and `GameOutcome.date`. Rest days and travel legs are
+   derivable from real dates here; the round labels `roundRobin` emits
+   (`"r<k>"`) already partition the schedule into no-shared-team waves.
+2. **Task construction (`buildTasks`)** — the single choke point where
+   rosters enter tasks. A carryover model is a function
+   `(team, seasonContextSoFar) => Team` applied per game here: fatigue as an
+   attribute/stamina debuff, injuries as roster/starter edits. The engine
+   needs no change — it already takes any `Team`.
+3. **Per-game params** — `GameConfig.params` (unused by `simulateTask`
+   today) is the hook for game-level modifiers that aren't roster edits,
+   e.g. a tired-legs shooting penalty.
+4. **Outcome feedback** — `GameOutcome.players[].min` already carries the
+   per-game minutes an injury/fatigue state machine would consume; the fold
+   in `computeStandings` stays pure either way.
+
+### The cost that must be paid when state arrives
+
+Independence is what lets a worker pool run all 1230 tasks concurrently.
+Cross-game state creates a dependency chain per team: game g of team T needs
+the outcomes of T's earlier games. The schedule's round structure is the
+escape hatch — games within a round share no team, so the parallel runner
+would process **round-by-round waves** (≈ n/2 games wide) instead of one flat
+batch. That is a scheduling change in the runner, not a rewrite of this
+layer: tasks would be built per-wave instead of all up front, through the
+same `SimulateGames` signature.
+
+### What statelessness costs in prediction accuracy (be honest with consumers)
+
+- **No home-court advantage is the largest systematic bias.** Real NBA home
+  teams win ~55–60% of games (≈ +2.5–3 pts); this layer predicts 50/50 for
+  equal teams regardless of venue. Any real-world consumer must add HCA
+  exogenously today, or every home-team prediction is ~5–10 pp too low.
+- **Rest/B2B/travel** effects are worth ~1–2 pts of margin in real data;
+  back-to-back-aware bettors systematically beat rest-blind models.
+- **Injuries** dominate season-total error in real backtests — a star's
+  20-game absence swings win totals by several games; an immortal-roster
+  model cannot see it. For the planned simulated-vs-real season backtest,
+  expect this to be the single biggest residual.
+- **Correlation structure**: with independent games, a simulated team's win
+  total is a sum of independent Bernoullis (variance ≤ 82·¼). Real season
+  outcomes are positively correlated within a team (injury regimes, trades,
+  tanking), so real win totals have FATTER tails — our season-total
+  distributions will be over-confident even if per-game probabilities are
+  perfect.
+- **Engine-level margin noise** (sd ≈ 16.4 vs ~13–14 real) flattens the
+  skill→win-probability curve, on top of the effects above.
+
+## Limitations (recap)
+
+- Home/away in `simulateMatchup` is positional, not an advantage (see above).
+- Generated leagues (`makeLeague`) are NOT calibrated; realism bands apply to
+  the two `@hoopsh/data` rosters only.
+- SOS is plain OWP (no self-exclusion, no OOWP recursion).
+- `--games` beyond one round-robin cycle tiles additional cycles and slices,
+  so a capped schedule can leave pair-counts unequal — fine for smoke runs,
+  not for fairness-sensitive experiments.
+- Everything is single-process until `wave1/runner` lands behind the seam.
 
 
 ---

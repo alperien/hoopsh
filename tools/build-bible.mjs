@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // canonical reading order: what → why → where → law → procedure →
-// content-authoring → curriculum
+// content-authoring → consumer-layer reference → curriculum
 const SOURCES = [
   'README.md',
   'ARCHITECTURE.md',
@@ -22,6 +22,7 @@ const SOURCES = [
   'AGENTS.md',
   'docs/PLAYBOOK.md',
   'docs/ROSTERS.md',
+  'docs/SEASON.md',
   'docs/ONBOARDING.md'
 ];
 

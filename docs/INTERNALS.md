@@ -42,10 +42,12 @@ event `wt` key on it). Do not mix them.
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
 | `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
 | `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
+| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one) | decision bias terms, late-clock behavior |
 | `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
 | `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
+| `sim/endgame.ts` | flag-gated endgame layer (`GameConfig.endgame`, default OFF): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
@@ -58,8 +60,30 @@ event `wt` key on it). Do not mix them.
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (schemas,
-validation, archetypes, sample packs), `narration/` (frozen demo layer),
-`harness/` (batch runner, bands, sweep, fidelity benchmarks, inverse solver), `packages/viewer/` (prototype).
+validation, archetypes, sample packs), `narration/` (template PBP + broadcast
+scripts; `shotcall.ts` classifies which basketball NAME an attempt gets —
+layup/dunk/hook/tip-in/jump shot — from ShotEvent data alone),
+`packages/viewer/` (frozen prototype).
+
+Harness map — `packages/harness/src/` (measurement and tooling; rows for the
+modules an agent is likely to be pointed at):
+
+| File | Owns |
+|---|---|
+| `bands.ts` + `cli.ts` | the NBA acceptance bands (count them HERE, per AGENTS §4.4) + the gated batch runner |
+| `sweep.ts` / `knobs.ts` / `solve.ts` | parameter search over SimParams (margin objective) |
+| `noisefloor.ts` / `calreport.ts` | measured noise floor (40 bases → `noise-floor.gen.ts`); n40 center positions vs band edges |
+| `fidelity.ts` | star-fixture identity gates (Curry/LeBron/Jokić profiles) |
+| `texture.ts` | frame-level feel forensics: speeds, stillness, ping-pong passing |
+| `flow.ts` + `flow-metrics.ts` | game-arc forensics + event grammar (CLI/report + doctrine in flow.ts; pure metric library in flow-metrics.ts) |
+| `turing.ts` | blind PBP discrimination protocol vs real bbref logs |
+| `oos.ts` | out-of-sample generated-roster bands + the distributional report |
+| `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
+| `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
+| `parallel.ts` | worker-pool game runner; determinism across worker counts is the acceptance test |
+| `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
+| `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
+| `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
 
 Roster-authoring tooling (`tools/gen-schema.mjs`, `roster-new.mjs`,
 `roster-validate.mjs` — `npm run schema:gen` / `roster:new` / `roster:validate`)
