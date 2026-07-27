@@ -612,6 +612,7 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
     miss): 58.3% at batch-24, 57.7% at oos-60, n40 center 59.0% ±0.2se —
     inside, +2.1σ from the 62% ceiling. The wave-2 shot-mix work closed
     it; the fouls miss above took its place as the one batch-24 FAIL.
+- **RESOLVED by the arrival-based drive commit (speed-fix cluster)**: the
   ORtg unreachability and the friction floors were ONE mechanism short —
   drives with a fixed commit window expired mid-lane (picks equal to the
   old engine, FINISHES collapsed 4.7→1.35/game), and with them went the
@@ -624,7 +625,7 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
   Successor systematic finding at the time: ASSISTED SHARE ~0.65 vs the
   0.62 ceiling, repeating on all three seed bases — the drive-and-kick era
   converted collapses into assisted makes. Since RESOLVED by the wave-2
-  shot-mix work (see the current-state block below: 59.0% ±0.2se n40
+  shot-mix work (see the CURRENT STATE block above: 59.0% ±0.2se n40
   center, inside). The hub's post volume remains under his identity floor
   (jokic post shots 1.18 vs the 1.8 identity floor, 10.6se out at n40 —
   the largest fidelity residual on the board).
