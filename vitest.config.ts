@@ -1,3 +1,11 @@
+// TYPECHECK vs RUNTIME for this import: `npm run typecheck` resolves
+// 'vitest/config' via tsconfig paths to the type-only stub
+// tools/shims/vitest-config.d.ts (the zero-install environment has no real
+// vitest). `npm run test:vitest` is unaffected — vitest loads this config
+// with its own transpiler and node_modules resolution, where tsconfig paths
+// do not apply, so the REAL 'vitest/config' is what executes here. Using a
+// config option beyond the stub's subset means widening the stub in the same
+// change (see its header).
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 

@@ -18,7 +18,24 @@
       "@hoopsh/engine": ["packages/engine/src/index.ts"],
       "@hoopsh/stats": ["packages/stats/src/index.ts"],
       "@hoopsh/data": ["packages/data/src/index.ts"],
-      "@hoopsh/narration": ["packages/narration/src/index.ts"]
+      "@hoopsh/narration": ["packages/narration/src/index.ts"],
+      // 'vitest' typechecks against the node:test-backed shim INTENTIONALLY —
+      // even in CI, where a real vitest is installed. Under `npm test` the
+      // runtime resolver (tools/hooks.mjs, branch 1) loads tools/shims/vitest.ts
+      // in place of the package, so the shim IS what executes: this mapping
+      // makes the suites typecheck against the types that actually run.
+      // Nothing is lost for real-vitest users: `npm run test:vitest` strips
+      // types without checking them, and the shim's API is a compatible subset
+      // of vitest's, so shim-clean suites run unchanged against the real thing.
+      // A matcher the shim lacks is added to the SHIM (see its header), never
+      // worked around in a test.
+      "vitest": ["tools/shims/vitest.ts"],
+      // Type-only stub for vitest.config.ts (the shim doesn't cover the
+      // config-authoring API). Runtime-safe: vitest loads its config file with
+      // its own transpiler and node_modules resolution — tsconfig paths do not
+      // apply there — so `npm run test:vitest` still gets the real
+      // 'vitest/config'. See tools/shims/vitest-config.d.ts.
+      "vitest/config": ["tools/shims/vitest-config.d.ts"]
     }
   },
   "include": ["packages/*/src/**/*", "packages/*/test/**/*", "tools/**/*.ts", "vitest.config.ts"]
