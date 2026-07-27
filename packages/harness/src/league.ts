@@ -115,14 +115,18 @@ export function cloneTeamWithIds(team: Team, suffix: string): Team {
  * and the Monte-Carlo API to chew on.
  */
 export function makeLeagueTeam(k: number, seed: string, strengthSpread = 5): Team {
+  // Exported API: a negative or fractional k would otherwise surface as an
+  // opaque `undefined.toLowerCase` TypeError from the positional lookups
+  // below (JS % is signed). The guard also makes the `!` assertions honest.
+  if (!Number.isInteger(k) || k < 0) throw new Error(`makeLeagueTeam: need an integer k >= 0, got ${k}`);
   const rng = new Rng(`${seed}:team${k}`);
-  const city = CITIES[k % CITIES.length];
-  const nick = NICKNAMES[k % NICKNAMES.length];
+  const city = CITIES[k % CITIES.length]!;
+  const nick = NICKNAMES[k % NICKNAMES.length]!;
   const id = `lg${k}-${city.toLowerCase()}`;
   const delta = Math.round(rng.range(-strengthSpread, strengthSpread));
 
   const players: Player[] = SLOTS.map((slot, i) => {
-    const make = slot.pool[rng.int(slot.pool.length)];
+    const make = slot.pool[rng.int(slot.pool.length)]!; // Rng.int(n) is always in [0, n)
     const name = `${FIRST[rng.int(FIRST.length)]} ${LAST[rng.int(LAST.length)]}`;
     return scalePlayer(
       make({ id: `${id}-p${i}`, name, pos: slot.pos }),
