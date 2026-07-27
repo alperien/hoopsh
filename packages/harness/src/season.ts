@@ -85,8 +85,11 @@ export function roundRobin(teamIds: readonly string[], rounds = 2): ScheduledGam
       const ring = [slots[0], ...rot];
       const globalRound = cycle * roundsPerCycle + r;
       for (let k = 0; k < n / 2; k++) {
-        const a = ring[k];
-        const b = ring[n - 1 - k];
+        // ring has exactly n entries (the fixed slot + the n-1 rotating), so
+        // k and n-1-k are in bounds; undefined is a phantom of
+        // noUncheckedIndexedAccess, while null (the bye) is real.
+        const a = ring[k] as string | null;
+        const b = ring[n - 1 - k] as string | null;
         if (a === BYE || b === BYE) continue;
         // venue rule (empirically the best of the simple circle-method
         // assignments — see the doc comment): pivot game alternates by

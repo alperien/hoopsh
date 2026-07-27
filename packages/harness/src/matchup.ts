@@ -108,7 +108,8 @@ export function percentileSorted(sorted: readonly number[], q: number): number {
   const h = (sorted.length - 1) * q;
   const lo = Math.floor(h);
   const hi = Math.ceil(h);
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (h - lo);
+  // the guards above pin h to [0, length-1], so lo and hi are both in bounds
+  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (h - lo);
 }
 
 // ------------------------------------------------------------- the shape

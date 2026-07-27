@@ -90,7 +90,7 @@ export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinu
       const pts = e.score[0] - prev[0] + (e.score[1] - prev[1]);
       // regulation periods only, capped at the 4 report slots (a halves
       // league fills slots 1-2; OT points belong to no quarter profile)
-      if (e.period >= 1 && e.period <= FINAL && e.period <= 4) f.qPts[e.period - 1] += pts;
+      if (e.period >= 1 && e.period <= FINAL && e.period <= 4) f.qPts[e.period - 1]! += pts;
       // droughts (regulation only)
       if (e.t <= REG) {
         maxDrought[side] = Math.max(maxDrought[side], e.t - lastScoreT[side]);

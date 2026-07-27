@@ -135,7 +135,8 @@ async function matchupMode(): Promise<void> {
       `--matchup needs two team indices 0..${teams.length - 1} (e.g. --matchup 0,3), got "${matchupSpec}"`
     );
   }
-  const [home, away] = [teams[parts[0]], teams[parts[1]]];
+  // the guard above enforces exactly two integer indices in [0, teams.length)
+  const [home, away] = [teams[parts[0]!]!, teams[parts[1]!]!];
   if (home.id === away.id) throw new Error('--matchup: pick two different teams');
 
   if (!json) {
