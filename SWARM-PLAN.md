@@ -1,5 +1,9 @@
 # Swarm plan — pushing hoopsh toward IRL rosters + realistic flow
 
+> **STATUS (2026-07-27): historical record, kept as written.** Not a live task
+> list — delivered-vs-undone accounting and every open item live in
+> REFACTOR.md ("Open items — wave-2 audit").
+
 **Mission:** drive hoopsh hard toward the stated goals (author real NBA/NCAA rosters →
 get realistic stats AND realistic game flow) using a large agent swarm, under
 mandatory rigor.

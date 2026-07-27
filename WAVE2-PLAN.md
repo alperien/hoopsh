@@ -1,5 +1,9 @@
 # Wave 2 — integration, correction, and the second swarm
 
+> **STATUS (2026-07-27): historical record, kept as written.** Not a live task
+> list — Phases B.3/B.4, C (B3/B6/B7/B8), and D were not fully delivered; the
+> open remainder is registered in REFACTOR.md ("Open items — wave-2 audit").
+
 Wave 1 landed 9/9 agents. This plan covers (A) merging that work safely, (B) acting
 on the four corrections agents found in *my own* prior measurements, and (C) a
 second, wider swarm launched on top of the integrated base.

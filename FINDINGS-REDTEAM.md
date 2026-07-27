@@ -1,9 +1,10 @@
 # Wave-2 Red Team — final findings
 
-Target: merge state 554c7bb (wave-1 integration). Baseline `npm test`: 246 pass / 0 fail / 1 todo.
-Probe scripts in /tmp (probe-parallel, probe-kill, dump-game, probe-endgame-on, probe-eg-det,
-probe-corpus, probe-season, probe-packs, probe-goldens, probe-narr-default; run via
-`node --disable-warning=ExperimentalWarning --import ./tools/register.mjs /tmp/<script>.mjs`).
+Target: merge state 554c7bb (wave-1 integration). Baseline `npm test` at that state: 246 pass / 0 fail / 1 todo.
+Probe scripts are committed at `tools/redteam-probes/` (probe-parallel, probe-kill, dump-game,
+probe-endgame-on, probe-eg-det, probe-corpus, probe-season, probe-packs, probe-goldens,
+probe-narr-default; run via
+`node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/<script>.mjs`).
 
 **Bottom line: no CRITICAL or MAJOR findings. Every headline claim survived direct attack.
 Four MINOR findings + two notes.**
@@ -43,7 +44,9 @@ Repro: `npm run batch -- --games 0 --workers 3`.
 ### Notes (not defects)
 - Fitter accepts arithmetically impossible lines (60 ppg on 5 FGA + 2 FTA): emits a schema-valid
   pack, prints err 475 honestly — but the written artifact carries no fit-quality marker; a
-  pipeline ignoring stdout gets a "fitted" roster scoring ~8 ppg. Repro: /tmp/fitprobe/imp2.season.json.
+  pipeline ignoring stdout gets a "fitted" roster scoring ~8 ppg. Repro: feed `rosters:fit` a
+  season line of 60 ppg on 5 FGA + 2 FTA (the probe fixture was not committed; construct it
+  from that description).
 - NCAA claim-count: brief said "3 rulepack bugs"; README documents R1-R3 bugs + R4 (OT foul reset)
   + R5 inventory. R1 (bonusFreeThrows 2 inherited via ...NBA; NCAA is 1-and-1 from the 7th),
   R2 (keyWidthFt 16 inherited; NCAA 12, unwired) and R4 (endPeriod resets teamFoulsPeriod every
