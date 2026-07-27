@@ -1,8 +1,9 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-endgame-on.mjs
 // Probe 4: endgame ON + team rebounds + jitter, combined invariants.
-import { simulateGame } from '/agent/w2-redteam/packages/engine/src/index.ts';
-import { sampleMatchup } from '/agent/w2-redteam/packages/data/src/index.ts';
-import { boxScore } from '/agent/w2-redteam/packages/stats/src/index.ts';
-import { generatePlayByPlay, makeLookup, buildBroadcastScript, formatScript, TemplateColorProvider } from '/agent/w2-redteam/packages/narration/src/index.ts';
+import { simulateGame } from '../../packages/engine/src/index.ts';
+import { sampleMatchup } from '../../packages/data/src/index.ts';
+import { boxScore } from '../../packages/stats/src/index.ts';
+import { generatePlayByPlay, makeLookup, buildBroadcastScript, formatScript, TemplateColorProvider } from '../../packages/narration/src/index.ts';
 
 let fail = 0;
 const bad = (msg) => { fail++; console.log('  FAIL:', msg); };

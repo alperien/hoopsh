@@ -1,7 +1,8 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-packs.mjs   (writes pack fixtures to /tmp/fitprobe/)
 // Probe 8: packs that PASS validateTeamPack must not crash/stall simulateGame.
-import { loadTeamPack, toTeamPack, cascadiaBreakers } from '/agent/w2-redteam/packages/data/src/index.ts';
-import { simulateGame } from '/agent/w2-redteam/packages/engine/src/index.ts';
-import { writeFileSync } from 'node:fs';
+import { loadTeamPack, toTeamPack, cascadiaBreakers } from '../../packages/data/src/index.ts';
+import { simulateGame } from '../../packages/engine/src/index.ts';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const ATTRS = ['speed','accel','strength','vertical','lateral','stamina','finishing','midRange','three','freeThrow','drawFoul','ballHandle','passAcc','passVision','perimeterD','interiorD','steal','block','contestSkill','offReb','defReb','boxout','decisions','consistency'];
 const TENDS = ['shotRim','shotMid','shotThree','pullUp','drive','passOut','iso','post','offBallMotion','crashOffReb','gambleSteal','foulAggr','pushPace','usage'];
@@ -34,6 +35,7 @@ const variants = {
   pacezero:  mkTeam('pace0', {}, { tactics: { pace: 0, threeBias: 0, helpAggr: 0 } })
 };
 
+mkdirSync('/tmp/fitprobe', { recursive: true }); // scratch dir for the pack fixtures written below (does not ship)
 let fail = 0;
 for (const [name, team] of Object.entries(variants)) {
   const json = JSON.stringify(toTeamPack(team));

@@ -1,7 +1,8 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-season.mjs
 // Probe 6: season/Monte-Carlo layer.
-import { simulateMatchup } from '/agent/w2-redteam/packages/harness/src/matchup.ts';
-import { roundRobin, runSeason, computeStandings, buildTasks } from '/agent/w2-redteam/packages/harness/src/season.ts';
-import { sampleMatchup } from '/agent/w2-redteam/packages/data/src/index.ts';
+import { simulateMatchup } from '../../packages/harness/src/matchup.ts';
+import { roundRobin, runSeason, computeStandings, buildTasks } from '../../packages/harness/src/season.ts';
+import { sampleMatchup } from '../../packages/data/src/index.ts';
 
 const { home, away } = sampleMatchup();
 let fail = 0;
@@ -48,7 +49,7 @@ try {
 } catch (e) { console.log('tie loud:', e.message.slice(0, 70)); }
 
 // (f) tiny real season: 3 teams x 1 cycle = 3 games (each team 2 games, 1 bye round)
-import { cascadiaBreakers, meridianMonarchs } from '/agent/w2-redteam/packages/data/src/index.ts';
+import { cascadiaBreakers, meridianMonarchs } from '../../packages/data/src/index.ts';
 const t1 = cascadiaBreakers();
 const t2 = meridianMonarchs();
 const t3 = structuredClone(t1);

@@ -1,6 +1,8 @@
-import { simulateGame } from '/agent/w2-redteam/packages/engine/src/index.ts';
-import { sampleMatchup } from '/agent/w2-redteam/packages/data/src/index.ts';
-import { runGames } from '/agent/w2-redteam/packages/harness/src/parallel.ts';
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-eg-det.mjs
+// Probe 3: endgame determinism — same-seed rerun byte-identical, flowEndgame worker-count invariant.
+import { simulateGame } from '../../packages/engine/src/index.ts';
+import { sampleMatchup } from '../../packages/data/src/index.ts';
+import { runGames } from '../../packages/harness/src/parallel.ts';
 
 const go = () => {
   const { home, away } = sampleMatchup();

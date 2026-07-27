@@ -1,10 +1,11 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-goldens.mjs
 // Probe 9: do the re-baselined golden fingerprints match HEAD behavior? (8-seed subset)
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { simulateGame } from '/agent/w2-redteam/packages/engine/src/index.ts';
-import { sampleMatchup } from '/agent/w2-redteam/packages/data/src/index.ts';
+import { simulateGame } from '../../packages/engine/src/index.ts';
+import { sampleMatchup } from '../../packages/data/src/index.ts';
 
-const golden = JSON.parse(readFileSync('/agent/w2-redteam/packages/harness/golden/fingerprints.json', 'utf8'));
+const golden = JSON.parse(readFileSync(new URL('../../packages/harness/golden/fingerprints.json', import.meta.url), 'utf8'));
 const seeds = ['ci-fp', 'acceptance-0', 'golden-0', 'golden-1', 'golden-2', 'golden-3', 'golden-4', 'golden-5'];
 const allSeeds = ['ci-fp', 'acceptance-0', ...Array.from({ length: 22 }, (_, i) => `golden-${i}`)];
 const sha = (s) => createHash('sha256').update(s).digest('hex');

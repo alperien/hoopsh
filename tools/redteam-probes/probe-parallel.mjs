@@ -1,7 +1,8 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-parallel.mjs
 // Probe 1: worker-count invariance of the parallel runner.
 // Runs the SAME 7-game batch under several worker counts and compares the
 // JSON-serialized per-game results byte-for-byte.
-import { runGames } from '/agent/w2-redteam/packages/harness/src/parallel.ts';
+import { runGames } from '../../packages/harness/src/parallel.ts';
 
 const games = 7;
 const seedBase = 'redteam-p1';

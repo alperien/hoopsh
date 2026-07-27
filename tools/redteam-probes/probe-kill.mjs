@@ -1,6 +1,7 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-kill.mjs
 // Probe 2: failure policy. (a) worker that fails (bogus task reaches the
 // worker only when workers>1); (b) a SIGKILLed worker mid-run.
-import { runGames } from '/agent/w2-redteam/packages/harness/src/parallel.ts';
+import { runGames } from '../../packages/harness/src/parallel.ts';
 import { execSync } from 'node:child_process';
 
 // (a) bogus task with workers=2: parent doesn't pre-validate, workers throw

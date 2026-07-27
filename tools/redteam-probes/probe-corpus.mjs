@@ -1,8 +1,12 @@
+// Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-corpus.mjs
 // Probe 5: corpus integrity — shards vs pbp-corpus.json vs distributions vs flow-reference.json.
 // Uses parse-nba.mjs's OWN pure functions (extracted verbatim) so this tests the DATA, not my re-implementation.
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
-const R = '/agent/w2-redteam';
+// Repo root derived from this script's own location (tools/redteam-probes/), not from cwd.
+const R = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const src = readFileSync(`${R}/tools/parse-nba.mjs`, 'utf8');
 const grab = (start, end) => {
   const i = src.indexOf(start);
