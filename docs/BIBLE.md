@@ -492,7 +492,7 @@ the single source of truth it derives from.
 npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
-npm run bench    # ≥1 game/sec budget (typical ~6)
+npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote)
 ```
 
 `packages/engine/test/invariants.test.ts` permanently enforces what two adversarial
@@ -537,7 +537,29 @@ positions from `npm run calreport`, which quotes n40 grand-mean centers with
 standard errors — quoting a smaller nested window's mean as "the center" was
 an error the third review caught, twice, in our own write-up. The pre-texture
 FTA-low and 3P%-high residuals PASS after the texture re-tune):
-- **RESOLVED by the arrival-based drive commit (speed-fix cluster)**: the
+- **CURRENT STATE (measured 2026-07-27; single seed base where noted —
+  indicative per AGENTS §4.4; systematic claims corroborated by the
+  committed 40-base noise floor. Re-measure: `npm run batch -- --games 24`,
+  `npm run calreport`, `npm run oos`):**
+  - **Fouls band FAILS — branch-introduced.** batch-24 (single base): pf
+    23.7 vs band 16.0-22.5, +1.2 over the ceiling. Systematic, not draw
+    noise: the n40 grand-mean center is 22.69 ±0.08se — OUTSIDE the 22.5
+    ceiling (−2.4se) on the branch's own re-baselined 40-base floor
+    (generated 2026-07-26) — and oos-60 reads 23.3. `main` measures 21.7
+    (OK) on the same command/base: wave 2 traded the assisted-share miss
+    for a fouls miss. By §4.4's definition the tip is NOT locked; the fix
+    belongs to the coordinated re-sweep (REFACTOR.md register) or an
+    explicitly recorded exception.
+  - **Two more centers edge-unresolved (calreport, n40):** fga 92.07
+    ±0.11 vs the 92.0 ceiling (−0.6se, leaning outside) and ftPct 80.5%
+    ±0.1 sitting ON its 80.5% ceiling (−0.4se). The edge-set composition
+    changed vs the historical signature: fta hugs its floor; fga, tpPct,
+    ftPct, tov, and pf group at ceilings (calreport's own signature line:
+    read as one defect with a direction).
+  - **Assisted share RESOLVED** (formerly the long-standing structural
+    miss): 58.3% at batch-24, 57.7% at oos-60, n40 center 59.0% ±0.2se —
+    inside, +2.1σ from the 62% ceiling. The wave-2 shot-mix work closed
+    it; the fouls miss above took its place as the one batch-24 FAIL.
   ORtg unreachability and the friction floors were ONE mechanism short —
   drives with a fixed commit window expired mid-lane (picks equal to the
   old engine, FINISHES collapsed 4.7→1.35/game), and with them went the
@@ -547,73 +569,130 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
   now: advance flips at 36 ft, transition when 4+ defenders are back).
   Post-fix at 40-game verify: ORtg ~116-118 mid-band (from 121-on-ceiling
   then 124-126 during the cluster), steals and turnovers back in band.
-  Successor systematic finding: ASSISTED SHARE ~0.65 vs the 0.62 ceiling,
-  repeating on all three seed bases — the drive-and-kick era converts
-  collapses into assisted makes; unassisted-creation economy (post, iso)
-  was boosted (postCallShare 1.875, isoCallShare 0.91) but the hub's post
-  volume remains under his identity floor. Open item with a named cause.
-- **THE FRICTION SIGNATURE (historical — resolved above)** (the review computed it from our own table; the
-  calreport now emits it): friction/volume statistics pin near band FLOORS
-  (pace edge-unresolved at +1.5se, trb/stl/blk/tov hugging at ~1σ gate
-  distance, fta/orbPct at ~2σ) while accuracy/efficiency statistics pin near
-  CEILINGS (ORtg edge-unresolved at +0.6se, 3P% hugging, FG%/FT%/assisted
-  share at ~1.6-1.9σ). Read as ONE defect with a direction: the sim plays
-  frictionless, hyper-efficient basketball at slightly few possessions.
-  Prime mechanical suspect: movement speed (6.55 ft/s vs NBA ~4.2) feeding
-  every spatial computation. **Speed-pin experiment (run 2026-07-26,
-  reviewer-designed): all speeds × 0.64 ≈ NBA-equivalent, every shot/contest
+  Successor systematic finding at the time: ASSISTED SHARE ~0.65 vs the
+  0.62 ceiling, repeating on all three seed bases — the drive-and-kick era
+  converted collapses into assisted makes. Since RESOLVED by the wave-2
+  shot-mix work (see the current-state block below: 59.0% ±0.2se n40
+  center, inside). The hub's post volume remains under his identity floor
+  (jokic post shots 1.18 vs the 1.8 identity floor, 10.6se out at n40 —
+  the largest fidelity residual on the board).
+- **THE FRICTION SIGNATURE (historical — resolved above; its speed reading
+  was a UNITS ARTIFACT)** (the review computed the signature from our own
+  table; the calreport now emits it): friction/volume statistics pinned
+  near band FLOORS while accuracy/efficiency statistics pinned near
+  CEILINGS — one defect with a direction, closed by the arrival-based
+  drive commit (a mechanism, not global slowing). The era's "prime
+  mechanical suspect: movement speed (6.55 ft/s vs NBA ~4.2)" compared a
+  ft/s measurement against a miles-per-hour figure: the NBA tracking
+  average is 4.22 mph = 6.19 ft/s (2023-24 team AVG_SPEED, NBA.com Speed &
+  Distance tracking — an all-movements-including-standing average), so the
+  sim's 6.55 ft/s was 4.47 mph, ~6% hot, not ~1.5× too fast (1.56 is a
+  ft/s number divided by a mph number). The speed-pin experiment
+  (2026-07-26, reviewer-designed: all speeds × 0.64, every shot/contest
   constant held fixed → pace 95.3→86.5, FG% 48.0%→50.1%, ORtg 120.8→126.8,
-  blocks 3.8→2.5 at 24 games.** Large moves everywhere = the shooting
-  calibration HAS absorbed the kinematics error (the current constants are
-  fitted to a world where defenders arrive ~1.5× too fast). Consequence,
-  binding on the validation arc: fix movement speed BEFORE fitting shot
-  models to real data, or the absorption gets a citation attached.
-- **Elite-shooter benchmark's assist center runs high**: 9.51 ±0.16se at
-  8×40-game bases vs the 4.5-8.5 identity range. (An earlier 4-draw probe
-  read 9.13 — the sample-size lesson applied to ourselves: quote the floor's
-  larger sample, not a hand probe.) The cast fix (point-forward hub authored
-  in) plus the passVision trim moved the center only 9.64→~9.5 — LITTLE,
-  which sharpens the engine-level audit question the fixture change cannot
-  answer: the decision layer appears to over-generate assists for high-usage
-  shooters regardless of cast structure. Promoted in the audit ranking.
-- **Position updates at 40 league bases**: pace center RESOLVED inside its
-  band (95.42, +3.5se above the 95.0 floor); ORtg center 121.08 ±0.27se —
-  edge-unresolved, leaning just above the 121 ceiling. The friction
-  signature persists (floors: trb/blk/tov ~1σ; ceilings: 3P%/ORtg).
-- **Pass volume runs low**: ~2.3 passes/possession vs the NBA's ~3.2 after
-  pass-back damping (baseline was 2.95) — the swing economy thinned; open
-  texture item.
-- **Endgame management is missing, distinctly from mid-game coupling** (the
-  review's sharpest cut): conditional on a game being close, OT arrives ~9%
-  of the time vs the league's ~26% (3.3/37 vs ~6/23) — near-ties are played
-  out instead of MANAGED (no timeouts, intentional fouling, hold-for-last,
-  two-for-one, clock burn). Margin sd high (~12 vs 8-9) AND close-game share
-  high (37% vs 20-26%): fat middle, fat tails, missing shoulders — TWO
-  mechanism gaps (mid-game coupling; endgame management), not one.
+  blocks 3.8→2.5 at 24 games) pinned the sim to 4.19 ft/s = 2.86 mph —
+  walking pace for all ten players averaged over live play — and its
+  result is the over-slowing signature (defenders arrive late → cleaner
+  looks → efficiency inflates while possessions shrink). It was evidence
+  FOR the units error, misread at the time as "the shooting calibration
+  absorbed the kinematics error". The units verdict landed 2026-07-26
+  (commit `00e2cda`; `harness/src/texture.ts` header records that this
+  paragraph's uncorrected text nearly drove a further round of engine
+  slowing). The former binding directive "fix movement speed BEFORE
+  fitting shot models to real data" is DISCHARGED: post-jog-economy the
+  sim measured 6.24 ft/s = 4.25 mph (`00e2cda`), on the corrected target —
+  movement speed is NOT an open blocker for the fit-to-real-data arc.
+  Definitional caveat before any speed BAND is promoted: NBA's AVG_SPEED
+  column provably does not equal distance ÷ minutes (4.22 vs 4.52 mph, a
+  systematic ~7% gap both tracked seasons; the denominator is
+  unpublished), and the texture tool measures live-clock chord-sampled
+  speed — treat sim-vs-NBA average-speed deltas under ~10-15% as
+  definitional noise until a same-convention, cited gate lands in
+  `data/nba/`.
+- **Elite-shooter benchmark's assist center**: measured 8.49 ±0.19se at
+  the n40 floor (calreport, 2026-07-27) — inside the 4.5-8.5 identity
+  range by 0.01, i.e. sitting ON the ceiling: edge-unresolved, no longer
+  outside. The previously quoted 9.51 ±0.16se was the pre-wave-2 state.
+  (An earlier 4-draw probe read 9.13 — the sample-size lesson applied to
+  ourselves: quote the floor's larger sample, not a hand probe.) The
+  engine-level audit question — does the decision layer over-generate
+  assists for high-usage shooters regardless of cast structure? — remains
+  open in edge-unresolved form, at reduced magnitude.
+- **Position updates at 40 league bases (calreport, floor generated
+  2026-07-26; read 2026-07-27)**: pace center 98.41 ±0.14 — inside; ORtg
+  center 115.11 ±0.27 — inside, +3.0σ from the 121 ceiling. Earlier
+  quoted positions (pace 95.42; ORtg 121.08 edge-unresolved; floors
+  trb/blk/tov) describe superseded eras — the current edge set is the one
+  in the CURRENT STATE block above.
+- **Pass volume runs low**: 1.93 passes/possession measured 2026-07-27
+  (`npm run texture`, 8 games, single base — indicative) vs the cited NBA
+  ~2.84-2.86 (2023-24: 281.3 passes made per team-game, NBA.com tracking
+  Passing, ÷ ~99 possessions/game at B-Ref pace 98.5). The previously
+  quoted target "NBA ~3.2" was an uncited recollection; the corrected
+  reference makes the gap ~32%, not ~30%+ of a larger number. Open
+  texture item with the damping named as cause (baseline was 2.95, the
+  pass-back damping overshot).
+- **Endgame management: mechanisms IMPLEMENTED, flag-gated default-OFF;
+  the realism gap remains at the default.** The historical diagnosis (the
+  review's sharpest cut) held that near-ties are played out instead of
+  MANAGED. All five once-missing behaviors now exist behind
+  `GameConfig.endgame` (`sim/endgame.ts` + concept 6 in
+  `sim/ai/concepts.ts`): timeouts (advance + stop-the-run triggers,
+  budget from the rule pack), intentional fouling, hold-for-last,
+  two-for-one, clock burn, plus trailing-team hurry. Flag-off
+  byte-identity vs the pre-endgame engine is verified
+  (FINDINGS-REDTEAM.md item 2); flag-on probes pass budget/decrement
+  checks. Deliberately NOT in `harness/knobs.ts` until the flag defaults
+  on. Open items (REFACTOR.md register): the default-on decision + the
+  coordinated re-sweep; no flag-on re-measurement of the OT-share target
+  exists in-repo. With the flag off, OT share measured 1.7% at oos-60
+  (2026-07-27) vs the cited real 4.80% (2023-24 regular season, computed
+  from Basketball-Reference schedules, N=1230; long-run ~5.9%).
 
 **Out-of-sample status** (`npm run oos` — generated rosters the sweep never
-saw): re-run at each landing. The texture increment improved the
-distributional report as a side effect — avg margin 12.2 (was 13.7, NBA
-11-12) and blowout share 17% (was 23%, NBA 15-20%) are now in range;
-overtime share (3.3% vs 5-7%) and margin spread (sd ~12 vs 8-9) remain the
-game-state-coupling gap: nothing yet pulls diverging games back together
-or tightens finishes (timeouts, trailing-team urgency, tempo kill).
+saw): re-run at each landing — an obligation wave 2 missed; the numbers
+below are the 2026-07-27 re-measurement (60 games, 12 generated rosters,
+one generated set — indicative per §4.4, but the deltas dwarf draw noise).
+Bands 15/17: 3PA share 32.5% vs the 33.0 floor (a generalization gap — the
+acceptance-roster center is 36.8% ±0.1 at n40) and fouls 23.3 vs the 22.5
+ceiling (the same miss as the acceptance batch). Distributional report
+(REPORT-ONLY, ratchet convention) — measured vs cited 2023-24 regular
+season (computed from Basketball-Reference schedules, N=1230): avg final
+margin 15.1 vs real mean |margin| 12.58; blowout (20+) share 32% vs 19.1%;
+close-game (≤5) share 17% vs 23.3%; OT share 1.7% vs 4.80% (long-run
+~5.9%); margin sd 10.3. This is a distributional REGRESSION vs the
+previously documented state ("avg margin 12.2 / blowout 17% — in range",
+measured pre-wave-2): the wave-2 landing moved the report the wrong way
+and the report was not re-run at that landing. Close-game share also
+FLIPPED from above range (37%) to below (17%) — the old "fat middle, fat
+tails, missing shoulders" diagnosis no longer describes the tip.
 Distributional misses are mechanism candidates first, fitting targets
 second — see the roadmap's validation arc.
 
-**Texture (measured by `npm run texture`, before → after the texture
-increment):** average live speed 8.67 → 6.55 ft/s (NBA ~4.2; the residual
-is an open item — real spacing is held even more than the sim holds it),
-stationary share 28% → 33%, ping-pong share of passes 26.8% → 12.4%
-(the eye-test oscillation, largely gone), passes/possession 2.95 → 2.23
-(NBA ~3.2 — the damping overshot; open item). Mechanisms: pass-back
-damping (concept 3's negative side), stillness deadbands with walked
-spacing moves, purposeful relocation with the denied shooter's baseline
-escape.
+**Texture (measured by `npm run texture`; latest read 2026-07-27, 8 games,
+single base — indicative per §4.4):** average live speed 6.40 ft/s vs the
+cited reference 4.22 mph = 6.19 ft/s (2023-24 team AVG_SPEED, NBA.com
+Speed & Distance tracking) — on target within definitional noise; there is
+NO open speed residual. History: 8.67 → 6.55 ft/s across the texture
+increment, then 6.24 ft/s after the jog-economy fix (commit `00e2cda`,
+2026-07-26 — the units-verdict commit; this paragraph formerly compared
+those ft/s readings against "NBA ~4.2" WITHOUT units, a ft/s-vs-mph
+confusion whose full record is in the friction-signature history above).
+Stationary share 31%, walking (1-6 ft/s) 16%, running (>6 ft/s) 53%,
+ping-pong share of passes 13.5% (was 26.8% pre-increment — the eye-test
+oscillation, largely gone), passes/possession 1.93 vs the cited NBA
+~2.84-2.86 (see the pass-volume finding above) — the damping overshot;
+open item. Mechanisms: pass-back damping (concept 3's negative side),
+stillness deadbands with walked spacing moves, purposeful relocation with
+the denied shooter's baseline escape.
 
 ## Known simplifications (deliberate, documented)
 
-Simplified inbounds (timed reset, no inbound passer) · no timeouts · no backcourt/
+Simplified inbounds (timed reset, no inbound passer) · endgame management
+(timeouts, intentional fouling, hold-for-last, two-for-one, clock burn) is
+implemented but flag-gated default-OFF (`GameConfig.endgame` — so the default
+game still plays without timeouts; the default-on decision belongs to the
+coordinated re-sweep, REFACTOR.md register) · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
 (the Stage 2 assists/assisted-share gaps are CLOSED: usage pressure,
 delivery quality, and DHO conversion brought assisted share to ~57-61% and
@@ -624,7 +703,9 @@ when no substitute exists — reachable only with short/foul-storm rosters; the
 no-fouled-out-actors invariant applies whenever replacements exist, and every
 lineup-consuming site falls back consistently rather than crashing — hardened
 after the Stage 2 adversarial audit) ·
-narration/viewer are frozen prototypes.
+narration is a maintained template layer (wave-1 polish: shot-call
+classification, bbref-register turing renderer); the viewer is a frozen
+prototype.
 
 
 ---
