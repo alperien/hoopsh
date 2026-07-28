@@ -500,6 +500,12 @@ export interface SimParams {
     /** concept 7: margin (pts) at which the press/coast lean saturates —
      *  linear through a tie, clamped beyond */
     scorePressureMarginRef: number;
+    /** concept 7 channel 2 (defensive intensity): max fractional on-ball
+     *  containment-gap / closeout-slack lean at/beyond the saturation
+     *  margin — the trailing team's defense presses up (tighter), the
+     *  leader's sags off (looser); no urgency fade by design; 0 = channel
+     *  off */
+    scorePressureDefGain: number;
     probeScale: number;          // concept 8 — early-clock probe window (swing culture)
     /** concept 8: shot-clock share (sc/full) above which halfcourt offense
      *  is probing — the ramp's zero point; must stay < 1 (ramp divisor) */
@@ -1316,6 +1322,22 @@ export const defaultParams: SimParams = {
     // (between swingBase and transitionBonus in EV terms — a real but
     // subtle lean); the ∓10% cap is ~1/3 of the endgame hurry's full cut.
     scorePressureMarginRef: 20,
+    // Concept 7 CHANNEL 2 (DEFENSIVE INTENSITY): the same signed pressure,
+    // applied by defense.ts#containOnBall to the on-ball containment gap
+    // and the closeout slack — the trailer's defense presses up, the
+    // leader's sags off, moving contest levels (and so opponent make%,
+    // shot.contestCoef) directly. Staged because channel 1 measured NULL
+    // on θ: tilt 0.05→0.20 left the margin mean-reversion flat on the
+    // n=240 cohorts (findings/b2-fit-tilt*.md — implied dθ/dtilt ≈ 0.09,
+    // so the yardstick channel alone cannot reach the θ 0.10-0.13 target),
+    // which is design-coupling.md §3's staged-channel-2 / OQ1 trigger.
+    // Shares the scorePressureScale master (scale × gain); deliberately NO
+    // urgency fade — defense manufactures no violations (the asymmetry vs
+    // channel 1 is documented at concepts.ts#scorePressureDefMult).
+    // STAGED — fitted by the channel-2 θ protocol; at 0 the gap/slack
+    // multiplier is exactly 1 (x × 1 === x bit-exact), so the wiring ships
+    // provably byte-inert.
+    scorePressureDefGain: 0,
     // concept 8's master (FEEL — 1.0 by definition at introduction, the
     // budget knob over every probe-culture term)
     probeScale: 1,

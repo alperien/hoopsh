@@ -1,10 +1,12 @@
 /**
  * Concept 7 (SCORE PRESSURE) — shape characterization + the staged-zero
- * no-op pin.
+ * no-op pin, for BOTH channels: the continuation tilt (channel 1) and the
+ * defensive-intensity gap/slack lean (channel 2, staged by the channel-1 θ
+ * null — findings/b2-fit-tilt*.md, design-coupling.md §3/OQ1).
  *
- * The coupling ships STAGED at scorePressureTilt 0 (the calibration commit
- * flips it after the θ fit — see the param's comment in sim/params.ts), so
- * this suite pins two independent things:
+ * The coupling ships STAGED at scorePressureTilt 0 and scorePressureDefGain
+ * 0 (the calibration commits flip them after their θ fits — see the params'
+ * comments in sim/params.ts), so this suite pins two independent things:
  *
  *  1. The SHAPE, via direct scorePressure() calls on constructed states at
  *     a withParams-forced nonzero tilt (the survey's own A/B pattern):
@@ -28,10 +30,10 @@
 import { describe, expect, it } from 'vitest';
 import { simulateGame, withParams, type SimParams } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
-import { scorePressure } from '../src/sim/ai/concepts.js';
+import { scorePressure, scorePressureDefMult, scorePressureOf } from '../src/sim/ai/concepts.js';
 import type { GameState } from '../src/sim/state.js';
 
-// scorePressure reads exactly: params.ai.scorePressure*,
+// The concept-7 helpers read exactly: params.ai.scorePressure*,
 // params.decide.urgencySec, score, poss.shotClock, clock. A hand-built
 // partial state is enough for direct-call characterization — no full game.
 function state(score: [number, number], shotClock: number, clock: number, params: SimParams): GameState {
@@ -116,5 +118,103 @@ describe('concept 7: the STAGED zero default is a provable no-op', () => {
     const dflt = simulateGame(cfg);
     expect(JSON.stringify(dflt.events)).toEqual(JSON.stringify(tiltZero.events));
     expect(dflt.finalScore).toEqual(tiltZero.finalScore);
+  });
+});
+
+// ---------------- channel 2 (defensive intensity) — staged by the θ null
+
+// Forced-live channel-2 params, same exact-arithmetic discipline as `live`:
+// gain 0.25 against ref 20 keeps every expected multiplier exact in float
+// (pressures ±0.5/±1 ⇒ leans ±0.125/±0.25). urgencySec pinned only to prove
+// it is NOT consumed.
+const live2 = withParams({
+  decide: { urgencySec: 5 },
+  ai: { scorePressureScale: 1, scorePressureDefGain: 0.25, scorePressureMarginRef: 20 }
+});
+
+describe('concept 7 channel 2 (defensive intensity): shape characterization', () => {
+  it('scorePressureOf — the shared read: signed from the caller\'s own chair, clamped at the ref', () => {
+    expect(scorePressureOf(state([50, 50], SC, CLOCK, live2), 0)).toBe(0); // tie
+    expect(scorePressureOf(state([40, 50], SC, CLOCK, live2), 0)).toBe(0.5); // trailing by 10 of ref 20
+    expect(scorePressureOf(state([40, 50], SC, CLOCK, live2), 1)).toBe(-0.5); // same game, leader's chair
+    expect(scorePressureOf(state([10, 60], SC, CLOCK, live2), 0)).toBe(1); // deep deficits clamp…
+    expect(scorePressureOf(state([60, 10], SC, CLOCK, live2), 0)).toBe(-1); // …both signs
+  });
+
+  it('a tie is EXACTLY multiplier 1 — gap and slack pass through bit-equal', () => {
+    expect(scorePressureDefMult(state([50, 50], SC, CLOCK, live2), 0)).toBe(1);
+    expect(scorePressureDefMult(state([50, 50], SC, CLOCK, live2), 1)).toBe(1);
+    // ×1 is float identity, so the containment arithmetic cannot move at a
+    // tie — the same proof shape the STAGED gain-0 default rides on
+    const gapExpr = 6.660254037844387; // deliberately non-round
+    expect(gapExpr * scorePressureDefMult(state([50, 50], SC, CLOCK, live2), 0)).toBe(gapExpr);
+  });
+
+  it('SIGN: the trailing team\'s defense tightens (mult < 1), the leading team\'s sags (mult > 1)', () => {
+    // margin 10 of ref 20 ⇒ pressure ±0.5; gain 0.25 ⇒ lean 0.125 exactly.
+    // defSide is the DEFENDER's own side: side 0 trails 40-50, so ITS
+    // defense presses up…
+    expect(scorePressureDefMult(state([40, 50], SC, CLOCK, live2), 0)).toBe(0.875);
+    // …and the leading side's defense sags off in the very same game
+    expect(scorePressureDefMult(state([40, 50], SC, CLOCK, live2), 1)).toBe(1.125);
+    // mirrored scoreline mirrors the roles
+    expect(scorePressureDefMult(state([50, 40], SC, CLOCK, live2), 0)).toBe(1.125);
+    expect(scorePressureDefMult(state([50, 40], SC, CLOCK, live2), 1)).toBe(0.875);
+  });
+
+  it('saturates at scorePressureMarginRef like channel 1', () => {
+    expect(scorePressureDefMult(state([30, 50], SC, CLOCK, live2), 0)).toBe(0.75);
+    expect(scorePressureDefMult(state([0, 60], SC, CLOCK, live2), 0)).toBe(0.75);
+    expect(scorePressureDefMult(state([0, 60], SC, CLOCK, live2), 1)).toBe(1.25);
+  });
+
+  it('NO urgency fade — the deliberate asymmetry vs channel 1 is pinned', () => {
+    // channel 1 zeroes itself inside the urgency window (a leader's raised
+    // yardstick would manufacture shot-clock violations — an offense-only
+    // failure mode). Defense intensity manufactures no violations and real
+    // late-game defense stays pressed, so the SAME clock states that force
+    // channel 1's multiplier to exactly 1 leave channel 2 at full lean.
+    expect(scorePressureDefMult(state([30, 50], 4, CLOCK, live2), 0)).toBe(0.75); // shot clock inside the window
+    expect(scorePressureDefMult(state([30, 50], SC, 3, live2), 0)).toBe(0.75); // period horn inside the window
+    expect(scorePressureDefMult(state([50, 30], 4, CLOCK, live2), 0)).toBe(1.25); // leader's sag persists too
+  });
+
+  it('the ONE master budgets channel 2 too: scale 0 kills it, scale 2 doubles it', () => {
+    const scale0 = withParams({
+      ai: { scorePressureScale: 0, scorePressureDefGain: 0.25, scorePressureMarginRef: 20 }
+    });
+    expect(scorePressureDefMult(state([30, 50], SC, CLOCK, scale0), 0)).toBe(1);
+    const scale2 = withParams({
+      ai: { scorePressureScale: 2, scorePressureDefGain: 0.25, scorePressureMarginRef: 20 }
+    });
+    // 1 − 2 × 0.25 × 0.5 = 0.75 exactly
+    expect(scorePressureDefMult(state([40, 50], SC, CLOCK, scale2), 0)).toBe(0.75);
+  });
+});
+
+describe('concept 7 channel 2: the STAGED zero default is a provable no-op', () => {
+  it('defaults ≡ explicit defGain 0 ≡ scale-0-killed live gain; a live gain moves the stream', () => {
+    const { home, away } = sampleMatchup();
+    const cfg = { seed: 'coupling-c2', home, away, collectFrames: false };
+    const dflt = simulateGame(cfg);
+    // the staged-0 leg: shipping defaults ARE the explicit-zero engine. The
+    // calibration commit that flips the default RETIRES this pair (the
+    // scale-0 leg below is the permanent off-switch pin).
+    const gainZero = simulateGame({ ...cfg, params: { ai: { scorePressureDefGain: 0 } } });
+    expect(JSON.stringify(gainZero.events)).toEqual(JSON.stringify(dflt.events));
+    expect(gainZero.finalScore).toEqual(dflt.finalScore);
+    // the shared master at 0 neutralizes a live gain bit-exactly
+    // (0 × x = ±0; 1 − ±0 = 1) — survives the calibration flip
+    const scaleZero = simulateGame({
+      ...cfg,
+      params: { ai: { scorePressureScale: 0, scorePressureDefGain: 0.25 } }
+    });
+    expect(JSON.stringify(scaleZero.events)).toEqual(JSON.stringify(dflt.events));
+    expect(scaleZero.finalScore).toEqual(dflt.finalScore);
+    // and the channel is really plumbed into containOnBall: a forced live
+    // gain changes the event stream (deterministic per seed — a
+    // connectivity tripwire, not a statistical claim)
+    const gainLive = simulateGame({ ...cfg, params: { ai: { scorePressureDefGain: 0.25 } } });
+    expect(JSON.stringify(gainLive.events)).not.toEqual(JSON.stringify(dflt.events));
   });
 });

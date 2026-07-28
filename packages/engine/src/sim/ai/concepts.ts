@@ -39,7 +39,10 @@
  *      looks fire earlier), leading coasts (it rises, the leader works
  *      longer). Linear through a tie, saturating at the margin ref; no
  *      flag, no clock window, no aliveness gate — garbage time keeps the
- *      coupling on purpose.
+ *      coupling on purpose. TWO channels under the one master: the
+ *      continuation tilt (offense, urgency-faded) and the defensive-
+ *      intensity gap/slack lean (defense.ts on-ball containment,
+ *      deliberately NOT faded — the doctrine at scorePressureDefMult).
  *   8. PROBE CULTURE (probeScale) — early-clock swing appetite: the first
  *      ~5 s of set offense are pass-friendly and shot-averse (probe the
  *      defense before attacking it); ramps to zero by mid-clock, never in
@@ -452,18 +455,36 @@ export function tempo(s: GameState): { shoot: number; drive: number } {
   };
 }
 
-// --------------------------------------- 7. SCORE PRESSURE (continuation)
+// ------------------- 7. SCORE PRESSURE (continuation + defensive intensity)
 
 /**
- * The all-game score coupling: the scoreboard reshapes the continuation
- * yardstick exactly the way concept 6 does, but as a gentle, symmetric,
- * always-on lean — no flag, no rng, no events, no state writes, no clock
- * window, no aliveness gate. Trailing presses (the yardstick drops, so
- * good-not-great looks fire earlier across every channel that measures
- * against it); leading coasts (the yardstick rises, so the leader works
- * longer and surrenders the early-offense premium). Garbage time keeps the
- * coupling ON PURPOSE — the never-flattening blowout is exactly the region
- * concept 6's own fades (blowoutFade, chaseAliveness) deliberately give up.
+ * The shared scoreboard read for BOTH concept-7 channels: signed pressure
+ * from `side`'s own chair. + when trailing (press: the yardstick drops,
+ * good-not-great looks fire earlier; the defense plays up), − when leading
+ * (coast: the yardstick rises, the leader works longer; the defense sags).
+ * Linear through a tie, saturating at scorePressureMarginRef — clamp, not
+ * tanh (exactly reproducible arithmetic; same saturation style as
+ * leadHold's clamp). Pure arithmetic over s.score + params: no rng, no
+ * events, no state writes. Consumed by scorePressure (channel 1, the
+ * decideBall continuation) and scorePressureDefMult (channel 2, the
+ * defense.ts containment posture).
+ */
+export function scorePressureOf(s: GameState, side: TeamSide): number {
+  const A = s.params.ai;
+  return clamp((s.score[other(side)] - s.score[side]) / A.scorePressureMarginRef, -1, 1);
+}
+
+/**
+ * Channel 1 — the all-game score coupling on the continuation yardstick:
+ * the scoreboard reshapes it exactly the way concept 6 does, but as a
+ * gentle, symmetric, always-on lean — no flag, no rng, no events, no state
+ * writes, no clock window, no aliveness gate. Trailing presses (the
+ * yardstick drops, so good-not-great looks fire earlier across every
+ * channel that measures against it); leading coasts (the yardstick rises,
+ * so the leader works longer and surrenders the early-offense premium).
+ * Garbage time keeps the coupling ON PURPOSE — the never-flattening
+ * blowout is exactly the region concept 6's own fades (blowoutFade,
+ * chaseAliveness) deliberately give up.
  *
  * Called from decideBall on EVERY path, immediately BEFORE the concept-6
  * reshape — base lean first, late spike second (multiplicative, so value-
@@ -473,12 +494,7 @@ export function tempo(s: GameState): { shoot: number; drive: number } {
  */
 export function scorePressure(s: GameState, side: TeamSide, continuation: number): number {
   const A = s.params.ai;
-  // + when trailing (press: the yardstick drops, good-not-great looks fire
-  //   earlier), − when leading (coast: the yardstick rises, the leader works
-  //   longer and surrenders the early-offense premium). Linear through a tie,
-  //   saturating at scorePressureMarginRef — clamp, not tanh (exactly
-  //   reproducible arithmetic; same saturation style as leadHold's clamp).
-  const pressure = clamp((s.score[other(side)] - s.score[side]) / A.scorePressureMarginRef, -1, 1);
+  const pressure = scorePressureOf(s, side);
   // the boost half must die inside the urgency window — a leader's raised
   // yardstick must never re-inflate a collapsing continuation (that would
   // manufacture shot-clock violations; same doctrine as concept 6's holdFade
@@ -489,6 +505,43 @@ export function scorePressure(s: GameState, side: TeamSide, continuation: number
   const U = s.params.decide.urgencySec;
   const fade = clamp((eff - U) / U, 0, 1);
   return continuation * (1 - A.scorePressureScale * A.scorePressureTilt * pressure * fade);
+}
+
+/**
+ * Channel 2 — DEFENSIVE INTENSITY (staged by the channel-1 θ null:
+ * findings/b2-fit-tilt*.md measured the continuation tilt flat on θ across
+ * 0.05→0.20, the design-coupling.md §3 staged-channel-2 / OQ1 trigger).
+ * The multiplier defense.ts#containOnBall applies to the on-ball
+ * containment gap AND the closeout slack. A trailing team's defense
+ * presses UP — tighter gap, less slack before the closeout sprint fires —
+ * so contest levels rise and opponent make% falls through
+ * shot.contestCoef; a leading team's defense sags OFF — softer contests,
+ * protect the drive line, let the clock work. Same master:
+ * scorePressureScale budgets both channels (scale × gain), same clamp
+ * saturation via scorePressureOf.
+ *
+ * Deliberately NO urgency fade — the asymmetry vs channel 1 is doctrine,
+ * not an omission. Channel 1's fade exists because a leader's RAISED
+ * yardstick inside the urgency window would re-inflate a collapsing
+ * continuation and manufacture shot-clock violations — an offense-only
+ * failure mode (the yardstick decides WHEN the shot fires). Gap and slack
+ * shape contest quality and closeout sprinting; they cannot create
+ * violations, and real late-game defense stays pressed to the horn.
+ *
+ * Pure arithmetic over s.score + params: no rng (gap/slack shift positions
+ * and downstream probabilities, never draw counts), no events, no state
+ * writes. At the STAGED default (scorePressureDefGain 0) the multiplier is
+ * exactly 1 (0 × pressure = ±0; 1 − ±0 === 1), so gap × 1 and slack × 1
+ * pass through bit-identical — the wiring ships provably inert.
+ */
+export function scorePressureDefMult(s: GameState, defSide: TeamSide): number {
+  const A = s.params.ai;
+  // SIGN CONVENTION: the pressure is read from the DEFENDING team's chair —
+  // defSide is the defender's OWN side, so scorePressureOf is positive when
+  // the defender's team trails ⇒ multiplier < 1 ⇒ tighter (press up), and
+  // negative when it leads ⇒ multiplier > 1 ⇒ looser (sag off). Feeding the
+  // offense's side here would invert the whole coupling.
+  return 1 - A.scorePressureScale * A.scorePressureDefGain * scorePressureOf(s, defSide);
 }
 
 // ------------------------------------------- 8. PROBE CULTURE (pass/shoot)

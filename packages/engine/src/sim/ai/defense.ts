@@ -10,6 +10,7 @@ import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
 import { gravity, midRespect } from '../resolve.js';
 import { foulHuntSide } from '../endgame.js';
+import { scorePressureDefMult } from './concepts.js';
 
 /** assign man matchups: sort both lineups by size and pair them */
 export function assignMatchups(s: GameState, defSide: TeamSide): void {
@@ -167,22 +168,37 @@ function dropCoverage(s: GameState, d: Agent, man: Agent, holder: Agent, rim: V2
 function containOnBall(s: GameState, d: Agent, holder: Agent, rim: V2): void {
   const A = s.params.ai;
   const man = holder;
+  // CONCEPT 7, CHANNEL 2 (score pressure — defensive intensity): the margin
+  // leans the whole containment posture. SIGN: the pressure is read from the
+  // DEFENDER's own side (d.side) — the defender's team TRAILING ⇒ press < 1
+  // ⇒ tighter gap and less closeout slack (play up, contest everything);
+  // LEADING ⇒ press > 1 ⇒ sag off (soft contests, protect the drive line,
+  // let the clock work). No urgency fade on purpose — late-game defense
+  // stays pressed (doctrine at concepts.ts#scorePressureDefMult). STAGED at
+  // scorePressureDefGain 0 ⇒ press === 1 exactly ⇒ this function is
+  // bit-identical to the unwired engine.
+  const press = scorePressureDefMult(s, d.side);
   // shooting threat CLOSES the gap; drive threat OPENS it — you play a
   // downhill freight train from depth and concede the pull-up (this is
   // why a 92-drive point-forward gets his ~5 threes a game: they're
   // given, not taken; without it his pull-up never fired at 0.7 attempts)
   const driveThreat = (man.p.tend.drive / 100) * (man.p.attr.speed / 100);
+  // the 2.2 ft floor is body space — the press tightens TO it, never through
+  // it; the duck-under sag below stays unleaned (screen-navigation geometry,
+  // not effort)
   let gap = Math.max(
     2.2,
-    s.params.move.defGapBaseFt - gravity(s, man) * s.params.move.defGapGravityFt
-      + driveThreat * s.params.move.defGapDriveFt
+    (s.params.move.defGapBaseFt - gravity(s, man) * s.params.move.defGapGravityFt
+      + driveThreat * s.params.move.defGapDriveFt) * press
   );
   // ducking under a screen: drop back, concede the pull-up
   if (s.t < d.navUnderUntil) gap += A.pnrUnderSagFt;
   const toRim = norm(sub(rim, holder.pos));
   d.target = add(holder.pos, scale(toRim, gap));
-  // closeout: sprint when caught out of position (e.g. after a swing pass)
-  d.sprinting = dist(d.pos, holder.pos) > gap + A.closeoutSlackFt;
+  // closeout: sprint when caught out of position (e.g. after a swing pass) —
+  // a pressing defense tolerates less separation before the sprint fires, a
+  // sagging one lets more ride
+  d.sprinting = dist(d.pos, holder.pos) > gap + A.closeoutSlackFt * press;
   // Beaten on a drive: abandon the cushion and chase the intercept point
   // 30% of the way to the rim — trail the drive rather than the man.
   if (s.t < holder.driveUntil) {
