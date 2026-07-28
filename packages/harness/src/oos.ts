@@ -127,17 +127,34 @@ export function distributionOf(finals: GameFinal[]): DistReport {
   };
 }
 
-/** REAL NBA references (2015-2025 ballpark) — report-only until they hold */
+/**
+ * REAL NBA references — CITED: computed over all 1230 games of the 2023-24
+ * regular season from basketball-reference.com monthly schedule pages
+ * (calibration ground-truth pass, 2026-07-27; self-validating — the season
+ * filters land on exactly 1230 rows and mean total points 228.4 = 2 × B-Ref
+ * 114.2 PPG). Report-only until they hold (ratchet convention). Reading
+ * notes, so nobody re-derives them the hard way:
+ *  - "margin std dev" is the SD of |margin| — what distributionOf computes —
+ *    which is 9.53 for 2023-24. The SD of the SIGNED home margin is 15.64;
+ *    comparing that one here would flag a phantom miss.
+ *  - 2023-24 was a historically blowout-heavy season (record 235 games won
+ *    by 20+), so its blowout share sits at the high end of any era band.
+ *  - 2023-24 was a LOW-overtime season (4.80%); the long-run rate is ~5.9%
+ *    (2000-2024, secondary source) — the row keeps both.
+ *  - the min/max and quarter-profile rows remain UNCITED recollections; the
+ *    ground-truth pass did not establish them (quarter mean ≈ 114.2/4 =
+ *    28.6 follows from the cited PPG, the Q4-shape claim does not).
+ */
 export function formatDistribution(d: DistReport): string {
   const row = (label: string, val: string, ref: string) =>
     ` info  ${label.padEnd(26)} ${val.padStart(8)}   NBA ~${ref}`;
   return [
     'Distributional report (REPORT-ONLY — ratchet convention)',
-    row('avg final margin', d.marginAvg.toFixed(1), '11-12'),
-    row('margin std dev', d.marginSd.toFixed(1), '8-9'),
-    row('blowout share (20+)', `${(100 * d.blowoutPct).toFixed(0)}%`, '15-20%'),
-    row('close-game share (<=5)', `${(100 * d.closePct).toFixed(0)}%`, '20-26%'),
-    row('overtime share', `${(100 * d.otPct).toFixed(1)}%`, '5-7%'),
+    row('avg final margin', d.marginAvg.toFixed(1), '12.6 (2023-24: 12.58, median 10)'),
+    row('margin std dev', d.marginSd.toFixed(1), '9.5 (2023-24 SD of |margin|: 9.53)'),
+    row('blowout share (20+)', `${(100 * d.blowoutPct).toFixed(0)}%`, '19% (2023-24: 19.1%, a record-blowout season)'),
+    row('close-game share (<=5)', `${(100 * d.closePct).toFixed(0)}%`, '23% (2023-24: 23.3%)'),
+    row('overtime share', `${(100 * d.otPct).toFixed(1)}%`, '4.8% (2023-24: 59/1230); ~5.9% long-run 2000-24'),
     row('team single-game min/max', `${d.teamMin}/${d.teamMax}`, '~68 / ~155 across a season'),
     row('quarter scoring profile', d.quarterAvg.map((q) => q.toFixed(1)).join(' '), '28-29 each, Q4 a shade lower')
   ].join('\n');

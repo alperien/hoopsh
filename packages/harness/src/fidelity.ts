@@ -58,7 +58,12 @@ const lebron: Player = {
   id: 'fid-lebron', name: 'L. James', pos: 'SF', heightIn: 81, weightLb: 250,
   attr: {
     speed: 90, accel: 88, lateral: 78, stamina: 92, strength: 97, vertical: 85,
-    finishing: 97, midRange: 82, three: 76, freeThrow: 74, drawFoul: 88,
+    // freeThrow 61 — the engine's own curve is the citation (W7 fixture
+    // correction): resolve.ts#freeThrowP at 61 gives ftBasePct 0.69 +
+    // ftSkillSwing 0.19 × n(61)=0.22 → 73.2% (elite kick starts at 80),
+    // matching his real ~73.1%. The original hand-set 74 shot 78.1% through
+    // the same curve — 5 points hot.
+    finishing: 97, midRange: 82, three: 76, freeThrow: 61, drawFoul: 88,
     ballHandle: 90, passAcc: 95, passVision: 97,
     perimeterD: 72, interiorD: 70, steal: 70, block: 62, contestSkill: 65,
     offReb: 45, defReb: 86, boxout: 62,

@@ -1,7 +1,7 @@
 /**
  * Automated parameter sweep — the calibration lock.
  *
- *   npm run sweep [-- --iters 28 --cands 4 --games 16 --workers 2]
+ *   npm run sweep [-- --iters 28 --cands 4 --games 16 --workers 2 --endgame]
  *
  * SEARCH STRATEGY, stated honestly: this is perturbation local search with
  * geometric step decay — NOT gradient descent (there's no gradient; band
@@ -62,6 +62,14 @@ const GAMES = Number(argOf('--games', '16'));
 const WORKERS = Number(argOf('--workers', '2'));
 const VERIFY_GAMES = Number(argOf('--verify', '24'));
 const SEED_BASES = argOf('--seeds', 'swp-alpha,swp-beta,swp-gamma').split(',');
+// --endgame FORCES GameConfig.endgame ON for every candidate evaluation —
+// the flag-on re-sweep (REFACTOR.md W2) that must re-center fga before the
+// default can flip. Without the flag, games run the engine's shipped default
+// (sweep-worker omits the key entirely), so a sweep always measures FROM the
+// config that actually ships — same doctrine as the all-defaults baseline
+// candidate below. Flag-on output is a flag-on calibration: bake it only
+// together with the default flip it was measured for.
+const ENDGAME = process.argv.includes('--endgame');
 
 interface SeedResult {
   seedBase: string;
@@ -109,7 +117,7 @@ async function evaluateCandidate(cand: Candidate, games: number): Promise<{ scor
     cur[parts[parts.length - 1]!] = value;
   }
   const jobPath = `/tmp/hoopsh-sweep-job-${process.pid}-${jobCounter++}.json`;
-  writeFileSync(jobPath, JSON.stringify({ overrides, games, seedBases: SEED_BASES }));
+  writeFileSync(jobPath, JSON.stringify({ overrides, games, seedBases: SEED_BASES, endgame: ENDGAME }));
   const { stdout } = await execFileP(
     process.execPath,
     ['--disable-warning=ExperimentalWarning', '--import', './tools/register.mjs', 'packages/harness/src/sweep-worker.ts', jobPath],
@@ -312,7 +320,7 @@ function perturb(base: Candidate, step: number): Candidate {
  * but without the probabilistic acceptance that name implies.
  */
 async function main(): Promise<void> {
-  console.log(`sweep: ${ITERS} iters × ${CANDS} candidates, ${GAMES} games × ${SEED_BASES.length} seed bases, ${WORKERS} workers, objective ${OBJECTIVE}`);
+  console.log(`sweep: ${ITERS} iters × ${CANDS} candidates, ${GAMES} games × ${SEED_BASES.length} seed bases, ${WORKERS} workers, objective ${OBJECTIVE}${ENDGAME ? ', endgame ON' : ''}`);
   const t0 = performance.now();
 
   // The starting candidate is the empty override set — i.e. whatever's
@@ -391,6 +399,9 @@ async function main(): Promise<void> {
   writeFileSync('out/sweep-best.json', JSON.stringify({
     score: verify.score,
     bandFails: failCount(verify.seedResults),
+    // provenance: a flag-on calibration must never be baked into params.ts
+    // as if it were measured at the shipped default (see --endgame above)
+    endgame: ENDGAME,
     diff,
     candidate: current,
     verify: verify.seedResults

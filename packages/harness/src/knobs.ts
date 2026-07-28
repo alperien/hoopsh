@@ -93,7 +93,14 @@ export const SWEEPABLE: Knob[] = [
   // the optimizer pinned ORtg 122-126 with every other dial at boundary.
   { path: 'shot.contestCoef', lo: -2.0, hi: -0.82 },
   { path: 'shot.blockBase', lo: 0.18, hi: 0.45 },
-  { path: 'shot.ftBasePct', lo: 0.69, hi: 0.75 },
+  // ftBasePct's floor was the fitted value itself ("explore up only"),
+  // authored when league FT% read low. Post-endgame the league mix sits
+  // ~2pp ABOVE the real 78.4% (league-averages-2023-24.json) and the 2026-07-28
+  // sweep converged pinned at that floor — the wall, not the optimum. Floor
+  // widened 0.69 → 0.66 so the sweep can trade the league mean down; identity
+  // spread stays in ftSkillSwing/ftEliteKick, and the star-fixture FT
+  // tripwires remain the guardrail against overcorrection.
+  { path: 'shot.ftBasePct', lo: 0.66, hi: 0.75 },
 
   // Fouls — shootRim/shootPaint are THE lever on FTA/game (band 18-27, see
   // params.ts) and are flagged there as "the most coupling-sensitive knobs
@@ -105,6 +112,13 @@ export const SWEEPABLE: Knob[] = [
   { path: 'foul.shootPaint', lo: 0.1, hi: 0.26 },
   { path: 'foul.reachInPerSec', lo: 0.008, hi: 0.026 },
   { path: 'foul.looseBallPerReb', lo: 0.01, hi: 0.04 },
+  // chargePerDrive is consumed per SECOND of committed drive time (see
+  // params.ts: × dt × chargeTickMult), so the realized league rate rides on
+  // drive exposure: at current exposure the rail spans ≈0.6 (lo) → ≈3.1 (hi)
+  // offensive fouls per team-game around the default's ~1.3 (real NBA ~1.3).
+  // The old unregistered 0.012 (≈4.6/tg, 3× real — what ate the pf band's
+  // headroom) sits deliberately OUTSIDE the rail.
+  { path: 'foul.chargePerDrive', lo: 0.0015, hi: 0.008 },
 
   // Turnovers — riskBase is the primary lever on TOV/game (band 11.5-15.5);
   // stealShare only redistributes the SAME turnover total between steals and
@@ -165,7 +179,33 @@ export const SWEEPABLE: Knob[] = [
   // pnrRollGravityCut and dunkerGravityThreshold.
   { path: 'ai.midRangeBonus', lo: 0.25, hi: 0.9 },
   { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 },
-  { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 }
+  { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 },
+
+  // Endgame layer (params.endgame; live only under GameConfig.endgame) —
+  // registered for the flag-ON coordinated re-sweep: the n=1260/arm flag-on
+  // survey measured fga 93.31 vs its 92.0 ceiling (3/3 seed bases), driven
+  // by the layer's possession mix (hurry quick shots, 2-for-1 early
+  // releases, fewer milked violations), so re-centering has to trade these
+  // magnitudes against the pace/volume knobs. In a flag-OFF run they are
+  // unread — dead search dimensions — so sweep with the flag on (or once it
+  // defaults on). Only MAGNITUDE dials are registered; the window/threshold
+  // dials (leadHoldClockSec, hurryClockSec, the 2-for-1 window, the foul
+  // window/deficit gates), the chase-aliveness arithmetic (when a deficit
+  // reads dead), hunt geometry, and the timeout triggers stay OFF the
+  // surface: they define WHEN a real coach's behavior activates —
+  // identity-shape, same doctrine as the mid-range green-light shape above.
+  // timeoutRunPts additionally has no cited real base rate to calibrate
+  // against (nba-ground-truth row 34): nothing for a band to aim at.
+  { path: 'endgame.scale', lo: 0.5, hi: 1.5 },
+  { path: 'endgame.leadHoldMaxBoost', lo: 0.25, hi: 0.8 },
+  { path: 'endgame.hurryMaxCut', lo: 0.25, hi: 0.7 },
+  // probed at 0.3 the 2-for-1 window's shot rate barely moved over flag-off
+  // (params.ts: the tent shape halves the average cut) — lo sits at that
+  // measured do-nothing point rather than lower
+  { path: 'endgame.twoForOneCut', lo: 0.3, hi: 0.7 },
+  // multiplies foul.reachInPerSec (itself swept above): the PAIR sets
+  // late-game foul-parade FT volume — expect them to move together
+  { path: 'endgame.foulHuntRateMult', lo: 30, hi: 90 }
 ];
 
 /** set a dot-path on a nested object (mutates) */

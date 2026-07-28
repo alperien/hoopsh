@@ -47,7 +47,7 @@ event `wt` key on it). Do not mix them.
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
 | `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
-| `sim/endgame.ts` | flag-gated endgame layer (`GameConfig.endgame`, default OFF): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
+| `sim/endgame.ts` | endgame layer (`GameConfig.endgame`, **default ON** since the n=1260/arm flag-on survey; explicit `endgame: false` is the byte-identical legacy path): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
@@ -171,10 +171,187 @@ positions from `npm run calreport`, which quotes n40 grand-mean centers with
 standard errors — quoting a smaller nested window's mean as "the center" was
 an error the third review caught, twice, in our own write-up. The pre-texture
 FTA-low and 3P%-high residuals PASS after the texture re-tune):
-- **CURRENT STATE (measured 2026-07-27; single seed base where noted —
-  indicative per AGENTS §4.4; systematic claims corroborated by the
-  committed 40-base noise floor. Re-measure: `npm run batch -- --games 24`,
-  `npm run calreport`, `npm run oos`):**
+- **CURRENT STATE (integration era — measured 2026-07-28 at the
+  `calib/integration` landing; the measurement point is the winner bake
+  `7e05c97` (commits after it are docs/comment-only, fingerprint-identical).
+  Magnitudes from the noise floor re-baselined in the winner commit;
+  positions from the landing verification runs quoted per finding —
+  `npm run calreport` n40 centers at the new floor are the one read not
+  yet taken. Re-measure: `npm run batch -- --games 24`, `npm run calreport`,
+  `npm run oos`, `npm run texture`):**
+  - **Fouls: composition corrected, band re-centered.** The
+    pre-integration pf miss (23.7 at batch-24; n40 center 22.69 ±0.08se
+    outside the 22.5 ceiling — see the pre-integration block below) was
+    diagnosed as a composition defect, not a wave-2 mechanism error:
+    offensive fouls (charges) ran 4.4-4.8/team-game — ~3× the real ~1.3
+    and ~3× the constant's own "deliberately rare" comment — because
+    `chargePerDrive` is consumed per TICK (~0.024/s of committed drive
+    time), while per-attempt shooting-foul rates matched the model's own
+    zone-base intent within 2-3% and every charge is an `off_foul`
+    turnover (~30% of all TOV vs roughly 10% real). Measured 2026-07-28
+    via an instrumented event-stream probe replicating `runBatch`
+    (3×48-game seed bases, n=288 team-games; fouls-mechanism diagnosis).
+    Fix: `chargePerDrive` 0.012 → 0.0034 (commit 2d47954) — charges
+    measured 1.16/1.31/1.28 per team-game post-fix (3×16-game bases;
+    real ~1.3) — and the knob is now on the sweep surface
+    (`foul.chargePerDrive` [0.0015, 0.008]; it was tagged SWEPT but
+    never registered, exactly the AGENTS §1.4 failure mode). At the
+    landing: pf 21.0 on the n=96 acceptance batch and 20.3 at the 40×3
+    verify means — mid-band, inside on every base.
+  - **Endgame management defaults ON** (commit 6260cae; `endgame: false`
+    remains the byte-identical legacy path, and the same commit inverted
+    the default pin in `endgame.test.ts`). Basis, measured 2026-07-28 via
+    a runBatch-mirroring flag-on/off driver at n=1260 games/arm (3 seed
+    bases × 420), corroborated by `npm run flow -- --games 100
+    [--endgame]` and a 20-seed invariant probe (endgame-flag survey; all
+    invariant probes green): the layer closes the sim's worst
+    clutch-realism gaps — OT share 2.06% → 3.33% toward the real 4.80%
+    (2023-24, N=1230; long-run ~5.9%), OT-given-clutch 4.9% → 7.8%
+    (derived real 10.4%), clutch FT share 21% → 31% (flow-tool
+    definition, n=100/arm; reference range 30-50%+), Q4 10+-lead
+    comebacks 0% → 5% (real ~5-10%), last-2:00 FTA 2.23 → 3.84 per game
+    (2.30× the game's per-2-minute average — the foul-game spike now
+    exists), intentional-foul endgames 1.4% → 33.7% of games, timeouts
+    0 → 2.08 per game (1.39 stop_run + 0.69 advance; budgets respected;
+    VOLUME ungradeable — no cited real base rate exists for timeout
+    usage, ground-truth row 34).
+    **Watch item (Q4 profile):** flag-on makes Q4 the sim's
+    HIGHEST-scoring quarter (flow n=100/arm: 55/56/56/59) where the real
+    profile is Q4-lowest (58.5/56.3/58.0/54.2) — the foul-game FTs and
+    hurry possessions outweigh the milk. Candidate levers recorded in
+    the survey (leadHold*, foulHunt* FT volume, hurry depth). The watch
+    item STANDS at the landing: no fresh flow read exists at the final
+    point — re-measure via `npm run flow -- --games 100` before
+    adjudicating; OT share on the landing's oos-60 draw reads 3.3%
+    (single draw, n=60 — indicative only). Residual: OT share remains
+    below the real 4.80% — the flag closes roughly half the gap; the
+    rest is diffusion-shaped margin spread (see the margin-distribution
+    bullet below), not an endgame defect.
+  - **Coordinated margin-objective sweep, run flag-on and baked** (commit
+    99482c8 — the re-sweep W1/W2 conditioned on: charge fix + endgame
+    default-ON + MINOR-2 integrated; `npm run sweep -- --iters 14
+    --cands 4 --games 12`, margin objective, 3 bases; a 12-iter
+    continuation run confirmed convergence). 11 knobs re-centered (odd
+    precision kept per AGENTS §2.1; canonical list is the commit diff):
+    basePaint, blockBase, midRangeBonus, contestBrakeBase,
+    driveMidStopChance, reachInPerSec, looseBallPerReb, stealShare, and
+    three of the five registered endgame magnitude dials
+    (leadHoldMaxBoost, hurryMaxCut, twoForOneCut). `chargePerDrive` held
+    at its corrected 0.0034. The bake's own verify left fga outside on
+    all three bases and the fga/ftPct centers outside at its regenerated
+    floor (92.81 / 80.67% n12 means; the commit message is the record) —
+    closed by the directed re-search below. The noise floor and the
+    24-seed golden corpus were re-baselined at the bake and AGAIN at the
+    winner bake `7e05c97` (the canonical floor) — each diff is the
+    accepted-drift record (AGENTS §4.4). Verification at the landing
+    point: 40×3 verify 17/17 / 17/17 / 17/17 (swp-alpha/beta/gamma,
+    score 4.461, zero band-fails).
+  - **fga/ftPct residuals: CLOSED by a directed re-search — the repo's
+    first full band lock.** At the post-bake floor both centers sat
+    outside (fga 92.81 vs the 92.0 ceiling, ftPct 80.67% vs 80.5%; the
+    pre-winner n=192 acceptance read was 92.61 / 80.60% at 15/17 —
+    stable at n=48/96/192, systematic, not draw noise). Two
+    adjudications preceded the fix (decision analysis, search-actuary
+    findings, 2026-07-28): (a) the ftPct residual had a located cause —
+    the optimizer converged wall-pinned on `shot.ftBasePct`, whose knob
+    floor WAS the fitted value (an explore-up-only rail authored when
+    league FT% read low; the league mix sat ~2pp above the real 78.4%,
+    data/nba/league-averages-2023-24.json). Floor freed 0.69 → 0.66
+    (commit 5e0c500; identity spread stays in ftSkillSwing/ftEliteKick,
+    star FT tripwires remain the guardrail). (b) The fga BAND was
+    adjudicated against sources before moving the sim: real 2023-24 FGA
+    is 88.9, so the 92.0 ceiling already grants ~3 attempts of headroom
+    over an actual season — widening it would certify a league LESS like
+    basketball; the fix must move the sim, never the band. The excess
+    was a possession-OUTCOME-MIX defect, not tempo: at 2.2 possessions
+    SLOWER than the sourced pace 98.5, the sim under-produced the
+    non-FGA possession endings (tov 12.05 vs sourced 13.6, fta 20.3 vs
+    21.7) — the correct direction sheds FGA into turnovers/FT trips, not
+    into pace. The re-search: 8 parallel strategies (multi-start jitter
+    ×2, arithmetic seed, a 12-cell riskBase × ftBasePct response grid, a
+    pace axis — blocked by a pace-floor break — a foul-mix axis — no
+    reliable ftPct signal — the legacy objective, plus the analyst's
+    exact n=48 pass-probability model built from the noise floor;
+    riskBase ≥ −3.70 hits an ast/astdShare wall). Winner, the grid's
+    robust cell (commit 7e05c97): `pass.riskBase` −4.1869 → −3.95 and
+    `shot.ftBasePct` 0.69 → 0.666. Measured at the landing: 40×3 verify
+    17/17 on each of swp-alpha/beta/gamma (score 4.461; means fga 91.30,
+    ftPct 77.92%, tov 13.09 — toward the sourced 13.6); n=96 acceptance
+    batch 17/17 (fga 91.6, ftPct 78.0% vs real 78.4%, tov 13.0, pf 21.0,
+    pace 96.3, ast 24.7, stl 8.6, astdShare 59.3%); the deterministic
+    CI-mirror `npm run batch -- --games 48` 17/17, gate PASS
+    (RATCHET_FLOOR 16). The analyst's joint model at the point:
+    P(17/17 at CI n=48) ≈ 0.83, P(gate ≥16) ≈ 0.99.
+    `decide.moveCutFinish` remains parked at 0 and off the sweep
+    surface — still an open re-fit item (REFACTOR register).
+  - **Margin distribution: mechanism ADJUDICATED — not sweepable, owned
+    by B2.** Measured 2026-07-28 via a probe harness importing the
+    repo's own oos generator and band evaluator (880 flag-off games
+    across 4 cohorts incl. self-play, flag-on n=240, plus a
+    recomputation of all 1,230 games of 2023-24 from
+    Basketball-Reference schedules; margin-distribution survey).
+    Verdict: the fat tail is universal engine noise — identical-roster
+    self-play already produces mean |margin| 15.0 and 30% blowouts at
+    zero talent gap; divergence accumulates as steady diffusion
+    (|margin| grows ×2.0-2.2 from 12' to 48' ≈ √t, no late runaway and
+    no garbage-time flattening); the variance sits on the wrong axis
+    (sim corr(home, away) ≈ 0 vs NBA +0.254 — margins overdispersed
+    while totals are underdispersed). The sweep cannot fix it: the
+    objective is blind to distributional stats, every knob direction
+    that compresses margins wrecks the mean bands (measured), and pace
+    ≥95 + 3PA share ≥33% imply a ~16-pt even-pair margin-sd floor under
+    independent possessions — the NBA sits below that floor only via
+    within-game coupling. The endgame layer measured
+    distribution-NEUTRAL (its windows are downstream of a divergence
+    manufactured over 48 minutes). Distributional stats stay
+    report-only; the B2 mechanism rows own the fix (score-pressure
+    coupling + garbage-time rotation, REFACTOR register — designs
+    ready, design-coupling / design-garbagetime findings).
+  - **Pass volume: reference corrected and cited; the gap is an open
+    mechanism item.** The cited real rate is ~2.84-2.86
+    passes/possession (2023-24: 281.3 passes made per team-game, ÷ ~99
+    possessions; `data/nba/tracking-references-2023-24.json`, generated
+    from archived stats.nba.com tracking tables and cross-validated —
+    the texture tool now imports the citation, commits f8a7c35 +
+    869bb3f, so the printed reference cannot drift; the previously
+    quoted "NBA ~3.2" was an uncited recollection and wrong on both
+    counts). Measured at the landing: 1.97 (`npm run texture`,
+    2026-07-28, 8 games, single base — indicative; pre-integration read
+    1.93, 2026-07-27). The ~30% shortfall is a mechanism item (B2): the
+    pass-back damping overshot — the pre-damping baseline was 2.95 —
+    and the winner's riskBase re-price itself costs ~0.1-0.2
+    passes/possession (risk pricing is a pass-volume lever; recorded in
+    the design). A designed increment exists (design-passvolume
+    findings: an early-shot-clock probe window coordinated with a
+    riskBase re-price, ~+25 passes/team-game as the honest first step —
+    the full gap is a multi-phase arc, not one knob).
+  - **Out-of-sample distributional state — adjudicate at n≥240; the
+    60-game default is ±2 draw noise on these stats.** The
+    margin-distribution survey re-measured the oos pool at n=240
+    (2026-07-28, pre-integration main, endgame flag-off): mean |margin|
+    14.48, blowout (20+) share 29.2%, close (≤5) share 20.0%, OT 1.7%
+    vs the cited 2023-24 real 12.58 / 19.1% / 23.3% / 4.80% (N=1230).
+    The previously documented oos-60 values (15.1 / 32% / 17%)
+    overstated two misses — close-share is low-normal, not collapsed —
+    and sd|m| is a minor miss. The regression direction vs the
+    pre-wave-2 state stands. The oos tool's printed references are now
+    computed-and-cited (commit 9a02fa8; note its marginSd is the SD of
+    |margin|, 9.53 comparator — not the signed-margin SD 15.64).
+    Post-winner re-run at the landing (`npm run oos`, 60 games, single
+    draw — indicative per §4.4): **17/17 bands** — the first full oos
+    pass, with the 3PA-share generalization gap (32.5% vs the 33.0
+    floor on the 2026-07-27 read) clearing on this draw; distribution
+    avg |margin| 14.5, sd|m| 9.7 (vs 9.53), blowout 30%, close 22%, OT
+    3.3% (default config is endgame-ON since the flip — quote the
+    config with the number). Consistent with the adjudicated n≥240
+    reads on the systematic misses (margin/blowout); the coupling
+    mechanism above is B2's target. One-generated-set,
+    single-seed-family caveat stays.
+- **PRE-INTEGRATION STATE (historical — measured 2026-07-27; superseded
+  at the `calib/integration` landing).** The pf miss recorded here was
+  subsequently diagnosed as the charge-composition defect (~3× documented
+  intent; fixed in commit 2d47954) and the fga/ftPct edge story continues
+  in the current block. Kept as the incident record:
   - **Fouls band FAILS — branch-introduced.** batch-24 (single base): pf
     23.7 vs band 16.0-22.5, +1.2 over the ceiling. Systematic, not draw
     noise: the n40 grand-mean center is 22.69 ±0.08se — OUTSIDE the 22.5
@@ -259,75 +436,73 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
   quoted positions (pace 95.42; ORtg 121.08 edge-unresolved; floors
   trb/blk/tov) describe superseded eras — the current edge set is the one
   in the CURRENT STATE block above.
-- **Pass volume runs low**: 1.93 passes/possession measured 2026-07-27
-  (`npm run texture`, 8 games, single base — indicative) vs the cited NBA
-  ~2.84-2.86 (2023-24: 281.3 passes made per team-game, NBA.com tracking
-  Passing, ÷ ~99 possessions/game at B-Ref pace 98.5). The previously
-  quoted target "NBA ~3.2" was an uncited recollection; the corrected
-  reference makes the gap ~32%, not ~30%+ of a larger number. Open
-  texture item with the damping named as cause (baseline was 2.95, the
-  pass-back damping overshot).
-- **Endgame management: mechanisms IMPLEMENTED, flag-gated default-OFF;
-  the realism gap remains at the default.** The historical diagnosis (the
-  review's sharpest cut) held that near-ties are played out instead of
-  MANAGED. All five once-missing behaviors now exist behind
-  `GameConfig.endgame` (`sim/endgame.ts` + concept 6 in
-  `sim/ai/concepts.ts`): timeouts (advance + stop-the-run triggers,
-  budget from the rule pack), intentional fouling, hold-for-last,
-  two-for-one, clock burn, plus trailing-team hurry. Flag-off
-  byte-identity vs the pre-endgame engine is verified
-  (FINDINGS-REDTEAM.md item 2); flag-on probes pass budget/decrement
-  checks. Deliberately NOT in `harness/knobs.ts` until the flag defaults
-  on. Open items (REFACTOR.md register): the default-on decision + the
-  coordinated re-sweep; no flag-on re-measurement of the OT-share target
-  exists in-repo. With the flag off, OT share measured 1.7% at oos-60
-  (2026-07-27) vs the cited real 4.80% (2023-24 regular season, computed
-  from Basketball-Reference schedules, N=1230; long-run ~5.9%).
+- **Endgame management: implemented AND default-ON.** The historical
+  diagnosis (the review's sharpest cut) held that near-ties are played
+  out instead of MANAGED. All five once-missing behaviors exist in
+  `sim/endgame.ts` + concept 6 (`sim/ai/concepts.ts`): timeouts (advance
+  + stop-the-run triggers, budget from the rule pack), intentional
+  fouling, hold-for-last, two-for-one, clock burn, plus trailing-team
+  hurry. The default flipped ON at the calib/integration landing on the
+  n=1260-games-per-arm survey evidence (see the CURRENT STATE block
+  above for what it closes and the Q4-profile watch item);
+  `endgame: false` preserves the byte-identical pre-layer path (verified
+  at scale: 0 timeout events in 1,260 flag-off games). The magnitude
+  dials are registered in `harness/knobs.ts` and the coordinated sweep
+  re-centered three of them; the window/threshold dials stay off the
+  sweep surface by doctrine (identity-shape gates are design, not
+  calibration), and `timeoutRunPts` has no cited real base rate — do not
+  tune it until one lands in `data/nba/` (ground-truth row 34).
 
 **Out-of-sample status** (`npm run oos` — generated rosters the sweep never
-saw): re-run at each landing — an obligation wave 2 missed; the numbers
-below are the 2026-07-27 re-measurement (60 games, 12 generated rosters,
-one generated set — indicative per §4.4, but the deltas dwarf draw noise).
-Bands 15/17: 3PA share 32.5% vs the 33.0 floor (a generalization gap — the
-acceptance-roster center is 36.8% ±0.1 at n40) and fouls 23.3 vs the 22.5
-ceiling (the same miss as the acceptance batch). Distributional report
+saw): re-run at each landing. At the `calib/integration` landing
+(2026-07-28, winner bake `7e05c97`; 60 games, 12 generated rosters, one
+generated set, single draw — indicative per §4.4): **17/17 bands — the
+first full oos pass**, including the 3PA-share generalization gap (32.5%
+vs the 33.0 floor on the 2026-07-27 read; the acceptance-roster center was
+36.8% ±0.1 at n40) clearing on this draw. Distributional report
 (REPORT-ONLY, ratchet convention) — measured vs cited 2023-24 regular
-season (computed from Basketball-Reference schedules, N=1230): avg final
-margin 15.1 vs real mean |margin| 12.58; blowout (20+) share 32% vs 19.1%;
-close-game (≤5) share 17% vs 23.3%; OT share 1.7% vs 4.80% (long-run
-~5.9%); margin sd 10.3. This is a distributional REGRESSION vs the
-previously documented state ("avg margin 12.2 / blowout 17% — in range",
-measured pre-wave-2): the wave-2 landing moved the report the wrong way
-and the report was not re-run at that landing. Close-game share also
-FLIPPED from above range (37%) to below (17%) — the old "fat middle, fat
-tails, missing shoulders" diagnosis no longer describes the tip.
-Distributional misses are mechanism candidates first, fitting targets
-second — see the roadmap's validation arc.
+season (computed from Basketball-Reference schedules, N=1230): avg
+|margin| 14.5 vs real 12.58; sd|m| 9.7 vs 9.53; blowout (20+) share 30% vs
+19.1%; close-game (≤5) share 22% vs 23.3%; OT 3.3% vs 4.80% (the default
+config is endgame-ON since the flip — quote the config with the number).
+Adjudicate distributional stats at n≥240 (the 60-game default is ±2 draw
+noise on them): the adjudicated basis is the margin-distribution survey
+(2026-07-28, n=240 oos pool + 880 flag-off games across 4 cohorts, on
+pre-integration main) — the margin/blowout misses are systematic and the
+mechanism is the missing score-pressure coupling (see the measured
+findings above), owned by B2, sweep-unreachable by measurement. History:
+the wave-2 landing regressed this report and did not re-run it (avg
+margin 15.1 / blowout 32% / close 17% documented 2026-07-27 — itself a
+60-game draw that overstated the close-share and mean misses; REFACTOR
+register W14 holds the record). One-generated-set caveat stands.
 
-**Texture (measured by `npm run texture`; latest read 2026-07-27, 8 games,
-single base — indicative per §4.4):** average live speed 6.40 ft/s vs the
-cited reference 4.22 mph = 6.19 ft/s (2023-24 team AVG_SPEED, NBA.com
-Speed & Distance tracking) — on target within definitional noise; there is
-NO open speed residual. History: 8.67 → 6.55 ft/s across the texture
-increment, then 6.24 ft/s after the jog-economy fix (commit `00e2cda`,
-2026-07-26 — the units-verdict commit; this paragraph formerly compared
-those ft/s readings against "NBA ~4.2" WITHOUT units, a ft/s-vs-mph
-confusion whose full record is in the friction-signature history above).
-Stationary share 31%, walking (1-6 ft/s) 16%, running (>6 ft/s) 53%,
-ping-pong share of passes 13.5% (was 26.8% pre-increment — the eye-test
-oscillation, largely gone), passes/possession 1.93 vs the cited NBA
-~2.84-2.86 (see the pass-volume finding above) — the damping overshot;
-open item. Mechanisms: pass-back damping (concept 3's negative side),
-stillness deadbands with walked spacing moves, purposeful relocation with
-the denied shooter's baseline escape.
+**Texture (measured by `npm run texture`; latest read 2026-07-28 at the
+landing, 8 games, single base — indicative per §4.4):** average live speed
+6.20 ft/s vs the cited reference 4.22 mph = 6.19 ft/s (2023-24 team
+AVG_SPEED, NBA.com Speed & Distance tracking) — on target within
+definitional noise; there is NO open speed residual. History: 8.67 → 6.55
+ft/s across the texture increment, 6.24 ft/s after the jog-economy fix
+(commit `00e2cda`, 2026-07-26 — the units-verdict commit; this paragraph
+formerly compared those ft/s readings against "NBA ~4.2" WITHOUT units, a
+ft/s-vs-mph confusion whose full record is in the friction-signature
+history above), 6.40 ft/s on 2026-07-27. Stationary share 33%, ping-pong
+share of passes 11.3% (was 26.8% pre-increment — the eye-test oscillation,
+largely gone), passes/possession 1.97 vs the cited NBA ~2.84-2.86 (see the
+pass-volume finding above) — the damping overshot; open B2 mechanism item.
+Mechanisms: pass-back damping (concept 3's negative side), stillness
+deadbands with walked spacing moves, purposeful relocation with the denied
+shooter's baseline escape. Texture now measures the shipped default
+config, which is endgame-ON since the integration landing — re-measure
+rather than compare against pre-flip reads.
 
 ## Known simplifications (deliberate, documented)
 
 Simplified inbounds (timed reset, no inbound passer) · endgame management
 (timeouts, intentional fouling, hold-for-last, two-for-one, clock burn) is
-implemented but flag-gated default-OFF (`GameConfig.endgame` — so the default
-game still plays without timeouts; the default-on decision belongs to the
-coordinated re-sweep, REFACTOR.md register) · no backcourt/
+implemented and DEFAULT-ON since the calib/integration landing
+(`endgame: false` = the byte-identical legacy path); real timeout-usage
+patterns (mandatory/TV timeouts, ATO play-calls) remain unmodeled and
+ungraded — no cited base rate exists · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
 (the Stage 2 assists/assisted-share gaps are CLOSED: usage pressure,
 delivery quality, and DHO conversion brought assisted share to ~57-61% and

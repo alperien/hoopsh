@@ -143,14 +143,17 @@ worker-pool parallel runner (determinism across worker counts tested) ·
 roster tooling (schema gen, scaffold wizard, validator, stats→ratings fitter) ·
 stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
 endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
-burn) implemented flag-gated, default OFF pending its calibration decision ·
+burn) — default ON since the calib/integration landing, decided on measured
+survey evidence (`endgame: false` = the byte-identical legacy path) ·
 NCAA rule pack behind the harness `--league` flag (partially wired — see
 REFACTOR.md's register)
 
 **Phase 2R (current — tuning, not building):** the mechanics above are implemented
-and wired; the open work is calibration and verification — the coordinated
-re-sweep of the integrated engine, the endgame-flag decision, fidelity residuals
-(hub post-up share), and the open items in REFACTOR.md's register.
+and wired. The coordinated re-sweep of the integrated engine and the endgame-flag
+decision both landed at the calib/integration landing (first full 17/17 band
+lock); the open work is the B2 mechanism items (score-pressure coupling,
+garbage-time rotation, pass volume), fidelity residuals (hub post-up share), and
+the open items in REFACTOR.md's register.
 
 **Next (validation arc):** mechanism audit of the distributional misses ·
 30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game

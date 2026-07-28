@@ -1,7 +1,15 @@
 /**
  * Batch acceptance run:
- *   npm run batch -- --games 100 [--seed base] [--workers N] [--league nba|ncaa]
+ *   npm run batch -- --games 100 [--seed base] [--workers N] [--league nba|ncaa] [--endgame]
  * Sims N games and prints the realism acceptance report.
+ *
+ * --endgame FORCES GameConfig.endgame ON for every game (the batchEndgame
+ * task, parallel.ts) — the flag-on acceptance measurement the coordinated
+ * re-sweep needs (REFACTOR.md W2). Without the flag, games run the engine's
+ * shipped default. A forced flag-on run is a non-default config with no
+ * ratchet achievement of its own (measured 15/17 at current params — the
+ * endgame-flag survey), so like an uncalibrated league it defaults to
+ * report-only; arm a gate explicitly with --min-bands.
  *
  * --league swaps the rule pack, the acceptance bands, AND the pace basis
  * together (leagues.ts) — never one without the others. 'ncaa' runs the
@@ -56,22 +64,34 @@ const RATCHET_FLOOR = 16;
 const GATE_MIN_GAMES = 24;
 
 const games = flagNumber(process.argv, '--games', 50);
+// Red-team MINOR-4 (FINDINGS-REDTEAM.md; REFACTOR.md W13): `--games 0` used
+// to print an all-FAIL report of zeros and exit 0 (the gate below is
+// report-only under GATE_MIN_GAMES), so a scripted caller checking exit
+// codes saw success on a run that simulated NOTHING. A batch that grades
+// zero games is a misconfiguration, never a pass — die loudly before
+// simulating anything.
+if (!Number.isInteger(games) || games < 1) {
+  console.error(`--games requires an integer >= 1, got ${games} — refusing to grade a run that simulates nothing`);
+  process.exit(1);
+}
 const seedBase = flagValue(process.argv, '--seed', 'acceptance');
 const league = resolveLeague(flagValue(process.argv, '--league', 'nba'));
-// the ratchet is an NBA achievement — an uncalibrated league defaults to
-// report-only (arm it explicitly with --min-bands once it has a ratchet)
+const endgame = process.argv.includes('--endgame');
+// the ratchet is an NBA achievement at the DEFAULT config — an uncalibrated
+// league, or a forced flag-on (--endgame) run, defaults to report-only (arm
+// it explicitly with --min-bands once the config has a ratchet of its own)
 const minBands = flagNumber(
   process.argv, '--min-bands',
-  league.calibrated && games >= GATE_MIN_GAMES ? RATCHET_FLOOR : 0
+  league.calibrated && !endgame && games >= GATE_MIN_GAMES ? RATCHET_FLOOR : 0
 );
 const workers = resolveWorkerCount(flagValue(process.argv, '--workers', 'auto'));
 
 async function main(): Promise<void> {
-  console.log(`Simulating ${games} ${league.name} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'})...`);
+  console.log(`Simulating ${games} ${league.name} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'}${endgame ? ', endgame ON' : ''})...`);
   const t0 = performance.now();
   let lastPrinted = 0;
   const summaries = await runGames({
-    task: 'batch',
+    task: endgame ? 'batchEndgame' : 'batch',
     games,
     seedBase,
     league: league.id,
@@ -111,6 +131,8 @@ async function main(): Promise<void> {
   }
   if (minBands === 0 && !league.calibrated) {
     console.log(`(report-only: league "${league.id}" is uncalibrated — these bands measure the gap, they don't gate; pass --min-bands to arm one anyway)`);
+  } else if (minBands === 0 && endgame) {
+    console.log(`(report-only: --endgame forces a non-default config with no ratchet of its own — these bands measure the flag-on gap until the coordinated re-sweep (REFACTOR.md W2); pass --min-bands to arm a gate anyway)`);
   } else if (minBands === 0 && games < GATE_MIN_GAMES) {
     console.log(`(report-only: n=${games} < ${GATE_MIN_GAMES}, band noise dominates below that — gate inactive)`);
   }

@@ -255,19 +255,29 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
 });
 
 describe('endgame layer OFF is the unchanged engine', () => {
-  it('a default-config stream never contains a timeout', () => {
+  it('an explicit endgame:false stream never contains a timeout', () => {
+    // renamed from "a default-config stream…" when the default flipped ON:
+    // a default-config stream now DOES contain timeouts (that's the pin
+    // below); flag-off purity is the legacy path's contract
     for (const r of off) {
       expect(timeouts(r).length).toEqual(0);
     }
   });
 
-  it('endgame: false is byte-identical to omitting the flag', () => {
+  it('omitting the flag means ON: the default flipped on the n=1260/arm survey', () => {
+    // This pin is the old "endgame: false is byte-identical to omitting the
+    // flag" expectation, inverted deliberately when the default flipped
+    // OFF→ON (endgame-flag survey, 1,260 games per arm × 3 seed bases: the
+    // layer closes the clutch-realism gaps with invariants green — see
+    // GameConfig.endgame in sim/game.ts). A default-config game must now BE
+    // the flag-on game; the explicit-false pool above stays the
+    // byte-identical legacy path.
     const { home, away } = sampleMatchup();
     const omitted = simulateGame({ seed: 'egscan-0', home, away, collectFrames: false });
-    expect(JSON.stringify(off[0]!.events)).toEqual(JSON.stringify(omitted.events));
-    // (identity with the PRE-layer engine is the golden fingerprint suite's
-    // job — npm run fingerprint — since a test in this tree can only compare
-    // this build against itself)
+    expect(JSON.stringify(on[0]!.events)).toEqual(JSON.stringify(omitted.events));
+    // (identity of the explicit-false path with the PRE-layer engine is the
+    // golden fingerprint suite's job — npm run fingerprint — since a test in
+    // this tree can only compare this build against itself)
   });
 
   it('the flag-ON path is deterministic per seed', () => {

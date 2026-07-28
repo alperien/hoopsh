@@ -1,7 +1,7 @@
 /**
  * Sweep worker: evaluate one params candidate.
  *
- * argv[2] = path to a job JSON: { overrides, games, seedBases }
+ * argv[2] = path to a job JSON: { overrides, games, seedBases, endgame? }
  * stdout  = JSON: { seedResults: [{ seedBase, avgs }] }
  *
  * This is the OTHER end of sweep.ts's job-file protocol (see
@@ -28,6 +28,14 @@ interface Job {
   overrides: Record<string, unknown>;
   games: number;
   seedBases: string[];
+  /**
+   * true FORCES GameConfig.endgame ON for every game (the flag-on re-sweep,
+   * REFACTOR.md W2); absent or false, the key is omitted from the game
+   * config entirely, so games run whatever default the engine ships
+   * (`cfg.endgame ?? …`, sim/game.ts) — absent keeps old hand-written debug
+   * jobs meaning what they meant.
+   */
+  endgame?: boolean;
 }
 
 const job: Job = JSON.parse(readFileSync(process.argv[2]!, 'utf8'));
@@ -59,7 +67,8 @@ for (const seedBase of job.seedBases) {
       home,
       away,
       params,
-      collectFrames: false
+      collectFrames: false,
+      ...(job.endgame ? { endgame: true } : {})
     });
     accumulate(acc, boxScore(result.events, [home, away]));
   }

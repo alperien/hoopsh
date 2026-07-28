@@ -241,8 +241,10 @@ export interface GameState {
 
   /**
    * ENDGAME LAYER (GameConfig.endgame). `endgame` gates every late-game
-   * behavior (concept 6, intentional fouling, timeouts) — false is the
-   * default and the byte-identical legacy path. `timeoutsLeft` /`runPts`
+   * behavior (concept 6, intentional fouling, timeouts) — ON by default
+   * since the n=1260/arm flag survey (2026-07-28; `cfg.endgame ?? true`,
+   * game.ts). Pass `endgame: false` for the byte-identical legacy path.
+   * `timeoutsLeft` /`runPts`
    * are always maintained (cheap bookkeeping, no rng) but only READ when
    * the flag is on: runPts mirrors the unanswered-points definition the
    * narration ContextTracker uses (a team's own score accrues, an opponent
