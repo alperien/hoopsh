@@ -1,27 +1,27 @@
 /**
- * Season layer — schedule generation, a deterministic multi-game driver, and
+ * Season layer: schedule generation, a deterministic multi-game driver, and
  * standings accumulation on top of the single-game engine.
  *
  * Design constraints this file answers to (see docs/SEASON.md for the full
  * rationale):
  *
- *  1. DETERMINISM — a season is a pure function of (seed base, schedule,
+ *  1. Determinism: a season is a pure function of (seed base, schedule,
  *     rosters). Every game's seed is derived from the season seed base plus
  *     the game's schedule position and matchup (`gameSeed`), so re-running
  *     the same season reproduces byte-identical standings, and reordering
  *     unrelated schedule entries doesn't perturb games that didn't move.
  *
- *  2. GAMES ARE INDEPENDENT — deliberately. No fatigue carryover, injuries,
+ *  2. Games are independent, deliberately. No fatigue carryover, injuries,
  *     rest, or travel today (docs/SEASON.md documents the seams where those
  *     would attach and what the omission costs in prediction accuracy).
  *     Independence is what makes the next point possible:
  *
- *  3. PARALLELISM IS A SEAM, NOT A FEATURE OF THIS FILE — `runSeason` hands
+ *  3. Parallelism is a seam, not a feature of this file. `runSeason` hands
  *     the full task list to a `SimulateGames` function and folds standings
- *     from the returned outcomes AFTER sorting them by schedule index. The
+ *     from the returned outcomes after sorting them by schedule index. The
  *     default implementation (`simulateTasksSequential`) is a plain
  *     in-process loop; a worker-pool runner (wave1/runner) can be dropped in
- *     by passing its own `SimulateGames` — completion ORDER cannot matter
+ *     by passing its own `SimulateGames`. Completion order cannot matter
  *     because nothing is accumulated until every outcome is in hand and
  *     re-sorted. Do not add cross-game state inside the seam without reading
  *     docs/SEASON.md first: independence is the property that makes the seam
@@ -37,7 +37,7 @@ import { boxScore, type PlayerLine, type TeamTotals } from '@hoopsh/stats';
 export interface ScheduledGame {
   home: string;
   away: string;
-  /** free-form date/round label — carried through untouched. This is the
+  /** free-form date/round label, carried through untouched. This is the
    *  hook a future rest/travel model keys on; nothing reads it today. */
   date?: string;
 }
@@ -45,23 +45,23 @@ export interface ScheduledGame {
 /**
  * Generate a round-robin schedule via the classic circle method.
  *
- * - `rounds` full round-robins are concatenated (default 2 — a "double
+ * - `rounds` full round-robins are concatenated (default 2, a "double
  *   round-robin", every pair meeting once in each building).
  * - Home/away is balanced two ways. Within a cycle, the fixed pivot's game
  *   alternates venue by round parity and every other pairing takes venue
- *   from its ring-position parity — measured across n=4..10 this keeps
+ *   from its ring-position parity; measured across n=4..10 this keeps
  *   every team's single-cycle |home − away| within 1 game (2 for odd
  *   leagues, which also carry a bye), where naive round-parity assignment
  *   let one team play an entire cycle away. Across cycles, every odd cycle
  *   mirrors the even one, so any (a,b) pair that met with `a` at home in
- *   cycle 0 meets with `b` at home in cycle 1 — with rounds=2 every pair
+ *   cycle 0 meets with `b` at home in cycle 1; with rounds=2 every pair
  *   plays exactly once in each team's building.
  * - Odd team counts get a bye (the classic method's fixed pivot becomes a
  *   phantom team whose games are dropped), so each round one team rests.
  * - Deterministic: output depends only on `teamIds` order and `rounds`.
  *
  * `date` is set to the 0-based round label `"r<round>"` (rounds count across
- * cycles), which doubles as documentation of WHICH games could run in
+ * cycles), which doubles as documentation of which games could run in
  * parallel even under a future cross-game-state model: games in the same
  * round share no team.
  */
@@ -92,7 +92,7 @@ export function roundRobin(teamIds: readonly string[], rounds = 2): ScheduledGam
         const b = ring[n - 1 - k] as string | null;
         if (a === BYE || b === BYE) continue;
         // venue rule (empirically the best of the simple circle-method
-        // assignments — see the doc comment): pivot game alternates by
+        // assignments; see the doc comment): pivot game alternates by
         // round, others take ring-position parity; odd cycles mirror.
         const aHome = k === 0 ? r % 2 === 0 : k % 2 === 1;
         let home = aHome ? a : b;
@@ -108,12 +108,12 @@ export function roundRobin(teamIds: readonly string[], rounds = 2): ScheduledGam
 
 // ------------------------------------------------------- the simulate seam
 
-/** One game, fully specified — the unit of work the parallelism seam sees.
- *  Everything a worker needs travels IN the task (seed, both rosters); the
+/** One game, fully specified: the unit of work the parallelism seam sees.
+ *  Everything a worker needs travels in the task (seed, both rosters); the
  *  task closes over no season state, which is what makes it shippable to a
  *  worker thread/process by a future parallel runner. */
 export interface GameTask {
-  /** position in the season schedule — also the standings fold order */
+  /** position in the season schedule; also the standings fold order */
   index: number;
   seed: string;
   home: Team;
@@ -121,7 +121,7 @@ export interface GameTask {
   date?: string;
 }
 
-/** Slim per-game result — scores plus box-score totals, NOT the event
+/** Slim per-game result: scores plus box-score totals, not the event
  *  stream (a full 1230-game season of raw events would be memory-hostile;
  *  totals and player lines are what standings and distributions consume). */
 export interface GameOutcome {
@@ -139,10 +139,10 @@ export interface GameOutcome {
 }
 
 /**
- * THE PARALLELISM SEAM. `runSeason`/`simulateMatchup` build the complete
+ * The parallelism seam. `runSeason`/`simulateMatchup` build the complete
  * task list up front and call one of these; the default below is a
  * sequential in-process loop. The wave1/runner worker pool replaces it by
- * satisfying this same signature — outcomes may be produced IN ANY ORDER
+ * satisfying this same signature. Outcomes may be produced in any order
  * (callers re-sort by `task.index` before folding), and `onOutcome` is an
  * optional progress tap, also order-agnostic.
  */
@@ -189,8 +189,8 @@ export const simulateTasksSequential: SimulateGames = (tasks, onOutcome) => {
  * Per-game seed: season seed base + schedule position + matchup.
  *
  * Position alone would suffice for reproducibility; including the matchup
- * ids buys a second property for free — a given (position, home, away)
- * triple simulates identically even if OTHER schedule entries around it are
+ * ids buys a second property for free: a given (position, home, away)
+ * triple simulates identically even if other schedule entries around it are
  * edited, which keeps "tweak the schedule, diff the standings" experiments
  * interpretable. Mirrors run.ts's `${base}-${i}` convention, extended.
  */
@@ -232,7 +232,7 @@ export interface VenueRecord {
 
 /** Per-team season averages of the team's own counting stats. Ratio stats
  *  (fgPct/tpPct/ftPct) are volume-weighted (sum of makes / sum of attempts),
- *  matching aggregate.ts's rationale — NOT a mean of per-game percentages. */
+ *  matching aggregate.ts's rationale, not a mean of per-game percentages. */
 export interface TeamSeasonAverages {
   pts: number; fga: number; fgPct: number; tpa: number; tpPct: number;
   fta: number; ftPct: number; trb: number; ast: number; stl: number;
@@ -254,12 +254,12 @@ export interface TeamStanding {
   away: VenueRecord;
   avg: TeamSeasonAverages;
   /**
-   * Strength of schedule = mean of opponents' FINAL win percentage over this
-   * team's games (with multiplicity — playing a strong team twice counts it
+   * Strength of schedule = mean of opponents' final win percentage over this
+   * team's games (with multiplicity; playing a strong team twice counts it
    * twice). This is the plain "opponents' winning percentage" (OWP); it does
-   * NOT remove games-vs-this-team from the opponents' records and does not
-   * recurse into opponents' opponents (the NCAA RPI-style refinement) —
-   * documented in docs/SEASON.md.
+   * not remove games-vs-this-team from the opponents' records and does not
+   * recurse into opponents' opponents (the NCAA RPI-style refinement).
+   * Documented in docs/SEASON.md.
    */
   sos: number;
 }
@@ -311,7 +311,7 @@ export function computeStandings(
     const [hs, as] = o.score;
     if (hs === as) {
       // the engine plays overtime until someone leads (possession.ts
-      // endPeriod) — a tie reaching standings means the outcome is corrupt
+      // endPeriod); a tie reaching standings means the outcome is corrupt
       throw new Error(`game ${o.index} (${o.awayId}@${o.homeId}): tied ${hs}-${as}, engine games cannot tie`);
     }
     const h = acc(o.homeId);
@@ -341,7 +341,7 @@ export function computeStandings(
     }
   }
 
-  // pass 2: SOS needs everyone's FINAL win pct
+  // pass 2: SOS needs everyone's final win pct
   const winPct = new Map<string, number>();
   for (const [id, a] of accs) winPct.set(id, a.games === 0 ? 0 : a.wins / a.games);
 
@@ -398,9 +398,9 @@ export interface SeasonOptions {
   /** explicit fixture list; defaults to a double round-robin over `teams`
    *  in the order given */
   schedule?: readonly ScheduledGame[];
-  /** season seed base (default "season") — see gameSeed for derivation */
+  /** season seed base (default "season"); see gameSeed for derivation */
   seedBase?: string;
-  /** THE PARALLELISM SEAM — see SimulateGames; defaults to the in-process
+  /** the parallelism seam; see SimulateGames. Defaults to the in-process
    *  sequential loop */
   simulate?: SimulateGames;
   /** progress tap; may fire in any order under a parallel seam */

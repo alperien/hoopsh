@@ -1,24 +1,25 @@
 /**
- * fetch-tracking-references.mjs — generates tracking-references-2023-24.json.
+ * fetch-tracking-references.mjs: generates tracking-references-2023-24.json.
  *
  * Why this exists: the speed-units incident (texture.ts header tells it) ended
  * with a corrected-but-still-uncited "4.2 MPH ≈ 6.2 ft/s" reference, and the
  * passing reference ("~300 passes / ~95 possessions") was never cited at all.
  * Per this directory's contract (README.md), a reference number the harness
  * compares itself against must be GENERATED from a cited primary source, not
- * recalled — so this script fetches NBA's own tracking API responses and
+ * recalled. So this script fetches NBA's own tracking API responses and
  * computes the league values, definitions attached.
  *
  * Source: stats.nba.com leaguedashptstats (SpeedDistance + Passing, Team,
  * PerGame, Regular Season). stats.nba.com rejects automated clients from this
- * kind of egress (hangs/504 — same access story as league-averages-2023-24.json),
+ * kind of egress (hangs/504, same access story as league-averages-2023-24.json),
  * but the Internet Archive Wayback Machine holds complete-season snapshots of
  * the RAW API JSON, archived months after each season ended. Those archived
  * URLs are pinned below; `id_` after the timestamp returns the raw body.
  *
  * Run: node data/nba/fetch-tracking-references.mjs
- * (three sequential requests to web.archive.org, >=2s apart — politeness
- * convention of this directory; rerunning only changes provenance.accessedAt)
+ * (three sequential requests to web.archive.org, >=2s apart per this
+ * directory's politeness convention; rerunning only changes
+ * provenance.accessedAt)
  *
  * Validation (script refuses to write on failure): 30 team rows per table;
  * the Passing snapshot's AST mean must match league-averages-2023-24.json's
@@ -106,7 +107,7 @@ const gpSum = sd24.col('GP').reduce((a, b) => a + b, 0);
 const range = (a) => [Math.min(...a), Math.max(...a)];
 
 // implied speed = distance ÷ on-court time (MIN is the 5-man aggregate, so
-// MIN/60 is five-man on-court player-hours) — provably NOT the AVG_SPEED column
+// MIN/60 is five-man on-court player-hours); provably NOT the AVG_SPEED column
 const implied24 = dist / (minTracking / 60);
 const spd23 = mean(sd23.col('AVG_SPEED'));
 const dist23 = mean(sd23.col('DIST_MILES'));

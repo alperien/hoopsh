@@ -1,15 +1,15 @@
 /**
- * Golden fingerprint corpus — the refactor tripwire.
+ * Golden fingerprint corpus: the refactor tripwire.
  *
  *   npm run fingerprint            verify current engine output against the
  *                                  checked-in corpus (exit 1 on any mismatch)
- *   npm run fingerprint:write      regenerate the corpus (ONLY after a
+ *   npm run fingerprint:write      regenerate the corpus (only after a
  *                                  deliberate, documented behavior change)
  *
- * WHY THIS EXISTS: behavior-preserving refactors (moving inline constants
+ * Why this exists: behavior-preserving refactors (moving inline constants
  * into SimParams, deduplicating helpers, deriving values from the rule pack)
  * must be provably behavior-preserving, not hopefully so. This script hashes
- * the full event stream AND the replay frames for a fixed set of seeds; a
+ * the full event stream and the replay frames for a fixed set of seeds; a
  * refactor commit that changes any hash is wrong by definition and gets
  * redone. This is the same byte-stability discipline the concepts.ts
  * consolidation used, made permanent and runnable.

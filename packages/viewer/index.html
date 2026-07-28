@@ -34,7 +34,7 @@
 
   /* ---------- scoreboard ----------
      Symmetric 3-block layout (home team / center clockbox / away team),
-     centered as a group via header's own flex centering rather than a grid —
+     centered as a group via header's own flex centering rather than a grid;
      the away team block is mirrored with row-reverse so its chip+abbrev+name
      visually flips to read outward-in, matching a real broadcast scorebug. */
   header {
@@ -91,7 +91,7 @@
     font-size: 12.5px; line-height: 1.45; color: #c6cdd9;
     animation: none;
   }
-  /* .new marks the most recently appended line (single element at a time —
+  /* .new marks the most recently appended line (single element at a time;
      appendFeed() strips the class off the previous holder before adding it
      here) for a subtle "just happened" highlight; deliberately animation:
      none above, not a flash transition, to stay legible during fast-forward
@@ -99,7 +99,7 @@
   #feed li.new { background: var(--panel2); color: var(--text); }
   #feed li .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; position: relative; top: -1px; }
   /* dot color keys the line to a side: .h home, .a away, .n neutral (period
-     boundaries, tip-off, final — events with no attributable team side). */
+     boundaries, tip-off, final: events with no attributable team side). */
   #feed li .dot.h { background: var(--home); }
   #feed li .dot.a { background: var(--away); }
   #feed li .dot.n { background: #4b5565; }
@@ -190,9 +190,9 @@
 </div>
 
 <script>
-/* hoopsh replay viewer — packages/viewer, a frozen prototype per
+/* hoopsh replay viewer: packages/viewer, a frozen prototype per
  * docs/INTERNALS.md ("narration/viewer are frozen prototypes"). It renders a
- * `Replay` artifact (packages/engine/src/replay/replay.ts) — nothing here
+ * `Replay` artifact (packages/engine/src/replay/replay.ts); nothing here
  * simulates or re-derives game logic (AGENTS.md §1.3/§6: consumers describe,
  * they never decide). Two ways a Replay reaches this page: EMBEDDED below
  * (baked in by embed.mjs for a standalone shareable HTML file) or drag-drop/
@@ -204,14 +204,14 @@ const EMBEDDED = /*HOOPSH_REPLAY*/null;
 const $ = (id) => document.getElementById(id);
 let BOOTED = false;
 function bootOnce(data) {
-  // boot() wires listeners and starts a render loop — a second boot would
+  // boot() wires listeners and starts a render loop; a second boot would
   // double every handler and run two loops on one canvas
   if (BOOTED) { alert('Refresh the page to load a different replay.'); return; }
   BOOTED = true;
   boot(data);
 }
 // Embedded path: embed.mjs spliced a real Replay literal in place of `null`
-// above, so this branch boots immediately with no user interaction — that's
+// above, so this branch boots immediately with no user interaction. That's
 // the whole point of baking a standalone viewer HTML file.
 if (EMBEDDED) bootOnce(EMBEDDED);
 else {
@@ -234,9 +234,9 @@ else {
 /* ================= viewer ================= */
 function boot(R) {
   /* ---- format version gate ---- */
-  // Replay.version (engine replay/replay.ts — version history lives there).
+  // Replay.version (engine replay/replay.ts; version history lives there).
   // This viewer understands formats 1 and 2. A replay declaring a NEWER
-  // version still renders — best effort beats a blank page — but must say
+  // version still renders (best effort beats a blank page) but must say
   // so visibly: silently mis-rendering a shape this file predates is the
   // failure AGENTS.md DO-NOT #8 exists to prevent (v1 viewers drew
   // "rebound undefined" from v2's playerless team rebounds).
@@ -256,7 +256,7 @@ function boot(R) {
   // player's display label can be decided. Mirrors the same last-initial
   // fallback used server-side in narration/src/pbp.ts's makeLookup() (kept
   // independently here rather than shared, since the viewer has no access to
-  // that package's Lookup type — this is a frozen prototype consuming plain
+  // that package's Lookup type; this is a frozen prototype consuming plain
   // JSON, not an importer of @hoopsh/narration).
   const names = new Map(), lastNames = new Map(), lastCount = new Map();
   for (const side of [0, 1]) for (const p of R.teams[side].players) {
@@ -268,7 +268,7 @@ function boot(R) {
     const parts = p.name.split(' ');
     const last = parts[parts.length - 1];
     // only add the first-initial prefix when the last name collides AND
-    // there's a first name to take an initial from — a mononym never gets
+    // there's a first name to take an initial from: a mononym never gets
     // a floating ". " prefix with nothing before it.
     lastNames.set(p.id, lastCount.get(last) > 1 && parts.length > 1 ? `${parts[0][0]}. ${last}` : last);
   }
@@ -277,7 +277,7 @@ function boot(R) {
 
   const frames = R.frames;
   // duration is simply the last frame's wall-clock timestamp (row[0], see
-  // the frame row layout note below) — frames run to the true end of the
+  // the frame row layout note below); frames run to the true end of the
   // replay timeline, so there's no separate "game length" field to consult.
   const duration = frames[frames.length - 1][0];
   $('seek').max = duration;
@@ -292,13 +292,13 @@ function boot(R) {
   // Pointer architecture: evPtr/feedPtr/fxPtr/lineupPtr are cursors into
   // four arrays that are each already sorted by timeline position (events by
   // wt, feed items by t, shot effects by wt, lineups by t). Each pointer only
-  // ever walks FORWARD as the playback clock `t` advances — advancePointers()
+  // ever walks FORWARD as the playback clock `t` advances: advancePointers()
   // below is a set of "while next item's timestamp <= t, consume it" loops,
   // never a re-scan from the start. That's what makes scrubbing forward
   // (play, or dragging the seek bar to a later time) cheap: no matter how far
   // t jumps, each pointer just resumes walking from wherever it left off.
-  // Jumping BACKWARD breaks that assumption — a pointer can't un-consume
-  // items it already passed — which is exactly why resetPointers() below
+  // Jumping BACKWARD breaks that assumption (a pointer can't un-consume
+  // items it already passed), which is why resetPointers() below
   // exists and setTime() calls it whenever the new time is earlier than the
   // old one (see setTime in the controls section further down).
   let evPtr = 0;          // events consumed (score)
@@ -311,7 +311,7 @@ function boot(R) {
 
   // Full rewind of all four pointers plus their derived state (score, active
   // shot-splash effects, on-court lineup slots, and the DOM feed list itself)
-  // back to game start — the only way to make "jump backward" correct given
+  // back to game start: the only way to make "jump backward" correct given
   // the forward-only pointer design above. Called by setTime() on any
   // backward scrub; a subsequent advancePointers() call then fast-forwards
   // every pointer back up to the new (earlier) `t` from scratch.
@@ -319,11 +319,11 @@ function boot(R) {
     evPtr = 0; feedPtr = 0; fxPtr = 0; lineupPtr = 0;
     score = [0, 0]; effects.length = 0; over = false;
     slots = [R.lineups.filter(l => l.side === 0)[0].slots.slice(), R.lineups.filter(l => l.side === 1)[0].slots.slice()];
-    feedEl.replaceChildren(); // clear the feed (DOM API only — see appendFeed's injection note)
+    feedEl.replaceChildren(); // clear the feed (DOM API only; see appendFeed's injection note)
   }
 
   function advancePointers() {
-    // all timeline comparisons use wt (wall-clock) — events carry both wt
+    // all timeline comparisons use wt (wall-clock); events carry both wt
     // (timeline) and t (game-clock, for stats); frames row[0] is wall-clock
     while (evPtr < R.events.length && R.events[evPtr].wt <= t) {
       score = R.events[evPtr].score;
@@ -331,7 +331,7 @@ function boot(R) {
       evPtr++;
     }
     // lineups key on their own `t` field (LineupSnapshot.t, wall-clock
-    // timeline seconds despite the short name — see replay.ts), not `wt`;
+    // timeline seconds despite the short name; see replay.ts), not `wt`;
     // same axis, just a different field name on that record type.
     while (lineupPtr < R.lineups.length && R.lineups[lineupPtr].t <= t) {
       const l = R.lineups[lineupPtr];
@@ -345,11 +345,11 @@ function boot(R) {
       // Full lifecycle: an effect object is created here with `born` = the
       // shot event's own wt, pushed into `effects`, drawn (and its age
       // recomputed as t - born) every render() call, and finally spliced back
-      // out of `effects` by render() itself once age exceeds 1.4s — see the
+      // out of `effects` by render() itself once age exceeds 1.4s; see the
       // "shot splash effects" block in render() below for the fade-out half
       // of this lifecycle. The 1.5s cutoff here (vs. render()'s 1.4s expiry)
       // gives a hair of slack so an effect that's already past its render-time
-      // fade window is never even created — it would draw for zero frames.
+      // fade window is never even created; it would draw for zero frames.
       if (t - s.wt <= 1.5) {
         effects.push({ x: s.x, y: s.y, made: s.made, three: s.three, born: s.wt });
       }
@@ -369,11 +369,11 @@ function boot(R) {
     // interpolation: item.label and item.text embed player names straight
     // from whatever replay JSON was loaded (the file picker accepts
     // arbitrary files), so interpolating them into markup here was a real
-    // script-injection sink — a crafted player name executed the moment its
+    // script-injection sink: a crafted player name executed the moment its
     // line entered the feed. The scoreboard code already did this correctly
     // with .textContent; this renderer was the one offender (review finding
     // #4). A tripwire test bans the interpolation property by name in this
-    // whole file — which is also why this comment can't name it.
+    // whole file, which is also why this comment can't name it.
     const li = document.createElement('li');
     const dot = document.createElement('span');
     dot.className = `dot ${item.side === 0 ? 'h' : item.side === 1 ? 'a' : 'n'}`;
@@ -391,7 +391,7 @@ function boot(R) {
 
   /* ---- canvas ---- */
   // Coordinate transform: court-feet (the engine's coordinate system, see
-  // geometry/court.ts — origin at the low-x baseline's left corner, +x the
+  // geometry/court.ts: origin at the low-x baseline's left corner, +x the
   // full court LENGTH, +y the court WIDTH, no flip or rotation) map to canvas
   // pixels via a single uniform `scale` plus an (ox, oy) offset that centers
   // the L×W court rectangle inside whatever pixel size the stage panel is.
@@ -399,7 +399,7 @@ function boot(R) {
   // `scale` picks the SMALLER of the two axis-fit ratios so the full court
   // fits without distortion regardless of the panel's aspect ratio (i.e. one
   // axis fits exactly to the margin, the other has extra breathing room,
-  // centered by ox/oy). Recomputed on every window resize, not just once —
+  // centered by ox/oy). Recomputed on every window resize, not just once;
   // the canvas is a flexed panel that can change size at any time.
   const canvas = $('court'), ctx = canvas.getContext('2d');
   let cw = 0, ch = 0, dpr = 1, scale = 1, ox = 0, oy = 0;
@@ -418,7 +418,7 @@ function boot(R) {
   }
   window.addEventListener('resize', resize); resize();
   // X()/Y(): the one and only court-feet -> canvas-px conversion used by
-  // everything drawn below (court lines, players, ball, shot effects) — no
+  // everything drawn below (court lines, players, ball, shot effects); no
   // other code path performs this transform, so a coordinate bug would show
   // up here first.
   const X = (x) => ox + x * scale, Y = (y) => oy + y * scale;
@@ -428,7 +428,7 @@ function boot(R) {
   // non-NBA rule pack redraws correctly) or hardcoded where it's a fixed
   // markings convention not currently exposed on the rule pack. Cross-
   // reference geometry/court.ts (makeCourt, classifyShot) for the same
-  // numbers as consumed by the engine itself — this function draws the same
+  // numbers as consumed by the engine itself; this function draws the same
   // court the engine's spatial model actually uses, not an artist's
   // approximation of one.
   function drawCourt() {
@@ -440,7 +440,7 @@ function boot(R) {
     // floor rect is drawn 1.5 ft OVERSIZED on every edge (see the -1.5/+3
     // offsets) purely so the wood-grain floor peeks out past the white
     // boundary line drawn next, like a real arena floor extends past the
-    // court markings — this is cosmetic framing, not a rules boundary.
+    // court markings. Cosmetic framing, not a rules boundary.
     roundRect(X(-1.5), Y(-1.5), (L + 3) * scale, (W + 3) * scale, 10); ctx.fill();
     // planks
     ctx.strokeStyle = 'rgba(90,55,25,.16)'; ctx.lineWidth = 1;
@@ -453,20 +453,20 @@ function boot(R) {
     line(L / 2, 0, L / 2, W);
     circle(L / 2, W / 2, 6, false);
 
-    // one iteration per basket end (0 = low-x baseline, 1 = high-x baseline —
+    // one iteration per basket end (0 = low-x baseline, 1 = high-x baseline;
     // matches geometry/court.ts's rims[0]/rims[1] convention exactly, so
     // `dir`/`base` here mirror that file's fixed-in-world-space rim layout).
     for (const end of [0, 1]) {
       const dir = end === 0 ? 1 : -1;
       const base = end === 0 ? 0 : L;
       // rules.rimInsetFt (NBA 5.25 ft): how far the rim center sits in from
-      // the baseline — same constant makeCourt() in court.ts uses to place
+      // the baseline, the same constant makeCourt() in court.ts uses to place
       // rims[]; kept in sync by both reading it off the SAME `rules` object
       // rather than each hardcoding it separately.
       const rimX = base + dir * rules.rimInsetFt;
       const cY = W / 2;
       // key: NBA key is 16 ft wide × 19 ft deep (free-throw line to
-      // baseline) — ftDist (19) doubles as both the key's depth and the
+      // baseline); ftDist (19) doubles as both the key's depth and the
       // free-throw line's distance from the baseline, because in the real
       // NBA rulebook those ARE the same line; keyW (16) is the lane width.
       const keyW = 16, ftDist = 19;
@@ -475,7 +475,7 @@ function boot(R) {
       circle(base + dir * ftDist, cY, 6, false);
       // backboard + rim + restricted area. `4` here is the backboard's
       // distance from the baseline (NBA: backboard face sits 4 ft off the
-      // baseline) — the short perpendicular tick mark drawn by line(). rim
+      // baseline), the short perpendicular tick mark drawn by line(). rim
       // radius (0.75 ft ≈ 9 in, an NBA rim's inner radius) and the
       // restricted-area arc radius (4 ft from the rim, the real
       // restricted-area semicircle) are the two circle/arc calls after it.
@@ -484,7 +484,7 @@ function boot(R) {
       arc(rimX, cY, 4, dir);
       // three-point line: same two-piece geometry classifyShot() in
       // court.ts uses to CLASSIFY a shot (straight corner segments out to
-      // th.cornerBreakFt, then an arc of radius th.arcRadiusFt beyond that) —
+      // th.cornerBreakFt, then an arc of radius th.arcRadiusFt beyond that);
       // this block draws the visual line matching that exact decision
       // boundary, not a separately eyeballed approximation of it. th.cornerDistFt
       // is the corner line's lateral distance from the rim's center line
@@ -493,7 +493,7 @@ function boot(R) {
       // 23.75 ft) is the arc's radius from the rim. dxAtBreak/`a` solve for
       // the angle at which the arc (centered on the rim) passes through the
       // point where the straight corner line ends, so the arc drawn below
-      // picks up EXACTLY where the straight segments stop — any seam here
+      // picks up EXACTLY where the straight segments stop; any seam here
       // would visibly kink the three-point line.
       const th = rules.three;
       const breakX = base + dir * th.cornerBreakFt;
@@ -512,12 +512,12 @@ function boot(R) {
     ctx.restore();
 
     // court-feet-aware drawing helpers, scoped inside drawCourt() since
-    // nothing outside it needs to draw in this coordinate space directly —
+    // nothing outside it needs to draw in this coordinate space directly;
     // all three route every point through X()/Y() so they inherit the
     // current pan/scale automatically.
     function line(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); ctx.stroke(); }
     function circle(x, y, r) { ctx.beginPath(); ctx.arc(X(x), Y(y), r * scale, 0, Math.PI * 2); ctx.stroke(); }
-    // half-circle only (arc, not circle) — used for the restricted area,
+    // half-circle only (arc, not circle): used for the restricted area,
     // which is a semicircle open toward midcourt, not a full ring.
     function arc(x, y, r, dir) {
       ctx.beginPath();
@@ -534,11 +534,11 @@ function boot(R) {
 
   /* ---- frame interpolation ----
      frames[] rows are the raw numeric arrays documented index-by-index in
-     packages/engine/src/replay/replay.ts (frame row layout comment there —
+     packages/engine/src/replay/replay.ts (frame row layout comment there;
      this viewer is the reference consumer that comment describes). Index
      recap as used below: [0] wall-clock t, [1] period, [2] game-clock
      remaining, [3]/[4] ball x/y, [5] holderSlot (0-4 home, 5-9 away, -1 =
-     loose/in flight — see the "holder ring" block below), then
+     loose/in flight; see the "holder ring" block below), then
      [6..15]/[16..25] the 5 home / 5 away on-court players' x,y pairs in
      lineup-slot order. */
   let fIdx = 0;
@@ -547,8 +547,8 @@ function boot(R) {
     // fIdx toward the pair of frames [fIdx, fIdx+1] that BRACKETS `time`
     // (frames[fIdx][0] <= time < frames[fIdx+1][0]); like the event/feed/fx
     // pointers above this only walks incrementally from wherever it last
-    // was, but unlike them it's symmetric — it can step in EITHER direction
-    // — because frameAt() is called every render() regardless of playback
+    // was, but unlike them it's symmetric (it can step in EITHER direction)
+    // because frameAt() is called every render() regardless of playback
     // direction or scrubbing, so it has to self-correct both ways rather
     // than relying on an external resetPointers()-style rewind.
     while (fIdx < frames.length - 2 && frames[fIdx + 1][0] <= time) fIdx++;
@@ -579,7 +579,7 @@ function boot(R) {
     // pushed once t has reached their birth time, but stays defensive
     // against a backward-scrub edge case). Ring radius grows with age (2 +
     // age*6, in court-feet-then-scaled) while opacity fades linearly to 0
-    // over the same 1.4s window — an expanding, fading ring reads as a
+    // over the same 1.4s window: an expanding, fading ring reads as a
     // shot's aftermath without needing a sprite/animation asset. Made
     // threes get a thicker ring (lineWidth 3 vs 2) as a little extra emphasis.
     for (let i = effects.length - 1; i >= 0; i--) {
@@ -595,7 +595,7 @@ function boot(R) {
     }
 
     // players: slot s runs 0-9 across BOTH sides in one loop (0-4 home, 5-9
-    // away — same slot numbering as holderSlot and the frame row's
+    // away, the same slot numbering as holderSlot and the frame row's
     // h0..h4/a0..a4 column layout), so `side` below is just s<5. xi/yi walk
     // the frame row at a fixed +2-per-slot stride starting at column 6 (the
     // first home player's x) per the index recap above.
@@ -604,10 +604,10 @@ function boot(R) {
     for (let s = 0; s < 10; s++) {
       const xi = 6 + s * 2, yi = 7 + s * 2;
       // Every player position is LINEARLY interpolated between bracketing
-      // frames a/b — smooth motion despite the sparse downsampled frame
+      // frames a/b: smooth motion despite the sparse downsampled frame
       // rate (see replay.ts's frame layout doc: frames record on a fixed
       // cadence, not every sim tick). holderSlot itself is NOT interpolated
-      // (it's read once from `a`, the earlier frame) — a discrete slot index
+      // (it's read once from `a`, the earlier frame): a discrete slot index
       // has no meaningful "in-between" value, so it just snaps to whichever
       // side of the bracket render() happens to read; replay.ts's own
       // documentation calls this out explicitly as intentional, not a gap.
@@ -616,7 +616,7 @@ function boot(R) {
       // holder ring: a plain outline ring drawn around whichever player's
       // slot number equals `holderSlot`, giving the ball-carrier a visible
       // highlight distinct from ball position itself (useful during a pass/
-      // shot when the ball is drawn away from any player — see the ball
+      // shot when the ball is drawn away from any player; see the ball
       // block below).
       if (s === holderSlot) {
         ctx.beginPath(); ctx.arc(px, py, pr + 4, 0, Math.PI * 2);
@@ -629,10 +629,10 @@ function boot(R) {
       if (showLabels) {
         // `slots[side][s % 5]` looks up the CURRENT lineup (kept live by
         // advancePointers()'s lineup-pointer walk above) to translate a
-        // frame slot number into a player id — frames never carry player
+        // frame slot number into a player id; frames never carry player
         // ids directly (see replay.ts: substitutions are a separate sparse
         // timeline specifically so 10 ids aren't repeated into every frame
-        // row), so this join is required every single render() call.
+        // row), so this join is required every render() call.
         const id = slots[side][s % 5];
         const nm = lastNames.get(id) || '';
         ctx.font = `600 ${Math.max(9, scale * 1.05)}px Inter`;
@@ -664,9 +664,9 @@ function boot(R) {
     // chrome: period/clock come straight from the bracketing frame row
     // (a[1]/a[2], lerped for the clock so it counts down smoothly rather
     // than jumping once per frame), while score/over come from `score`/
-    // `over` — state advanced by the EVENT pointer in advancePointers(),
+    // `over`, state advanced by the EVENT pointer in advancePointers(),
     // not the frame data. Two different sources for one on-screen readout
-    // because frames don't carry score at all (see replay.ts's row layout —
+    // because frames don't carry score at all (see replay.ts's row layout;
     // there's no score column); the score events already are the
     // authoritative record of it.
     const period = a[1], clock = lerp(a[2], b[2], k);
@@ -676,7 +676,7 @@ function boot(R) {
     // the `t >= duration - 0.3` guard avoids showing "FINAL / 0:00" the
     // instant `over` flips true (which happens exactly at the game_end
     // event's wt) while there might still be a fraction of a second of
-    // trailing frames to play out — FINAL only takes over once playback has
+    // trailing frames to play out; FINAL only takes over once playback has
     // actually reached the tail end of the timeline.
     if (over && t >= duration - 0.3) {
       $('period').textContent = 'FINAL';
@@ -687,7 +687,7 @@ function boot(R) {
     }
     $('time').textContent = `${pLabel} ${fmtClock(clock)}`;
     // guarded by `seeking` (set by the #seek input's own 'input' handler
-    // below) so render() doesn't fight the user's mouse — writing .value
+    // below) so render() doesn't fight the user's mouse: writing .value
     // here while they're actively dragging the range input would visibly
     // stutter/reset the slider under their cursor.
     if (!seeking) $('seek').value = t;
@@ -702,7 +702,7 @@ function boot(R) {
   // Standard requestAnimationFrame loop; dt is wall-clock DEVICE time since
   // last frame (capped at 0.1s so e.g. a backgrounded/throttled tab doesn't
   // suddenly jump playback forward by several seconds on refocus), separate
-  // from and unrelated to the replay's own `t`/`wt` timeline axes — this dt
+  // from and unrelated to the replay's own `t`/`wt` timeline axes; this dt
   // just drives how fast `t` advances during playback, scaled by `speed`.
   let last = performance.now();
   function loop(now) {
@@ -720,7 +720,7 @@ function boot(R) {
 
   /* ---- controls ----
      setTime() is the single entry point every control below funnels through
-     to change `t` — it's where the pointer architecture's forward-only
+     to change `t`; it's where the pointer architecture's forward-only
      assumption (see the "Pointer architecture" note near evPtr/feedPtr/
      fxPtr/lineupPtr above) gets enforced: detect backward movement, and
      ONLY then pay the cost of a full resetPointers() + frame-index reset
@@ -748,14 +748,14 @@ function boot(R) {
     $('labelBtn').textContent = 'Names: ' + (showLabels ? 'on' : 'off');
   });
   // `seeking` stays true for the whole drag gesture (set on every 'input'
-  // tick, cleared only once on 'change' when the user releases/commits) —
+  // tick, cleared only once on 'change' when the user releases/commits);
   // it's the flag render() checks before overwriting #seek.value, see the
   // note on that line above.
   let seeking = false;
   $('seek').addEventListener('input', (e) => { seeking = true; setTime(parseFloat(e.target.value)); });
   $('seek').addEventListener('change', () => { seeking = false; });
-  // space play/pause, arrow keys ±10s — matches the footer's own "space play
-  // · ←/→ ±10s" hint text; setTime() handles both directions uniformly so
+  // space play/pause, arrow keys ±10s; matches the footer's own "space play
+  // · ←/→ ±10s" hint text. setTime() handles both directions uniformly so
   // ArrowLeft near t=0 or ArrowRight near duration just clamp rather than
   // needing special-casing here.
   document.addEventListener('keydown', (e) => {
@@ -767,15 +767,15 @@ function boot(R) {
 
 /* ================= feed builder =================
    Pre-computes the full play-by-play ticker text for the whole game, up
-   front, from R.events — NOT incrementally as playback reaches each event.
+   front, from R.events, NOT incrementally as playback reaches each event.
    feedPtr in boot() above just walks this already-built array forward in
    sync with `t`; buildFeed() itself has no notion of playback time beyond
    stamping each item with the source event's `t` (wall-clock, per the push()
    helper below) for that later pointer walk to compare against. Mirrors
-   (independently — see the last-name-disambiguation note near `lastNames`
+   (independently; see the last-name-disambiguation note near `lastNames`
    above for why this isn't shared code) the switch-per-event-type structure
    narration/src/pbp.ts's renderEvent() uses server-side, but produces short
-   ticker-style fragments rather than full broadcast sentences — this is a
+   ticker-style fragments rather than full broadcast sentences: a
    different text register for a different medium (sidebar list vs. spoken
    commentary), not a lesser reimplementation of the same thing. */
 function buildFeed(R, lastNames) {

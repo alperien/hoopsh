@@ -1,28 +1,28 @@
 /**
- * The PBP Turing protocol — does the game READ as basketball, literally?
+ * The PBP Turing protocol: does the game read as basketball, literally.
  *
  * Renders simulated games into the same dry play-by-play register as
- * basketball-reference game logs, pseudonymizes player names on BOTH sides,
+ * basketball-reference game logs, pseudonymizes player names on both sides,
  * and emits blind excerpt packs: mid-game windows of N consecutive plays,
  * real and simulated shuffled together with an answer key. Human or LLM
- * judges then classify each excerpt REAL or SIM with a stated tell.
+ * judges then classify each excerpt real or sim with a stated tell.
  *
  * The metric is discrimination accuracy: 50% = the sim is indistinguishable
  * from real basketball at the play-by-play level; every point above 50% is
  * a measured, attributable realism gap (the judges' tells are the defect
- * list, ranked by how often they worked). Re-run after every flow milestone
- * — the score is the "reads like basketball" number.
+ * list, ranked by how often they worked). Re-run after every flow milestone;
+ * the score is the "reads like basketball" number.
  *
  * Design notes, all deliberate:
- *  - BOTH sides render through the same dry register (this file's renderer
+ *  - Both sides render through the same dry register (this file's renderer
  *    for sim events; bbref's own text for real plays) and both get
  *    pseudonymized from the same name pool, so formatting and name
- *    recognition cannot carry the verdict — only basketball structure can.
+ *    recognition cannot carry the verdict; only basketball structure can.
  *  - Windows are intra-quarter (Q2-Q3 by default) so the verdict rests on
- *    ordinary halfcourt basketball, not on the sim's KNOWN missing endgame
+ *    ordinary halfcourt basketball, not on the sim's known missing endgame
  *    layer; `--strip-timeouts` optionally removes real timeout lines for the
- *    conditioned variant (the raw variant keeps them and simply counts the
- *    timeout tell honestly — it is a real gap, see REFACTOR.md M4).
+ *    conditioned variant (the raw variant keeps them and counts the
+ *    timeout tell honestly; it is a real gap, see REFACTOR.md M4).
  *  - Running score is appended to scoring lines on both sides (score cadence
  *    is part of how a game reads).
  *
@@ -31,8 +31,8 @@
  *   npm run turing -- --sim 15 --real /path/to/plays-dir --out out/turing
  * The real-plays dir holds JSON arrays of { q, clockSec, side, text, a, h }
  * (see tools/fetch-nba.mjs notes / REFACTOR.md for how to produce them from
- * public play-by-play pages — raw fetched HTML stays out of the repo).
- * Output: pack.json (blind, shuffled), key.json (answers — do not show the
+ * public play-by-play pages; raw fetched HTML stays out of the repo).
+ * Output: pack.json (blind, shuffled), key.json (answers; do not show the
  * judges), and a per-excerpt .txt for convenient pasting.
  */
 
@@ -81,7 +81,7 @@ export function renderEvent(
     case 'shot': {
       // bbref's shot grammar, exactly: "{2,3}-pt {call} {from N ft | at rim}"
       // with the call vocabulary (layup/dunk/hook/tip-in/jump shot) derived
-      // from event data + shooter athleticism — see narration/src/shotcall.ts
+      // from event data + shooter athleticism; see narration/src/shotcall.ts
       // and the Turing baseline's shot-type-monotony tell.
       const call = shotCall(e, traits?.(e.shooter));
       const kind = `${e.three ? '3-pt' : '2-pt'} ${call} ${distPhrase(e.distFt)}`;
@@ -98,7 +98,7 @@ export function renderEvent(
       // playerless = team rebound; "rebound by Team" is bbref's exact phrasing
       return `${e.offensive ? 'Offensive' : 'Defensive'} rebound by ${e.player ? name(e.player) : 'Team'}`;
     case 'turnover': {
-      // bbref charges shot-clock violations to the TEAM, never a player
+      // bbref charges shot-clock violations to the team, never a player
       // (10/10 in the reference corpus: "Turnover by Team (shot clock)")
       if (e.kind === 'shot_clock') return 'Turnover by Team (shot clock)';
       const kind =
@@ -117,7 +117,7 @@ export function renderEvent(
     case 'substitution':
       return `${name(e.in[0]!)} enters the game for ${name(e.out[0]!)}`;
     case 'timeout':
-      // the bbref dry register lists these as team timeouts — endgame-flag
+      // the bbref dry register lists these as team timeouts. Endgame-flag
       // games only; without this line the layer's signature stoppages would
       // silently vanish from exactly the excerpts the protocol judges
       return `Team timeout`;
@@ -186,10 +186,10 @@ function realWindows(dir: string, count: number, winLen: number, rng: Rng, strip
     const names = new Map<string, string>();
     const pseudo = (text: string): string =>
       // bbref name shape: "J. Tatum" (initial dot space capitalized surname).
-      // \p{L} (unicode letters) is REQUIRED: an ASCII-only class half-replaced
+      // \p{L} (unicode letters) is required: an ASCII-only class half-replaced
       // diacritic surnames ("N. Jokić" -> "N. Iverson-Reed" + leftover "ć"),
       // and the baseline judges correctly flagged the mangled names as
-      // generator artifacts — on REAL excerpts (protocol leak, now fixed).
+      // generator artifacts, on real excerpts (protocol leak, now fixed).
       text.replace(/\b([A-Z])\. ?(\p{Lu}[\p{L}'-]+(?: Jr\.| Sr\.| II| III| IV)?)/gu, (_, ini, last) => {
         const key = `${ini}.${last}`;
         if (!names.has(key)) names.set(key, `${ini}. ${pool[names.size % pool.length]}`);

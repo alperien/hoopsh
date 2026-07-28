@@ -2,11 +2,11 @@
  * Physical integration: per-tick position/velocity updates with soft
  * collision avoidance, fatigue drain/recovery, and the game clock advance.
  *
- * These three functions are the lowest layer of the tick pipeline — called
+ * These three functions are the lowest layer of the tick pipeline, called
  * from every phase handler (`tickLive` in game.ts, `tickDead`/`tickScramble`
  * in possession.ts, `tickFreeThrows` in fouls.ts) since players keep moving
  * and getting tired regardless of what phase the game is in. `advanceClock`
- * is the ONLY place `s.clock`/`s.t` change — see docs/INTERNALS.md's two-
+ * is the only place `s.clock`/`s.t` change; see docs/INTERNALS.md's two-
  * time-axes note (`t` stops at whistles, `wallT` never does; this file owns `t`).
  */
 
@@ -21,11 +21,11 @@ import { moveSpeed } from './ai.js';
  * Advance game-clock time (`s.t`, `s.clock`) by `dt` seconds and accrue
  * on-court minutes. Called once per tick from every phase handler that
  * should burn game clock (live play, made-basket dead time, free-throw
- * rebounds) — phases that stop the clock (most dead balls, free-throw
+ * rebounds). Phases that stop the clock (most dead balls, free-throw
  * attempts themselves) simply don't call this.
  */
 export function advanceClock(s: GameState, dt: number): void {
-  // game-clock time (t, minutes) never runs past the horn — a legal
+  // game-clock time (t, minutes) never runs past the horn: a legal
   // buzzer-beater may still be airborne (that lives on the wall clock),
   // but the period contributes at most its scheduled seconds to t.
   // Keeps team minutes summing to exactly 5 × game length.
@@ -72,26 +72,25 @@ export function integrateMovement(s: GameState, dt: number): void {
     const maxDelta = acc * dt;
     // if the full velocity change fits within this tick's acceleration
     // budget, snap straight to the desired velocity; otherwise step toward
-    // it by the max allowed delta (this is what makes accel a real physical
-    // limit instead of instant velocity changes)
+    // it by the max allowed delta (this makes accel a real physical limit
+    // instead of an instant velocity change)
     a.vel = dvl <= maxDelta ? desired : add(a.vel, scale(norm(dv), maxDelta));
     // 0.5ft margin: keep a player's position point a half-foot inside the
-    // physical sideline/baseline rather than letting it sit exactly on the
-    // boundary line — nobody's centerpoint should coincide with the paint stripe
+    // physical sideline/baseline rather than exactly on the boundary line
     a.pos = clampRect(add(a.pos, scale(a.vel, dt)), s.court.length, s.court.width, 0.5);
   }
 
   // soft collision avoidance: two agents closer than avoidRadiusFt get pushed
   // directly apart, splitting the overlap 50/50 so neither player "wins" the
-  // spot — this is cosmetic body-separation, not a basketball rule (no
-  // fouls/possession changes result from it, it just stops players
-  // visually overlapping in the replay)
+  // spot. Cosmetic body-separation, not a basketball rule: no fouls or
+  // possession changes result from it, it just stops players visually
+  // overlapping in the replay.
   const R = s.params.move.avoidRadiusFt;
-  // a live poster DISPLACES opponents rather than splitting the separation:
+  // a live poster displaces opponents rather than splitting the separation:
   // post play is legal contact, and the symmetric 50/50 split let the man
   // guarding the block stall the walk-down and backdown indefinitely
   // (fidelity incident: self-posts never arrived; backdowns carved ~1 ft of
-  // the designed ~3). Who gets to lean is already strength-gated upstream —
+  // the designed ~3). Who gets to lean is already strength-gated upstream;
   // actionTick's poster score carries strength/finishing.
   const act = s.poss.action;
   const posterId = act && act.kind === 'post' ? act.posterId : null;
@@ -102,8 +101,8 @@ export function integrateMovement(s: GameState, dt: number): void {
       const b = agentsOnCourt[j]!;
       const d = dist(a.pos, b.pos);
       if (d < R && d > 1e-6) {
-        // split the overlap between the two — 50/50 normally, lean-weighted
-        // against an OPPONENT of the live poster (teammates still split even)
+        // split the overlap between the two: 50/50 normally, lean-weighted
+        // against an opponent of the live poster (teammates still split even)
         let aShare = 0.5;
         if (posterId === a.p.id && b.side !== a.side) aShare = 1 - lean;
         else if (posterId === b.p.id && a.side !== b.side) aShare = lean;
@@ -119,8 +118,8 @@ export function integrateMovement(s: GameState, dt: number): void {
 /**
  * Drain energy for on-court players (more when sprinting, moderated by
  * stamina rating) and recover it for players resting on the bench. Called
- * once per tick from every phase handler alongside `integrateMovement` —
- * fatigue accrues continuously, not just during live offense/defense.
+ * once per tick from every phase handler alongside `integrateMovement`;
+ * fatigue accrues in every phase, stoppages included.
  */
 export function applyFatigue(s: GameState, dt: number): void {
   const F = s.params.fatigue;
@@ -128,12 +127,12 @@ export function applyFatigue(s: GameState, dt: number): void {
     if (a.fouledOut) continue;
     if (a.onCourt) {
       // 28 ft/s ≈ elite NBA sprint speed (see sprintSpeed in model/derived.ts,
-      // capped at 28 for a 100-speed player) — speedShare is "how close to
+      // capped at 28 for a 100-speed player). speedShare is "how close to
       // max effort is this player moving right now," used to scale drain up
-      // when sprinting vs. jogging/standing
+      // when sprinting vs. jogging/standing.
       const speedShare = len(a.vel) / 28;
       // stamina rating scales drain: 50 is neutral, 100 drains half again
-      // slower, 0 half again faster — iron-man profiles play longer stints
+      // slower, 0 half again faster; iron-man profiles play longer stints
       const staminaMult = 1.25 - (a.p.attr.stamina / 100) * 0.5;
       const drain = F.drainPerSec * (1 + speedShare * F.sprintDrainMult) * staminaMult * dt;
       a.energy = clamp(a.energy - drain, 0, 100);

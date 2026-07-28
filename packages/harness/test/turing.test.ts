@@ -4,7 +4,7 @@
  * basketball-reference phrasing (the six-game reference corpus):
  *   "makes 2-pt layup from 3 ft" / "misses 3-pt jump shot from 26 ft" /
  *   "makes 2-pt dunk at rim (assist by X)" / "makes 2-pt hook shot from 7 ft"
- * — every vocabulary variant, plus the "at rim" measurement phrase (a
+ * Every vocabulary variant, plus the "at rim" measurement phrase (a
  * baseline protocolFix: the renderer previously lacked it entirely).
  */
 

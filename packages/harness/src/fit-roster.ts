@@ -11,14 +11,14 @@
  * ── THE TWO LAYERS ─────────────────────────────────────────────────────────
  *
  * 1. ANALYTIC PRIORS (analyticFit): every dial with a box-score signal is set
- *    by an EXPLICIT, documented formula — most by inverting the engine's own
+ *    by an explicit, documented formula, most by inverting the engine's own
  *    forward models (the same algebra resolve.ts runs forward):
  *      FT%  -> attr.freeThrow   exact inverse of freeThrowP's piecewise curve
  *      3P%  -> attr.three       inverse of the three-point make logit at a
  *                               reference shot mix (see REFERENCE MODEL below)
  *      2P%  -> finishing/midRange  zone make logits at league-anchored zone %s
  *      FTA rate -> attr.drawFoul   inverse of shootingFoulP's draw multiplier
- *      USG% -> tend.usage       the dial IS a USG% scale (decide.ts:115)
+ *      USG% -> tend.usage       the dial is a USG% scale (decide.ts:115)
  *      shares of FGA -> shotRim/shotMid/shotThree  ratio-vs-league model
  *      AST, AST/TOV -> passVision/passAcc/passOut  calibrated-linear anchors
  *      ORB/DRB -> offReb/defReb/boxout             calibrated-linear anchors
@@ -35,7 +35,7 @@
  *    season-scale line to the input targets, and hill-climb a small dial
  *    subset with common random numbers. Bounded twice over:
  *      - TRUST REGION: no searched dial may drift more than ±TRUST_REGION
- *        from its analytic value — the explainable layer stays primary and
+ *        from its analytic value. The explainable layer stays primary;
  *        refinement only absorbs interaction effects the algebra can't see
  *        (usage competition, contest economies, help rotations).
  *      - COMPUTE BUDGET (hard-enforced): ≤ MAX_GAMES_PER_ITER simulated games
@@ -71,30 +71,30 @@
  * ── DIALS THAT CANNOT BE INFERRED FROM A BOX LINE (the gap list) ───────────
  *
  * These come from the position archetype template (or a flat default) and are
- * labeled source "template" in the report. This list is a feature, not an
- * apology — a box line simply does not contain this information:
- *   attr.perimeterD / interiorD / contestSkill — defensive craft. STL/BLK are
+ * labeled source "template" in the report. A box line does not contain this
+ * information:
+ *   attr.perimeterD / interiorD / contestSkill: defensive craft. STL/BLK are
  *     weak proxies (gamblers ≠ stoppers); real inference needs matchup or
  *     on/off data. Template + a small steal/block nudge only.
- *   attr.speed / accel / lateral / vertical — athleticism. Body + position
+ *   attr.speed / accel / lateral / vertical: athleticism. Body + position
  *     priors only; combine/tracking data would identify them.
- *   attr.decisions — shot-selection IQ. AST/TOV sees ball-security IQ, not
+ *   attr.decisions: shot-selection IQ. AST/TOV sees ball-security IQ, not
  *     shot-diet IQ (a chucker with safe passes scores high). Partial signal.
- *   attr.consistency — STAGED dial (variance model): a season AVERAGE carries
+ *   attr.consistency: STAGED dial (variance model); a season average carries
  *     zero information about game-to-game variance. Flat 60.
- *   tend.offBallMotion — relocation appetite. Invisible in a box line (a
+ *   tend.offBallMotion: relocation appetite. Invisible in a box line (a
  *     spot-up corner statue and a Curry-grade relocator can share a line);
  *     needs tracking data. Weak catch-and-shoot-share proxy.
- *   tend.pushPace — STAGED dial; pace preference isn't in a player line.
+ *   tend.pushPace: STAGED dial; pace preference isn't in a player line.
  *     Position prior.
- *   tend.iso / post — play-type mix. Approximated from usage/position/shot
+ *   tend.iso / post: play-type mix. Approximated from usage/position/shot
  *     mix; real identification needs play-type (Synergy-style) data.
- *   tend.foulAggr — defaults near neutral unless `pf` is provided.
- *   wingspanIn — pass through if provided; never guessed.
+ *   tend.foulAggr: defaults near neutral unless `pf` is provided.
+ *   wingspanIn: pass through if provided; never guessed.
  *
- * Solved profiles are CONTEXT-RELATIVE (same caveat as solve.ts): the
- * refinement embeds the player in a league-neutral cast; a profile fitted
- * here will drift on a very different roster. That is basketball, not a bug.
+ * Solved profiles are context-relative (same caveat as solve.ts): the
+ * refinement embeds the player in a league-neutral cast, so a profile fitted
+ * here will drift on a very different roster.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -147,8 +147,8 @@ export interface SeasonLine {
 
 export interface SeasonLinesFile {
   kind: 'season-lines';
-  /** REQUIRED and honest: where the numbers came from. Files whose numbers
-   *  were typed from memory MUST say so (see data/nba/README.md). */
+  /** Required: where the numbers came from. Files whose numbers were typed
+   *  from memory must say so (see data/nba/README.md). */
   provenance: string;
   team?: { id: string; name: string; abbrev: string };
   players: SeasonLine[];
@@ -158,8 +158,8 @@ export interface LineIssue { path: string; message: string }
 
 const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
 
-/** strict, loud validation — same philosophy as data/schema.ts: reject the
- *  whole file with a complete issue list rather than defaulting bad fields */
+/** Strict validation, same policy as data/schema.ts: reject the whole file
+ *  with a complete issue list rather than defaulting bad fields. */
 export function validateSeasonLines(raw: unknown): { file: SeasonLinesFile | null; issues: LineIssue[] } {
   const issues: LineIssue[] = [];
   if (typeof raw !== 'object' || raw === null) {
@@ -218,9 +218,9 @@ export function validateSeasonLines(raw: unknown): { file: SeasonLinesFile | nul
  * Per-position basketball priors used where the box line is silent. The zone
  * mixes are league play-style facts (guards' twos skew to drives+pullups,
  * bigs' to rim+paint); orbShare is the typical ORB share of a position's
- * total boards; stl/blk are league positional averages used ONLY to center
- * the defensive nudges (a wing with 1.5 stl is a plus thief; a center with
- * 1.5 is a monster).
+ * total boards; stl/blk are league positional averages used only to center
+ * the defensive nudges (a wing with 1.5 stl is a plus thief; for a center
+ * 1.5 is extreme).
  */
 const POS: Record<Position, {
   rim2: number; paint2: number;   // shares of TWO-point attempts (mid = rest)
@@ -237,9 +237,9 @@ const POS: Record<Position, {
   C: { rim2: 0.60, paint2: 0.24, orbShare: 0.30, stlAvg: 0.7, blkAvg: 1.2, handleBonus: 0, big: true, pushPace: 40 }
 };
 
-/** position archetype = template for the UNIDENTIFIED dials (same mapping as
- *  solve.ts) — physicals and defensive craft start here, box-inferable dials
- *  are overwritten by the analytic layer below */
+/** Position archetype supplies the unidentified dials (same mapping as
+ *  solve.ts). Physicals and defensive craft start here; box-inferable dials
+ *  are overwritten by the analytic layer below. */
 const TEMPLATES: Record<Position, (w: { id: string; name: string; pos: Position }) => Player> = {
   PG: comboGuard, SG: scoringWing, SF: threeAndD, PF: glueForward, C: postAnchor
 };
@@ -261,8 +261,9 @@ export interface Rates {
 }
 
 /** possessions-used denominator: league team ≈ 110 plays (FGA + 0.44·FTA +
- *  TOV) per 48 team-minutes → 2.3 plays per on-court minute. REAL-ish league
- *  constant; the usage dial's own scale (decide.ts:115) does the rest. */
+ *  TOV) per 48 team-minutes → 2.3 plays per on-court minute. Approximate
+ *  real-league constant; the usage dial's own scale (decide.ts:115) does the
+ *  rest. */
 const PLAYS_PER_MIN = 2.3;
 
 export function deriveRates(line: SeasonLine): Rates {
@@ -274,7 +275,7 @@ export function deriveRates(line: SeasonLine): Rates {
   const P = POS[line.pos];
 
   // Two-point zone mix: position prior, bent toward the rim by foul-drawing
-  // volume (free throws are earned at the rim — a high FTA rate is direct
+  // volume (free throws are earned at the rim; a high FTA rate is direct
   // evidence of rim pressure), overridden entirely by shotZones when given.
   const ftaRate = clamp(line.fta / fga, 0, 1.2);
   let rim2 = P.rim2 + clamp((ftaRate - 0.28) * 0.35, -0.08, 0.1);
@@ -295,8 +296,8 @@ export function deriveRates(line: SeasonLine): Rates {
   // Self-created share of threes: catch-and-shoot diets cap around 5-6
   // attempts a game (you only get so many kickouts); volume beyond that is
   // pulled up. Anchors: 3 attempts → 0.15 (spot-up), 11+ → ~0.55
-  // (heliocentric). Scaled by a CREATOR factor — pull-ups are a creator's
-  // shot, and AST volume is the box line's creator signal: a 5.6-3PA 3&D
+  // (heliocentric). Scaled by a creator factor: pull-ups are a creator's
+  // shot, and AST volume is the box line's creator signal. A 5.6-3PA 3&D
   // wing (1.8 AST) is a spot-up shooter, not a 28% pull-up shooter, while
   // the same 3PA on a lead guard is heavily self-created.
   const creator = clamp(0.5 + line.ast * 0.12, 0.6, 1.4);
@@ -319,16 +320,16 @@ export function deriveRates(line: SeasonLine): Rates {
 
 /**
  * The reference shot conditions the analytic inversions assume, per zone.
- * All logit pieces come from defaultParams — the same constants resolve.ts
- * runs forward — so the algebra here is the engine's own algebra.
+ * All logit pieces come from defaultParams, the same constants resolve.ts
+ * runs forward, so the algebra here is the engine's own.
  *
- * The one judgment call per zone is the REFERENCE CONTEST LEVEL, i.e. how
- * open the sim's realized average look in that zone actually is. These are
- * NOT the contest midpoint (0.38): the engine's relocation/catch-and-shoot
+ * The one judgment call per zone is the reference contest level: how open
+ * the sim's realized average look in that zone actually is. These are not
+ * the contest midpoint (0.38): the engine's relocation/catch-and-shoot
  * economy delivers threes well under the midpoint, while rim attempts meet
  * help. Values are calibrated so the archetype/fixture anchors invert onto
  * themselves (three: eliteShooter 99 ↔ ~45%, threeAndD 82 ↔ ~38.5%,
- * comboGuard 70 ↔ ~36%) — each anchor's check lives in the tests.
+ * comboGuard 70 ↔ ~36%); each anchor's check lives in the tests.
  */
 const REF_CONTEST = {
   threeBase: 0.19,     // open catch-and-shoot economy
@@ -337,7 +338,7 @@ const REF_CONTEST = {
   paint: 0.34,
   mid: 0.36
 };
-/** typical in-rotation energy — fatigue ambient = fatigueCoef·(1-0.88) */
+/** typical in-rotation energy; fatigue ambient = fatigueCoef·(1-0.88) */
 const REF_ENERGY = 0.88;
 /** average rim-attempt distance, ft (a mix of dunks and short finishes) */
 const REF_RIM_DIST_FT = 2.0;
@@ -373,7 +374,7 @@ export function zoneRefs(): { rim: ZoneRef; paint: ZoneRef; mid: ZoneRef } {
   // paint: floaters off drives (45%) and short post touches (10%)
   const paintAmb = S.contestCoef * (REF_CONTEST.paint - S.contestMidpoint)
     + 0.45 * S.moveDrive + 0.1 * S.movePost + fat;
-  // mid: 65% pull-ups — nobody stands open at 18 ft
+  // mid: 65% pull-ups; nobody stands open at 18 ft
   const midAmb = S.contestCoef * (REF_CONTEST.mid - S.contestMidpoint)
     + 0.65 * S.movePullUp + fat;
   return {
@@ -433,14 +434,14 @@ export function invertFreeThrow(ftPct: number): number {
 /**
  * 2P% -> finishing + midRange via zone-anchored inversion.
  *
- * A box line only carries ONE two-point number, so the player's per-zone
- * percentages are estimated with a SHRUNK UNIFORM SHIFT: each zone % =
+ * A box line carries one two-point number, so the player's per-zone
+ * percentages are estimated with a shrunk uniform shift: each zone % =
  * league zone % (from the engine's own reference model) + 0.6 × (player 2P%
- * − league 2P% at his mix). The 0.6 shrink is regression-to-the-mean — raw
+ * − league 2P% at his mix). The 0.6 shrink is regression to the mean: raw
  * 2P% is a noisy estimator of any single zone, and zone spreads are narrower
  * than full pass-through would imply. Each estimated zone % then inverts its
  * own logit. Refinement owns the residual (it sees actual sim FG%).
- * NOTE paint skill in-engine is 0.35·finishing + 0.65·midRange
+ * Note: paint skill in-engine is 0.35·finishing + 0.65·midRange
  * (resolve.ts zoneSkill), so paint carries no independent dial to invert.
  */
 export const TWO_PT_SHRINK = 0.6;
@@ -465,20 +466,20 @@ export function invertTwoPoint(rates: Rates): { finishing: number; midRange: num
  * attempt in zone z, P(foul) = base_z · contestMult · draw, and the trip is
  * worth k_z FTs on a miss (2, or 3 beyond the arc) but only 1 on a make with
  * the and-one damping (andOneFoulMult). Fouls also require a contester
- * (contest.by !== null) — CONTESTED_SHARE ≈ 0.85 of attempts.
+ * (contest.by !== null): CONTESTED_SHARE ≈ 0.85 of attempts.
  * Predicted shooting-FTA rate at draw D:
  *   Σ_z mix_z · base_z·(1+(cf−1)·c_z)·CONTESTED_SHARE·D ·
  *        [(1−p_z)·k_z + p_z·andOneFoulMult·1]
- * Box FTA also include NON-shooting free throws (penalty reach-ins, loose
+ * Box FTA also include non-shooting free throws (penalty reach-ins, loose
  * balls): NONSHOOT_FTA_SHARE ≈ 0.35 of FTA (real-league ~25-30% plus this
  * engine's reach-in economy) scales the denominator. Solve for D, then
  * n = (D−1)/drawFoulSwing, shrunk by 0.8 (same regression-to-mean argument
- * as the zone model — FTA rate is also driven by shot mix noise).
+ * as the zone model; FTA rate is also driven by shot mix noise).
  *
- * The zone mix used for the D solve is BLENDED 50/50 with the league mix:
- * the player mix is itself an estimate (position priors), and an extreme
+ * The zone mix used for the D solve is blended 50/50 with the league mix.
+ * The player mix is itself an estimate (position priors), and an extreme
  * estimated mix (a 55% three diet) otherwise makes the tiny three-zone foul
- * base explode D — foul-drawing evidence should not ride entirely on a
+ * base explode D; foul-drawing evidence should not ride entirely on a
  * quantity this layer guessed. MIX_BLEND=0.5 keeps the Curry-class outlier
  * in the 80s instead of pinning at 99 while moving balanced diets < 3 points.
  */
@@ -511,8 +512,8 @@ export function invertDrawFoul(rates: Rates, tpPct: number): number {
   return ratingOf(((D - 1) / F.drawFoulSwing) * DRAW_FOUL_SHRINK);
 }
 
-/** USG% -> tend.usage: the dial IS a USG% scale by construction —
- *  decide.ts:115: targetShare = 0.20 + (usage−50)/100 · usageShareSwing,
+/** USG% -> tend.usage: the dial is a USG% scale by construction
+ *  (decide.ts:115: targetShare = 0.20 + (usage−50)/100 · usageShareSwing),
  *  so usage = 50 + (USG% − 0.20)·100/usageShareSwing. Pure algebra. */
 export function usageDial(usgPct: number): number {
   return Math.round(clamp(50 + ((usgPct - 0.2) * 100) / defaultParams.ai.usageShareSwing, 10, 99));
@@ -521,16 +522,16 @@ export function usageDial(usgPct: number): number {
 /**
  * FGA zone shares -> zone tendencies (shotRim/shotMid/shotThree).
  *
- * NOT clean algebra: tendencies enter decideBall as one bias among many
+ * Not clean algebra: tendencies enter decideBall as one bias among many
  * competing utilities, so the realized share is an emergent quantity. Model:
  *   tend_z = default_z · (share_obs_z / share_league_z)^1.25 + (USG%−20)·0.9
  * Anchors (stated, testable): a league-average line (shares ≈ league, USG
- * 20%) must return the engine's DEFAULT tendencies (50/30/40 — a fixpoint);
+ * 20%) must return the engine's default tendencies (50/30/40, a fixpoint);
  * the Curry fixture's 0.55 three-share + 33% usage must land shotThree in
  * the mid-80s (fixture: 86). The exponent 1.25 sets how aggressively share
- * deviations amplify; the usage term feeds every zone (high-usage players
- * shoot more EVERYWHERE — volume is identity, decide.ts usage loop).
- * League shares: rim .32 / paint .12 / mid .18 / three .38 — consistent with
+ * deviations amplify; the usage term feeds every zone, because high-usage
+ * players shoot more everywhere (decide.ts usage loop).
+ * League shares: rim .32 / paint .12 / mid .18 / three .38, consistent with
  * the engine's own league bands (3PA share band and the default shot diet).
  */
 const LEAGUE_MIX = { rim: 0.32, paint: 0.12, mid: 0.18, three: 0.38 };
@@ -541,7 +542,7 @@ export function zoneTendencies(rates: Rates): { shotRim: number; shotMid: number
   const scale = (def: number, obs: number, league: number): number =>
     Math.round(clamp(def * Math.pow(Math.max(0.05, obs / league), ZONE_TEND_SHAPE) + vol, 1, 99));
   // rim tendency covers rim AND paint appetite (decideBall zoneTend treats
-  // rim/paint as one bucket — decide.ts:90), so compare their combined share
+  // rim/paint as one bucket, decide.ts:90), so compare their combined share
   const rimObs = rates.mix.rim + rates.mix.paint;
   const rimLeague = LEAGUE_MIX.rim + LEAGUE_MIX.paint;
   return {
@@ -618,7 +619,7 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   a.passAcc = F('passAcc', 40 + line.ast * 4.2 + rates.astToTov * 5.5, 'formula',
     '40 + AST·4.2 + AST:TOV·5.5 (accuracy is the ball-security half of passing)');
   // ball security: TOV share of possessions used, centered on the league's
-  // ~12-13% — turnover-prone creators lose handle, not vision
+  // ~12-13%; turnover-prone creators lose handle, not vision
   const tovAdj = (0.125 - rates.tovShare) * 100;
   a.ballHandle = F('ballHandle',
     40 + line.ast * 3 + (usg - 20) * 1.0 + P.handleBonus + line.tpa * 1.2 + tovAdj, 'formula',
@@ -658,11 +659,11 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
     'STAGED dial; a season average carries no game-to-game variance info');
 
   // ---- tendencies ----
-  // drives are a guard/wing rim-pressure mechanism — a big's rim diet comes
+  // Drives are a guard/wing rim-pressure mechanism. A big's rim diet comes
   // from rolls, cuts, putbacks and post-ups, so the rim-share evidence is
   // capped and bigs are hard-capped low (their drive dial is also mostly
   // inert in-engine: ai.driveMinDistFt excludes dunker-spot positions).
-  // Computed BEFORE the zone tendencies: shotThree needs it (see below).
+  // Computed before the zone tendencies because shotThree needs it (below).
   const driveRaw = 18 + Math.min(rates.mix.rim, 0.45) * 95 + rates.ftaRate * 50
     - rates.share3 * 25 + (P.big ? -(line.pos === 'C' ? 30 : 15) : 8);
   t.drive = F('drive', Math.min(driveRaw, line.pos === 'C' ? 45 : line.pos === 'PF' ? 60 : 99), 'formula',
@@ -677,12 +678,12 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
     `default·(rim+paint share ${(rates.mix.rim + rates.mix.paint).toFixed(2)} / league 0.44)^1.25 + usage`);
   t.shotMid = F('shotMid', zt.shotMid, 'formula',
     `default·(mid share ${rates.mix.mid.toFixed(2)} / league 0.18)^1.25 + usage`);
-  // OPPORTUNITY CORRECTION on shotThree: zone tendencies bias per-DECISION,
+  // Opportunity correction on shotThree: zone tendencies bias per decision,
   // and an inside-clustered player's decision points are rarely threes, so
-  // realizing a given 3PA SHARE requires a larger per-opportunity bias.
-  // "Inside-clustered" = max(drive, post): drivers AND post hubs both live
+  // realizing a given 3PA share requires a larger per-opportunity bias.
+  // "Inside-clustered" = max(drive, post): drivers and post hubs both live
   // off inside decision points. Centered on the league-average line's own
-  // drive output (55 — the fixpoint test pins it) at 0.6 dial points per
+  // drive output (55; the fixpoint test pins it) at 0.6 dial points per
   // point; anchored on the LeBron fixture, which needs shotThree 76 to
   // realize a ~0.16 share in-sim for a drive-84 profile (and still carries
   // fidelity.ts's documented 3PA ratchet).
@@ -715,9 +716,8 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
 
 // ───────────────────────────────────────────────── layer 2: refinement
 
-/** HARD compute budget (per the wave-1 contract): the orchestrator owns heavy
- *  compute; this fitter may not sweep. Exceeding either cap is an error, not
- *  a warning. */
+/** Hard compute budget (per the wave-1 contract): the orchestrator owns heavy
+ *  compute; this fitter may not sweep. Exceeding either cap throws. */
 export const MAX_GAMES_PER_ITER = 8;
 export const MAX_ITERS = 10;
 
@@ -769,13 +769,13 @@ function targetsOf(line: SeasonLine): Achieved {
 }
 
 /**
- * Weighted normalized squared error. Percentage stats get ATTEMPT-AWARE
+ * Weighted normalized squared error. Percentage stats get attempt-aware
  * weights: 3P% measured on ~1 attempt/game over a short slate is pure noise,
  * and letting it dominate the objective makes the search sacrifice real
  * dials chasing a coin flip (observed: a low-3PA forward's fit trashed its
  * rebounding to chase an unhittable small-sample 3P%). Weight = sqrt of the
- * target's share of a "trustworthy" attempt volume (8 3PA / 6 FTA per game)
- * — a standard-error-style shrink — capped at 1.
+ * target's share of a "trustworthy" attempt volume (8 3PA / 6 FTA per game),
+ * a standard-error-style shrink, capped at 1.
  */
 function scoreLine(a: Achieved, target: Achieved): number {
   const pctWeight: Partial<Record<keyof Achieved, number>> = {
@@ -792,11 +792,11 @@ function scoreLine(a: Achieved, target: Achieved): number {
 }
 
 /**
- * League-neutral supporting cast — the fidelity-benchmark/solve.ts
+ * League-neutral supporting cast, the fidelity-benchmark/solve.ts
  * convention (duplicated from solve.ts, which is a CLI script whose import
- * would execute its main). POSITION-AWARE starters: the star fills his own
- * slot and the cast fills the other four — starting a rimRunner center next
- * to a fitted center made twin towers that ATE the fitted big's boards
+ * would execute its main). Position-aware starters: the star fills his own
+ * slot and the cast fills the other four. Starting a rimRunner center next
+ * to a fitted center made twin towers that took the fitted big's boards
  * (observed: a 12-board center fitting to 8.5), which no fidelity cast does
  * either. The star carries his real minutes load.
  */
@@ -824,8 +824,8 @@ export function hostTeam(star: Player, mpg: number): Team {
   };
 }
 
-/** the dial subset refinement may move — solve.ts's 17 stat-relevant dials
- *  plus the box-visible defense/foul/crash dials this fitter also targets */
+/** The dial subset refinement may move: solve.ts's 17 stat-relevant dials
+ *  plus the box-visible defense/foul/crash dials this fitter also targets. */
 const SEARCH_DIALS: { path: 'attr' | 'tend'; key: string }[] = [
   { path: 'attr', key: 'three' }, { path: 'attr', key: 'midRange' },
   { path: 'attr', key: 'finishing' }, { path: 'attr', key: 'freeThrow' },
@@ -841,9 +841,9 @@ const SEARCH_DIALS: { path: 'attr' | 'tend'; key: string }[] = [
   { path: 'tend', key: 'crashOffReb' }, { path: 'tend', key: 'gambleSteal' }
 ];
 
-/** refinement may not drift a dial further than this from the analytic
- *  prior — keeps layer 1 primary and layer 2 an interaction-corrector.
- *  Dials whose analytic inversion is EXACT algebra get a tighter leash than
+/** Refinement may not drift a dial further than this from the analytic
+ *  prior; keeps layer 1 primary and layer 2 an interaction-corrector.
+ *  Dials whose analytic inversion is exact algebra get a tighter leash than
  *  heuristic ones: freeThrowP inverts exactly (±6 covers rounding + FT-count
  *  noise), the three-point inverse only carries reference-condition
  *  uncertainty (±12), while emergent-quantity dials (tendencies, counting-
@@ -855,9 +855,9 @@ const TRUST_REGION_BY_DIAL: Record<string, number> = {
 };
 
 /** CRN noise guard: a candidate must beat the incumbent by this relative
- *  margin to be accepted — with 4-game evaluations the percentage stats are
- *  noisy enough that accepting every hairline "improvement" chases seed
- *  luck instead of signal. */
+ *  margin to be accepted. With 4-game evaluations the percentage stats are
+ *  noisy enough that accepting every hairline improvement chases seed luck
+ *  instead of signal. */
 export const ACCEPT_MARGIN = 0.03;
 
 export interface RefineResult {
@@ -866,23 +866,23 @@ export interface RefineResult {
   finalLine: Achieved;
   seedErr: number;
   finalErr: number;
-  /** held-out re-evaluation of the SELECTED player on FRESH seeds — the
+  /** held-out re-evaluation of the selected player on fresh seeds; the
    *  honest number to quote (finalLine is in-sample by construction) */
   verifyLine: Achieved | null;
   verifyErr: number | null;
   /** the analytic seed's own held-out error (the verify-gate's yardstick) */
   seedVerifyErr: number | null;
   /** false = the refinement failed the verify gate and the analytic seed
-   *  was kept (refinement is SAFE: it can only ship a held-out improvement) */
+   *  was kept (refinement can only ship a held-out improvement) */
   keptRefinement: boolean;
   itersRun: number;
   gamesSimulated: number;
 }
 
-/** score ANY player against a season line under the fitter's evaluation
- *  protocol (league-neutral host, star minutes, season-line objective) —
- *  used to put the hand-built fidelity fixtures on the same yardstick as
- *  the fitted profiles */
+/** Score any player against a season line under the fitter's evaluation
+ *  protocol (league-neutral host, star minutes, season-line objective).
+ *  Used to put the hand-built fidelity fixtures on the same yardstick as
+ *  the fitted profiles. */
 export function evaluateAgainstLine(
   p: Player, line: SeasonLine, games: number, seedBase: string
 ): { err: number; line: Achieved } {
@@ -960,12 +960,12 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
     }
     step = Math.max(3, step * 0.85);
   }
-  // THE VERIFY GATE: finalLine is by construction the line the search
+  // The verify gate: finalLine is by construction the line the search
   // optimized (in-sample), and a stochastic hill-climb on 4-game evals can
   // ship a seed-luck profile. Both the analytic seed and the refined
-  // candidate are re-evaluated on FRESH seeds; the refinement is kept only
-  // if it wins held-out by a real margin. Refinement can therefore never
-  // make the fit worse than the analytic layer — it is strictly additive.
+  // candidate are re-evaluated on fresh seeds; the refinement is kept only
+  // if it wins held-out by a real margin. So refinement never makes the
+  // fit worse than the analytic layer.
   const seedVerify = evaluate(seedPlayer, `${opts.seedBase}-verify`, MAX_GAMES_PER_ITER);
   const bestVerify = evaluate(best, `${opts.seedBase}-verify`, MAX_GAMES_PER_ITER);
   const keptRefinement = bestVerify.score < seedVerify.score * 0.9;
@@ -985,7 +985,7 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
 /**
  * Wrap the fitted players as a schema-valid TeamPack: pad the roster to 10
  * with league-neutral archetype cast (a pack needs ≥8 players and exactly 5
- * starters — data/schema.ts), pick starters by MPG, and set team threeBias
+ * starters per data/schema.ts), pick starters by MPG, and set team threeBias
  * from the roster's aggregate 3PA share.
  */
 export function assembleTeamPack(
@@ -1026,7 +1026,7 @@ export function assembleTeamPack(
     starters,
     tactics: {
       pace: 50,
-      // 3PA-share-hungry rosters get the green light: ±1 tactic point per
+      // threeBias tracks the roster's 3PA share: ±1 tactic point per
       // ~0.8% of three-share deviation from the league's 0.39
       threeBias: Math.round(clamp(50 + (share3 - 0.39) * 120, 30, 70)),
       helpAggr: 50
@@ -1128,8 +1128,8 @@ if (import.meta.main) {
     if (compareFixtures && line.fixtureId) {
       const fixture = fixtureById.get(line.fixtureId);
       if (fixture) {
-        // the fair yardstick for the verify error: the HAND-BUILT fixture,
-        // run through the exact same host/games/objective protocol
+        // the yardstick for the verify error: the hand-built fixture,
+        // run through the same host/games/objective protocol
         const fixEval = evaluateAgainstLine(fixture, line, MAX_GAMES_PER_ITER, `${opts.seedBase}-verify`);
         console.log(`  fixture     ${fmtLine(fixEval.line)}   err ${fixEval.err.toFixed(2)}  (hand-built ${line.fixtureId}, same protocol)`);
         console.log(`  vs fidelity fixture ${line.fixtureId} (fitted − fixture):`);

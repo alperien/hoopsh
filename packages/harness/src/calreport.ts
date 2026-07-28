@@ -1,20 +1,20 @@
 /**
- * Calibration report — where the sim actually SITS, computed, not eyeballed.
+ * Calibration report: where the sim sits, computed, not eyeballed.
  *
  * The noise floor (noise-floor.gen.ts) holds everything needed to state the
  * sim's position precisely, but a 500-line generated table read by eye loses
- * patterns — the third review demonstrated this by computing, from our own
+ * patterns. The third review demonstrated this by computing, from our own
  * table, a 12-metric directional signature (friction/volume statistics
  * pinned near band floors, accuracy/efficiency statistics pinned near
  * ceilings) that the hand-written report had reduced to "two grazes".
  * This tool makes that computation permanent.
  *
  * Doctrine it enforces:
- *   - CENTERS are quoted from the LARGEST window (n40 — the grand mean over
+ *   - Centers are quoted from the largest window (n40, the grand mean over
  *     every simulated game), with a standard error (sd/√bases). Quoting a
  *     smaller nested window's mean as "the center" is the error the review
- *     caught: the n24/n12 numbers exist for GATE widths, not for position.
- *   - Distances to band edges are reported both in gate-σ (n24 sd — what the
+ *     caught: the n24/n12 numbers exist for gate widths, not for position.
+ *   - Distances to band edges are reported both in gate-σ (n24 sd, what the
  *     tripwire feels) and in se units (what the position claim can support).
  *   - |distance| < 2·se ⇒ "edge-unresolved": the sample cannot say which
  *     side of the edge the true center is on. Say that, not "on the edge".

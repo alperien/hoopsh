@@ -6,7 +6,7 @@
  * Loaded in place of the real 'vitest' package by tools/hooks.mjs's bare-
  * specifier branch (the npm registry is firewalled, so there is no real
  * vitest to install). Test files import `describe`/`it`/`expect` from
- * 'vitest' exactly the way they would against the real package — nothing in
+ * 'vitest' exactly the way they would against the real package; nothing in
  * the suites themselves knows a shim is involved. `describe`/`it` are
  * straight re-exports of node:test's own primitives (their shapes already
  * match vitest's for the subset used here), so the only thing actually
@@ -18,7 +18,7 @@
  * is a shim to unblock a firewalled environment, not a vitest reimplementation
  * project. When npm access is available, `npm run test:vitest` (see
  * package.json) runs the SAME test files against the real vitest package,
- * unchanged — if a suite ever needs a matcher not implemented below, add it
+ * unchanged. If a suite ever needs a matcher not implemented below, add it
  * here rather than working around its absence in a test.
  */
 
@@ -38,7 +38,7 @@ class Expectation {
   }
 
   // `.not` returns a FRESH Expectation with the flag flipped rather than
-  // mutating `this` — matches real vitest's `expect(x).not.toBe(y)` chaining
+  // mutating `this`; matches real vitest's `expect(x).not.toBe(y)` chaining
   // and keeps a single Expectation instance safely reusable across multiple
   // `.not`-prefixed assertions if a caller held onto the reference.
   get not(): Expectation {
@@ -89,7 +89,7 @@ class Expectation {
   }
 
   // Deep structural equality (objects/arrays compared by contents, not
-  // reference) — this is the one the suites reach for when comparing event
+  // reference); this is the one the suites reach for when comparing event
   // arrays or frame rows, where two separately-built values need to match
   // value-for-value rather than be the same object.
   toEqual(expected: unknown): void {
@@ -114,7 +114,7 @@ class Expectation {
 
   // Dual-mode like vitest's real toContain: substring check for strings,
   // element-membership (by ===, not deep equality) for arrays. Anything else
-  // (a Set, a plain object) just falls through to `contains = false` — not
+  // (a Set, a plain object) just falls through to `contains = false`, not
   // implemented because no hoopsh suite needs it yet (see the header note:
   // add matchers here as suites need them, not speculatively).
   toContain(item: unknown): void {
@@ -134,7 +134,7 @@ class Expectation {
 // error output is readable, but caps it at 200 chars so a failing assertion
 // on a full replay/frame array doesn't dump megabytes into the test log. The
 // try/catch exists because JSON.stringify throws on circular references or
-// BigInt — falling back to String(x) trades a crash for a possibly-unhelpful
+// BigInt; falling back to String(x) trades a crash for a possibly-unhelpful
 // message, which is the right tradeoff for a test failure path.
 function safe(x: unknown): string {
   try {

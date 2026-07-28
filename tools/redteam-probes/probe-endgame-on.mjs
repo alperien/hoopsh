@@ -38,7 +38,7 @@ for (const seed of ['rt-on-1', 'rt-on-2', 'rt-on-3']) {
   }
   if (score[0] !== r.finalScore[0] || score[1] !== r.finalScore[1]) bad(`event-sum score ${score} != finalScore ${r.finalScore}`);
 
-  // box score balances: team pts equals summed player pts? (team rebounds mean TRB may exceed player sum — that's the design)
+  // box score balances: team pts equals summed player pts? (team rebounds mean TRB may exceed player sum; that's the design)
   const box = boxScore(ev, [home, away]);
   for (const side of [0, 1]) {
     const t = box.teams[side];

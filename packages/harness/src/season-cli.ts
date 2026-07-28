@@ -4,26 +4,26 @@
  *   npm run season -- [--teams 6] [--rounds 2] [--games N] [--seed base] [--json]
  *   npm run season -- --matchup 0,3 [--sims 100] [--mirror] [--teams 6] [--seed base] [--json]
  *
- * SEASON MODE (default): generates a deterministic league of --teams teams
+ * Season mode (default): generates a deterministic league of --teams teams
  * (league.ts), schedules a --rounds round-robin (default double), simulates
  * every game, and prints per-game scores' summary plus a standings table.
  * --games caps the schedule (or extends it by tiling more round-robin
  * cycles when larger than one).
  *
- * MATCHUP MODE (--matchup A,B): Monte-Carlo the A-vs-B fixture --sims times
- * (A at home) and print the distribution report — win probability with a
+ * Matchup mode (--matchup A,B): Monte-Carlo the A-vs-B fixture --sims times
+ * (A at home) and print the distribution report: win probability with a
  * Wilson 95% CI, margin stats/histogram, and per-player stat lines.
  *
  * --json switches either mode to a single machine-readable JSON document on
- * stdout with NO timing/progress noise — byte-identical across runs with
- * the same flags, which is exactly how to PROVE determinism:
+ * stdout with no timing/progress noise; byte-identical across runs with
+ * the same flags, which is how to prove determinism:
  *
  *   npm run season -- --teams 4 --seed proof --json | sha256sum
  *   (run twice; the hashes match)
  *
- * COMPUTE BUDGET: one game is ~250-400ms on this class of box. A 6-team
+ * Compute budget: one game is ~250-400ms on this class of box. A 6-team
  * double round-robin (30 games) is ~10s; a 30-team NBA-sized 1230-game
- * season is ~6-8 MINUTES single-process — run that deliberately, not
+ * season is ~6-8 minutes single-process. Run that deliberately, not
  * casually. Parallel execution arrives via the wave1/runner worker pool
  * behind season.ts's SimulateGames seam, not here.
  */
@@ -50,7 +50,7 @@ const teams = makeLeague(nTeams, `${seed}:league`);
 // ---------------------------------------------------------------- helpers
 
 function progress(done: number, total: number): void {
-  if (json) return; // JSON mode: stdout carries ONLY the document
+  if (json) return; // JSON mode: stdout carries only the document
   if (done % 5 === 0 || done === total) process.stdout.write(`  ${done}/${total} games\r`);
 }
 

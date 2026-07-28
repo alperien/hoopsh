@@ -1,19 +1,19 @@
 /**
- * Parallel-runner gates — worker-count invariance and loud failure.
+ * Parallel-runner gates: worker-count invariance and loud failure.
  *
- * DETERMINISM IS THE PRODUCT here: the whole verification culture (golden
+ * Determinism is the product here. The whole verification culture (golden
  * fingerprints, locked calibration bands, the noise floor) rests on "same
  * seeds in, same numbers out". This suite pins parallel.ts's contract:
  *
- *   1. The SAME games (seeds, home/away mirroring) are simulated regardless
+ *   1. The same games (seeds, home/away mirroring) are simulated regardless
  *      of worker count, and per-game results are returned in global game
- *      order — asserted by deep-strict equality of the per-game summary
+ *      order. Asserted by deep-strict equality of the per-game summary
  *      arrays across worker counts (workers=1 runs in-process; workers>1
  *      spawns real subprocesses, so this also covers the JSON round trip).
  *   2. The reductions the CLIs print (accumulate/finalize for `npm run
  *      batch`, reduceFlows for `npm run flow`) are bit-identical across
- *      worker counts — deep-strict equality, no tolerance.
- *   3. A crashing worker fails the WHOLE run loudly — no silent partial
+ *      worker counts: deep-strict equality, no tolerance.
+ *   3. A crashing worker fails the whole run loudly. No silent partial
  *      results (this codebase's documented cardinal sin).
  *
  * Kept small (8 games per comparison) for suite speed; npm run batch/flow
@@ -39,7 +39,7 @@ describe('parallel runner — worker-count invariance', () => {
     const w1 = await runGames({ task: 'batch', games: GAMES, seedBase: 'par-inv', workers: 1 });
     const w2 = await runGames({ task: 'batch', games: GAMES, seedBase: 'par-inv', workers: 2 });
     expect(w1.length).toBe(GAMES);
-    // per-game rows identical AND in the same (global) order
+    // per-game rows identical and in the same (global) order
     expect(w2).toEqual(w1);
     // the reduction the band report prints: bit-identical, no tolerance
     expect(leagueAverages(w2)).toEqual(leagueAverages(w1));
@@ -57,7 +57,7 @@ describe('parallel runner — loud failure', () => {
     let message = '';
     try {
       // an unknown task crashes both workers inside run-worker.ts before any
-      // simulation happens — cheap way to exercise the real subprocess
+      // simulation happens. Cheap way to exercise the real subprocess
       // failure path end to end
       await runGames({ task: 'nope' as GameTaskName, games: 2, seedBase: 'par-crash', workers: 2 });
     } catch (err) {

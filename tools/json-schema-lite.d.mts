@@ -1,5 +1,5 @@
 /**
- * Type declarations for json-schema-lite.mjs — hand-maintained (the runtime
+ * Type declarations for json-schema-lite.mjs, hand-maintained (the runtime
  * is type-stripped Node with no build step, so nothing generates these; see
  * tsconfig.json's paths comment for the typecheck-gate context). Declares
  * every export of the .mjs; keep the two files in sync in the same commit.
@@ -7,7 +7,7 @@
  * Deliberately imports nothing: json-schema-lite.mjs is dependency-free, and
  * its declaration must not misrepresent that surface (its { path, message }
  * error shape mirrors validateTeamPack()'s ValidationIssue CONVENTION but is
- * a separate type — the evaluator does not depend on @hoopsh/data).
+ * a separate type; the evaluator does not depend on @hoopsh/data).
  */
 
 /** One validation failure: JSONPath-style location + plain-English reason. */
@@ -17,7 +17,7 @@ export interface SchemaError {
 }
 
 /**
- * A schema node in the draft 2020-12 SUBSET the evaluator implements — the
+ * A schema node in the draft 2020-12 SUBSET the evaluator implements: the
  * keys here are exactly its IMPLEMENTED (assertion) + ANNOTATIONS lists.
  * validate() THROWS on any other key (the honesty mechanism in the .mjs
  * header), so this type is closed on purpose: a schema that needs a new
@@ -39,7 +39,7 @@ export interface SchemaNode {
   maximum?: number;
   minLength?: number;
   $ref?: string;
-  // annotation-only keywords (ANNOTATIONS — no assertion semantics)
+  // annotation-only keywords (ANNOTATIONS; no assertion semantics)
   $schema?: string;
   $id?: string;
   title?: string;
@@ -52,8 +52,8 @@ export interface SchemaNode {
 /**
  * Validate `data` against `schema`, returning every failure (empty = valid).
  * `root` (default: `schema`) anchors internal '#/...' $ref resolution;
- * `path` (default: '$') prefixes reported locations. Throws — does not
- * return errors — on unimplemented assertion keywords and unresolvable refs.
+ * `path` (default: '$') prefixes reported locations. Throws (does not
+ * return errors) on unimplemented assertion keywords and unresolvable refs.
  */
 export function validate(
   schema: SchemaNode,

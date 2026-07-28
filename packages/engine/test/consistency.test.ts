@@ -22,7 +22,7 @@ describe('box score internal consistency', () => {
   });
 
   it('player lines sum to team totals (team rebounds carry the TRB difference)', () => {
-    // TEAM rebounds (dead caroms awarded to a side, playerless — see
+    // Team rebounds (dead caroms awarded to a side, playerless; see
     // core/events.ts ReboundEvent) count in team TRB but on no player line,
     // exactly like an official box score; every other total is a pure
     // player sum. Dead-ball FT formalities count nowhere.

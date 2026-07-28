@@ -1,4 +1,4 @@
-// Minimal JSON Schema (draft 2020-12 subset) evaluator — the exerciser for
+// Minimal JSON Schema (draft 2020-12 subset) evaluator: the exerciser for
 // tools/gen-schema.mjs's generated team-pack schema.
 //
 // WHY THIS EXISTS: the npm registry is firewalled in this environment (see
@@ -12,7 +12,7 @@
 // THE HONESTY MECHANISM: validate() THROWS on any assertion keyword it does
 // not implement, rather than skipping it the way a lenient evaluator would.
 // A schema change that starts using an unimplemented keyword (say,
-// patternProperties) cannot silently pass the test suite as a no-op — it
+// patternProperties) cannot silently pass the test suite as a no-op; it
 // fails loudly until the keyword is implemented here. That property is what
 // makes "the schema is exercised" a real claim instead of a vibe. Annotation
 // keywords that carry no assertion semantics ($schema, $id, title,
@@ -21,7 +21,7 @@
 // Scope honesty: this is NOT a general JSON Schema implementation (no
 // anchors, no external refs, no allOf/anyOf, no unevaluatedProperties, no
 // $dynamicRef). If gen-schema.mjs ever needs those, prefer extending this
-// file over hand-waving — the whole point is that every keyword the schema
+// file over hand-waving: the whole point is that every keyword the schema
 // emits has a tested runtime meaning. When npm access lands, an ajv-based
 // test can supersede this file; the test suite is already shaped for that
 // swap (same cases, different engine).
@@ -84,7 +84,7 @@ export function validate(schema, data, root = schema, path = '$') {
     const ok = want.some((w) => w === t || (w === 'integer' && t === 'number' && Number.isInteger(data)));
     if (!ok) {
       errors.push({ path, message: `expected ${want.join('|')}, got ${t}` });
-      return errors; // wrong shape — deeper keyword checks would just cascade noise
+      return errors; // wrong shape: deeper keyword checks would just cascade noise
     }
   }
 

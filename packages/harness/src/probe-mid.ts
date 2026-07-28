@@ -1,11 +1,11 @@
 /**
- * Mid-range probe — the measurement artifact for the wave2/midrange mission.
+ * Mid-range probe: the measurement artifact for the wave2/midrange mission.
  *
  *   npm run probe:mid [-- --games 8 --seed midprobe]
  *
- * Reports the league shot mix by zone, the DISTANCE distribution inside the
+ * Reports the league shot mix by zone, the distance distribution inside the
  * mid zone (the diagnosis was that the few "mid" shots were 20-ft arc-toes,
- * not real 16-footers — a share number alone cannot see that), the moveType
+ * not real 16-footers; a share number alone cannot see that), the moveType
  * breakdown of mid attempts, and per-player mid diets for the archetype
  * fixtures whose identities gate the mid-range decisiveness term.
  *

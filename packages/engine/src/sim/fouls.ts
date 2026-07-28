@@ -6,7 +6,7 @@
  * (contest resolution), everything else (reach-ins, offensive/charges,
  * loose-ball) comes from `passing.ts`/`possession.ts`/`game.ts`'s live tick.
  * `tickFreeThrows` is dispatched directly from `game.ts`'s tick switch
- * whenever `s.phase.kind === 'freethrows'` — see docs/INTERNALS.md's pipeline.
+ * whenever `s.phase.kind === 'freethrows'`; see docs/INTERNALS.md's pipeline.
  */
 
 import { attackedRim, agent, emit, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
@@ -22,10 +22,10 @@ export interface FoulOutcome {
   fouledOut: boolean;
   inBonus: boolean;
   /**
-   * What THIS foul awards at the line under the bonus: null for offensive
+   * What this foul awards at the line under the bonus: null for offensive
    * fouls (never shots) and whenever the fouling team isn't in the bonus.
    * For non-shooting defensive fouls, `bonus !== null` exactly when
-   * `inBonus` — callers that send someone to the line must use this (shots
+   * `inBonus`. Callers that send someone to the line must use this (shots
    * + one-and-one flag) rather than reading rules.bonusFreeThrows directly,
    * or the NCAA one-and-one tier silently becomes a flat two. Shooting-foul
    * callers ignore it: their FT count comes from the shot (2/3/and-one).
@@ -36,8 +36,8 @@ export interface FoulOutcome {
 /**
  * Book a foul against `fouler`: bumps his personal count and (unless it's an
  * offensive foul) his team's period foul count, checks bonus/foul-out
- * thresholds, emits the `foul` event, and — if this personal foul was his
- * last — immediately benches him and pulls in a replacement via
+ * thresholds, emits the `foul` event, and, if this personal foul was his
+ * last, immediately benches him and pulls in a replacement via
  * `replaceFouledOut`. Callers use the returned `{ fouledOut, inBonus }` to
  * decide what happens next (free throws vs. a normal dead-ball inbound).
  * Trap: this can change who's on the floor as a side effect, so any code
@@ -55,9 +55,9 @@ export function recordFoul(
   const countsTeam = kind !== 'offensive'; // offensive fouls: personal only (v0.1)
   if (countsTeam) s.teamFoulsPeriod[side] += 1;
   const inBonus = s.teamFoulsPeriod[side] >= s.rules.teamFoulBonusAt;
-  // the award is looked up AFTER the team-foul bump, so the foul that puts a
+  // the award is looked up after the team-foul bump, so the foul that puts a
   // team at exactly teamFoulBonusAt (or doubleBonusAt) already pays at the
-  // new tier — matching how the rule reads ("on the seventh team foul…")
+  // new tier, matching how the rule reads ("on the seventh team foul…")
   const bonus = countsTeam ? bonusFreeThrowAward(s.rules, s.teamFoulsPeriod[side]) : null;
   const fouledOut = fouler.fouls >= s.rules.foulOutAt;
   if (fouledOut) fouler.fouledOut = true;
@@ -81,10 +81,10 @@ export function recordFoul(
 /**
  * Set up a free-throw sequence: parks the ball dead, switches the phase to
  * `freethrows`, and arranges cosmetic lane positions for everyone else.
- * Called wherever a foul (or and-one) awards free throws — shooting fouls,
+ * Called wherever a foul (or and-one) awards free throws: shooting fouls,
  * bonus reach-ins/loose-balls, and-ones. `count` is how many shots (1, 2, or
  * 3 depending on shot value / and-one / bonus rules upstream). `oneAndOne`
- * marks the trip as an NCAA-style one-and-one (count is the POTENTIAL 2;
+ * marks the trip as an NCAA-style one-and-one (count is the potential 2;
  * tickFreeThrows ends the trip with a live ball if the front end misses) —
  * bonus callers pass it straight from FoulOutcome.bonus.
  * Trap: `checkSubs(s, shooter.p.id)` passes the shooter's id as the
@@ -100,7 +100,7 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
     side: shooter.side,
     taken: 0,
     of: count,
-    // 1.4s before the first attempt: time to walk to the line and get set —
+    // 1.4s before the first attempt: time to walk to the line and get set;
     // slightly quicker than a full dead-ball delay since the whistle already
     // stopped the action
     nextIn: 1.4,
@@ -108,13 +108,13 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
     oneAndOne
   };
   checkSubs(s, shooter.p.id); // never sub out the man headed to the line
-  // cosmetic positioning around the key — none of this affects the free-throw
-  // probability model (that's purely rating-based in resolve.ts), it's just
-  // so the replay doesn't show players standing wherever the whistle caught them
+  // cosmetic positioning around the key: none of this affects the free-throw
+  // probability model (purely rating-based in resolve.ts), it just keeps the
+  // replay from showing players standing wherever the whistle caught them
   const rim = attackedRim(s, shooter.side);
   const dir = rim.x > s.court.midX ? -1 : 1;
   // free-throw-line-to-rim-center distance, derived from the rule pack
-  // (NBA: 19 - 5.25 = 13.75 ft) — was a hardcoded 13.75 that silently
+  // (NBA: 19 - 5.25 = 13.75 ft); was a hardcoded 13.75 that silently
   // diverged from any custom pack's ftLineFt/rimInsetFt
   const ftDistFt = s.rules.ftLineFt - s.rules.rimInsetFt;
   const ftSpot = { x: rim.x + dir * ftDistFt, y: s.court.centerY };
@@ -129,7 +129,7 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
     a.target = lane <= 6
       // first 6 (3 per side) line up along the lane at the real box positions:
       // 4ft and 7.5ft from the rim (4 + floor(lane/2)*3.5), 9.5ft off the
-      // lane's centerline — roughly where the low/mid box spots sit on an NBA
+      // lane's centerline, roughly where the low/mid box spots sit on an NBA
       // free-throw lane
       ? { x: rim.x + dir * (4 + Math.floor(lane / 2) * 3.5), y: s.court.centerY + side * 9.5 }
       // anyone left over (shouldn't happen with 10 players on court, but
@@ -143,8 +143,8 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
  * Per-tick driver for the `freethrows` phase. Dispatched from `game.ts`'s
  * tick switch every tick while `s.phase.kind === 'freethrows'`. Counts down
  * to the next attempt, resolves it through `freeThrowP`, updates the score,
- * emits the event, and — once the sequence is done (`taken === of`, or a
- * one-and-one front end missed and forfeited the rest) — either returns the
+ * and emits the event. Once the sequence is done (`taken === of`, or a
+ * one-and-one front end missed and forfeited the rest) it either returns the
  * ball to the other team (make) or spins up a live-rebound
  * scramble off the rim (miss). Free throws never generate an assist or
  * change shot-clock state; the sequence itself doesn't run the game clock
@@ -153,9 +153,9 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
 export function tickFreeThrows(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
   integrateMovement(s, dt);
-  // fatigue accrues here like every other phase handler — this was the sole
-  // omission (energy silently froze through every trip to the line);
-  // landed with the M1 margin re-sweep (REFACTOR.md D4)
+  // fatigue accrues here like every other phase handler; this was the sole
+  // omission (energy silently froze through every trip to the line).
+  // Landed with the M1 margin re-sweep (REFACTOR.md D4).
   applyFatigue(s, dt);
   ph.nextIn -= dt;
   if (ph.nextIn > 0) return;
@@ -176,12 +176,12 @@ export function tickFreeThrows(s: GameState, dt: number): void {
     of: ph.of,
     made,
     // stamped only on one-and-one trips: conditional spread (not an
-    // always-present false) so every other league's event objects — and
-    // therefore the golden fingerprint corpus — stay byte-identical
+    // always-present false) so every other league's event objects (and
+    // therefore the golden fingerprint corpus) stay byte-identical
     ...(ph.oneAndOne ? { oneAndOne: true } : {})
   });
 
-  // A missed one-and-one FRONT END forfeits the second attempt — by rule the
+  // A missed one-and-one front end forfeits the second attempt; by rule the
   // ball is live off the rim (NCAA men, data/ncaa/README.md R1). Skipping
   // the "more attempts remain" branch below routes this straight into the
   // sequence-complete miss path: a real rebound scramble, not the dead-ball
@@ -191,9 +191,9 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   if (ph.taken < ph.of && !frontEndMiss) {
     if (!made) {
       // The scorekeeping formality real logs print after every missed
-      // NON-final free throw: "Offensive rebound by Team". The ball is dead
-      // by rule — nobody rebounds anything, the next attempt just proceeds
-      // — so the event carries deadBall: true and every stat consumer
+      // non-final free throw: "Offensive rebound by Team". The ball is dead
+      // by rule (nobody rebounds anything, the next attempt just proceeds),
+      // so the event carries deadBall: true and every stat consumer
       // excludes it from rebound totals (official-scoring convention; see
       // core/events.ts ReboundEvent). Emitted for play-by-play fidelity:
       // its total absence was a Turing-baseline tell.
@@ -208,31 +208,30 @@ export function tickFreeThrows(s: GameState, dt: number): void {
       });
     }
     // 0.9s between subsequent attempts: shorter than the 1.4s lead-in since
-    // the shooter is already set at the line — just the ritual dribble/pause
+    // the shooter is already set at the line; just the ritual dribble/pause
     ph.nextIn = 0.9;
     return;
   }
 
   // sequence complete (all awarded attempts taken, or a one-and-one front
-  // end just missed — in which case `made` is false and the miss branch
+  // end just missed, in which case `made` is false and the miss branch
   // below hands out the live rebound the rule calls for)
   if (made) {
     endPossession(s, 'made_ft');
     if (s.clock < 1e-6) { endPeriod(s); return; }
-    // 1.6s: matches the period-opening delay — a made final FT is a clean
+    // 1.6s: matches the period-opening delay; a made final FT is a clean
     // possession change, no live-ball scramble to resolve first
     deadBall(s, other(ph.side), { clockRuns: false, resumeIn: 1.6 });
   } else {
     if (s.clock < 1e-6) { endPeriod(s); return; }
     // live rebound off the miss: ball starts exactly at the rim and lands per
     // the normal miss-landing model, seeded with the FT line distance (13.75)
-    // as the "shot distance" input — free-throw misses carom short and
+    // as the "shot distance" input; free-throw misses carom short and
     // predictable, same as any other close shot would
     const rim = attackedRim(s, ph.side);
     s.ball.pos = { ...rim };
-    // 0.45-0.8s scramble window: a free-throw miss is a shorter, more
-    // contained scrum than a live-shot rebound (everyone's already boxed out
-    // in the lane) so it resolves a bit faster than a typical miss scramble
+    // 0.45-0.8s scramble window: shorter than a live-shot rebound scramble
+    // since everyone is already boxed out in the lane
     enterScramble(s, sampleMissLanding(s, rim, 13.75), s.rng.range(0.45, 0.8), ph.side);
     onShotReleased(s, ph.side); // trigger crash/get-back off-ball reactions, same as any missed shot
   }

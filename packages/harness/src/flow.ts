@@ -1,50 +1,50 @@
 /**
- * Game-flow forensics — does the game ARC like basketball?
+ * Game-flow forensics: does the game arc like basketball.
  *
- * The acceptance bands grade season-scale AVERAGES and texture.ts grades
- * frame-level FEEL; neither can see the shape of a single game. A sim can
+ * The acceptance bands grade season-scale averages and texture.ts grades
+ * frame-level feel; neither can see the shape of a single game. A sim can
  * pass every band while its games never trade runs, never change leaders,
- * and end close games without the foul parade — flow is the layer the eye
- * actually judges when it says "this reads like basketball". This tool
+ * and end close games without the foul parade. Flow is the layer the eye
+ * judges when it says "this reads like basketball". This tool
  * measures that layer with the same operational definitions applied to real
  * NBA play-by-play (see data/nba/flow-reference.json for the reference
  * values, their sources, and provenance grades).
  *
- * REPORT-ONLY by default (house ratchet convention: a metric becomes an
+ * Report-only by default (house ratchet convention: a metric becomes an
  * enforced test in test/flow.test.ts once it holds). Known gaps are
- * expected and documented — most notably everything downstream of the
+ * expected and documented, most notably everything downstream of the
  * missing endgame layer (no timeouts, no intentional fouling, no clock
  * kill: REFACTOR.md roadmap M4), which this tool exists to hold honest
  * acceptance criteria for.
  *
- * Operational definitions (keep in sync with the reference file — a metric
+ * Operational definitions (keep in sync with the reference file; a metric
  * is only comparable if both sides count the same way):
- *   lead change — the scoreboard leader flips sign between two SCORING
+ *   lead change: the scoreboard leader flips sign between two scoring
  *     events (tie interludes don't count as changes; a tie is counted once
  *     when entered from a led state).
- *   run — consecutive unanswered points by one team; an 8-0 inside a 12-0
+ *   run: consecutive unanswered points by one team; an 8-0 inside a 12-0
  *     counts once (runs are maximal).
- *   drought — one team's longest gap between its own scoring events on the
+ *   drought: one team's longest gap between its own scoring events on the
  *     game clock (t), tip and final horn included as endpoints, regulation
  *     only (OT excluded for cross-game comparability).
- *   clutch window — Q4, game clock <= 2:00, margin within 5 BEFORE the
+ *   clutch window: Q4, game clock <= 2:00, margin within 5 before the
  *     scoring event. clutchFTShare = FT points / all points inside that.
- *   Q4 comeback — a team leads by 10+ at any point in Q4 and loses.
- *   possession length — possession_end.t - possession_start.t (game-clock
+ *   Q4 comeback: a team leads by 10+ at any point in Q4 and loses.
+ *   possession length: possession_end.t - possession_start.t (game-clock
  *     seconds; FT sequences freeze t, matching how possession-length data
  *     is usually reported against the shot/game clock).
  *
  * The measurement/reduction code itself lives in flow-metrics.ts (so the
  * parallel runner's worker can import it without importing this CLI); games
- * are distributed across worker subprocesses by parallel.ts — bit-identical
+ * are distributed across worker subprocesses by parallel.ts. Bit-identical
  * results for any --workers value, --workers 1 = plain single process.
  *
  * Run: npm run flow [-- --games 48 --seed flow --workers N --endgame --league nba|ncaa]
- * (--endgame simulates with GameConfig.endgame ON — the off/on comparison
- *  for the endgame layer's target metrics: clutch FT share, Q4 shape.)
+ * (--endgame simulates with GameConfig.endgame on: the off/on comparison
+ *  for the endgame layer's target metrics, clutch FT share and Q4 shape.)
  * (--league swaps the rule pack and re-anchors the period-structure metrics
- *  to that league's regulation shape — under 'ncaa' the clutch window and
- *  comeback tracking read the SECOND HALF as the final period and droughts
+ *  to that league's regulation shape; under 'ncaa' the clutch window and
+ *  comeback tracking read the second half as the final period and droughts
  *  span 40 minutes. The reference column stays NBA: college flow reference
  *  data is calibration-milestone work, so treat non-NBA runs as raw
  *  measurement, not a comparison.)
@@ -62,7 +62,7 @@ export type { GameFlow, FlowAverages } from './flow-metrics.js';
 
 /**
  * Measure `games` games single-process, synchronously (the test suite's
- * entry point — test/flow.test.ts). Same per-game path and reduction as the
+ * entry point, test/flow.test.ts). Same per-game path and reduction as the
  * parallel CLI below: runGamesInProcess is the identical inner loop the
  * workers run, so this and `npm run flow -- --workers N` cannot drift.
  */
@@ -75,7 +75,7 @@ export function measureFlow(games: number, seedBase: string, league = 'nba'): Fl
 const isMain = process.argv[1]?.endsWith('flow.ts');
 if (isMain) {
   main().catch((err) => {
-    // a failed parallel run (worker crash, envelope mismatch) lands here —
+    // a failed parallel run (worker crash, envelope mismatch) lands here:
     // print the whole story and exit nonzero; never a partial report
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);
@@ -109,10 +109,10 @@ async function main(): Promise<void> {
     ['Possession length p50 (s)', m.possP50.toFixed(1), '~11-14', 'B'],
     ['Poss <=8s share', `${(m.possShare0to8 * 100).toFixed(0)}%`, '~25-35%', 'C'],
     ['Poss >=16s share', `${(m.possShare16plus * 100).toFixed(0)}%`, '~25-35%', 'C'],
-    // putback reference CORRECTED (wave2): 0.716 of PLAYER OREBs from the
-    // 184-game corpus (grade A) — the old ~33% divided by all OREB rows
+    // putback reference corrected (wave2): 0.716 of player OREBs from the
+    // 184-game corpus (grade A); the old ~33% divided by all OREB rows
     // including team-rebound bookkeeping (flow-reference.json
-    // putbackWithin6sShareOfOreb.basis); sim ~50% is LOW, not high
+    // putbackWithin6sShareOfOreb.basis). Sim ~50% is low, not high.
     ['OREB -> putback <=6s', `${(m.putbackShare * 100).toFixed(0)}%`, '~72%', 'A'],
     ['Steal -> score <=6s', `${(m.stealConvShare * 100).toFixed(0)}%`, '~29%', 'A'],
     ['And-ones / game', m.andOnes.toFixed(1), '~4.8', 'B'],

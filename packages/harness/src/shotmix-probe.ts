@@ -1,11 +1,11 @@
 /**
- * Shot-mix / transition probe (wave2/shotmix) — the before/after instrument
+ * Shot-mix / transition probe (wave2/shotmix): the before/after instrument
  * for the decision-layer taxonomy + transition-urgency fixes.
  *
- * Measures, over a small batch (default 12 games, mirrored matchup — same
+ * Measures, over a small batch (default 12 games, mirrored matchup; same
  * per-game path as runBatch):
- *   • shot-type mix: share of ATTEMPTS and MAKES by moveType, plus the
- *     interior-mislabel share (catch_shoot attempts from rim/paint — the
+ *   • shot-type mix: share of attempts and makes by moveType, plus the
+ *     interior-mislabel share (catch_shoot attempts from rim/paint, the
  *     taxonomy artifact this branch removes)
  *   • zone mix (rim/paint/mid/three shares of FGA) and per-zone FG%
  *   • assisted share of made FGs

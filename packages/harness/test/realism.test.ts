@@ -1,19 +1,19 @@
 /**
- * Realism regression guard — the TRIPWIRE, not the lock.
+ * Realism regression guard: the tripwire, not the lock.
  *
  * Role: fail `npm test` (and CI) only when an engine change breaks basic
  * statistical realism. The fine-grained instruments are elsewhere: the lock
  * is the three-seed 40-game verify (`npm run sweep -- --iters 0 --verify 40`)
- * plus the fidelity gate and `npm run oos`. Keep the division of labor —
- * a tripwire that cries wolf gets deleted, a tripwire that never fires is
+ * plus the fidelity gate and `npm run oos`. Keep the division of labor.
+ * A tripwire that cries wolf gets deleted; a tripwire that never fires is
  * decoration.
  *
- * Calibration of the tripwire itself: widths are DERIVED from the measured
- * noise floor (noise-floor.gen.ts — regenerate with `npm run noisefloor`):
- * each band edge extends by z·sd of the 24-game sampling distribution under
+ * Calibration of the tripwire itself: widths are derived from the measured
+ * noise floor (noise-floor.gen.ts; regenerate with `npm run noisefloor`).
+ * Each band edge extends by z·sd of the 24-game sampling distribution under
  * the null. At z=3 a failure means "the sim changed", not "the seed
- * changed" — the distinction feel-widened percentages could never make
- * (third external review). Where the sim's true center sits ON a band edge
+ * changed", a distinction feel-widened percentages could never make
+ * (third external review). Where the sim's true center sits on a band edge
  * (measured: pace at the 95 floor, ORtg at the 121 ceiling), that is a
  * standing calibration finding for INTERNALS, not gate noise.
  */
@@ -27,7 +27,7 @@ import { NBA_BANDS } from '../src/bands.js';
 import { NOISE_FLOOR } from '../src/noise-floor.gen.js';
 
 // tripwire z: under the null (measured sampling sd) a z=3 excursion is a
-// ~0.3% event per check — a fired gate means the engine moved.
+// ~0.3% event per check. A fired gate means the engine moved.
 const Z = 3;
 
 const GAMES = 24;
@@ -47,13 +47,14 @@ describe('realism regression guard (wide bands)', () => {
   }
   const avgs = finalize(acc);
 
-  // ---- check 1: TRIPWIRE vs band edges (edge ± Z·sd) — "is the sim still
-  // inside acceptable basketball", sensitivity varies with where the center
-  // sits inside its band (a metric mid-band is only caught by gross breakage)
+  // ---- check 1: tripwire vs band edges (edge ± Z·sd), "is the sim still
+  // inside acceptable basketball". Sensitivity varies with where the center
+  // sits inside its band (a metric mid-band is only caught by gross
+  // breakage).
   for (const band of NBA_BANDS) {
-    // ratchet bands are declared destinations, not yet enforced floors — the
+    // ratchet bands are declared destinations, not yet enforced floors. The
     // batch report and sweep see them; the regression guard does not (see
-    // bands.ts Band.ratchet)
+    // bands.ts Band.ratchet).
     if (band.ratchet) continue;
     const floor = (NOISE_FLOOR.league as Record<string, { n24: { sd: number } }>)[band.metric];
     const sd = floor ? floor.n24.sd : (band.hi - band.lo) * 0.15; // fallback: regenerate the floor
@@ -66,12 +67,12 @@ describe('realism regression guard (wide bands)', () => {
     });
   }
 
-  // ---- check 2: DRIFT vs the measured center (|current − mean| ≤ Zd·sd) —
-  // "did the sim move from where the floor measured it", uniform sensitivity
+  // ---- check 2: drift vs the measured center (|current − mean| ≤ Zd·sd),
+  // "did the sim move from where the floor measured it". Uniform sensitivity
   // across every metric regardless of band position (third review: without
   // this, a metric sitting 9σ inside its band is effectively uninstrumented).
   // Zd = 3.5: 17 simultaneous checks put family-wise false-alarm near 1%.
-  // After an INTENTIONAL re-tune, regenerate the floor (npm run noisefloor) —
+  // After an intentional re-tune, regenerate the floor (npm run noisefloor);
   // the gen-file diff is the accepted-drift record.
   const Zd = 3.5;
   for (const band of NBA_BANDS) {

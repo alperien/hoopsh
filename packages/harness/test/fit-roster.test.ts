@@ -1,15 +1,15 @@
 /**
  * Analytic-layer tests for the stats→ratings fitter (fit-roster.ts).
  *
- * Deliberately SIMULATION-FREE: everything here checks the documented
+ * Simulation-free on purpose: everything here checks the documented
  * algebra of layer 1 (the analytic priors) plus schema plumbing, so the
  * suite stays fast and deterministic. The centerpiece is the known-answer
- * round-trip: season lines CONSTRUCTED from the engine's own forward models
- * at known ratings must invert back to those ratings — and a league-average
+ * round-trip: season lines constructed from the engine's own forward models
+ * at known ratings must invert back to those ratings, and a league-average
  * line must land on the engine's formula-neutral defaults (rating 50 is
  * invisible to every probability model by construction; a league-average
  * box line must therefore fit to ~50s). Refinement (layer 2) is exercised
- * only for its budget guard, which throws BEFORE any game is simulated.
+ * only for its budget guard, which throws before any game is simulated.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -64,7 +64,7 @@ describe('known-answer round-trips (forward model -> line -> inverted rating)', 
   it('synthetic star: shooting dials constructed at known ratings invert back', () => {
     const truthThree = 84;
     const truthFt = 90;
-    // pullUpShare depends only on tpa+ast, never tpPct — so deriving it
+    // pullUpShare depends only on tpa+ast, never tpPct, so deriving it
     // first and constructing tpPct from it is a legitimate round-trip
     const base = line({ pos: 'SG', tpa: 7, fga: 16, pts: 22 });
     const pus = deriveRates(base).pullUpShare;
@@ -79,7 +79,7 @@ describe('known-answer round-trips (forward model -> line -> inverted rating)', 
   });
 
   it('league-average line fits to the formula-neutral player (the 50s fixpoint)', () => {
-    // Build a line that IS the league average by construction: league shot
+    // Build a line that is the league average by construction: league shot
     // mix via explicit shotZones, 2P% equal to the reference model's own
     // league 2P% at that mix, USG exactly 20%, league-ish everything else.
     const mpg = 30;
@@ -101,7 +101,7 @@ describe('known-answer round-trips (forward model -> line -> inverted rating)', 
     const l = line({ fga, tpa, tpPct, fta, tov, fgPct, mpg, shotZones: zones });
 
     const fit = analyticFit(l);
-    // formula-neutral attributes: 50 contributes NOTHING to any model
+    // formula-neutral attributes: 50 contributes nothing to any model
     expect(Math.abs(fit.player.attr.finishing - 50)).toBeLessThanOrEqual(3);
     expect(Math.abs(fit.player.attr.midRange - 50)).toBeLessThanOrEqual(3);
     // default tendencies are the league-average identity (player.ts)

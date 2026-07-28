@@ -1,5 +1,5 @@
 // Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-corpus.mjs
-// Probe 5: corpus integrity — shards vs pbp-corpus.json vs distributions vs flow-reference.json.
+// Probe 5: corpus integrity. Shards vs pbp-corpus.json vs distributions vs flow-reference.json.
 // Uses parse-nba.mjs's OWN pure functions (extracted verbatim) so this tests the DATA, not my re-implementation.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

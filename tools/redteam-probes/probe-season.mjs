@@ -26,13 +26,13 @@ try {
   console.log('n=1 ok: winProb', d3.homeWinProb, 'ci', d3.ci95.map((x) => x.toFixed(2)).join('..'), 'sd', d3.sdMargin);
 } catch (e) { bad('n=1 crashed: ' + e.message); }
 
-// (d) schedule pathology — all cheap, no sims:
+// (d) schedule pathology, all cheap, no sims:
 try { roundRobin(['a', 'a', 'b']); bad('dup team ids accepted'); } catch (e) { console.log('dup ids loud:', e.message.slice(0, 60)); }
 try { roundRobin(['solo']); bad('1-team league accepted'); } catch (e) { console.log('1-team loud:', e.message.slice(0, 60)); }
 try { buildTasks([home, away], [{ home: home.id, away: home.id }], 's'); bad('self-matchup accepted'); } catch (e) { console.log('self-matchup loud:', e.message.slice(0, 70)); }
 try { buildTasks([home, away], [{ home: home.id, away: 'ghost' }], 's'); bad('unknown team accepted'); } catch (e) { console.log('unknown team loud:', e.message.slice(0, 70)); }
 
-// round-robin structure: 3 teams, 2 cycles (byes) — pairs meet twice, once in each building
+// round-robin structure: 3 teams, 2 cycles (byes); pairs meet twice, once in each building
 const sched3 = roundRobin(['x', 'y', 'z']);
 const counts = {};
 for (const g of sched3) { counts[`${g.home}-${g.away}`] = (counts[`${g.home}-${g.away}`] ?? 0) + 1; }
@@ -63,7 +63,7 @@ if (sumDiff !== 0) bad('diff not zero-sum');
 if (sumW !== sumL) bad('wins != losses');
 if (season.standings.some((t) => t.games !== 2)) bad('bye handling broke per-team game count');
 
-// (g) duplicate fixture in an explicit schedule (same matchup twice) — allowed? do seeds differ?
+// (g) duplicate fixture in an explicit schedule (same matchup twice): allowed? do seeds differ?
 const dupTasks = buildTasks([t1, t2], [{ home: t1.id, away: t2.id }, { home: t1.id, away: t2.id }], 'rt-dup');
 console.log('duplicate fixture seeds differ:', dupTasks[0].seed !== dupTasks[1].seed, `(${dupTasks[0].seed} vs ${dupTasks[1].seed})`);
 

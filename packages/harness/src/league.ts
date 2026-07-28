@@ -2,7 +2,7 @@
  * Deterministic fictional-league generation for the season driver, plus the
  * team-strength fixtures the Monte-Carlo sanity tests need.
  *
- * This is HARNESS TOOLING, not calibration data: the two @hoopsh/data
+ * This is harness tooling, not calibration data: the two @hoopsh/data
  * rosters (cascadiaBreakers/meridianMonarchs) remain the calibration teams
  * (see teams.ts's file header); the teams generated here exist so `npm run
  * season -- --teams N` can field an N-team league without hand-writing N
@@ -19,7 +19,7 @@ import {
 } from '@hoopsh/data';
 
 // city/nickname pools sized coprime (18 and 17) so the (k mod 18, k mod 17)
-// pairing stays unique for k < 306 teams — comfortably past any league size
+// pairing stays unique for k < 306 teams, comfortably past any league size
 // this repo will simulate.
 const CITIES = [
   'Aurora', 'Basalt', 'Cinder', 'Delmar', 'Ember', 'Fenwick', 'Granite', 'Harbor',
@@ -44,7 +44,7 @@ const LAST = [
 
 type Maker = (who: { id: string; name: string; pos?: Player['pos'] }) => Player;
 
-// archetype pools per lineup slot — starters first five, bench last five.
+// archetype pools per lineup slot: starters first five, bench last five.
 // Pools deliberately overlap so two generated teams can share a style but
 // never (statistically) a whole roster.
 const SLOTS: { pos: Player['pos']; pool: Maker[] }[] = [
@@ -60,9 +60,9 @@ const SLOTS: { pos: Player['pos']; pool: Maker[] }[] = [
   { pos: 'C', pool: [benchBig, rimRunner] }
 ];
 
-/** Clone a player with every ATTRIBUTE shifted by `delta` (clamped 1..99,
- *  inside the 0-100 data-pack contract). Tendencies are left alone — this
- *  changes how GOOD a team is, not how it plays. */
+/** Clone a player with every attribute shifted by `delta` (clamped 1..99,
+ *  inside the 0-100 data-pack contract). Tendencies are left alone; this
+ *  changes how good a team is, not how it plays. */
 export function scalePlayer(p: Player, delta: number): Player {
   const attr = { ...p.attr };
   for (const k of Object.keys(attr) as (keyof Player['attr'])[]) {
@@ -108,9 +108,9 @@ export function cloneTeamWithIds(team: Team, suffix: string): Team {
  *
  * Identity (city/nickname) is positional; roster and tactics come from an
  * Rng seeded `${seed}:team${k}`, so team k is stable regardless of how many
- * other teams are generated. Each team also gets a QUALITY OFFSET drawn
+ * other teams are generated. Each team also gets a quality offset drawn
  * uniformly from [-strengthSpread, +strengthSpread] and applied to every
- * attribute — without it a generated league is nearly flat and standings
+ * attribute. Without it a generated league is nearly flat and standings
  * are mostly noise; with it the standings table has real structure for SOS
  * and the Monte-Carlo API to chew on.
  */

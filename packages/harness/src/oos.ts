@@ -1,19 +1,19 @@
 /**
- * Out-of-sample validation — the answer to "the sweep tunes what grades it."
+ * Out-of-sample validation: the answer to "the sweep tunes what grades it."
  *
  * Every calibration number in this repo was fit on the two sample rosters.
- * This runner generates ROSTERS THE SWEEP HAS NEVER SEEN — position-slotted
- * archetype teams with seeded rating jitter — and checks two things on them:
+ * This runner generates rosters the sweep has never seen (position-slotted
+ * archetype teams with seeded rating jitter) and checks two things on them:
  *
  *   1. The NBA acceptance bands. Passing here means the calibration
- *      generalizes across the roster distribution, not just the two teams it
- *      was fit on. (It cannot prove identification — see INTERNALS'
- *      "what locked does and does not claim" — but it removes the
+ *      generalizes across the roster distribution instead of only the two
+ *      teams it was fit on. (It cannot prove identification; see INTERNALS'
+ *      "what locked does and does not claim". But it removes the
  *      fit-to-the-training-set objection.)
- *   2. DISTRIBUTIONAL realism, which league means cannot see: score-margin
+ *   2. Distributional realism, which league means cannot see: score-margin
  *      spread, blowout and close-game rates, overtime rate, single-game team
  *      scoring extremes, quarter profiles. Reported against real NBA
- *      references, REPORT-ONLY for now (the ratchet convention: they become
+ *      references, report-only for now (the ratchet convention: they become
  *      enforced once they hold).
  *
  * Run: npm run oos [-- --teams 12 --games 60 --jitter 8 --seed oos]
@@ -42,7 +42,7 @@ const SEED = argOf('--seed') ?? 'oos';
 type Named = { id: string; name: string; pos: Player['pos'] };
 type Builder = (who: Named) => Player;
 
-/** plausible archetypes per starting slot — mirrors how real rosters skew */
+/** plausible archetypes per starting slot: mirrors how real rosters skew */
 const SLOT_POOLS: Record<Player['pos'], Builder[]> = {
   PG: [floorGeneral, comboGuard, eliteShooter],
   SG: [scoringWing, threeAndD, comboGuard, eliteShooter],
@@ -128,20 +128,20 @@ export function distributionOf(finals: GameFinal[]): DistReport {
 }
 
 /**
- * REAL NBA references — CITED: computed over all 1230 games of the 2023-24
+ * REAL NBA references, cited: computed over all 1230 games of the 2023-24
  * regular season from basketball-reference.com monthly schedule pages
- * (calibration ground-truth pass, 2026-07-27; self-validating — the season
- * filters land on exactly 1230 rows and mean total points 228.4 = 2 × B-Ref
- * 114.2 PPG). Report-only until they hold (ratchet convention). Reading
- * notes, so nobody re-derives them the hard way:
- *  - "margin std dev" is the SD of |margin| — what distributionOf computes —
- *    which is 9.53 for 2023-24. The SD of the SIGNED home margin is 15.64;
+ * (calibration ground-truth pass, 2026-07-27; self-validating, since the
+ * season filters land on exactly 1230 rows and mean total points 228.4 =
+ * 2 × B-Ref 114.2 PPG). Report-only until they hold (ratchet convention).
+ * Reading notes, so nobody re-derives them the hard way:
+ *  - "margin std dev" is the SD of |margin| (what distributionOf computes),
+ *    which is 9.53 for 2023-24. The SD of the signed home margin is 15.64;
  *    comparing that one here would flag a phantom miss.
  *  - 2023-24 was a historically blowout-heavy season (record 235 games won
  *    by 20+), so its blowout share sits at the high end of any era band.
- *  - 2023-24 was a LOW-overtime season (4.80%); the long-run rate is ~5.9%
- *    (2000-2024, secondary source) — the row keeps both.
- *  - the min/max and quarter-profile rows remain UNCITED recollections; the
+ *  - 2023-24 was a low-overtime season (4.80%); the long-run rate is ~5.9%
+ *    (2000-2024, secondary source). The row keeps both.
+ *  - the min/max and quarter-profile rows remain uncited recollections; the
  *    ground-truth pass did not establish them (quarter mean ≈ 114.2/4 =
  *    28.6 follows from the cited PPG, the Q4-shape claim does not).
  */

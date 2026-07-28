@@ -1,28 +1,28 @@
 /**
- * Game-flow gates — the "arcs like basketball" tier (see harness/src/flow.ts
+ * Game-flow gates: the "arcs like basketball" tier (see harness/src/flow.ts
  * for the doctrine and data/nba/flow-reference.json for reference provenance).
  *
- * Ratchet policy (house convention): only metrics the engine CURRENTLY holds
+ * Ratchet policy (house convention): only metrics the engine currently holds
  * are enforced, at generous first-pass widths sized for this test's small n
  * (they tighten once a proper noise-floor pass measures their sampling
- * spread). Metrics with KNOWN gaps stay in flow.ts's report and are NOT
- * gated here — gating them would just paint the suite red on documented
+ * spread). Metrics with known gaps stay in flow.ts's report and are not
+ * gated here; gating them would just paint the suite red on documented
  * debt. The known gaps and where they wait:
- *   putback rate ~50% vs real ~72%     -> post-OREB patience (reference CORRECTED
+ *   putback rate ~50% vs real ~72%     -> post-OREB patience (reference corrected
  *                                         in wave2: the old "~33%" divided by all
  *                                         OREB rows incl. team-rebound bookkeeping;
- *                                         real is 0.716 of PLAYER OREBs — the sim
- *                                         is LOW, so only a regression FLOOR is
+ *                                         real is 0.716 of player OREBs. The sim
+ *                                         is low, so only a regression floor is
  *                                         gated below, against suppression)
  *   runs >=10-0 ~1.0 vs real ~1.8      -> momentum/consistency (STAGED attr, M4)
  *   clutch FT share ~20% vs real 35%+  -> endgame layer: no intentional fouling (M4)
  *   flat quarter profile               -> fatigue-arc/endgame pacing (M4)
  * steal->score-in-6s graduated from this list in wave2 (decide.stealBreakBonus):
- * ~28% vs real 29.3% — gated below.
+ * ~28% vs real 29.3%, gated below.
  *
- * What IS gated below is real signal: leads that change hands, ties, 8-0
+ * What is gated below is real signal: leads that change hands, ties, 8-0
  * runs, droughts, and-one frequency, possession-length center, second-chance
- * share — a sim whose games stop trading runs or whose possessions all take
+ * share. A sim whose games stop trading runs or whose possessions all take
  * 20 seconds fails here even while every season-average band still passes.
  */
 
@@ -82,7 +82,7 @@ describe(`game-flow gates over ${GAMES} games`, () => {
   it('steals convert into quick scores at a real rate (transition urgency lives)', () => {
     // real: 0.293 pooled, p10 0.125 / p90 0.457 per game
     // (flow-reference.json stealToScoreWithin6sShare). Pre-wave2 the sim sat
-    // at 0.12-0.17 — the decision layer had no idea the defense was
+    // at 0.12-0.17; the decision layer had no idea the defense was
     // scrambled after a steal (decide.stealBreakBonus). Generous first-pass
     // width for n=12 (per-seed probe centers 27.9/29.3%, sd ~3pp).
     expect(m.stealConvShare).toBeGreaterThanOrEqual(0.18);
@@ -90,12 +90,12 @@ describe(`game-flow gates over ${GAMES} games`, () => {
   });
 
   it('offensive rebounds go back up quickly at least at the pre-wave2 rate (no suppression)', () => {
-    // REGRESSION FLOOR ONLY: the real share is 0.716 of player OREBs
-    // (corrected in wave2 — flow-reference.json putbackWithin6sShareOfOreb;
+    // Regression floor only: the real share is 0.716 of player OREBs
+    // (corrected in wave2, flow-reference.json putbackWithin6sShareOfOreb;
     // the old 0.33 reference divided by team-rebound bookkeeping rows too).
     // The sim holds ~0.50; the documented gap is post-OREB patience. This
-    // floor exists because the WRONG reference invited suppressing putbacks
-    // — that direction must fail loudly now.
+    // floor exists because the wrong reference invited suppressing
+    // putbacks. That direction must fail loudly now.
     expect(m.putbackShare).toBeGreaterThanOrEqual(0.3);
     expect(m.putbackShare).toBeLessThanOrEqual(0.9);
   });

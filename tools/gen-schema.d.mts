@@ -1,5 +1,5 @@
 /**
- * Type declarations for gen-schema.mjs — hand-maintained (the runtime is
+ * Type declarations for gen-schema.mjs, hand-maintained (the runtime is
  * type-stripped Node with no build step, so nothing generates these; see
  * tsconfig.json's paths comment for the typecheck-gate context). Declares
  * every export of the .mjs; keep the two files in sync in the same commit.
@@ -12,7 +12,7 @@ export const SCHEMA_PATH: string;
 
 /**
  * Extract per-key doc comments (JSDoc block above the key, or trailing `//`)
- * from an interface body in player.ts source text — the hover text the
+ * from an interface body in player.ts source text: the hover text the
  * generated schema ships for each rating. Keys with no comment are simply
  * absent from the result. Throws if the interface is not found.
  */

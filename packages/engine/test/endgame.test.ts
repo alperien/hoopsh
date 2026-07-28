@@ -3,20 +3,20 @@
  *
  * Two contracts, both load-bearing:
  *
- *  1. FLAG ON, the late-game texture exists: intentional fouls in close
+ *  1. Flag on, the late-game texture exists: intentional fouls in close
  *     finishes, an FT spike in the final minute, longer leading-team /
  *     shorter trailing-team possessions late, timeouts in the stream, the
- *     2-for-1 early shot — and the engine invariants (possession pairing,
+ *     2-for-1 early shot. The engine invariants (possession pairing,
  *     score reconstruction, no post-horn scoring) survive the new
  *     stoppage machinery.
  *
- *  2. FLAG OFF, nothing changed: no timeout events, and `endgame: false`
+ *  2. Flag off, nothing changed: no timeout events, and `endgame: false`
  *     is byte-identical to omitting the flag. (Identity with the
- *     PRE-LAYER engine is enforced separately by the golden fingerprint
- *     corpus — `npm run fingerprint`, 24 seeds, verified when the layer
+ *     pre-layer engine is enforced separately by the golden fingerprint
+ *     corpus: `npm run fingerprint`, 24 seeds, verified when the layer
  *     landed.)
  *
- * Thresholds are set WELL below probed values (see commit history: e.g.
+ * Thresholds are set well below probed values (see commit history: e.g.
  * hunted fouls measured 4+ in the qualifying game, threshold 2; lead-vs-
  * trail possession gap measured ~8.5 s, threshold 3 s) so an unrelated
  * rng-reordering change that reshuffles which seeds produce close games
@@ -34,10 +34,10 @@ import { sampleMatchup } from '@hoopsh/data';
 // per-game average below the bar and the suite failed on seed luck rather
 // than behavior (caught during wave-1 integration, when merging narration's
 // spot jitter reshuffled the RNG stream). 16 games doubles the qualifying
-// sample for ~2x the runtime — the cheapest honest fix.
+// sample for ~2x the runtime, the cheapest honest fix.
 const GAMES = 16;
 
-// one shared flag-ON pool — sim once, assert many (invariants-suite pattern)
+// one shared flag-ON pool: sim once, assert many (invariants-suite pattern)
 const on: GameResult[] = [];
 for (let i = 0; i < GAMES; i++) {
   const { home, away } = sampleMatchup();
@@ -68,7 +68,7 @@ for (let i = 0; i < 3; i++) {
 const timeouts = (r: GameResult): TimeoutEvent[] =>
   r.events.filter((e): e is TimeoutEvent => e.type === 'timeout');
 
-/** margin for `side` at an event (score is stamped AFTER the event) */
+/** margin for `side` at an event (score is stamped after the event) */
 const marginFor = (e: GameEvent, side: 0 | 1): number =>
   e.score[side] - e.score[side === 0 ? 1 : 0];
 
@@ -114,17 +114,17 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
       expect(used[0]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
       expect(used[1]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
     }
-    // probed: ~1.5-2/game across this pool — assert well under that
+    // probed: ~1.5-2/game across this pool, so assert well under that
     expect(total).toBeGreaterThanOrEqual(3);
   });
 
   it('the advance timeout belongs to the TRAILING team — never the leader', () => {
     // maybeTimeout's advance trigger requires the caller's margin < 0: the
-    // point of burning a timeout to advance the ball is that the TRAILING
+    // point of burning a timeout to advance the ball is that the trailing
     // team buys its chase possession a frontcourt start. A sign flip hands
     // the mechanic to the winning team and every budget/countdown assertion
-    // above stays green (mutation probe) — so pin the side here. Timeout
-    // events don't move the score, so the stamped margin IS the margin
+    // above stays green (mutation probe), so pin the side here. Timeout
+    // events don't move the score, so the stamped margin is the margin
     // maybeTimeout decided on.
     let advances = 0;
     for (const r of on) {
@@ -134,9 +134,9 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
         expect(marginFor(to, to.team)).toBeLessThan(0);
       }
     }
-    // existence floor so the loop above can never pass vacuously — probed:
+    // existence floor so the loop above can never pass vacuously. Probed:
     // 15 advance timeouts across this pool (same well-under-probed
-    // convention as the header documents)
+    // convention as the header documents).
     expect(advances).toBeGreaterThanOrEqual(1);
   });
 
@@ -149,8 +149,8 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
   });
 
   it('a trailing team intentionally fouls in the final ~35s of a close game', () => {
-    // qualifying state: final period/OT, clock <= 35, the FOULING team down
-    // 3-12 — exactly foulHuntSide's activation. Count reach fouls there.
+    // qualifying state: final period/OT, clock <= 35, the fouling team down
+    // 3-12, exactly foulHuntSide's activation. Count reach fouls there.
     let hunted = 0;
     let qualifyingGames = 0;
     for (const r of on) {
@@ -179,8 +179,8 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
     // the last minute should contain a real FT trip count (the parade +
     // bonus texture).
     //
-    // THRESHOLD PROVENANCE (integration re-measure, n=24): endgame OFF gives
-    // 1.5 FTs per close final-minute, ON gives 3.9 — a 2.6x parade spike. The
+    // Threshold provenance (integration re-measure, n=24): endgame OFF gives
+    // 1.5 FTs per close final-minute, ON gives 3.9, a 2.6x parade spike. The
     // bar sits at 2.5 rather than that mean because this suite's pool is 8
     // games: with only ~4 qualifying games per run, a single quiet finish
     // swings the average hard. The assertion's job is "the parade exists",
@@ -219,7 +219,7 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
           margin = e.period >= 4 ? marginFor(e, e.team) : 99;
         } else if (e.type === 'possession_end' && startT >= 0) {
           // final period, inside 2:30 but not the last-scraps 30s, one- to
-          // four-possession game — where the layer's tempo split lives
+          // four-possession game: where the layer's tempo split lives
           if (e.period >= 4 && startClock <= 150 && startClock > 30) {
             if (margin >= 1 && margin <= 12) lead.push(e.t - startT);
             else if (margin <= -1 && margin >= -12) trail.push(e.t - startT);
@@ -231,12 +231,12 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
     expect(lead.length).toBeGreaterThanOrEqual(3);
     expect(trail.length).toBeGreaterThanOrEqual(3);
     const mean = (a: number[]): number => a.reduce((x, y) => x + y, 0) / a.length;
-    // probed gap ≈ 8.5s (17.9 vs 9.4); flag-off gap ≈ 0.5s — 3s is a safe floor
+    // probed gap ≈ 8.5s (17.9 vs 9.4); flag-off gap ≈ 0.5s; 3s is a safe floor
     expect(mean(lead) - mean(trail)).toBeGreaterThanOrEqual(3);
   });
 
   it('2-for-1: early shots in the ~0:28-0:38 window of periods 1-3', () => {
-    // shots released inside the window having used <= 12s of possession —
+    // shots released inside the window having used <= 12s of possession:
     // the "act early to get two" signature. Probed: 2.33/game ON vs 1.17 OFF.
     let early = 0;
     for (const r of on) {
@@ -257,7 +257,7 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
 describe('endgame layer OFF is the unchanged engine', () => {
   it('an explicit endgame:false stream never contains a timeout', () => {
     // renamed from "a default-config stream…" when the default flipped ON:
-    // a default-config stream now DOES contain timeouts (that's the pin
+    // a default-config stream now does contain timeouts (that's the pin
     // below); flag-off purity is the legacy path's contract
     for (const r of off) {
       expect(timeouts(r).length).toEqual(0);
@@ -266,17 +266,17 @@ describe('endgame layer OFF is the unchanged engine', () => {
 
   it('omitting the flag means ON: the default flipped on the n=1260/arm survey', () => {
     // This pin is the old "endgame: false is byte-identical to omitting the
-    // flag" expectation, inverted deliberately when the default flipped
+    // flag" expectation, inverted on purpose when the default flipped
     // OFF→ON (endgame-flag survey, 1,260 games per arm × 3 seed bases: the
-    // layer closes the clutch-realism gaps with invariants green — see
-    // GameConfig.endgame in sim/game.ts). A default-config game must now BE
+    // layer closes the clutch-realism gaps with invariants green; see
+    // GameConfig.endgame in sim/game.ts). A default-config game must now be
     // the flag-on game; the explicit-false pool above stays the
     // byte-identical legacy path.
     const { home, away } = sampleMatchup();
     const omitted = simulateGame({ seed: 'egscan-0', home, away, collectFrames: false });
     expect(JSON.stringify(on[0]!.events)).toEqual(JSON.stringify(omitted.events));
-    // (identity of the explicit-false path with the PRE-layer engine is the
-    // golden fingerprint suite's job — npm run fingerprint — since a test in
+    // (identity of the explicit-false path with the pre-layer engine is the
+    // golden fingerprint suite's job, npm run fingerprint, since a test in
     // this tree can only compare this build against itself)
   });
 

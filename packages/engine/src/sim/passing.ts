@@ -6,7 +6,7 @@
  * `executeAction`) whenever it picks one of the pass options; the flight
  * itself is advanced tick-by-tick by `game.ts`'s live tick, which calls
  * `resolvePassArrival` once `remaining` counts down to zero. `attemptReachIn`
- * is polled every live tick independent of passing — it's the on-ball
+ * is polled every live tick independent of passing; it's the on-ball
  * defender's steal/foul pressure on whoever currently holds the ball.
  */
 
@@ -22,7 +22,7 @@ import { foulHuntSide } from './endgame.js';
 
 /**
  * Launch a pass from `from` to the player `toId`. The turnover/steal outcome
- * is decided HERE, at launch (via `passRisk`), not on arrival — `resolvePassArrival`
+ * is decided here, at launch (via `passRisk`), not on arrival; `resolvePassArrival`
  * just plays out whatever was pre-rolled into `passFail`. This matters for
  * determinism/ordering: the ball's mid-air path can visually differ (an
  * off-target lead toward a defender) depending on whether the pass was
@@ -38,15 +38,15 @@ export function startPass(
   const to = agent(s, toId);
   const risk = passRisk(s, from, to);
   const fails = s.rng.chance(risk.turnoverP);
-  // lead the receiver by a quarter-second of his current velocity — a pass
-  // thrown to where a moving teammate WILL be, not where he currently stands
+  // lead the receiver by a quarter-second of his current velocity: a pass
+  // thrown to where a moving teammate will be, not where he currently stands
   // (scale 0.25 ~= "lead like you'd expect a decent passer to", not a
   // real reaction-time constant)
   const lead = add(to.pos, scale(to.vel, 0.25));
-  // a failing pass doesn't necessarily go somewhere absurd — it's undercooked,
+  // a failing pass doesn't necessarily go somewhere absurd. It's undercooked,
   // landing somewhere between the passer and the intended target (35-70% of
-  // the way there) rather than reaching the receiver; this is what puts it in
-  // a defender's range without teleporting the ball to him
+  // the way there) rather than reaching the receiver; that puts it in a
+  // defender's range without teleporting the ball to him
   const target = fails
     ? lerp(from.pos, lead, s.rng.range(0.35, 0.7))
     : lead;
@@ -66,8 +66,8 @@ export function startPass(
     passKind,
     // stealShare: of all failed passes, this fraction become a live steal
     // (credited to the most dangerous lane defender from passRisk); the rest
-    // sail out of bounds untouched — both are "bad passes" but only one
-    // creates a live-ball turnover for the defense to run with
+    // sail out of bounds untouched. Both are "bad passes" but only one
+    // creates a live-ball turnover for the defense to run with.
     passFail: fails
       ? { stolenBy: s.rng.chance(s.params.pass.stealShare) ? risk.dangerId : null }
       : undefined
@@ -81,7 +81,7 @@ export function startPass(
  * ball to the receiver and opens a quick decision window), a steal (new
  * possession for the thief), or an out-of-bounds turnover (dead ball, other
  * team inbounds). The steal/OOB outcome itself was already decided back in
- * `startPass` — this function just acts on `f.passFail`.
+ * `startPass`; this function just acts on `f.passFail`.
  */
 export function resolvePassArrival(s: GameState): void {
   const f = s.ball.flight;
@@ -100,8 +100,8 @@ export function resolvePassArrival(s: GameState): void {
       });
       endPossession(s, 'turnover');
       startPossession(s, thief.side, 'steal', thief);
-      // the BALL snaps to the thief (a deflection), never the player to the
-      // ball — teleporting bodies breaks the replay's physical continuity
+      // the ball snaps to the thief (a deflection), never the player to the
+      // ball; teleporting bodies breaks the replay's physical continuity
       s.ball.pos = { x: thief.pos.x, y: thief.pos.y };
     } else {
       emit(s, {
@@ -120,17 +120,17 @@ export function resolvePassArrival(s: GameState): void {
   s.poss.lastPass = { from, t: s.t }; // feeds assist-window checks in shooting.ts (catch-to-shot timing)
   // delivery quality rides the catch: a pass into the shooting pocket from an
   // elite passer makes the receiver's rise easier (consumed by shotMakeP for
-  // catch-and-shoot attempts only — the window gates it naturally)
+  // catch-and-shoot attempts only; the window gates it naturally)
   to.catchQuality = n((passer.p.attr.passAcc + passer.p.attr.passVision) / 2);
-  // a handoff catch stuns the receiver's trailing defender — the hub's body
-  // is the screen. This is the whole payoff of the DHO action: the receiver
-  // rises into a catch-and-shoot with the contest wiped, or attacks downhill.
+  // a handoff catch stuns the receiver's trailing defender; the hub's body
+  // is the screen. The payoff of the DHO action: the receiver rises into a
+  // catch-and-shoot with the contest wiped, or attacks downhill.
   const act = s.poss.action;
   if (f.passKind === 'handoff' && act?.kind === 'dho' && to.p.id === act.receiverId) {
     const trail = assignedDefender(s, to);
     if (trail) trail.screenStunUntil = s.t + s.params.ai.dhoStunSec;
-    // ...and the receiver TURNS THE CORNER: a drive commitment off the catch
-    // (his man is screened behind him — the whole point). Inside the arc the
+    // ...and the receiver turns the corner: a drive commitment off the catch
+    // (his man is screened behind him). Inside the arc the
     // downhill attack is the play; at the arc the catch-and-shoot machinery
     // competes naturally. Without this, receivers caught, reset, and the
     // action produced 0.1 assists a game on 8.9 handoffs.
@@ -139,19 +139,19 @@ export function resolvePassArrival(s: GameState): void {
       // inside the arc: turn the corner downhill
       to.driveUntil = s.t + s.params.decide.driveCommitSec; // same commitment as executeAction's drive
     }
-    // at/beyond the arc: no commitment — the catch-and-shoot machinery owns
-    // the rise (a drive grant there sprinted the receiver INTO the defense
+    // at/beyond the arc: no commitment, the catch-and-shoot machinery owns
+    // the rise (a drive grant there sprinted the receiver into the defense
     // and swallowed the open three the stun had just bought)
     s.poss.action = null; // the action delivered; normal offense resumes
   }
   giveBall(s, to, 'pass');
-  // a catch after the buzzer is a dead play — the ball must be shot before 0.0
+  // a catch after the buzzer is a dead play; the ball must be shot before 0.0
   // (passes in flight while the clock expires were scoring post-buzzer baskets)
   if (s.clock < 1e-6) { endPeriod(s); return; }
   // 0.12s: deliberately much faster than the ~0.25-0.35s decision delays used
-  // elsewhere (new possession, post-rebound) — this is the catch-and-shoot
-  // trigger window, modeling a shooter who catches and fires almost
-  // immediately rather than resetting and re-evaluating the whole possession
+  // elsewhere (new possession, post-rebound). This is the catch-and-shoot
+  // trigger window: a shooter who catches and fires almost immediately
+  // rather than resetting and re-evaluating the whole possession.
   s.decisionAt = s.t + 0.12;
 }
 
@@ -160,7 +160,7 @@ export function resolvePassArrival(s: GameState): void {
 /**
  * Per-tick pressure check on whoever currently holds the ball, from his
  * primary defender. Polled every live tick from `game.ts` regardless of what
- * else is happening (dribbling, deciding, mid-drive) — this is what produces
+ * else is happening (dribbling, deciding, mid-drive); this produces
  * on-ball steals and reach-in fouls independent of the AI's own decisions.
  * Resolves in two stages: first "does a reach-in event happen at all" (time-
  * based, scales with the defender's gambling tendency), then, conditional on
@@ -171,7 +171,7 @@ export function attemptReachIn(s: GameState, dt: number): void {
   if (!holderId) return;
   const h = agent(s, holderId);
   // ball exposure: power dribbles show the ball. A live drive or post
-  // backdown multiplies the reach-in rate — this is the live-ball turnover
+  // backdown multiplies the reach-in rate: the live-ball turnover
   // pressure that keeps attack volume honest (without it, FGA ran 2-3% over
   // band with steals pinned at the low edge; the Stage 2 diagnosis).
   const act = s.poss.action;
@@ -180,32 +180,33 @@ export function attemptReachIn(s: GameState, dt: number): void {
     (act?.kind === 'post' && act.posterId === h.p.id && act.phase === 'working');
   let d = onBallDefender(s, h);
   if (attacking) {
-    // in traffic ANY converging defender can get a hand in — a beaten on-ball
+    // in traffic any converging defender can get a hand in: a beaten on-ball
     // man is behind the play, and the strip risk of attacking a crowd comes
     // from the helpers meeting the ball at the gather
     for (const cand of liveOnCourt(s, other(h.side))) {
       if (!d || dist(cand.pos, h.pos) < dist(d.pos, h.pos)) d = cand;
     }
   }
-  // ENDGAME LAYER: intentional fouling rides THIS machinery — a trailing
-  // defense late in a close game (sim/endgame.ts foulHuntSide) doesn't get a
-  // new scripted action, it gets the same reach-in dice LOADED: a wider grab
-  // range, a drilled-deliberate rate, and a strip share near zero (a wrap-up
-  // is a whistle, not a poke). defense.ts presses the on-ball defender into
-  // range so the grab actually connects. Flag off, hunting is always false.
+  // Endgame layer: intentional fouling rides this machinery. A trailing
+  // defense late in a close game (sim/endgame.ts foulHuntSide) gets the
+  // same reach-in dice loaded rather than a new scripted action: a wider
+  // grab range, a drilled-deliberate rate, and a strip share near zero (a
+  // wrap-up is a whistle, not a poke). defense.ts presses the on-ball
+  // defender into range so the grab actually connects. Flag off, hunting
+  // is always false.
   const hunting = s.endgame && foulHuntSide(s) === other(h.side);
   const E = s.params.endgame;
-  // 4.2ft: has to be tight, hand-check range — this is deliberately shorter
-  // than onBallDefender's own 12ft "who guards him" radius, since a reach-in
-  // needs the defender close enough to actually get a hand on the ball
+  // 4.2ft: hand-check range, deliberately shorter than onBallDefender's
+  // own 12ft "who guards him" radius, since a reach-in needs the defender
+  // close enough to actually get a hand on the ball
   // (attacking widens it to gather range: strips happen at the gather)
   const F = s.params.foul;
   const reachRange = hunting ? E.foulHuntReachDistFt : attacking ? F.attackReachDistFt : F.reachDistFt;
   if (!d || dist(d.pos, h.pos) > reachRange) return;
   // per-tick probability from a per-second rate (reachInPerSec * dt), boosted
-  // up to +85% for a maximum-gambleSteal defender — aggressive gamblers reach
+  // up to +85% for a maximum-gambleSteal defender: aggressive gamblers reach
   // in far more often than conservative ones, at the cost of the foul risk below
-  // (a hunted grab replaces the gamble swing with the coach's order: the
+  // (a hunted grab replaces the gamble swing with the coach's order, the
   // deliberate foulHuntRateMult)
   const exposure = attacking ? F.attackReachInMult : 1;
   const p = hunting
@@ -216,14 +217,14 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // given a reach-in happens, stripP is the clean-strip share: a base, plus a
   // swing for an elite-steal defender, minus a swing for an elite ball-handler
   // (ball security beats a defender's hands, but not as much as the
-  // defender's hands beat a poor handler) — clamped to [stripMin, stripMax] so
+  // defender's hands beat a poor handler), clamped to [stripMin, stripMax] so
   // even the best/worst matchups still have a real chance either way, never a
-  // guaranteed foul or guaranteed strip (all five constants live in params.foul)
+  // guaranteed foul or guaranteed strip (all five constants live in params.foul).
   // attacking reach-ins skew cleaner: a poke at the gather is a strip far
   // more often than a hack (without the skew, the attack-exposure tax paid
   // out in fouls instead of the turnovers it exists to produce)
   // a hunted grab is a foul on purpose: the clean-strip share collapses to
-  // foulHuntStripShare (hands still find ball once in a while — the
+  // foulHuntStripShare (hands still find ball once in a while; the
   // occasional legitimate endgame steal off the "foul" is real texture)
   const stripP = hunting
     ? E.foulHuntStripShare
@@ -245,11 +246,11 @@ export function attemptReachIn(s: GameState, dt: number): void {
       // NCAA rules team fouls 7-9 are a one-and-one, not a flat two
       enterFreeThrows(s, h, bonus.shots, bonus.oneAndOne);
     } else {
-      // not in the bonus: no free throws, offense just keeps the ball —
-      // shot clock is floored at the rule pack's short-clock reset (NBA 14s,
+      // not in the bonus: no free throws, offense just keeps the ball.
+      // Shot clock is floored at the rule pack's short-clock reset (NBA 14s,
       // defensive-foul reset) and never lowered, then a short 1.2s
       // continuation delay (same possession, no team change) lets the
-      // whistle register before play resumes
+      // whistle register before play resumes.
       s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
       deadBall(s, h.side, { clockRuns: false, continuation: true, resumeIn: 1.2 });
     }
