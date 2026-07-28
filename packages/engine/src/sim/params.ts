@@ -809,9 +809,22 @@ export const defaultParams: SimParams = {
     stripMin: 0.08,
     stripMax: 0.85,
     attackStripBonus: 0.25,
-    // Charges per drive — deliberately rare; the offensive foul is the least
-    // common whistle we model. SWEPT.
-    chargePerDrive: 0.012,
+    // Offensive-foul (charge) rate while a drive is committed. NAME TRAP:
+    // despite "per drive", game.ts tickLive consumes this per TICK
+    // (chargePerDrive × dt × chargeTickMult) — an effective rate per SECOND
+    // of committed drive time, so the realized league rate rides on drive
+    // EXPOSURE, not drive count. At the old 0.012 that produced 4.4-4.8
+    // charges per team-game (calibration-integration fouls diagnosis,
+    // n=288 team-games) vs ~1.3 real NBA offensive fouls per team-game and
+    // vs the prior comment's own "deliberately rare" intent — the
+    // third-largest whistle category and ~30% of all turnovers (every
+    // charge is an off_foul turnover). FEEL→REAL: hand-set to land the
+    // real rate (post-change measured 1.16/1.31/1.28 per team-game on
+    // three 16-game seed bases at current drive exposure);
+    // previously tagged SWEPT but never registered in harness/knobs.ts
+    // (unsweepable in practice) — registered there now, so the coordinated
+    // sweep owns it henceforth.
+    chargePerDrive: 0.0034,
     // Per-tick multiplier folded into the charge roll (game.ts tickLive:
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,

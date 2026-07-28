@@ -105,6 +105,13 @@ export const SWEEPABLE: Knob[] = [
   { path: 'foul.shootPaint', lo: 0.1, hi: 0.26 },
   { path: 'foul.reachInPerSec', lo: 0.008, hi: 0.026 },
   { path: 'foul.looseBallPerReb', lo: 0.01, hi: 0.04 },
+  // chargePerDrive is consumed per SECOND of committed drive time (see
+  // params.ts: × dt × chargeTickMult), so the realized league rate rides on
+  // drive exposure: at current exposure the rail spans ≈0.6 (lo) → ≈3.1 (hi)
+  // offensive fouls per team-game around the default's ~1.3 (real NBA ~1.3).
+  // The old unregistered 0.012 (≈4.6/tg, 3× real — what ate the pf band's
+  // headroom) sits deliberately OUTSIDE the rail.
+  { path: 'foul.chargePerDrive', lo: 0.0015, hi: 0.008 },
 
   // Turnovers — riskBase is the primary lever on TOV/game (band 11.5-15.5);
   // stealShare only redistributes the SAME turnover total between steals and
