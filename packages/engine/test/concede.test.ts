@@ -1,22 +1,22 @@
 /**
- * Garbage-time concede rotation (sub.concede*) — hysteresis unit pins, the
+ * Garbage-time concede rotation (sub.concede*): hysteresis unit pins, the
  * branch wave, crunch precedence, the foul-hunt constraint, and the
  * LIVE-default full-game pins (design-garbagetime.md §5.1).
  *
  * The mechanism is LIVE: concedeMarginBase ships at the designed 15,
- * verified on the coupled engine (findings/b2-verify-concede.md — the
+ * verified on the coupled engine (findings/b2-verify-concede.md; the
  * uncoupled OOS-walk regression is gone under channel-2 coupling; see the
  * param's provenance comment in sim/params.ts). The old STAGED-default
  * dormancy describe (999 ⇒ branch unreachable, blowouts keep starters) is
- * retired — a conceded blowout is now exactly what the engine is SUPPOSED
- * to produce — and replaced by the §5.1 pins at the shipped defaults: the
- * conceded-lineup composition fold, the no-thrash hysteresis machine, and
- * the close-game guarantees.
+ * retired, since a conceded blowout is now exactly what the engine is
+ * supposed to produce. In its place: the §5.1 pins at the shipped
+ * defaults — the conceded-lineup composition fold, the no-thrash
+ * hysteresis machine, and the close-game guarantees.
  *
  * The unit describes force the thresholds through withParams (15/1.0/4/6/
- * 25 — today identical to the shipped defaults) so those pins keep meaning
- * the same thing if a future re-tune moves the defaults; the §5.1 pool
- * pins deliberately run the DEFAULTS and read their line arithmetic from
+ * 25, today identical to the shipped defaults) so those pins keep meaning
+ * the same thing if a future re-tune moves the defaults. The §5.1 pool
+ * pins run the defaults on purpose and read their line arithmetic from
  * defaultParams, so they track the shipped engine. Pool thresholds follow
  * the endgame.test.ts doctrine: margin-conditioned predicates + bars set
  * well clear of probed values, so rng reshuffles from future re-tunes
@@ -33,8 +33,8 @@ import { checkSubs, updateConcede } from '../src/sim/subs.js';
 import type { Agent, GameState } from '../src/sim/state.js';
 
 // the designed values, forced explicitly (identical to today's shipped
-// defaults — params.ts sub.* block) so the unit pins survive a future
-// re-tune of the defaults — entry line 15 + 1/min remaining
+// defaults, params.ts sub.* block) so the unit pins survive a future
+// re-tune of the defaults. Entry line: 15 + 1/min remaining.
 const live = withParams({
   sub: {
     concedeMarginBase: 15,
@@ -46,7 +46,7 @@ const live = withParams({
 });
 
 // updateConcede reads exactly: period, rules.periods, clock, score,
-// params.sub, conceded. checkSubs additionally walks teams/lineup — empty
+// params.sub, conceded. checkSubs additionally walks teams/lineup; empty
 // arrays make it a pure hysteresis call. Hand-built states suffice.
 function hState(
   params: SimParams,
@@ -73,14 +73,14 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
     // 6:00 left: line = 15 + 6 = 21
     const at21 = hState(live, { clock: 360, score: [100, 79] });
     updateConcede(at21);
-    expect(at21.conceded).toEqual([true, false]); // trailer bar is 25 — holds hope
+    expect(at21.conceded).toEqual([true, false]); // trailer bar is 25: holds hope
     const at20 = hState(live, { clock: 360, score: [100, 80] });
     updateConcede(at20);
     expect(at20.conceded).toEqual([false, false]);
   });
 
   it('the line scales with the clock: steeper early, shallower late', () => {
-    // Q4 tip (12:00): line = 27 — a 27-point three-quarter lead is done
+    // Q4 tip (12:00): line = 27, so a 27-point three-quarter lead is done
     const tip = hState(live, { clock: 720, score: [107, 80] });
     updateConcede(tip);
     expect(tip.conceded[0]).toBe(true);
@@ -109,7 +109,7 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
   });
 
   it('exit sits concedeExitPts below entry, and the band between HOLDS state', () => {
-    // 6:00: entry 21, exit floor 15 — a conceded leader stays conceded at 16
+    // 6:00: entry 21, exit floor 15; a conceded leader stays conceded at 16
     const hold = hState(live, { clock: 360, score: [96, 80], conceded: [true, false] });
     updateConcede(hold);
     expect(hold.conceded[0]).toBe(true);
@@ -121,7 +121,7 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
     const exit = hState(live, { clock: 360, score: [94, 80], conceded: [true, false] });
     updateConcede(exit);
     expect(exit.conceded[0]).toBe(false);
-    // the same 16-point margin does NOT enter from the un-conceded side —
+    // the same 16-point margin does not enter from the un-conceded side:
     // the hysteresis band is direction-aware, not a second threshold
     const fresh = hState(live, { clock: 360, score: [96, 80] });
     updateConcede(fresh);
@@ -145,7 +145,7 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
   });
 
   it('OT is concede-eligible (period ≥ rules.periods, matching the crunch gate)', () => {
-    // 4:00 of OT: line = 19 — margins this deep in OT are decided games
+    // 4:00 of OT: line = 19; margins this deep in OT are decided games
     const ot = hState(live, { period: 5, clock: 240, score: [120, 101] });
     updateConcede(ot);
     expect(ot.conceded[0]).toBe(true);
@@ -155,7 +155,7 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
 describe('crunch precedence (checkSubs is the only writer)', () => {
   it('crunch clears concede UNCONDITIONALLY — the 20→8 collapse path', () => {
     // one-possession-ish game inside 5:00: crunch is live, and whatever the
-    // concede flags said is void — starters come back, period
+    // concede flags said is void. Starters come back, period.
     const s = hState(live, { clock: 200, score: [80, 72], conceded: [true, true] });
     checkSubs(s);
     expect(s.conceded).toEqual([false, false]);
@@ -164,7 +164,7 @@ describe('crunch precedence (checkSubs is the only writer)', () => {
   it('outside crunch, checkSubs routes to the hysteresis update', () => {
     const s = hState(live, { clock: 200, score: [102, 72] });
     checkSubs(s);
-    // 3:20 left: line ≈ 18.3, trailer bar ≈ 22.3 — margin 30 concedes both
+    // 3:20 left: line ≈ 18.3, trailer bar ≈ 22.3; margin 30 concedes both
     expect(s.conceded).toEqual([true, true]);
   });
 });
@@ -187,7 +187,7 @@ function mkAgent(p: Player, side: TeamSide, onCourt: boolean, energy: number): A
   };
 }
 
-/** a dead-ball Q4 state at 5:00, margin 30 — both sides past the live line */
+/** a dead-ball Q4 state at 5:00, margin 30: both sides past the live line */
 function fullState(params: SimParams, benchEnergy: number): { s: GameState; home: Team; away: Team } {
   const { home, away } = sampleMatchup();
   const agents = new Map<string, Agent>();
@@ -225,7 +225,7 @@ describe('the concede branch (constructed dead ball, live thresholds)', () => {
   it('a conceded side waves its starters out in ONE stoppage, bench depth permitting', () => {
     const { s, home, away } = fullState(live, 90);
     checkSubs(s);
-    expect(s.conceded).toEqual([true, true]); // margin 30 at 5:00 — both over
+    expect(s.conceded).toEqual([true, true]); // margin 30 at 5:00: both over
     // 5 rested non-starters per sample roster side ⇒ the whole five walks;
     // a shallower roster legally keeps 5 − benchDepth starters out there
     const expect0 = Math.max(0, 5 - (home.players.length - 5));
@@ -256,8 +256,8 @@ describe('the concede branch (constructed dead ball, live thresholds)', () => {
     const shooter = home.starters[0]!;
     checkSubs(s, shooter);
     // the shooter stays (mid-FT-sequence subs are illegal for him); the
-    // other four starters still walk — this is the ≤1-starter allowance the
-    // conceded-lineup pins will use once the mechanism goes live
+    // other four starters still walk. This is the ≤1-starter allowance the
+    // conceded-lineup pins will use once the mechanism goes live.
     expect(s.lineup[0].includes(shooter)).toBe(true);
     expect(startersOnFloor(s, home, 0)).toBe(1);
   });
@@ -268,7 +268,7 @@ describe('params constraints (executable documentation)', () => {
     // trailer's minimum still-conceded deficit is base + lag − exit (the
     // exit floor as clock→0); it must clear endgame.foulMaxDeficit or a
     // conceded bench would foul-hunt (design §3.4). 15 + 4 − 6 = 13 > 12
-    // at the shipped values — asserted on BOTH the forced pin params and
+    // at the shipped values. Asserted on both the forced pin params and
     // the live defaults so a future param tidy of either side trips it.
     const L = live.sub;
     expect(L.concedeMarginBase + L.concedeTrailLagPts - L.concedeExitPts)
@@ -281,10 +281,10 @@ describe('params constraints (executable documentation)', () => {
 
 // ------------------------------------------- the LIVE default (design §5.1)
 //
-// Full-game pins at the SHIPPED defaults (concedeMarginBase 15 — live).
+// Full-game pins at the shipped defaults (concedeMarginBase 15, live).
 // Sim-once-assert-many pool: 16 sampleMatchup games + one guaranteed
 // blowout built the adversarial way (saturated clone), so at least one
-// deep-conceded game exists on any seed — 'concede-pin-0' probed +51
+// deep-conceded game exists on any seed. 'concede-pin-0' probed +51
 // (margin already past line(12:00)+4 = 31 at the Q4 tip), miles above the
 // entry line. All folds reconstruct margin from Base.score and lineups
 // from game_start/substitution; line arithmetic is read from
@@ -297,8 +297,8 @@ const lineAt = (clock: number): number =>
 /** the side's own entry bar: leaders at the line, trailers lag behind it */
 const barFor = (lead: number, clock: number): number =>
   lead >= 0 ? lineAt(clock) : lineAt(clock) + D.concedeTrailLagPts;
-/** dead-ball markers — events that prove a checkSubs pass just ran/runs:
- *  period start, FT entry, and dead-ball inbounds. Substitutions are NOT
+/** dead-ball markers: events that prove a checkSubs pass just ran/runs —
+ *  period start, FT entry, and dead-ball inbounds. Substitutions are not
  *  markers (they are emitted mid-wave, before the lineup settles). */
 const isDeadBall = (e: GameEvent): boolean =>
   e.type === 'period_start' || e.type === 'free_throw' ||
@@ -358,8 +358,8 @@ function foldFinalPeriod(
 describe('LIVE default §5.1: conceded-lineup composition (pool + adversarial fixture)', () => {
   it('once the margin has cleared the entry line by 4+ across a dead ball, the side fields ≤1 starter', () => {
     // The wave executes at the first dead ball over the line; assertions
-    // start at the SECOND dead-ball marker (the lineup is settled by then)
-    // and require margin ≥ bar+4 — comfortably above entry, so hysteresis
+    // start at the second dead-ball marker (the lineup is settled by then)
+    // and require margin ≥ bar+4, comfortably above entry, so hysteresis
     // can never be holding a legitimately-exiting side in scope. Dropping
     // below the exit floor disarms (the side may legally return). The ≤1
     // allowance covers the FT protect carve-out and foul-out re-entry
@@ -386,9 +386,9 @@ describe('LIVE default §5.1: conceded-lineup composition (pool + adversarial fi
 describe('LIVE default §5.1: no-thrash hysteresis (per-side state machine)', () => {
   it('≤1 concede wave per side per game, and starters return only past the exit floor or in crunch', () => {
     // A "wave" is the side's on-floor starter count falling from ≥3 to ≤1
-    // in the final period AFTER the side has crossed its entry bar (the
-    // arming gate keeps natural early-Q4 rest rotations — which also dip
-    // to 0-1 starters, probed — out of scope). Once waved, a return to ≥3
+    // in the final period after the side has crossed its entry bar. The
+    // arming gate keeps natural early-Q4 rest rotations, which also dip
+    // to 0-1 starters (probed), out of scope. Once waved, a return to ≥3
     // is legal only below the exit floor (+2 slack) or once crunch has
     // taken over (crunch clears concede unconditionally). Each transition
     // costs a full sub wave in replay texture, so thrash is the failure
@@ -425,7 +425,7 @@ describe('LIVE default §5.1: a close game never concedes', () => {
     // Sweep every 15s of the final period × every margin below those
     // floors × both chairs × both priors: updateConcede must always land
     // un-conceded. This is the arithmetic guarantee that close basketball
-    // (and everything up to a 8-point game, from either prior) NEVER sees
+    // (and everything up to a 8-point game, from either prior) never sees
     // the concede branch at the shipped thresholds.
     for (let clock = 0; clock <= 720; clock += 15) {
       for (let margin = 0; margin <= 8; margin++) {
@@ -449,8 +449,8 @@ describe('LIVE default §5.1: a close game never concedes', () => {
     // territory: within a possession-swing of the crunch definition), the
     // side must field at least one starter. A conceded side sits at 0-1
     // starters (probed), so a concede firing without the margin shows up
-    // here immediately; natural close-game rotations probed ≥2 starters at
-    // every such event across the pool — the ≥1 bar sits below that with
+    // here immediately. Natural close-game rotations probed ≥2 starters at
+    // every such event across the pool; the ≥1 bar sits below that with
     // room for future re-tune reshuffles (a gassed-roster crunch can
     // legally hold starters out, so the bar must stay beneath the
     // crunchEnergyMin texture).

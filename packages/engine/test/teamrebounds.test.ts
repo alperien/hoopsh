@@ -2,7 +2,7 @@
  * Team-rebound invariants: the dead-carom mechanic (possession.ts
  * tickScramble + params.reb.deadBallCaromChance) and the missed-non-final-FT
  * formality (fouls.ts tickFreeThrows) must produce the real log vocabulary
- * WITHOUT corrupting box-score bookkeeping — team totals count team
+ * without corrupting box-score bookkeeping. Team totals count team
  * rebounds (official-scoring convention), player lines never do, and the
  * dead-ball formality counts nowhere (stats/box.ts).
  */

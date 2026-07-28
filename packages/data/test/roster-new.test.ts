@@ -1,6 +1,6 @@
 /**
- * The scaffold's one hard promise: `roster:new` NEVER emits an invalid pack.
- * Everything else here defends the ergonomics around that promise — the
+ * The scaffold's one hard promise: `roster:new` never emits an invalid pack.
+ * Everything else here defends the ergonomics around that promise: the
  * archetype menu can't silently miss a new archetype, placeholder names
  * stay unique, and the CLI's exit codes hold for scripting.
  */
@@ -53,7 +53,7 @@ describe('roster:new scaffold', () => {
     // An archetype builder is any exported function that, given {id, name},
     // returns a Player-shaped object (attr + tend + pos). Team builders and
     // schema helpers don't match. A 12th archetype added to archetypes.ts
-    // fails HERE until it's added to the scaffold menu.
+    // fails here until it's added to the scaffold menu.
     const discovered: string[] = [];
     for (const [k, v] of Object.entries(data)) {
       if (typeof v !== 'function') continue;
@@ -68,7 +68,7 @@ describe('roster:new scaffold', () => {
   });
 
   it('emitted text carries the editor $schema pointer and still validates', () => {
-    const outFile = path.join(ROOT, 'somewhere', 'team.json'); // path math only — nothing written
+    const outFile = path.join(ROOT, 'somewhere', 'team.json'); // path math only; nothing written
     const text = packText(scaffold(), outFile);
     const parsed = JSON.parse(text);
     expect(parsed.$schema).toBe('../data/schema/team-pack.schema.json');

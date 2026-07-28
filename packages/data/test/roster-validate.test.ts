@@ -1,9 +1,9 @@
 /**
  * roster:validate's two promises, each with its own failure mode:
- *  - ERRORS restate validateTeamPack() verdicts with a usable fix — so the
+ *  - Errors restate validateTeamPack() verdicts with a usable fix, so the
  *    enrichment must never invent or hide a rejection (validator parity).
- *  - WARNINGS are calibrated heuristics — so every shipped roster and the
- *    default scaffold MUST come out warning-free (a heuristic that flags
+ *  - Warnings are calibrated heuristics, so every shipped roster and the
+ *    default scaffold must come out warning-free (a heuristic that flags
  *    known-good basketball is noise, and noise trains authors to ignore the
  *    tool), while each heuristic fires on the pathology it names.
  */
@@ -61,7 +61,7 @@ describe('roster:validate warnings', () => {
     const pack = scaffold();
     // starters: floorGeneral, scoringWing, threeAndD + two bench guards
     pack.team.starters = ['warn-lab-p01', 'warn-lab-p02', 'warn-lab-p03', 'warn-lab-p06', 'warn-lab-p07'];
-    expect(validateTeamPack(pack)).toEqual([]); // legal lineup — that's the point
+    expect(validateTeamPack(pack)).toEqual([]); // legal lineup; that's the point
     expect(codes(pack)).toContain('no-rim-protection');
   });
 

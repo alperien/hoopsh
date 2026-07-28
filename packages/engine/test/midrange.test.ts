@@ -1,29 +1,29 @@
 /**
  * Mid-range restoration acceptance (wave2/midrange).
  *
- * Before the mechanism landed, the mid-range game was structurally extinct:
- * every shot was priced against a continuation value (>= 1.18 EV until the
- * 5 s urgency window) that even the BEST mid-range look (EV ~1.14) never
+ * Before the mechanism landed, the mid-range game was structurally extinct.
+ * Every shot was priced against a continuation value (>= 1.18 EV until the
+ * 5 s urgency window) that even the best mid-range look (EV ~1.14) never
  * cleared — uShoot was argmax in 0 of 780 instrumented decisions at
  * 17-20 ft — and no spacing spot or action ever stationed a player in the
  * 14-20 ft band. Mid attempts ran 2.75% of FGA with a 19.9 ft median: the
  * few "mid" shots were arc-toeing accidents, not 16-footers.
  *
  * These tests pin the restored behavior at game scale:
- *  1. identity gating — the mid green light belongs to mid-range identities
- *     (postAnchor's elbow game) and NEVER to rim-runners/bench bigs, whose
+ *  1. identity gating: the mid green light belongs to mid-range identities
+ *     (postAnchor's elbow game) and never to rim-runners/bench bigs, whose
  *     open 16-footer is the defense's win;
- *  2. league texture — mid share out of the structural-zero regime with a
- *     REAL distance distribution (median in the 15-19 ft elbow game, the
- *     14-19.5 ft real-mid band dominant — not 20-ft arc-toes);
- *  3. capacity — a genuine mid-range artist (a DeRozan-shaped fit, heavier
+ *  2. league texture: mid share out of the structural-zero regime with a
+ *     real distance distribution (median in the 15-19 ft elbow game, the
+ *     14-19.5 ft real-mid band dominant, not 20-ft arc-toes);
+ *  3. capacity: a genuine mid-range artist (a DeRozan-shaped fit, heavier
  *     mid identity than any calibration fixture carries) produces real
  *     volume, which is what fitted rosters (wave2 B3) will rely on.
  *
- * Thresholds are deliberately generous: any engine change reshuffles seeds,
- * and these gates exist to catch the mechanism DYING (share collapsing back
+ * Thresholds are generous on purpose: any engine change reshuffles seeds,
+ * and these gates exist to catch the mechanism dying (share collapsing back
  * toward ~2-3% junk, bigs chucking, distances re-stretching to the arc),
- * not to freeze exact rates — those belong to the bands and the sweep.
+ * not to freeze exact rates. Exact rates belong to the bands and the sweep.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -60,18 +60,18 @@ describe(`mid-range restoration over ${GAMES} games`, () => {
 
   it('mid-range identity (postAnchor Osei) actually takes 16-footers', () => {
     const mids = midOf(shots, 'mon-osei');
-    // pre-fix he managed 1.5/g at a 20.5 ft average — corner junk-2s, not
+    // pre-fix he managed 1.5/g at a 20.5 ft average: corner junk-2s, not
     // an elbow game. The station + pop + worked-shot term put him at ~3-4.5
     // real middies a game in probes; the floor here only requires the
-    // mechanism to be ALIVE.
+    // mechanism to be alive.
     expect(mids.length / GAMES).toBeGreaterThanOrEqual(1.5);
     const avg = mids.reduce((a, m) => a + m.distFt, 0) / Math.max(1, mids.length);
-    expect(avg).toBeLessThanOrEqual(19); // an ELBOW game, not arc-toes
+    expect(avg).toBeLessThanOrEqual(19); // an elbow game, not arc-toes
   });
 
   it('rim-runners and bench bigs never pick up the 16-footer habit', () => {
     // the green light must stay exactly zero below the tendency floor: a
-    // rim-runner's open 16-footer is a WIN for the defense. Late-clock
+    // rim-runner's open 16-footer is a win for the defense. Late-clock
     // urgency junk is legal (any shot beats a violation), so the gate is a
     // small share of their own attempts, not literal zero.
     for (const id of ['brk-ratliff', 'mon-halvorsen', 'brk-marsh', 'mon-yaro']) {
@@ -87,8 +87,8 @@ describe(`mid-range restoration over ${GAMES} games`, () => {
     // pre-fix: 2.75% and falling entirely in the 20+ ft junk. Probes with
     // the mechanism: 3.1-4.7% across seed bases on the calibration teams
     // (the 5-7% league target arrives with fitted rosters that carry true
-    // mid identities — see the capacity test below). The share floor alone
-    // cannot separate the regimes at this sample size — the median and
+    // mid identities; see the capacity test below). The share floor alone
+    // cannot separate the regimes at this sample size. The median and
     // band-dominance gates below are what the old junk regime fails
     // (median 19.9, band share ~50%). Upper bound catches a flood.
     expect(share).toBeGreaterThanOrEqual(0.03);
@@ -97,7 +97,7 @@ describe(`mid-range restoration over ${GAMES} games`, () => {
     const median = d[Math.floor(d.length / 2)]!;
     expect(median).toBeGreaterThanOrEqual(15);
     expect(median).toBeLessThanOrEqual(19);
-    // the real-mid band must DOMINATE the zone: restoring "mid-range" as
+    // the real-mid band must dominate the zone: restoring "mid-range" as
     // 20-ft arc-toes would pass a share check and still be the old failure
     const band = mids.filter((m) => m.distFt >= 14 && m.distFt <= 19.5);
     expect(band.length / mids.length).toBeGreaterThanOrEqual(0.6);
@@ -108,7 +108,7 @@ describe(`mid-range restoration over ${GAMES} games`, () => {
     const mon = shots.filter((sh) => sh.shooter.startsWith('mon-'));
     const share = (arr: ShotEvent[]) => midOf(arr).length / arr.length;
     // pace-and-space lives at the rim and the arc; the post-oriented roster
-    // carries the league's mid volume — identity, not a global appetite
+    // carries the league's mid volume. Identity, not a global appetite.
     expect(share(mon)).toBeGreaterThan(share(brk));
   });
 });
@@ -135,7 +135,7 @@ describe('mid-range capacity for fitted rosters', () => {
     expect(mids.length / GAMES).toBeGreaterThanOrEqual(2); // probes: ~3.7/g
     const d = mids.map((m) => m.distFt).sort((a, b) => a - b);
     expect(d[Math.floor(d.length / 2)]!).toBeLessThanOrEqual(19.5);
-    // and he lifts the LEAGUE into the real 5-7% neighborhood on his own
+    // and he lifts the league into the real 5-7% neighborhood on his own
     expect(midOf(shots).length / shots.length).toBeGreaterThanOrEqual(0.045);
   });
 });

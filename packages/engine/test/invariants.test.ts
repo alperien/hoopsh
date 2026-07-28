@@ -1,6 +1,6 @@
 /**
- * Invariant suite — every guarantee the adversarial audits verified, made
- * PERMANENT. Audits are point-in-time; these run on every change.
+ * Invariant suite: every guarantee the adversarial audits verified, made
+ * permanent. Audits are point-in-time; these run on every change.
  *
  * Provenance (audit rounds 1 & 2, 2026-07-24):
  *  - possession_end double-emission (and-ones/buzzers) inflated pace ~2.8%
@@ -8,7 +8,7 @@
  *    were decided by them)
  *  - game clock ran past the horn, breaking minutes conservation
  *  - FT shooters got substituted mid-sequence and shot from the bench
- * All fixed — these tests keep them fixed.
+ * All fixed; these tests keep them fixed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -139,8 +139,8 @@ describe(`engine invariants over ${GAMES} games`, () => {
           const boundary = outAt.get(a);
           if (boundary !== undefined && idx > boundary) {
             // free throws by the fouled-out player immediately after his own
-            // foul-out are legal only when he was the one fouled — engine
-            // does not produce that flow; assert strictly
+            // foul-out are legal only when he was the one fouled; the engine
+            // does not produce that flow, so assert strictly
             expect(idx).toBeLessThanOrEqual(boundary);
           }
         }

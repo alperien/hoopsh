@@ -1,6 +1,6 @@
 /**
  * League selection (leagues.ts): the --league flag must swap rule pack,
- * acceptance bands, and pace basis TOGETHER, with the NCAA bands loaded from
+ * acceptance bands, and pace basis together, with the NCAA bands loaded from
  * the research deliverable (data/ncaa/acceptance-bands.json) rather than a
  * hand-copied duplicate. Also pins the pace-normalization fix: a 40-minute
  * NCAA game's pace is reported in poss/40, not poss/48
@@ -35,7 +35,7 @@ describe('resolveLeague', () => {
 
   it('throws loudly on an unknown league (a typo must never silently run as nba)', () => {
     expect(() => resolveLeague('xyz')).toThrow('unknown league "xyz"');
-    expect(() => resolveLeague('euroleague')).toThrow(); // pack exists, bands don't — not resolvable yet
+    expect(() => resolveLeague('euroleague')).toThrow(); // pack exists, bands don't; not resolvable yet
   });
 });
 
@@ -86,8 +86,8 @@ describe('league flows through the game-runner', () => {
     const [ncaa] = runGamesInProcess('batch', 'lg-runner', 0, 1, undefined, 'ncaa');
     const [nba] = runGamesInProcess('batch', 'lg-runner', 0, 1, undefined, 'nba');
     // same seed, different league: the NCAA game is 40 minutes of 30-second
-    // clocks reported on a 40-minute basis — its pace number must sit well
-    // below the NBA run's poss/48 number for the identical seed
+    // clocks reported on a 40-minute basis, so its pace number must sit
+    // well below the NBA run's poss/48 number for the identical seed
     expect(ncaa!.pace).toBeLessThan(nba!.pace - 10);
     // and the runner is deterministic per (seedBase, league, i)
     const [again] = runGamesInProcess('batch', 'lg-runner', 0, 1, undefined, 'ncaa');

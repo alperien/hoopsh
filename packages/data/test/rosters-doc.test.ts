@@ -1,8 +1,8 @@
 /**
- * docs/ROSTERS.md ships JSON the reader is meant to copy — so its examples
+ * docs/ROSTERS.md ships JSON the reader is meant to copy, so its examples
  * are executable claims, held to the same standard as code comments (the
  * repo's "truth pass" precedent: docs that lie get fixed, not tolerated).
- * Convention enforced here: ```json fences must PARSE (illustrative/elided
+ * Convention enforced here: ```json fences must parse (illustrative/elided
  * snippets use ```jsonc), and the worked-example player must be a complete,
  * valid, warning-free player when dropped onto a real roster.
  */
@@ -28,7 +28,7 @@ describe('docs/ROSTERS.md examples', () => {
     const player = jsonBlocks.map((b) => JSON.parse(b))
       .find((j) => j && typeof j === 'object' && 'attr' in j && 'tend' in j);
     expect(player).toBeTruthy();
-    // all 38 dials present — a copyable example may not skip keys
+    // all 38 dials present; a copyable example may not skip keys
     expect(ATTR_KEYS.filter((k) => !(k in player.attr))).toEqual([]);
     expect(TEND_KEYS.filter((k) => !(k in player.tend))).toEqual([]);
 

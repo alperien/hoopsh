@@ -5,18 +5,17 @@
  * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
  * §6): kept as the reference consumer of the event stream, not a production
  * broadcast product. The engine never depends on this file or anything it
- * produces — it's a one-way consumer of `GameEvent`s (AGENTS.md §1.3/§6).
+ * produces; it's a one-way consumer of `GameEvent`s (AGENTS.md §1.3/§6).
  *
- * Template pools philosophy: every rendered line for a repeatable situation
+ * On the template pools: every rendered line for a repeatable situation
  * (a made two, a missed free throw, a steal, ...) has 2-4 hand-written text
- * variants rather than one fixed template, specifically so a viewer watching
- * many games — or many possessions in one game — doesn't hear "X makes the
- * jumper" verbatim every single time. This is flavor variety for READING
- * comfort, not a claim that any one variant is more "correct" than another;
- * they're interchangeable in basketball meaning, chosen only to avoid
- * monotony. Same spirit as AGENTS.md §5's comment-voice guidance (explain
- * the reason, not just the mechanic) — the reason these pools exist is
- * narration pacing/feel, not a functional requirement of the event data.
+ * variants rather than one fixed template, so a viewer watching many games,
+ * or many possessions in one game, doesn't hear "X makes the jumper"
+ * verbatim every single time. The variants are interchangeable in
+ * basketball meaning; none is more "correct" than another. They exist for
+ * reading comfort and narration pacing, not as a functional requirement of
+ * the event data (same spirit as AGENTS.md §5's comment-voice guidance:
+ * explain the reason, not just the mechanic).
  */
 
 import { Rng, type GameEvent, type Team, type TeamSide } from '@hoopsh/engine';
@@ -51,9 +50,9 @@ export function makeLookup(teams: [Team, Team]): Lookup {
     }
   }
   // disambiguate shared last names ("R. Vance" vs "E. Vance"). Counted
-  // across BOTH teams together (not per-team) because two players who share
-  // a last name across OPPOSING rosters are just as ambiguous in a line of
-  // play-by-play text as two teammates would be — "Vance drives" is unclear
+  // across both teams together, not per-team: two players who share a last
+  // name across opposing rosters are just as ambiguous in a line of
+  // play-by-play text as two teammates would be. "Vance drives" is unclear
   // regardless of which side either Vance plays for.
   const lastCount = new Map<string, number>();
   for (const nm of names.values()) {
@@ -63,11 +62,11 @@ export function makeLookup(teams: [Team, Team]): Lookup {
   return {
     name: (id) => names.get(id) ?? id,
     // `last()` is what nearly every rendered line calls (see renderEvent/
-    // renderShot below) — full names read as too formal for broadcast-style
+    // renderShot below). Full names read as too formal for broadcast-style
     // PBP ("Marcus Vance drives" vs. the "Vance drives" a real broadcast
     // would say), so this is the primary display form, with the first-
-    // initial prefix as a fallback ONLY when lastCount flags a collision.
-    // `parts.length > 1` guards a mononym (single-word name, no space) from
+    // initial prefix as a fallback only when lastCount flags a collision.
+    // `parts.length > 1` keeps a mononym (single-word name, no space) from
     // ever producing a floating ". " with nothing before it — same guard as
     // the independently-implemented viewer copy of this logic in
     // packages/viewer/index.html's boot().
@@ -100,13 +99,13 @@ function periodName(period: number, totalPeriods: number): string {
 /**
  * pick with repeat-avoidance memory.
  *
- * `key` scopes the repeat-avoidance memory independently per call site — the
+ * `key` scopes the repeat-avoidance memory independently per call site: the
  * "made two" template pool and the "missed three" template pool each get
  * their own `lastIdx` slot, so avoiding a repeat in one situation never
  * affects variety in an unrelated one. Callers pass a stable string (e.g.
  * the situation name) as `key`.
  *
- * The RNG (seeded once per game — see `generatePlayByPlay` below) is what
+ * The RNG, seeded once per game (see `generatePlayByPlay` below), is what
  * makes the whole pool deterministic per seed: same seed, same sequence of
  * `pick()` outcomes, same rendered play-by-play text every run.
  */
@@ -117,11 +116,11 @@ class Pool {
     this.rng = rng;
   }
   // Repeat-avoidance is a re-roll, not a re-draw: if the RNG's fresh pick for
-  // this key lands on the SAME index used last time for this key, bump it to
+  // this key lands on the same index used last time for this key, bump it to
   // the next index (wrapping via modulo) rather than drawing again from the
   // RNG. This keeps the RNG's consumption count deterministic regardless of
   // whether a repeat was avoided, which matters because every other pool's
-  // `pick()` shares the same underlying Rng stream — consuming a variable
+  // `pick()` shares the same underlying Rng stream. Consuming a variable
   // number of random draws here would shift every subsequent pool's results
   // for the rest of the game.
   pick(key: string, options: string[]): string {
@@ -148,7 +147,7 @@ export function generatePlayByPlay(
   // regulation period count from the rule pack (NBA 4, NCAA 2, ...) so OT
   // and halves label correctly. Defaults to 4 (NBA quarters) when the caller
   // doesn't pass one, but any ruleset with a different period count (e.g.
-  // NCAA's 2 halves) should pass its actual count here — `periodName()`
+  // NCAA's 2 halves) should pass its actual count here. `periodName()`
   // above is the sole consumer, and treats every `period > totalPeriods` as
   // overtime ("OT", "OT2", ...) rather than a regulation period label. Get
   // this wrong and a halves ruleset's "2nd half" would render as "OT1".
@@ -232,7 +231,7 @@ function renderEvent(
     }
     case 'rebound': {
       // the missed-non-final-FT formality: dead ball by rule, next attempt
-      // simply proceeds — a broadcast says nothing here
+      // simply proceeds. A broadcast says nothing here.
       if (e.deadBall) return null;
       if (!e.player) {
         // TEAM rebound: the carom died out of bounds; a side is awarded the ball
@@ -295,13 +294,13 @@ function renderEvent(
       if (e.personalCount >= 4) extras.push(`that's ${e.personalCount} on him`);
       if (e.inBonus && e.kind !== 'offensive') extras.push(`${lk.abbrev(e.team === 0 ? 1 : 0)} are in the bonus`);
       if (e.fouledOut) extras.push(`and he's fouled out`);
-      // An offensive foul is ALWAYS the second half of a charge the engine
-      // just emitted as a `turnover` (kind 'off_foul' — see core/events.ts's
+      // An offensive foul is always the second half of a charge the engine
+      // just emitted as a `turnover` (kind 'off_foul'; see core/events.ts's
       // TurnoverKind contract), and the turnover case above already narrated
       // the play ("Charge! ..."). Rendering a generic line here too produced
       // two adjacent sentences for one whistle on every single charge. Stay
-      // silent UNLESS this foul carries game-state news the charge line
-      // doesn't (foul trouble, a foul-out) — then narrate just that.
+      // silent unless this foul carries game-state news the charge line
+      // doesn't (foul trouble, a foul-out); then narrate just that.
       if (e.kind === 'offensive') {
         return extras.length ? `On the offensive foul — ${extras.join(', ')}.` : null;
       }
@@ -312,9 +311,10 @@ function renderEvent(
       return `${base}${extras.length ? ' — ' + extras.join(', ') : ''}.`;
     }
     case 'timeout': {
-      // endgame-layer games only (a default-config stream never carries one).
-      // The two reasons read differently on a broadcast: a run-stopper is
-      // about the bleeding, an advance is pure late-game procedure.
+      // Endgame-layer games only (a default-config stream never carries
+      // one). The two reasons read differently on a broadcast: a
+      // run-stopper is about the bleeding, an advance is pure late-game
+      // procedure.
       const team = lk.teamName(e.team);
       if (e.reason === 'advance') {
         return pool.pick('to_adv', [
@@ -346,8 +346,8 @@ function renderShot(
   const who = lk.last(e.shooter);
   const open = e.contest < 0.18 ? 'wide-open ' : e.contest > 0.62 ? 'heavily contested ' : '';
 
-  // the shot's basketball NAME (layup/dunk/hook/tip-in/jump shot) comes from
-  // the shared classifier — the broadcast register then dresses it up by how
+  // the shot's basketball name (layup/dunk/hook/tip-in/jump shot) comes from
+  // the shared classifier; the broadcast register then dresses it up by how
   // the shot was created. This is the shot-type-monotony fix: short attempts
   // used to all read as generic jumpers/paint shots (Turing baseline tell).
   const call = shotCall(e, lk.traits(e.shooter));

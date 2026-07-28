@@ -1,33 +1,31 @@
 /**
- * Sample fictional teams — the engine's default demo & calibration rosters.
- * Deliberately built as two balanced, stylistically different squads:
- * the Breakers play five-out pace-and-space; the Monarchs play through
- * the post with a defense-first identity.
+ * Sample fictional teams: the engine's default demo and calibration
+ * rosters. Two balanced, stylistically different squads. The Breakers play
+ * five-out pace-and-space; the Monarchs play through the post with a
+ * defense-first identity.
  *
- * THESE ARE THE TWO CALIBRATION TEAMS. Every NBA_BANDS acceptance range in
+ * These are the two calibration teams. Every NBA_BANDS acceptance range in
  * packages/harness/src/bands.ts and every default sweep candidate in
  * sweep.ts was measured/tuned against cascadiaBreakers() vs.
  * meridianMonarchs() specifically (via sampleMatchup(), used everywhere
- * from bench.ts to sweep-worker.ts as THE default matchup). That has a
- * real, easy-to-miss consequence: editing a rating or tactics value here
- * doesn't just change "what this fictional team plays like" — it shifts
+ * from bench.ts to sweep-worker.ts as the default matchup). The
+ * easy-to-miss consequence: editing a rating or tactics value here shifts
  * the league averages the bands were fit to, which can silently break
- * calibration (a band that passed before the edit may fail after it, with
- * nothing else having changed). Per AGENTS.md's ownership rules, treat
+ * calibration — a band that passed before the edit may fail after it, with
+ * nothing else having changed. Per AGENTS.md's ownership rules, treat
  * these two rosters with the same caution as a params.ts SWEPT constant:
- * a deliberate edit here should be followed by re-running `npm run batch`
- * (or a fresh sweep) to confirm the bands still hold, not assumed safe.
+ * after a deliberate edit, re-run `npm run batch` (or a fresh sweep) to
+ * confirm the bands still hold. Don't assume it was safe.
  *
- * The stylistic contrast is deliberate, not incidental: tactics.pace=66/
- * threeBias=68 (Breakers) vs. pace=46/threeBias=44 (Monarchs) plus the
- * archetype mix below (Breakers lean shooting/spacing archetypes —
- * eliteShooter, threeAndD, comboGuard, benchScorer; Monarchs lean
- * post/defense archetypes — postAnchor, floorGeneral, benchBig) mean a
- * calibration run is stress-testing BOTH ends of the engine's playing-style
- * spectrum in the same batch, not just one "default" style. run.ts's
- * `mirror` option (each team plays home half the time) exists specifically
- * so that contrast measures style, not a home-side artifact — see its doc
- * comment for the full rationale.
+ * The stylistic contrast is load-bearing: tactics.pace=66/threeBias=68
+ * (Breakers) vs. pace=46/threeBias=44 (Monarchs), plus the archetype mix
+ * below (Breakers lean shooting/spacing archetypes: eliteShooter,
+ * threeAndD, comboGuard, benchScorer; Monarchs lean post/defense
+ * archetypes: postAnchor, floorGeneral, benchBig), mean a calibration run
+ * stress-tests both ends of the engine's playing-style spectrum in the
+ * same batch, not just one "default" style. run.ts's `mirror` option (each
+ * team plays home half the time) exists so that contrast measures style,
+ * not a home-side artifact; see its doc comment for the full rationale.
  */
 
 import { makeTactics, type Team } from '@hoopsh/engine';
@@ -38,11 +36,11 @@ import {
 
 /**
  * Five-out pace-and-space identity: high pace (66) and high threeBias (68)
- * tactics, an eliteShooter at the point (unusual positionally — this is a
- * shoot-first lead guard, not a traditional distributor) plus threeAndD and
- * comboGuard for perimeter depth. rimRunner at center fits this style
- * specifically (a vertical, gravity-light dive man who clears space for
- * shooters rather than posting up and clogging it).
+ * tactics, an eliteShooter at the point (unusual positionally: a
+ * shoot-first lead guard, not a traditional distributor), plus threeAndD
+ * and comboGuard for perimeter depth. rimRunner at center fits this style
+ * — a vertical, gravity-light dive man who clears space for shooters
+ * rather than posting up and clogging it.
  */
 export function cascadiaBreakers(): Team {
   const players = [
@@ -68,13 +66,13 @@ export function cascadiaBreakers(): Team {
 }
 
 /**
- * Post-up, defense-first identity — the deliberate stylistic opposite of
- * the Breakers. Low pace (46) and low threeBias (44) tactics, a traditional
- * floorGeneral (pass-first, not shoot-first) at the point, and a postAnchor
- * at power forward who actually uses the post tendency, unlike the
- * Breakers' more spacing-oriented forwards. higher helpAggr (62 vs. 52)
- * matches the "defense-first" label — this team's tactics numbers say it
- * leans harder into helping/rotating than initiating its own pace.
+ * Post-up, defense-first identity: the stylistic opposite of the Breakers.
+ * Low pace (46) and low threeBias (44) tactics, a traditional floorGeneral
+ * (pass-first, not shoot-first) at the point, and a postAnchor at power
+ * forward who actually uses the post tendency, unlike the Breakers' more
+ * spacing-oriented forwards. Higher helpAggr (62 vs. 52) matches the
+ * "defense-first" label: the tactics numbers say this team leans harder
+ * into helping/rotating than initiating its own pace.
  */
 export function meridianMonarchs(): Team {
   const players = [
@@ -100,13 +98,13 @@ export function meridianMonarchs(): Team {
 }
 
 /** The default matchup used everywhere a caller just needs "two reasonable
- * teams" without constructing its own roster — simone.ts's default demo
+ * teams" without constructing its own roster: simone.ts's default demo
  * game, bench.ts's perf benchmark, run.ts's runBatch() fallback, and
  * sweep-worker.ts's per-candidate evaluation all call this rather than
  * cascadiaBreakers()/meridianMonarchs() directly. Cascadia is always
- * `home` here; callers that need home/away balance apply their own flip
- * (see run.ts's `mirror` option and sweep-worker.ts's matching `flip` line)
- * rather than this function alternating on its own. */
+ * `home` here. Callers that need home/away balance apply their own flip
+ * (see run.ts's `mirror` option and sweep-worker.ts's matching `flip`
+ * line); this function never alternates on its own. */
 export function sampleMatchup(): { home: Team; away: Team } {
   return { home: cascadiaBreakers(), away: meridianMonarchs() };
 }

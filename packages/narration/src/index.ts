@@ -1,9 +1,9 @@
 // Package barrel: re-exports the narration public surface (play-by-play,
 // narrative-context tracking, commentary providers, broadcast-script
 // assembly). Frozen prototype per project decision (docs/INTERNALS.md,
-// ARCHITECTURE.md §6) — see the header comments in pbp.ts/context.ts/
-// provider.ts/broadcast.ts for what each piece does and why it's frozen; the
-// engine never imports from this package (AGENTS.md §1.3/§6).
+// ARCHITECTURE.md §6); the header comments in pbp.ts/context.ts/
+// provider.ts/broadcast.ts say what each piece does and why it's frozen.
+// The engine never imports from this package (AGENTS.md §1.3/§6).
 export { generatePlayByPlay, makeLookup } from './pbp.js';
 export type { NarrationLine } from './pbp.js';
 export { ContextTracker } from './context.js';

@@ -1,5 +1,5 @@
 /**
- * NCAA men's rule-pack verification — pins the three verified rule bugs from
+ * NCAA men's rule-pack verification: pins the three verified rule bugs from
  * data/ncaa/README.md (R1 bonus structure, R2 lane width, R4 OT foul
  * carryover) against the engine, and proves the NBA path is untouched.
  *
@@ -7,8 +7,8 @@
  *  1. Constants: every pack's bonus/lane/carryover fields match the cited
  *     rule-book values (README §1.1 table), and bonusFreeThrowAward's pure
  *     arithmetic matches the NCAA/NFHS Major Rules Differences doc.
- *  2. Behavior: event-stream properties over full simulated games — a
- *     one-and-one front-end miss ends the trip with a LIVE ball (no second
+ *  2. Behavior: event-stream properties over full simulated games. A
+ *     one-and-one front-end miss ends the trip with a live ball (no second
  *     attempt, no dead-ball formality rebound), the double bonus and the
  *     NBA's flat bonus always run the full two attempts, and OT team-foul
  *     counts carry (NCAA) vs reset (NBA).
@@ -57,7 +57,8 @@ describe('rule pack constants match the research doc (data/ncaa/README.md §1.1)
     expect(NBA.teamFoulBonusAt).toBe(5);
     expect(NBA.bonusRule).toBe('flat');
     // flat packs keep the double-bonus threshold degenerate: the flat bonus
-    // IS the two-shot award from its first foul (rulepack.ts field doc)
+    // is already the two-shot award from its first foul (rulepack.ts field
+    // doc)
     expect(NBA.doubleBonusAt).toBe(NBA.teamFoulBonusAt);
     expect(NBA.bonusFreeThrows).toBe(2);
     expect(NBA.teamFoulsCarryToOT).toBe(false);
@@ -113,7 +114,7 @@ interface BonusTrip {
 
 /**
  * Fold non-shooting bonus trips (reach-in / loose-ball fouls with inBonus)
- * out of an event stream. Shooting-foul and and-one trips are excluded —
+ * out of an event stream. Shooting-foul and and-one trips are excluded;
  * their FT count comes from the shot, not the bonus. Substitution and other
  * bookkeeping events between the foul and the line are skipped, matching how
  * the engine actually emits (checkSubs can fire inside enterFreeThrows).
@@ -132,7 +133,7 @@ function collectBonusTrips(events: GameEvent[]): BonusTrip[] {
       }
       if (x.type === 'rebound' && trip.attempts.length > 0 && trip.nextRebound === null) {
         trip.nextRebound = { deadBall: x.deadBall === true };
-        // a dead-ball formality sits INSIDE the trip (between attempts) —
+        // a dead-ball formality sits inside the trip (between attempts):
         // keep scanning for the remaining attempts; a live rebound ends it
         if (!x.deadBall) break;
         continue;
@@ -199,7 +200,7 @@ describe('one-and-one sequencing in NCAA games (R1)', () => {
       expect(t.attempts[0]!.oneAndOne).toBe(false);
       expect(t.attempts[1]!.oneAndOne).toBe(false);
       if (!t.attempts[0]!.made) {
-        // contrast with the front-end-miss case: the ball is DEAD between
+        // contrast with the front-end-miss case: the ball is dead between
         // attempts of a two-shot trip, so the formality rebound appears
         expect(t.nextRebound?.deadBall).toBe(true);
       }
@@ -231,7 +232,7 @@ describe('NBA bonus unchanged (control for R1)', () => {
 
 /**
  * Per-side team-foul evidence for the OT-carryover check, reconstructed from
- * foul events' stamped teamCountInPeriod. Only COUNTING fouls (kind !==
+ * foul events' stamped teamCountInPeriod. Only counting fouls (kind !==
  * 'offensive') move the count, so offensive fouls are ignored on both sides
  * of the comparison.
  */
@@ -261,10 +262,10 @@ function otFoulEvidence(events: GameEvent[], regulationPeriods: number): {
 
 /**
  * Scan seeds for an OT game where at least one side has both a counting foul
- * in the final regulation period AND one in the first OT — the minimal
+ * in the final regulation period and one in the first OT: the minimal
  * evidence that distinguishes carryover from reset. Runs on a pack scaled to
- * 2-minute periods purely to make ties (and therefore OT) cheap to find: the
- * branch under test — endPeriod's reset on entering OT — never reads
+ * 2-minute periods purely to make ties (and therefore OT) cheap to find. The
+ * branch under test, endPeriod's reset on entering OT, never reads
  * periodMinutes, so the scaled pack exercises exactly the real packs' logic.
  */
 function findOTEvidence(rules: RulePack, tag: string): { lastRegCount: number; firstOTCount: number }[] {
