@@ -21,13 +21,13 @@ export type MoveIntent =
   | 'freeze';   // dead-ball repositioning
 
 /**
- * How the current holder came to have the ball — the acquisition context a
- * shot/assist taxonomy needs. A caught PASS is the only acquisition that
- * makes a no-dribble quick shot a CATCH-and-shoot (and the only one whose
+ * How the current holder came to have the ball: the acquisition context a
+ * shot/assist taxonomy needs. A caught pass is the only acquisition that
+ * makes a no-dribble quick shot a catch-and-shoot (and the only one whose
  * delivery quality legitimately rides the release); a rebound grabbed at the
  * rim and put straight back up is a putback; a steal or a dead-ball resume
  * is a self-generated touch. Before this existed, decide.ts labeled every
- * quick 0-dribble shot `catch_shoot` — 22% of ALL attempts were interior
+ * quick 0-dribble shot `catch_shoot`: 22% of all attempts were interior
  * shots wearing a jump-shot label, and the passQuality term read a stale
  * delivery from a pass caught possessions earlier (wave2 diagnostic).
  */
@@ -53,29 +53,29 @@ export interface Agent {
   dribblesSinceCatch: number;
   dribbleAcc: number;          // accumulator converting hold-time to dribbles
   catchT: number;              // t when this agent received the ball
-  /** how this touch was acquired (stamped by giveBall) — gates the quick-shot
+  /** how this touch was acquired (stamped by giveBall); gates the quick-shot
    *  taxonomy (catch_shoot vs cut_finish vs putback) and assist eligibility */
   acquiredBy: BallAcquisition;
-  /** delivery quality of the LAST pass caught, n-space [-1,1] — set on every
-   *  catch from the passer's passAcc/passVision; feeds the catch-and-shoot
-   *  make model ("on time, on target" — teammates shoot better next to a
-   *  great passer, which is also what routes assists to passing QUALITY) */
+  /** delivery quality of the last pass caught, n-space [-1,1]; set on every
+   *  catch from the passer's passAcc/passVision. Feeds the catch-and-shoot
+   *  make model ("on time, on target": teammates shoot better next to a
+   *  great passer, which is also what routes assists to passing quality) */
   catchQuality: number;
-  /** possessions this agent has USED this game (shot attempts; the numerator
-   *  of the closed-loop usage share — see decideBall's usage pressure) */
+  /** possessions this agent has used this game (shot attempts; the numerator
+   *  of the closed-loop usage share, see decideBall's usage pressure) */
   usedPoss: number;
   /** team offensive possessions completed while this agent was on court (the
    *  denominator of realized usage share) */
   teamPossOnCourt: number;
   driveUntil: number;          // t until which a drive commitment holds
   cutUntil: number;
-  /** live purposeful-relocation window (shake off a bending defense) — target holds until this expires */
+  /** live purposeful-relocation window (shake off a bending defense); target holds until this expires */
   relocUntil: number;
   screenStunUntil: number;     // defender fighting through a screen
   navUnderUntil: number;       // defender ducking under a screen (concedes pull-up space)
 }
 
-/** a running team action — pick-and-roll, post-up, or isolation */
+/** a running team action: pick-and-roll, post-up, or isolation */
 export interface PnrAction {
   kind: 'pnr';
   handlerId: string;
@@ -91,7 +91,7 @@ export interface PostAction {
   kind: 'post';
   /** the big working the block */
   posterId: string;
-  /** holder when the action was called (informational — any current holder may enter) */
+  /** holder when the action was called (informational; any current holder may enter) */
   feederId: string;
   /** posting: establishing position, waiting on the entry; working: has the ball on the block */
   phase: 'posting' | 'working';
@@ -108,8 +108,8 @@ export interface IsoAction {
 
 /**
  * Dribble-handoff: the hub holds while the receiver sprints to him; the
- * handoff is an ordinary pass (kind 'handoff') whose CATCH stuns the
- * receiver's trailing defender — the hub's body is the screen. The elbow
+ * handoff is an ordinary pass (kind 'handoff') whose catch stuns the
+ * receiver's trailing defender (the hub's body is the screen). The elbow
  * touch that powers hub-center offenses.
  */
 export interface DhoAction {
@@ -171,8 +171,8 @@ export type Phase =
       continuation?: boolean;
       /**
        * an 'advance' timeout was called during this dead ball: the inbound
-       * sets up in the FRONTcourt (sim/possession.ts setupDeadTargets reads
-       * this) — endgame layer only (sim/endgame.ts maybeTimeout)
+       * sets up in the frontcourt (sim/possession.ts setupDeadTargets reads
+       * this); endgame layer only (sim/endgame.ts maybeTimeout)
        */
       advanceInbound?: boolean;
     }
@@ -181,11 +181,11 @@ export type Phase =
       shooterId: string;
       side: TeamSide;
       taken: number;
-      /** attempts the trip can reach — for a one-and-one this is the potential 2; a front-end miss ends the trip early (fouls.ts tickFreeThrows) */
+      /** attempts the trip can reach: for a one-and-one this is the potential 2; a front-end miss ends the trip early (fouls.ts tickFreeThrows) */
       of: number;
       nextIn: number;
       lastMade: boolean;
-      /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
+      /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a live ball */
       oneAndOne: boolean;
     }
   | {
@@ -204,12 +204,12 @@ export interface Possession {
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
   /**
-   * THIS possession's spacing-spot coordinates: the geometric template
+   * This possession's spacing-spot coordinates: the geometric template
    * (geometry/court.ts spacingSpots) plus a small seeded per-possession
    * jitter (params.ai.spotJitterFt), rolled once in assignSpots. Every
    * consumer of a spot position during the possession (off-ball spacing,
-   * relocations, post-block targets) reads THIS map, never the raw
-   * template — that's what keeps the same trip internally coherent while
+   * relocations, post-block targets) reads this map, never the raw
+   * template; that keeps the same trip internally coherent while
    * different trips stop reproducing five bit-identical coordinates (the
    * repeated "26 ft"/"5 ft" shot-distance tell from the Turing baseline).
    */
@@ -227,7 +227,7 @@ export interface GameState {
   court: Court;
   teams: [Team, Team];
   agents: Map<string, Agent>;
-  /** on-court ids, 5 slots per side — slot order is stable for the replay */
+  /** on-court ids, 5 slots per side; slot order is stable for the replay */
   lineup: [string[], string[]];
   ball: Ball;
 
@@ -240,12 +240,12 @@ export interface GameState {
   tipWinner: TeamSide;
 
   /**
-   * ENDGAME LAYER (GameConfig.endgame). `endgame` gates every late-game
-   * behavior (concept 6, intentional fouling, timeouts) — ON by default
+   * Endgame layer (GameConfig.endgame). `endgame` gates every late-game
+   * behavior (concept 6, intentional fouling, timeouts); ON by default
    * since the n=1260/arm flag survey (2026-07-28; `cfg.endgame ?? true`,
    * game.ts). Pass `endgame: false` for the byte-identical legacy path.
    * `timeoutsLeft` /`runPts`
-   * are always maintained (cheap bookkeeping, no rng) but only READ when
+   * are always maintained (cheap bookkeeping, no rng) but only read when
    * the flag is on: runPts mirrors the unanswered-points definition the
    * narration ContextTracker uses (a team's own score accrues, an opponent
    * score zeroes it) and feeds the stop-the-run timeout trigger.
@@ -254,12 +254,12 @@ export interface GameState {
   timeoutsLeft: [number, number];
   runPts: [number, number];
   /**
-   * GARBAGE-TIME CONCEDE flags, per side: "this game is decided — starters
+   * Garbage-time concede flags, per side: "this game is decided; starters
    * out, whoever's on the bench closes it." Written only inside checkSubs
-   * (sim/subs.ts: updateConcede plus the unconditional crunch clear — dead
+   * (sim/subs.ts: updateConcede plus the unconditional crunch clear; dead
    * balls, the only places subs happen), read only by its concede branch.
    * Final period only, hysteresis in both directions. Like runPts:
-   * always-maintained bookkeeping with no rng and no events — a game that
+   * always-maintained bookkeeping with no rng and no events, so a game that
    * never crosses the concede line is byte-identical.
    */
   conceded: [boolean, boolean];
@@ -296,13 +296,13 @@ export function onCourt(s: GameState, side: TeamSide): Agent[] {
 }
 
 /**
- * On-court players EXCLUDING the fouled-out. The bench-exhausted degenerate
+ * On-court players excluding the fouled-out. The bench-exhausted degenerate
  * state legally leaves a fouled-out player standing in the lineup (see
- * subs.ts replaceFouledOut's early return), so nearly every actor query —
- * who can shoot, contest, steal, rebound, be passed to — must filter him
+ * subs.ts replaceFouledOut's early return), so nearly every actor query
+ * (who can shoot, contest, steal, rebound, be passed to) must filter him
  * out. That filter used to be a `.fouledOut` check hand-repeated at ~15
  * call sites, where forgetting one meant a ghost actor (an audited
- * invariant violation happened exactly this way). One definition now.
+ * invariant violation came from a missed site). One definition now.
  * Plain onCourt remains for lineup mechanics (slots, frames, matchup
  * bookkeeping) where the body still physically exists on the floor.
  */

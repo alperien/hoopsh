@@ -37,9 +37,9 @@ export function startShot(
   moveType: ShotMoveType,
   contest0?: number
 ): void {
-  // usage bookkeeping: a shot attempt uses the possession (v1 counts FGA
-  // only — FT trips and turnovers are omitted, which slightly undercounts
-  // foul-drawing stars; acceptable bias, noted)
+  // usage bookkeeping: a shot attempt uses the possession. v1 counts FGA
+  // only; FT trips and turnovers are omitted, which slightly undercounts
+  // foul-drawing stars (acceptable bias, noted).
   shooter.usedPoss++;
   const rim = attackedRim(s, shooter.side);
   const contest = contestAt(s, shooter, shooter.pos);
@@ -71,8 +71,8 @@ export function startShot(
     };
   }
 
-  // assist bookkeeping — the "direct scoring move" rule. The dribble
-  // allowance is ZONE-AWARE (see params.ai.assistMaxDribbles*): a jumper
+  // assist bookkeeping: the "direct scoring move" rule. The dribble
+  // allowance is zone-aware (see params.ai.assistMaxDribbles*): a jumper
   // taken off the bounce is self-created and earns the passer nothing,
   // while an interior finish keeps its gather dribble. A uniform allowance
   // credited self-created pull-ups league-wide (debt D1).
@@ -84,17 +84,17 @@ export function startShot(
     : s.params.ai.assistMaxDribbles;
   if (
     made && lp &&
-    // only a shot off a CAUGHT PASS can be assisted: an offensive-rebound
+    // only a shot off a caught pass can be assisted: an offensive-rebound
     // putback or a resumed dead-ball touch resets the play, but lastPass
-    // survives both (the possession continues) — before this gate, a
+    // survives both (the possession continues). Before this gate, a
     // pre-miss/pre-whistle pass was credited on the putback that followed
-    // (same acquisition-ignorance root as the catch_shoot mislabel)
+    // (same acquisition-ignorance root as the catch_shoot mislabel).
     shooter.acquiredBy === 'pass' &&
     s.t - shooter.catchT <= s.params.ai.assistWindowSec &&
     shooter.dribblesSinceCatch <= dribbleAllowance &&
     lp.from !== shooter.p.id &&
     // the passer can be substituted at a continuation dead ball between his
-    // pass and this shot — no assists from the bench
+    // pass and this shot; no assists from the bench
     s.agents.get(lp.from)?.onCourt === true
   ) {
     assist = lp.from;
@@ -174,7 +174,7 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
 
   if (shot.made) {
     if (shot.foul) {
-      // and-one: the possession isn't over until the free throw resolves —
+      // and-one: the possession isn't over until the free throw resolves;
       // the FT flow emits the single possession_end
       enterFreeThrows(s, shooter, 1);
       return;
