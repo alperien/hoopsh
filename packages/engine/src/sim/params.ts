@@ -337,10 +337,11 @@ export interface SimParams {
   };
 
   /**
-   * ENDGAME LAYER (concept 6 — game-state urgency). Live ONLY when the game
-   * is run with `GameConfig.endgame: true`; with the flag off (the default)
-   * nothing in this block is read on any decision path, so the shipped
-   * 16/17-band calibration is untouched. Everything here is an EV/urgency
+   * ENDGAME LAYER (concept 6 — game-state urgency). Live under
+   * `GameConfig.endgame`, which defaults ON (flipped on the n=1260/arm
+   * flag-on survey — see GameConfig.endgame in sim/game.ts); with the flag
+   * explicitly off nothing in this block is read on any decision path (the
+   * byte-identical pre-layer engine). Everything here is an EV/urgency
    * MODULATION of the existing decision framework (the continuation curve,
    * the reach-in machinery, the dead-ball choke point) — never a scripted
    * playbook. See sim/ai/concepts.ts (concept 6) and sim/endgame.ts.

@@ -45,16 +45,24 @@ export interface GameConfig {
    */
   safetyCapTicks?: number;
   /**
-   * ENDGAME LAYER feature flag (default OFF). On, late-game basketball
+   * ENDGAME LAYER feature flag (default ON). On, late-game basketball
    * behaviors activate: clock-kill with a lead, trailing hurry-up and
    * intentional fouling, hold-for-one / 2-for-1 period endings, and team
    * timeouts (which add a `timeout` event type to the stream). All of it is
    * EV/urgency modulation inside the existing decision framework — see
    * sim/ai/concepts.ts (concept 6) and sim/endgame.ts; constants in
-   * params.endgame. OFF is byte-identical to the pre-layer engine, so the
-   * shipped band calibration is unaffected until this defaults on. Expect
-   * flag-ON games to shift league texture late (more FTs, longer leading-
-   * team possessions, more stoppages) — that is the point.
+   * params.endgame (magnitude dials sweepable, harness/knobs.ts).
+   *
+   * Default flipped OFF→ON on the n=1260-games-per-arm, 3-seed-base survey
+   * (endgame-flag report): the layer closes the sim's worst clutch-realism
+   * gaps — OT share 2.06%→3.33% toward the real 4.80%, clutch FT share
+   * into the real 30-50% range, Q4 10+-lead comebacks 0%→5% (real ~5-10%),
+   * the foul game and timeouts existing at all — with every invariant
+   * probe green at 20 seeds and 1,260 games. Expect ON games to shift
+   * league texture late (more FTs, longer leading-team possessions, more
+   * stoppages): that is the point. Explicit `endgame: false` remains the
+   * byte-identical pre-layer path (the layer then runs no code and
+   * consumes no rng).
    */
   endgame?: boolean;
   /**
@@ -162,7 +170,8 @@ function initState(cfg: GameConfig): GameState {
     score: [0, 0],
     teamFoulsPeriod: [0, 0],
     tipWinner: 0,
-    endgame: cfg.endgame ?? false,
+    // default ON per the n=1260/arm flag-on survey — see GameConfig.endgame
+    endgame: cfg.endgame ?? true,
     timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
     runPts: [0, 0],
     poss: {

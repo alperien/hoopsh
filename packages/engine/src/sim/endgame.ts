@@ -4,8 +4,9 @@
  * CONCEPT 6 in ai/concepts.ts; the two share the chase arithmetic here.)
  *
  * Everything is gated on `GameState.endgame` (from `GameConfig.endgame`,
- * default OFF): with the flag off, no function in this file changes behavior
- * or consumes rng, so the shipped calibration path is byte-identical.
+ * default ON since the n=1260/arm flag-on survey): with the flag explicitly
+ * off, no function in this file changes behavior or consumes rng — the
+ * byte-identical pre-layer engine.
  *
  * DESIGN DOCTRINE (same as ai/concepts.ts): these are not scripted plays.
  * Intentional fouling is a RATE/INTENT modulation of the existing reach-in
