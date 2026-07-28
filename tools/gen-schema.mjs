@@ -11,9 +11,9 @@
 //
 // ANTI-DRIFT DESIGN (the reason this file is a generator, not a checked-in
 // schema): every key list and numeric rule below is IMPORTED from
-// @hoopsh/data's schema.ts — ATTR_KEYS, TEND_KEYS, TACTICS_KEYS, POSITIONS,
+// @hoopsh/data's schema.ts (ATTR_KEYS, TEND_KEYS, TACTICS_KEYS, POSITIONS,
 // RATING_MIN/MAX, HEIGHT_MIN/MAX_IN, MIN_PLAYERS, STARTERS_COUNT,
-// DATA_PACK_VERSION — the same constants validateTeamPack() enforces at load
+// DATA_PACK_VERSION), the same constants validateTeamPack() enforces at load
 // time. There is no second hand-copied key list to forget when a new rating
 // lands; add the key to schema.ts and regenerate. Per-rating hover docs are
 // likewise EXTRACTED from packages/engine/src/model/player.ts's interface
@@ -22,7 +22,7 @@
 // regenerate-and-compare test (packages/data/test/gen-schema.test.ts), so it
 // cannot go stale silently either.
 //
-// RELATION TO validateTeamPack() — deliberate, enumerated deltas only:
+// RELATION TO validateTeamPack() (deliberate, enumerated deltas only):
 //   STRICTER (editor lint, catches mistakes the runtime validator ignores):
 //     - unknown keys are rejected everywhere ("additionalProperties": false;
 //       a typo'd tendency name gets flagged AT the typo, not just as a
@@ -55,14 +55,14 @@ export const SCHEMA_PATH = path.join(ROOT, 'data', 'schema', 'team-pack.schema.j
 const PLAYER_MODEL = path.join(ROOT, 'packages', 'engine', 'src', 'model', 'player.ts');
 
 /**
- * Extract per-key doc comments from an interface body in player.ts — the
+ * Extract per-key doc comments from an interface body in player.ts: the
  * hover text an editor shows for each rating. Handles the two comment styles
  * that file uses: a JSDoc block immediately above the key, or a trailing
  * `// ...` on the key's own line. Section banners (`// physical`) are plain
- * line comments above a group, never JSDoc, so the look-back — which only
- * accepts a block whose closing star-slash sits directly above the key —
+ * line comments above a group, never JSDoc, so the look-back (which only
+ * accepts a block whose closing star-slash sits directly above the key)
  * cannot mistake one for a description. Returns {} of key -> one-line text;
- * keys with no comment simply get no hover doc (a gap, not a failure — the
+ * keys with no comment simply get no hover doc (a gap, not a failure: the
  * schema's job is ranges first, prose second).
  */
 export function extractInterfaceDocs(source, interfaceName) {

@@ -1,4 +1,4 @@
-// Human-grade pack validation — wraps @hoopsh/data's validateTeamPack() and
+// Human-grade pack validation. Wraps @hoopsh/data's validateTeamPack() and
 // turns each terse ValidationIssue into: where (JSONPath), what's wrong, the
 // legal range, the value you actually wrote, and a concrete fix. Then, for
 // VALID packs, prints basketball-plausibility WARNINGS (legal numbers that
@@ -11,13 +11,13 @@
 // exit codes: 0 valid (warnings allowed unless --strict), 1 invalid, 2 usage
 //
 // Errors vs warnings is a deliberate line: ERRORS are validateTeamPack()'s
-// verdict and nothing else (this tool adds prose, never new rejections — the
+// verdict and nothing else (this tool adds prose, never new rejections; the
 // validator in packages/data/src/schema.ts stays the single source of truth
 // for what loads). WARNINGS are heuristics about packs that load fine but
 // describe implausible basketball; each one states its reasoning so an
 // author can knowingly ignore it (an all-bench tanking squad is allowed to
 // warn and ship). One judgment call inherited from the player model: usage
-// is orthogonal to skill BY DESIGN (player.ts — "a deferential genius and a
+// is orthogonal to skill BY DESIGN (player.ts: "a deferential genius and a
 // low-skill chucker are both expressible"), so there is intentionally NO
 // warning for high-usage/low-skill combinations.
 
@@ -43,7 +43,7 @@ export function getAtPath(obj, jsonPath) {
   return node;
 }
 
-/** Classic Levenshtein — small enough to inline, and 'brk-mercr' -> 'brk-mercer' suggestions pay for it. */
+/** Classic Levenshtein: small enough to inline, and 'brk-mercr' -> 'brk-mercer' suggestions pay for it. */
 function editDistance(a, b) {
   const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) dp[0][j] = j;
@@ -201,7 +201,7 @@ export function explainIssue(pack, issue) {
 /**
  * Basketball-plausibility heuristics for VALID packs. Every threshold was
  * checked against the shipped calibration rosters and the roster:new
- * default scaffold — all of those come out clean (enforced by test), so a
+ * default scaffold; all of those come out clean (enforced by test), so a
  * warning here genuinely means "unlike any known-good roster".
  */
 export function computeWarnings(pack) {
@@ -222,7 +222,7 @@ export function computeWarnings(pack) {
   }
 
   // no plus skill anywhere: nobody can win any matchup, so possessions
-  // decay into coin flips — plays like a scrimmage between strangers
+  // decay into coin flips. Plays like a scrimmage between strangers.
   const bestAttr = Math.max(...team.players.map((pl) => Math.max(...Object.values(pl.attr))));
   if (bestAttr < 70) {
     warn('no-plus-skill', 'whole roster',
@@ -240,7 +240,7 @@ export function computeWarnings(pack) {
 
   // rim protection: a 5-out lineup is legal, but with no interior presence
   // opponents shoot layups all night (interiorD guards the restricted area,
-  // block converts misses — either one >= 65 counts as "a rim presence")
+  // block converts misses; either one >= 65 counts as "a rim presence")
   const rimBest = starters.reduce((best, pl) =>
     Math.max(pl.attr.interiorD, pl.attr.block) > Math.max(best.attr.interiorD, best.attr.block) ? pl : best);
   const rimScore = Math.max(rimBest.attr.interiorD, rimBest.attr.block);
@@ -382,7 +382,7 @@ async function main() {
     if (team === null) {
       console.log(`\n${red('INVALID')} ${label} — ${issues.length} issue(s); nothing loads until all are fixed\n`);
       // v1-migration shortcut: the single most common historical failure is
-      // an old pack missing tend.usage everywhere — say so once, up top,
+      // an old pack missing tend.usage everywhere. Say so once, up top,
       // instead of making the author infer it from 10 identical rating errors
       if (parsed?.formatVersion === 1
         && explained.some((e) => e.path.endsWith('.tend.usage'))) {

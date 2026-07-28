@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tools/parse-nba.mjs — cached basketball-reference pbp HTML -> structured corpus (hoopsh data spine).
+// tools/parse-nba.mjs: cached basketball-reference pbp HTML -> structured corpus (hoopsh data spine).
 //
 // Reads the gitignored raw cache written by tools/fetch-nba.mjs and produces:
 //   data/nba/pbp-plays/plays-YYYY-MM.json   full per-game play arrays (monthly shards, committed)
@@ -25,7 +25,7 @@
 //                 rebound, turnover, made final FT of a plain trip ("N of N"), period end;
 //                 length = game-clock seconds between boundaries (FT sequences freeze the clock)
 //   putback       any FGA by the rebounding team within 6s of an OREB (scan stops at the
-//                 next rebound/turnover) — PLAYER offensive rebounds as denominator
+//                 next rebound/turnover); PLAYER offensive rebounds as denominator
 //                 (team-rebound bookkeeping rows, mostly dead-ball missed-FT artifacts, excluded)
 //   steal->score  made FG by the stealing team within 6s of the steal (stops at rebound/turnover)
 //   and-one       made FG with a "Shooting foul" row within 1s of game clock
@@ -87,7 +87,7 @@ function extractPlays(html, id) {
 }
 
 function extractGameMeta(html, id) {
-  // scope to the scorebox block — the page-top "scores" strip links every game
+  // scope to the scorebox block: the page-top "scores" strip links every game
   // of the date, so a whole-page scan grabs the wrong teams
   const box = html.match(/<div class="scorebox">[\s\S]*?<div class="scorebox_meta">/)?.[0];
   if (!box) throw new Error(`${id}: no scorebox block`);
@@ -245,7 +245,7 @@ function grammarMetrics(plays) {
 
 // ---------------------------------------------------------------- possession segmentation
 // Boundary events end the current possession at their game-clock time:
-//   made FG (unless an and-1 shooting foul follows within 1s — the trip's made final FT ends it),
+//   made FG (unless an and-1 shooting foul follows within 1s; the trip's made final FT ends it),
 //   defensive rebound (player or team), turnover, made final FT of a plain "N of N" trip
 //   (technical/flagrant/clear-path FTs never match and correctly do not end possessions),
 //   period end. Lengths are boundary-to-boundary within a period; team OREBs directly after a

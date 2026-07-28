@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tools/fetch-nba.mjs — polite basketball-reference play-by-play fetcher (hoopsh data spine).
+// tools/fetch-nba.mjs: polite basketball-reference play-by-play fetcher (hoopsh data spine).
 //
 // Downloads raw pbp HTML into a gitignored cache (data/nba/raw/). The parser
 // (tools/parse-nba.mjs) turns that cache into the committed corpus
@@ -16,7 +16,7 @@
 //   --limit N                  stop after N game-page fetches (testing)
 //   --dry-run                  list what would be fetched, no network
 //
-// Politeness contract (courtesy-critical — do not weaken):
+// Politeness contract (do not weaken):
 //   * strictly sequential; >= 2s between ANY two requests (default 3.5s ~ 17 req/min,
 //     under basketball-reference's published 20 req/min crawl ceiling)
 //   * resumable: files already in the cache are skipped without touching the network

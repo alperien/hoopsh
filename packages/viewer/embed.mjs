@@ -9,7 +9,7 @@
 //        node packages/viewer/embed.mjs out/replay-<seed>.json out/viewer-<seed>.html
 //      (also reachable as `npm run viewer:embed -- <replay.json> <out.html>`,
 //      see package.json)
-//   3. Open out/viewer-<seed>.html directly in a browser — no server needed,
+//   3. Open out/viewer-<seed>.html directly in a browser; no server needed,
 //      the replay JSON is inlined into the page (see the MARK splice below),
 //      so the file is fully self-contained and shareable on its own.
 // Zero dependencies: this is plain Node fs/path/url, matching the rest of the

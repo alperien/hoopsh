@@ -1,5 +1,5 @@
 // Usage (from repo root, generates the dump fixture first): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/dump-game.mjs rt-egB off /tmp/new-off-rt-egB.json && node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-narr-default.mjs
-// Narration over the DEFAULT (flag-off) stream from the saved dump — no new sims.
+// Narration over the DEFAULT (flag-off) stream from the saved dump; no new sims.
 import { readFileSync } from 'node:fs';
 import { generatePlayByPlay } from '../../packages/narration/src/index.ts';
 import { sampleMatchup } from '../../packages/data/src/index.ts';
