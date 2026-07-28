@@ -1,30 +1,35 @@
 /**
- * Concept 7 (SCORE PRESSURE) — shape characterization + the staged-zero
- * no-op pin, for BOTH channels: the continuation tilt (channel 1) and the
- * defensive-intensity gap/slack lean (channel 2, staged by the channel-1 θ
- * null — findings/b2-fit-tilt*.md, design-coupling.md §3/OQ1).
+ * Concept 7 (SCORE PRESSURE) — shape characterization + off-switch pins,
+ * for BOTH channels. Channel 2 (the defensive-intensity gap/slack lean) is
+ * LIVE — scorePressureDefGain ships at the fitted 0.3 (the channel-2 θ
+ * ladder, findings/b2-fit-defgain*.md + b2-trial-setC.md; provenance on the
+ * param in sim/params.ts). Channel 1 (the continuation tilt) stays at 0 —
+ * measured NULL on θ across tilt 0.05-0.20 (findings/b2-fit-tilt*.md), kept
+ * as a wired-but-inert channel.
  *
- * The coupling ships STAGED at scorePressureTilt 0 and scorePressureDefGain
- * 0 (the calibration commits flip them after their θ fits — see the params'
- * comments in sim/params.ts), so this suite pins two independent things:
+ * The suite pins two independent things:
  *
- *  1. The SHAPE, via direct scorePressure() calls on constructed states at
- *     a withParams-forced nonzero tilt (the survey's own A/B pattern):
- *     exact identity at a tie, antisymmetry around 1 when the score swaps,
- *     saturation at the margin ref, monotonicity below it, and the urgency
- *     guard (multiplier exactly 1 for BOTH signs inside the window — a
+ *  1. The SHAPE, via direct scorePressure()/scorePressureDefMult() calls on
+ *     constructed states at withParams-forced magnitudes (the survey's own
+ *     A/B pattern): exact identity at a tie, antisymmetry around 1 when the
+ *     score swaps, saturation at the margin ref, monotonicity below it, and
+ *     the urgency guard (channel 1 fades to exactly 1 inside the window — a
  *     leader's raised yardstick must never re-inflate a collapsing
- *     continuation, which would manufacture shot-clock violations).
- *     Threshold-free by construction: the forced params are powers of two
- *     (tilt 0.25, pressures 0.5/1, fade 0 or 1), so every expected
- *     multiplier is EXACT in float arithmetic and no rng reshuffle or
- *     re-tune of the shipped defaults can move these assertions.
+ *     continuation, which would manufacture shot-clock violations; channel
+ *     2 deliberately does NOT fade). Threshold-free by construction: the
+ *     forced params are powers of two (magnitude 0.25, pressures 0.5/1,
+ *     fade 0 or 1), so every expected multiplier is EXACT in float
+ *     arithmetic and no rng reshuffle or re-tune of the shipped defaults
+ *     can move these assertions.
  *
- *  2. The OFF-SWITCH SEMANTICS at full-game scale: tilt 0 and scale 0 are
- *     the same bit-identical engine, and (while staged) so is a default
- *     game. Identity with MAIN is the golden fingerprint suite's job —
- *     `npm run fingerprint` — since a test in this tree can only compare
- *     this build against itself.
+ *  2. The OFF-SWITCH SEMANTICS at full-game scale, in the self-consistency
+ *     form that survives re-tunes of the live default: an explicit
+ *     gain-0/tilt-0 override and an explicit scale-0 override are the same
+ *     bit-identical engine (the master multiplies every concept-7 term),
+ *     and — because the default gain is now LIVE — an explicit gain-0 game
+ *     must DIFFER from a default game (the connectivity tripwire, inverted
+ *     from the retired staged-0 pin). Tilt-0 ≡ default still holds and is
+ *     pinned: tilt genuinely ships 0.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -99,34 +104,44 @@ describe('concept 7 (score pressure): shape characterization', () => {
   });
 });
 
-describe('concept 7: the STAGED zero default is a provable no-op', () => {
-  it('tilt 0 kills a forced tilt via scale 0, and (staged) a default game matches both', () => {
+describe('concept 7 channel 1: tilt ships 0 (measured null) and the off-switch is exact', () => {
+  it('tilt 0 IS the default engine, and scale 0 kills a forced tilt bit-exactly', () => {
     const { home, away } = sampleMatchup();
     const cfg = { seed: 'coupling-0', home, away, collectFrames: false };
+    // tilt-0 leg — tilt genuinely ships 0 (measured NULL on θ across
+    // 0.05-0.20, findings/b2-fit-tilt*.md; see the param's comment), so an
+    // explicit tilt-0 override is value-identical to defaults. Unlike the
+    // retired channel-2 staged pin, this one SURVIVES the coupling flip
+    // because the shipped value really is 0.
     const tiltZero = simulateGame({ ...cfg, params: { ai: { scorePressureTilt: 0 } } });
+    const dflt = simulateGame(cfg);
+    expect(JSON.stringify(dflt.events)).toEqual(JSON.stringify(tiltZero.events));
+    expect(dflt.finalScore).toEqual(tiltZero.finalScore);
     // scale 0 must neutralize even a live tilt bit-exactly (0 × x = ±0;
-    // 1 − ±0 = 1) — the off-switch pin that survives the calibration flip
+    // 1 − ±0 = 1). The master also budgets the LIVE channel-2 gain (0.3
+    // default), so the scale-0 arm is the whole-concept-off engine — its
+    // comparison partner pins BOTH channel magnitudes off explicitly.
     const scaleZero = simulateGame({
       ...cfg,
       params: { ai: { scorePressureScale: 0, scorePressureTilt: 0.25 } }
     });
-    expect(JSON.stringify(scaleZero.events)).toEqual(JSON.stringify(tiltZero.events));
-    expect(scaleZero.finalScore).toEqual(tiltZero.finalScore);
-    // STAGED leg — defaults ship at tilt 0, so an untouched game is the same
-    // engine. The calibration commit that flips the default RETIRES the two
-    // assertions below (the scale-0 ≡ tilt-0 legs above are the permanent pin).
-    const dflt = simulateGame(cfg);
-    expect(JSON.stringify(dflt.events)).toEqual(JSON.stringify(tiltZero.events));
-    expect(dflt.finalScore).toEqual(tiltZero.finalScore);
+    const bothOff = simulateGame({
+      ...cfg,
+      params: { ai: { scorePressureTilt: 0, scorePressureDefGain: 0 } }
+    });
+    expect(JSON.stringify(scaleZero.events)).toEqual(JSON.stringify(bothOff.events));
+    expect(scaleZero.finalScore).toEqual(bothOff.finalScore);
   });
 });
 
-// ---------------- channel 2 (defensive intensity) — staged by the θ null
+// ---------------- channel 2 (defensive intensity) — LIVE at the fitted 0.3
 
-// Forced-live channel-2 params, same exact-arithmetic discipline as `live`:
-// gain 0.25 against ref 20 keeps every expected multiplier exact in float
-// (pressures ±0.5/±1 ⇒ leans ±0.125/±0.25). urgencySec pinned only to prove
-// it is NOT consumed.
+// Forced channel-2 params, same exact-arithmetic discipline as `live`: the
+// shape tests pin gain 0.25 (NOT the shipped 0.3) because 0.25 against ref
+// 20 keeps every expected multiplier exact in float (pressures ±0.5/±1 ⇒
+// leans ±0.125/±0.25) — the assertions characterize the mechanism's shape
+// and survive any re-tune of the shipped magnitude. urgencySec pinned only
+// to prove it is NOT consumed.
 const live2 = withParams({
   decide: { urgencySec: 5 },
   ai: { scorePressureScale: 1, scorePressureDefGain: 0.25, scorePressureMarginRef: 20 }
@@ -192,29 +207,28 @@ describe('concept 7 channel 2 (defensive intensity): shape characterization', ()
   });
 });
 
-describe('concept 7 channel 2: the STAGED zero default is a provable no-op', () => {
-  it('defaults ≡ explicit defGain 0 ≡ scale-0-killed live gain; a live gain moves the stream', () => {
+describe('concept 7 channel 2: the LIVE default is consumed, and the off-switch is exact', () => {
+  it('explicit defGain 0 ≡ explicit scale 0 (self-consistency); the live 0.3 default moves the stream', () => {
     const { home, away } = sampleMatchup();
     const cfg = { seed: 'coupling-c2', home, away, collectFrames: false };
-    const dflt = simulateGame(cfg);
-    // the staged-0 leg: shipping defaults ARE the explicit-zero engine. The
-    // calibration commit that flips the default RETIRES this pair (the
-    // scale-0 leg below is the permanent off-switch pin).
+    // the self-consistency pin (replaces the retired staged-0-vs-defaults
+    // leg, invalid since the default flipped to 0.3): an explicit gain-0
+    // override and an explicit scale-0 override are the SAME bit-identical
+    // engine — scale 0 kills the live default gain (0 × x = ±0; 1 − ±0 =
+    // 1) exactly as gain 0 does, and tilt is 0 either way. This pin
+    // survives any future re-tune of the shipped gain because neither arm
+    // reads it… except through scale-0's multiplication, which is
+    // magnitude-independent.
     const gainZero = simulateGame({ ...cfg, params: { ai: { scorePressureDefGain: 0 } } });
-    expect(JSON.stringify(gainZero.events)).toEqual(JSON.stringify(dflt.events));
-    expect(gainZero.finalScore).toEqual(dflt.finalScore);
-    // the shared master at 0 neutralizes a live gain bit-exactly
-    // (0 × x = ±0; 1 − ±0 = 1) — survives the calibration flip
-    const scaleZero = simulateGame({
-      ...cfg,
-      params: { ai: { scorePressureScale: 0, scorePressureDefGain: 0.25 } }
-    });
-    expect(JSON.stringify(scaleZero.events)).toEqual(JSON.stringify(dflt.events));
-    expect(scaleZero.finalScore).toEqual(dflt.finalScore);
-    // and the channel is really plumbed into containOnBall: a forced live
-    // gain changes the event stream (deterministic per seed — a
-    // connectivity tripwire, not a statistical claim)
-    const gainLive = simulateGame({ ...cfg, params: { ai: { scorePressureDefGain: 0.25 } } });
-    expect(JSON.stringify(gainLive.events)).not.toEqual(JSON.stringify(dflt.events));
+    const scaleZero = simulateGame({ ...cfg, params: { ai: { scorePressureScale: 0 } } });
+    expect(JSON.stringify(scaleZero.events)).toEqual(JSON.stringify(gainZero.events));
+    expect(scaleZero.finalScore).toEqual(gainZero.finalScore);
+    // the connectivity tripwire, inverted from the retired staged pin: the
+    // shipped default (gain 0.3, LIVE) must differ from the explicit-zero
+    // engine — proof the flipped default is actually consumed by
+    // containOnBall (deterministic per seed — a plumbing check, not a
+    // statistical claim)
+    const dflt = simulateGame(cfg);
+    expect(JSON.stringify(dflt.events)).not.toEqual(JSON.stringify(gainZero.events));
   });
 });

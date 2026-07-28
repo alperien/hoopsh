@@ -1311,11 +1311,18 @@ export const defaultParams: SimParams = {
     // Concept 7 (SCORE PRESSURE) sub-dials. The tilt is the max fractional
     // continuation reshape at/beyond the saturation margin: the trailing
     // team presses (yardstick down), the leader coasts (yardstick up).
-    // STAGED — fitted by the coupling protocol (target θ = 10-13% of the
-    // margin mean-reverted per quarter, measured as the Q2-Q4 quarter-delta
-    // regression slope; fit seed 0.10), flipped in the calibration commit.
-    // At 0 the multiplier is exactly 1 (continuation × 1 === continuation),
-    // so the wiring ships provably byte-inert.
+    // MEASURED NULL — the fit ladder ran tilt 0.05-0.20 at n=240/point
+    // (findings/b2-fit-tilt005/010/015/020.md) and θ (the per-quarter
+    // margin mean-reversion the coupling exists to buy) never moved: the
+    // yardstick channel's early-offense drift is cancelled by the
+    // transition counterforce the design itself named (a pressing team's
+    // quick misses feed the leader's transition — design-coupling.md §0),
+    // while the side effects (fga up ~+0.6, tov down ~−0.7 at tilt 0.10)
+    // appear anyway. Kept at 0: channel 2 (scorePressureDefGain below)
+    // carries the coupling. At 0 the multiplier is exactly 1
+    // (continuation × 1 === continuation), so the channel stays provably
+    // inert — do not revive it by magnitude escalation; the transfer
+    // function is flat where it is safe to operate.
     scorePressureTilt: 0,
     // FEEL — identity-shape: how deep a lead saturates the press/coast. At
     // the designed tilt, a 10-point margin is a ∓5% lean on the yardstick
@@ -1326,18 +1333,26 @@ export const defaultParams: SimParams = {
     // applied by defense.ts#containOnBall to the on-ball containment gap
     // and the closeout slack — the trailer's defense presses up, the
     // leader's sags off, moving contest levels (and so opponent make%,
-    // shot.contestCoef) directly. Staged because channel 1 measured NULL
-    // on θ: tilt 0.05→0.20 left the margin mean-reversion flat on the
-    // n=240 cohorts (findings/b2-fit-tilt*.md — implied dθ/dtilt ≈ 0.09,
-    // so the yardstick channel alone cannot reach the θ 0.10-0.13 target),
-    // which is design-coupling.md §3's staged-channel-2 / OQ1 trigger.
-    // Shares the scorePressureScale master (scale × gain); deliberately NO
-    // urgency fade — defense manufactures no violations (the asymmetry vs
-    // channel 1 is documented at concepts.ts#scorePressureDefMult).
-    // STAGED — fitted by the channel-2 θ protocol; at 0 the gap/slack
-    // multiplier is exactly 1 (x × 1 === x bit-exact), so the wiring ships
-    // provably byte-inert.
-    scorePressureDefGain: 0,
+    // shot.contestCoef) directly. THE live coupling: this channel carries
+    // the margin mean-reversion after channel 1 measured null (see
+    // scorePressureTilt above — design-coupling.md §3's staged-channel-2 /
+    // OQ1 trigger). Shares the scorePressureScale master (scale × gain);
+    // deliberately NO urgency fade — defense manufactures no violations
+    // (the asymmetry vs channel 1 is documented at
+    // concepts.ts#scorePressureDefMult).
+    // FITTED — the channel-2 θ ladder, g ∈ {0.10, 0.20, 0.30, 0.45} at
+    // n=240/point (findings/b2-fit-defgain010/020/030/045.md), confirmed
+    // by the ship-set trial with concede riding along
+    // (findings/b2-trial-setC.md). At 0.30: θ = 0.086-0.098/quarter,
+    // inside the P1 band [0.07, 0.16]; mean |m| 12.4 (NBA 12.58);
+    // blowout-20+ 19.2% (NBA 19.1%); 91% of per-pairing talent drift
+    // preserved (K = 0.910 ± 0.169, favorite win% unchanged 70.8→70.8);
+    // fga/tov in-band (fga +0.4, tov −0.6). The wall is measured: 0.45
+    // breaches the fga ceiling (+0.87) and crashes tov (−0.89,
+    // findings/b2-fit-defgain045.md) — do not escalate the gain to buy
+    // more θ; the master scale's sweep rail (knobs.ts) is the sanctioned
+    // adjustment surface.
+    scorePressureDefGain: 0.3,
     // concept 8's master (FEEL — 1.0 by definition at introduction, the
     // budget knob over every probe-culture term)
     probeScale: 1,
@@ -1348,14 +1363,20 @@ export const defaultParams: SimParams = {
     // window ramp divides by (1 − probeClockShare), so "window share 1"
     // would be 0/0, not off; the magnitudes below are the off-switch.
     probeClockShare: 0.62,
-    // STAGED — the two probe magnitudes ship at 0, which is the provably
-    // inert staging: the window terms are then exactly +0 appended at the
-    // END of the shoot/pass utility sums (x − 0 and x + 0 are bit-identical
-    // through the softmax), so the wiring commit is byte-inert. Flipped to
-    // the designed 0.06 (swing) / 0.08 (shoot) in the calibration commit's
-    // coordinated re-sweep alongside the pass.riskBase re-price
-    // (design-passvolume.md §4.1: target ~+25 passes/tg at zero band
-    // damage; knobs rails [0, 0.10] / [0, 0.15] registered there too).
+    // STAGED — the two probe magnitudes stay at 0 (the provably inert
+    // staging: the window terms are exactly +0 appended at the END of the
+    // shoot/pass utility sums, x − 0 and x + 0 bit-identical through the
+    // softmax). The B2 measurement campaign priced them and DEFERRED the
+    // flip: standalone the mechanism is positive (+0.13 passes/poss,
+    // fga −1.0, every gated band in position at the selected 0.15/0.08
+    // dose — findings/b2-fit-probe-high/bisect.md) but DESTRUCTIVE in
+    // combination with the live channel-2 coupling: θ 0.098→0.038 and
+    // talent-drift keep 91%→28% on the fixed pools
+    // (findings/b2-trial-setB.md vs setC) — the probe's early-shot
+    // suppression blocks exactly the channel talent expresses through.
+    // Deferred to its own arc with an interaction-aware design; do not
+    // flip these alongside the coupling, and re-measure the interaction
+    // (not just the standalone dose) when that arc lands.
     probeSwingBonus: 0,
     probeShootMalus: 0,
     // Pass-back damping (concept 3's negative side): an immediate return
