@@ -93,7 +93,14 @@ export const SWEEPABLE: Knob[] = [
   // the optimizer pinned ORtg 122-126 with every other dial at boundary.
   { path: 'shot.contestCoef', lo: -2.0, hi: -0.82 },
   { path: 'shot.blockBase', lo: 0.18, hi: 0.45 },
-  { path: 'shot.ftBasePct', lo: 0.69, hi: 0.75 },
+  // ftBasePct's floor was the fitted value itself ("explore up only"),
+  // authored when league FT% read low. Post-endgame the league mix sits
+  // ~2pp ABOVE the real 78.4% (league-averages-2023-24.json) and the 2026-07-28
+  // sweep converged pinned at that floor — the wall, not the optimum. Floor
+  // widened 0.69 → 0.66 so the sweep can trade the league mean down; identity
+  // spread stays in ftSkillSwing/ftEliteKick, and the star-fixture FT
+  // tripwires remain the guardrail against overcorrection.
+  { path: 'shot.ftBasePct', lo: 0.66, hi: 0.75 },
 
   // Fouls — shootRim/shootPaint are THE lever on FTA/game (band 18-27, see
   // params.ts) and are flagged there as "the most coupling-sensitive knobs
