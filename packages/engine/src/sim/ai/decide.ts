@@ -21,7 +21,7 @@ import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, scorePressure, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, probeCulture, scorePressure, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: ShotMoveType }
@@ -162,7 +162,12 @@ export function decideBall(s: GameState): BallAction {
   // CONCEPT 5: TEMPO — transition looks are worth extra before the defense
   // sets (flat early-offense term + the steal-break premium; concepts.ts)
   const T = tempo(s);
-  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake;
+  // CONCEPT 8: PROBE CULTURE — the early-clock probe window: swings gain,
+  // early shots lose, fading to zero by mid-clock; never in transition and
+  // never on the drive channel (doctrine in ai/concepts.ts). Both terms
+  // append at the END of their sums — float order is the byte contract.
+  const probe = probeCulture(s, sc / full);
+  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot;
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
@@ -195,7 +200,8 @@ export function decideBall(s: GameState): BallAction {
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
       + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
-      - continuation * A.passContinuationScale;
+      - continuation * A.passContinuationScale
+      + probe.swing;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,

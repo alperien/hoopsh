@@ -500,6 +500,15 @@ export interface SimParams {
     /** concept 7: margin (pts) at which the press/coast lean saturates —
      *  linear through a tie, clamped beyond */
     scorePressureMarginRef: number;
+    probeScale: number;          // concept 8 — early-clock probe window (swing culture)
+    /** concept 8: shot-clock share (sc/full) above which halfcourt offense
+     *  is probing — the ramp's zero point; must stay < 1 (ramp divisor) */
+    probeClockShare: number;
+    /** concept 8: EV added to the pass channel inside the probe window */
+    probeSwingBonus: number;
+    /** concept 8: EV subtracted from uShoot inside the probe window (drives
+     *  are deliberately exempt — the FTA protection) */
+    probeShootMalus: number;
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
@@ -1307,6 +1316,26 @@ export const defaultParams: SimParams = {
     // (between swingBase and transitionBonus in EV terms — a real but
     // subtle lean); the ∓10% cap is ~1/3 of the endgame hurry's full cut.
     scorePressureMarginRef: 20,
+    // concept 8's master (FEEL — 1.0 by definition at introduction, the
+    // budget knob over every probe-culture term)
+    probeScale: 1,
+    // FEEL — sc/full above which halfcourt offense counts as probing:
+    // halfcourt entry lands at sc ≈ 18-20, so 0.62 ≈ the first 4-5 s of the
+    // set offense; the ramp is zero by mid-clock, far above urgencySec.
+    // Ships at its DESIGNED value even while the concept is staged — the
+    // window ramp divides by (1 − probeClockShare), so "window share 1"
+    // would be 0/0, not off; the magnitudes below are the off-switch.
+    probeClockShare: 0.62,
+    // STAGED — the two probe magnitudes ship at 0, which is the provably
+    // inert staging: the window terms are then exactly +0 appended at the
+    // END of the shoot/pass utility sums (x − 0 and x + 0 are bit-identical
+    // through the softmax), so the wiring commit is byte-inert. Flipped to
+    // the designed 0.06 (swing) / 0.08 (shoot) in the calibration commit's
+    // coordinated re-sweep alongside the pass.riskBase re-price
+    // (design-passvolume.md §4.1: target ~+25 passes/tg at zero band
+    // damage; knobs rails [0, 0.10] / [0, 0.15] registered there too).
+    probeSwingBonus: 0,
+    probeShootMalus: 0,
     // Pass-back damping (concept 3's negative side): an immediate return
     // pass UNDOES the advantage — it recreates the geometry the last pass
     // just left, so it is worth less than the receiver's raw shot quality

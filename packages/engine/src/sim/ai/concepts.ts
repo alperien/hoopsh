@@ -5,7 +5,7 @@
  * with resolution — but real players are not EV-optimizers; they run DRILLED
  * BEHAVIORS. Every non-EV bias in decideBall used to be its own hand-shaped
  * patch (both external reviews called them epicycles, correctly). They are
- * now SEVEN named concepts, each modeling one drilled behavior, each with a
+ * now EIGHT named concepts, each modeling one drilled behavior, each with a
  * MASTER SCALE in params.ai (default 1.0) so the sweep can budget an entire
  * concept — and the whole layer is measured, not assumed small (the
  * decision-vs-EV divergence metric in the harness).
@@ -40,6 +40,10 @@
  *      longer). Linear through a tie, saturating at the margin ref; no
  *      flag, no clock window, no aliveness gate — garbage time keeps the
  *      coupling on purpose.
+ *   8. PROBE CULTURE (probeScale) — early-clock swing appetite: the first
+ *      ~5 s of set offense are pass-friendly and shot-averse (probe the
+ *      defense before attacking it); ramps to zero by mid-clock, never in
+ *      transition, never on the drive channel.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -485,6 +489,48 @@ export function scorePressure(s: GameState, side: TeamSide, continuation: number
   const U = s.params.decide.urgencySec;
   const fade = clamp((eff - U) / U, 0, 1);
   return continuation * (1 - A.scorePressureScale * A.scorePressureTilt * pressure * fade);
+}
+
+// ------------------------------------------- 8. PROBE CULTURE (pass/shoot)
+
+/**
+ * The early-clock probe window ("swing culture"): real offenses probe
+ * before they attack — the first ~5 s of halfcourt offense are
+ * pass-friendly and shot-averse (side-to-side swings against a SET
+ * defense), then the possession attacks. The engine otherwise has no
+ * clock-shaped pass appetite at all: swing value is flat, and the only
+ * clock-scaled pass term (the hierarchy pull) routes up-hierarchy only.
+ * The window converts early HOLD windows into passes — exactly the windows
+ * where drives haven't launched yet, which is what protects FTA — and its
+ * passes sit well upstream of eventual shots, which is what protects
+ * assisted share.
+ *
+ * Called from decideBall each decision. Returns the swing bonus (appended
+ * at the END of the pass-utility sum) and the shoot malus (appended at the
+ * END of the uShoot sum) — deliberately NOT applied to the drive channel
+ * (drives keep firing in-window: the FTA protection) and NOT to the
+ * continuation itself (measured poison: a yardstick raise taxes passes at
+ * ~90% through passContinuationScale). Phase-gated to the set offense and
+ * NEVER transition — the wave2 rejection record below: transition-side
+ * subsidies feed hit-ahead swings and inflate assisted share, and the
+ * stealBreakBonus economics must stay untouched. The ramp is full strength
+ * off the walk-up, zero by mid-clock, hard zero long before urgencySec —
+ * no violation risk by construction. Pure arithmetic over the shot-clock
+ * share and params: no rng, no state writes, no events.
+ */
+export function probeCulture(s: GameState, shotClockShare: number): { swing: number; shoot: number } {
+  const A = s.params.ai;
+  if (s.poss.phase !== 'halfcourt' && s.poss.phase !== 'advance') {
+    return { swing: 0, shoot: 0 };
+  }
+  // linear ramp: 1 at a full clock, 0 once the share falls to probeClockShare
+  // (the divisor is why the window share must stay < 1 — the STAGED-inert
+  // switch is the two magnitudes below, never this share)
+  const w = clamp((shotClockShare - A.probeClockShare) / (1 - A.probeClockShare), 0, 1);
+  return {
+    swing: A.probeSwingBonus * w * A.probeScale,
+    shoot: A.probeShootMalus * w * A.probeScale
+  };
 }
 
 /*
