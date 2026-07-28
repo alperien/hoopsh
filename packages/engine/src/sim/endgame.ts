@@ -132,9 +132,12 @@ export function foulHuntSide(s: GameState): TeamSide | null {
  *  2. STOP THE RUN — the opponent has timeoutRunPts unanswered: call time,
  *     regroup. Resets the run counter (that's the model of "regroup"; it
  *     also prevents re-burning a timeout every dead ball of the same run).
- *     Suppressed inside the final-period advance window so a trailing team
- *     doesn't waste its last timeouts stopping a run it should be saving
- *     them to advance out of.
+ *     Inside the final-period advance window, only a side that might still
+ *     NEED the advance (trailing or tied) saves its timeouts for it; a
+ *     LEADING team has no advance to save for, so being run on late it may
+ *     always call time (red-team MINOR-2: the old blanket !advanceWindow
+ *     suppression made stop_run unreachable for the leader in the final
+ *     ~45 s — exactly when a collapsing lead most wants the whistle).
  *
  * Effects on the already-set dead phase: the clock freezes for the rest of
  * the stoppage (a timeout is a whistle) and the resume delay stretches to
@@ -158,7 +161,11 @@ export function maybeTimeout(s: GameState): void {
     chaseAliveness(s, -margin) > 0 && !ph.continuation
   ) {
     reason = 'advance';
-  } else if (s.runPts[other(team)] >= E.timeoutRunPts && !advanceWindow) {
+  } else if (
+    // save-for-the-advance suppression applies only while this side might
+    // still need an advance (trailing/tied) — a leader always may regroup
+    s.runPts[other(team)] >= E.timeoutRunPts && (!advanceWindow || margin > 0)
+  ) {
     reason = 'stop_run';
   }
   if (!reason) return;
