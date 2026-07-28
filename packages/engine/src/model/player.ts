@@ -1,9 +1,9 @@
 /**
- * The handcrafted player model: attributes (what a player CAN do) and
- * tendencies (what a player WANTS to do). All 0-100, human-editable.
+ * The handcrafted player model: attributes (what a player can do) and
+ * tendencies (what a player wants to do). All 0-100, human-editable.
  *
- * Identity emerges from the interaction of both under the engine's spatial
- * context — e.g. an all-time shooter profile is elite `three` + heavy
+ * Identity comes from the two interacting under the engine's spatial
+ * context: an all-time shooter profile is elite `three` + heavy
  * `shotThree`/`pullUp` tendencies + high `offBallMotion`, which also creates
  * gravity that warps how defenses guard him.
  */
@@ -71,7 +71,7 @@ export interface Attributes {
 }
 
 export interface Tendencies {
-  // shot diet — relative weights across zones
+  // shot diet: relative weights across zones
   /** appetite for rim/paint shots — ai.ts decideBall zoneTend bias when the projected shot is at the rim or in the paint */
   shotRim: number;
   /** appetite for mid-range shots — ai.ts decideBall zoneTend bias when the projected shot is a mid-range look */
@@ -150,11 +150,11 @@ export interface Team {
 }
 
 // Every attribute at exactly 50 by design: n(50) = 0 for all of them (see
-// model/derived.ts), so a default-attribute player contributes NOTHING to any
-// skill term in the probability models — a literal, formula-neutral
-// league-average player. This is the correct "blank" starting point for
-// makePlayer overrides and test fixtures: you only pay for the ratings you
-// deliberately push away from 50.
+// model/derived.ts), so a default-attribute player contributes nothing to any
+// skill term in the probability models. A formula-neutral, league-average
+// player, which is the right "blank" starting point for makePlayer overrides
+// and test fixtures: you only pay for the ratings you deliberately push away
+// from 50.
 const DEFAULT_ATTR: Attributes = {
   speed: 50, accel: 50, strength: 50, vertical: 50, lateral: 50, stamina: 50,
   finishing: 50, midRange: 50, three: 50, freeThrow: 50, drawFoul: 50,
@@ -164,13 +164,13 @@ const DEFAULT_ATTR: Attributes = {
   decisions: 50, consistency: 50
 };
 
-// UNLIKE attributes, tendencies are deliberately NOT all 50 — a "want to do"
+// Unlike attributes, tendencies are deliberately not all 50: a "want to do"
 // dial has no formula-neutral value the way n(50)=0 gives attributes one.
 // These defaults encode a modern, pace-and-space shot diet as the baseline
-// player identity rather than an old-school one: shotMid is suppressed to 30
+// player identity rather than an old-school one. shotMid is suppressed to 30
 // (well below shotRim's 50 and shotThree's 40) because the long two is the
-// least efficient shot in the modern shot-value hierarchy — a real offense
-// actively avoids it, so a "default" player should too. shotThree at 40 (vs
+// least efficient shot in the modern shot-value hierarchy; a real offense
+// avoids it, so a "default" player should too. shotThree at 40 (vs
 // shotRim's 50) still leans rim-first, matching real shot profiles where
 // attempts at the rim outnumber threes even in three-happy eras. pullUp at
 // 35 and drive at 45 push the default player toward getting downhill and
@@ -188,7 +188,7 @@ const DEFAULT_TEND: Tendencies = {
 
 let anonCounter = 0;
 
-/** Build a player from partial overrides — the workhorse of tests & fixtures. */
+/** Build a player from partial overrides. Tests and fixtures build every player through this. */
 export function makePlayer(
   partial: Partial<Omit<Player, 'attr' | 'tend'>> & {
     attr?: Partial<Attributes>;

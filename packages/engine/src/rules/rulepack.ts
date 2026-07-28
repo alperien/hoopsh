@@ -3,12 +3,12 @@
  * NBA ships first; NCAA and EuroLeague follow the same interface.
  * Custom leagues are just JSON.
  *
- * Calibration status: NBA is the tuned, shipped pack — every probability
+ * Calibration status: NBA is the tuned, shipped pack; every probability
  * model in sim/resolve.ts and SimParams was fit assuming NBA's numbers below.
- * NCAA and EuroLeague are STRUCTURAL stubs: their court/clock/foul numbers
+ * NCAA and EuroLeague are structural stubs: their court/clock/foul numbers
  * are the real, correct rule-book values for those leagues, but the
  * probability models themselves are not re-tuned for league-specific pace,
- * spacing, or skill distributions — swapping to NCAA today changes the
+ * spacing, or skill distributions. Swapping to NCAA today changes the
  * court/clock/foul math correctly but still plays like an NBA-caliber roster
  * on a smaller floor. Real per-league calibration is future work (see the
  * "league-expansion milestone" note below, kept from the original stub
@@ -48,54 +48,54 @@ export interface RulePack {
   periods: number;
   /** minutes per regulation period */
   periodMinutes: number;
-  /** minutes per overtime period — always 5 across every pack below, matching real overtime length in each of these leagues */
+  /** minutes per overtime period; always 5 across every pack below, matching real overtime length in each of these leagues */
   otMinutes: number;
 
   // clocks
   /** seconds a team has to attempt a shot before a shot-clock turnover (sim/game.ts tickLive) */
   shotClockSec: number;
-  /** shot clock after an offensive rebound — shorter than a fresh possession's clock since the ball never left the frontcourt */
+  /** shot clock after an offensive rebound; shorter than a fresh possession's clock since the ball never left the frontcourt */
   shotClockOffRebSec: number;
 
   // fouls
-  /** team fouls in a period that put the opponent in the bonus (non-shooting fouls start awarding free throws once reached) — sim/fouls.ts recordFoul's `inBonus` check */
+  /** team fouls in a period that put the opponent in the bonus (non-shooting fouls start awarding free throws once reached); sim/fouls.ts recordFoul's `inBonus` check */
   teamFoulBonusAt: number;
   /**
-   * Shape of the bonus's FIRST tier — what a non-shooting defensive foul
+   * Shape of the bonus's first tier: what a non-shooting defensive foul
    * awards from `teamFoulBonusAt` up to (not including) `doubleBonusAt`
    * (see bonusFreeThrowAward below):
-   *  - 'flat'      — a fixed `bonusFreeThrows`-shot trip from the first bonus
+   *  - 'flat'      : a fixed `bonusFreeThrows`-shot trip from the first bonus
    *                  foul on (modern NBA and FIBA/EuroLeague rule).
-   *  - 'oneAndOne' — the shooter gets one attempt and EARNS the second only
-   *                  by making the first; a front-end miss is a LIVE ball
+   *  - 'oneAndOne' : the shooter gets one attempt and earns the second only
+   *                  by making the first; a front-end miss is a live ball
    *                  (rebound scramble, sim/fouls.ts tickFreeThrows). This is
-   *                  the CURRENT NCAA men's rule for team fouls 7-9 — not a
+   *                  the current NCAA men's rule for team fouls 7-9, not a
    *                  historical variant (a previous version of this comment
    *                  got that wrong; NCAA *women* are the ones who dropped
    *                  the one-and-one, and that's a different pack entirely).
    */
   bonusRule: 'flat' | 'oneAndOne';
   /**
-   * Team fouls in a period at which EVERY bonus trip becomes a flat
+   * Team fouls in a period at which every bonus trip becomes a flat
    * `bonusFreeThrows`-shot award (the "double bonus"). Only meaningfully
    * distinct from `teamFoulBonusAt` under bonusRule 'oneAndOne' (NCAA men:
    * one-and-one at 7-9, double bonus at 10+). Flat-rule packs set it equal
-   * to `teamFoulBonusAt`: the flat bonus IS the two-shot award from its
-   * first foul, so the one-and-one window [teamFoulBonusAt, doubleBonusAt)
+   * to `teamFoulBonusAt`: the flat bonus is already the two-shot award from
+   * its first foul, so the one-and-one window [teamFoulBonusAt, doubleBonusAt)
    * is empty by construction.
    */
   doubleBonusAt: number;
-  /** free throws awarded on a flat bonus trip — i.e. at `doubleBonusAt`+ team fouls, and at every bonus trip for bonusRule 'flat' (sim/passing.ts attemptReachIn, sim/possession.ts tickScramble via fouls.ts recordFoul) */
+  /** free throws awarded on a flat bonus trip, i.e. at `doubleBonusAt`+ team fouls, and at every bonus trip for bonusRule 'flat' (sim/passing.ts attemptReachIn, sim/possession.ts tickScramble via fouls.ts recordFoul) */
   bonusFreeThrows: number;
   /**
-   * Whether period team-foul counts CARRY into overtime instead of resetting
-   * (sim/possession.ts endPeriod). NCAA men: true — team fouls reset only at
+   * Whether period team-foul counts carry into overtime instead of resetting
+   * (sim/possession.ts endPeriod). NCAA men: true; team fouls reset only at
    * the end of the first half, so OT (and every further OT) inherits the
    * second half's running count (NCAA/NFHS Major Rules Differences, see
-   * data/ncaa/README.md R4). FIBA/EuroLeague: true — extra periods are an
+   * data/ncaa/README.md R4). FIBA/EuroLeague: true; extra periods are an
    * extension of the fourth period (FIBA Official Rules, Art. 41). NBA:
-   * false — the count restarts each OT (the NBA's separate, lower OT bonus
-   * threshold of 4 team fouls is NOT modeled; out of scope per R4).
+   * false; the count restarts each OT (the NBA's separate, lower OT bonus
+   * threshold of 4 team fouls is not modeled; out of scope per R4).
    */
   teamFoulsCarryToOT: boolean;
   /** personal fouls that disqualify a player (sim/fouls.ts recordFoul's fouledOut check, sim/subs.ts replaceFouledOut) */
@@ -104,8 +104,8 @@ export interface RulePack {
   // timeouts
   /**
    * Team timeouts per game (flat per-game simplification of each league's
-   * real budget rules — no per-half carryover or last-two-minute caps yet).
-   * Consumed only by the endgame layer (GameConfig.endgame — sim/endgame.ts);
+   * real budget rules; no per-half carryover or last-two-minute caps yet).
+   * Consumed only by the endgame layer (GameConfig.endgame, sim/endgame.ts);
    * a default-config game never calls one, so this field is inert there.
    */
   timeoutsPerGame: number;
@@ -128,12 +128,12 @@ export const NBA: RulePack = {
   periods: 4,
   periodMinutes: 12,
   otMinutes: 5,
-  // 24-second shot clock; 14 seconds on an offensive rebound — real NBA rules.
+  // 24-second shot clock; 14 seconds on an offensive rebound (real NBA rules).
   shotClockSec: 24,
   shotClockOffRebSec: 14,
   // bonus at 5 team fouls in a period, always a flat 2 free throws (so the
   // "double bonus" threshold coincides with the bonus itself), team fouls
-  // reset every period including OT, disqualification at 6 personal fouls —
+  // reset every period including OT, disqualification at 6 personal fouls:
   // the real modern NBA thresholds. (The real NBA also drops the OT bonus
   // threshold to 4 and has a last-2:00 team-foul rule; neither is modeled.)
   teamFoulBonusAt: 5,
@@ -142,24 +142,24 @@ export const NBA: RulePack = {
   bonusFreeThrows: 2,
   teamFoulsCarryToOT: false,
   foulOutAt: 6,
-  // 7 team timeouts per game — the real modern NBA budget (the real rule
+  // 7 team timeouts per game, the real modern NBA budget (the real rule
   // also caps usage at 4 in the fourth period / 2 in the last three minutes;
   // that refinement is future work, see the interface note).
   timeoutsPerGame: 7
 };
 
-/** placeholder stubs — tuned packs land with the league-expansion milestone */
+/** placeholder stubs; tuned packs land with the league-expansion milestone */
 export const NCAA: RulePack = {
   ...NBA,
   id: 'ncaa',
   name: 'NCAA (men)',
-  // NCAA lane is 12 ft wide (NBA 16) — official court diagram, see
+  // NCAA lane is 12 ft wide (NBA 16): official court diagram, see
   // data/ncaa/README.md R2. Still UNWIRED (see the interface note), but the
   // pack must ship the correct league constant; this previously inherited
   // the NBA's 16 via the spread above.
   keyWidthFt: 12,
   // NCAA men's three-point line: shorter arc (22.15 ft) and much shallower
-  // corner break (9.85 ft vs the NBA's 14 ft) — the corner line meets the arc
+  // corner break (9.85 ft vs the NBA's 14 ft); the corner line meets the arc
   // much closer to the baseline than in the NBA.
   three: { arcRadiusFt: 22.15, cornerDistFt: 21.65, cornerBreakFt: 9.85 },
   // NCAA plays two 20-minute halves rather than four quarters.
@@ -169,23 +169,23 @@ export const NCAA: RulePack = {
   shotClockSec: 30,
   shotClockOffRebSec: 20,
   // NCAA men's bonus (NCAA/NFHS Major Rules Differences, data/ncaa/README.md
-  // R1): ONE-AND-ONE on team fouls 7-9 of a half — make the front end to earn
-  // the second shot, miss it and the ball is live — then a flat two-shot
-  // "double bonus" from the 10th team foul. Counts are per HALF (periods are
+  // R1): one-and-one on team fouls 7-9 of a half (make the front end to earn
+  // the second shot, miss it and the ball is live), then a flat two-shot
+  // "double bonus" from the 10th team foul. Counts are per half (periods are
   // halves here, so the engine's per-period reset is the halftime reset) and
-  // carry into overtime (R4: fouls reset only at the END of the first half).
+  // carry into overtime (R4: fouls reset only at the end of the first half).
   // Disqualification is stricter than the NBA's (5 personal fouls, not 6).
   teamFoulBonusAt: 7,
   bonusRule: 'oneAndOne',
   doubleBonusAt: 10,
   teamFoulsCarryToOT: true,
   foulOutAt: 5,
-  // NCAA: 4 timeouts (3×30s + 1×60s) in the flat per-game simplification —
+  // NCAA: 4 timeouts (3×30s + 1×60s) in the flat per-game simplification;
   // media-timeout structure is out of scope, same as the NBA note above.
   timeoutsPerGame: 4
 };
 
-/** like NCAA, a structural stub — real EuroLeague rule-book numbers below, but not independently probability-tuned; see the calibration-status note above. */
+/** like NCAA, a structural stub: real EuroLeague rule-book numbers below, but not independently probability-tuned; see the calibration-status note above. */
 export const EUROLEAGUE: RulePack = {
   ...NBA,
   id: 'euroleague',
@@ -202,11 +202,11 @@ export const EUROLEAGUE: RulePack = {
   periodMinutes: 10,
   shotClockSec: 24,
   shotClockOffRebSec: 14,
-  // bonus at 5 team fouls like the NBA — and like the NBA it's the flat
+  // bonus at 5 team fouls like the NBA, and like the NBA it's the flat
   // two-shot award from the first bonus foul (FIBA has no one-and-one; see
   // data/ncaa/README.md §6.1, which contrasts only NCAA men against the flat
-  // rule) — but disqualification is stricter (5 personal fouls, FIBA rules),
-  // and team fouls CARRY into overtime: FIBA Official Rules Art. 41 treats
+  // rule). Disqualification is stricter (5 personal fouls, FIBA rules), and
+  // team fouls carry into overtime: FIBA Official Rules Art. 41 treats
   // extra periods as an extension of the fourth period.
   teamFoulBonusAt: 5,
   bonusRule: 'flat',
@@ -221,26 +221,26 @@ export const EUROLEAGUE: RulePack = {
 /**
  * What a bonus free-throw trip awards.
  *
- * `shots` is the number of attempts the trip can REACH — for a one-and-one
+ * `shots` is the number of attempts the trip can reach: for a one-and-one
  * that's 2, but the second attempt exists only if the first is made
  * (sim/fouls.ts tickFreeThrows owns that sequencing; a front-end miss ends
  * the trip with a live ball).
  */
 export interface BonusAward {
   shots: number;
-  /** true: this trip is a one-and-one — the second shot must be earned */
+  /** true: this trip is a one-and-one; the second shot must be earned */
   oneAndOne: boolean;
 }
 
 /**
- * Free throws a non-shooting DEFENSIVE foul awards, given the fouling team's
+ * Free throws a non-shooting defensive foul awards, given the fouling team's
  * period team-foul count with this foul included. Returns null when the
  * fouling team is not yet in the bonus (play resumes with a side-out, no
  * shots). Pure rules arithmetic, deliberately stateless so it can be unit
  * tested against the rule book without a GameState; the live sequencing
  * (front-end-miss live rebound) lives in sim/fouls.ts.
  *
- * Shooting fouls never route through this — their FT count comes from the
+ * Shooting fouls never route through this; their FT count comes from the
  * shot (2/3/and-one) regardless of the bonus.
  */
 export function bonusFreeThrowAward(rules: RulePack, teamFoulsInPeriod: number): BonusAward | null {

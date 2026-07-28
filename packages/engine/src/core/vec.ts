@@ -1,6 +1,6 @@
 /**
  * Minimal 2D vector math. Units are feet everywhere in the engine (a V2 is a
- * court position or a velocity in ft/s — never normalized/screen-space
+ * court position or a velocity in ft/s, never normalized/screen-space
  * coordinates). Deliberately allocation-heavy: every function returns a
  * fresh `{ x, y }` object rather than mutating in place or writing into a
  * caller-supplied output param. At 10 Hz with a couple dozen agents, the
@@ -36,7 +36,7 @@ export const norm = (a: V2): V2 => {
   return l < 1e-9 ? { x: 0, y: 0 } : { x: a.x / l, y: a.y / l };
 };
 
-/** linear interpolation between a and b; t=0 -> a, t=1 -> b (unclamped — t outside [0,1] extrapolates) */
+/** linear interpolation between a and b; t=0 -> a, t=1 -> b (unclamped; t outside [0,1] extrapolates) */
 export const lerp = (a: V2, b: V2, t: number): V2 => ({
   x: a.x + (b.x - a.x) * t,
   y: a.y + (b.y - a.y) * t
@@ -66,13 +66,13 @@ export function closestOnSegment(a: V2, b: V2, p: V2): V2 {
   return { x: a.x + ab.x * t, y: a.y + ab.y * t };
 }
 
-/** distance from point p to segment ab — used for passing-lane occlusion (how close a defender sits to the ball's straight-line path) */
+/** distance from point p to segment ab; used for passing-lane occlusion (how close a defender sits to the ball's straight-line path) */
 export function distToSegment(a: V2, b: V2, p: V2): number {
   return dist(p, closestOnSegment(a, b, p));
 }
 
 /** clamped projection parameter of p onto segment ab: 0 at a, 1 at b.
- *  The shared "how far along the line is this defender" primitive — the
+ *  The shared "how far along the line is this defender" primitive: the
  *  drive-lane crowd check uses it directly, and closestOnSegment above is
  *  this followed by the lerp. (This used to be re-implemented privately in
  *  two sim modules; one definition now.) */

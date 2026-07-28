@@ -73,13 +73,13 @@ export class Rng {
   /** index sampled proportionally to non-negative weights (all-zero -> uniform) */
   weighted(weights: readonly number[]): number {
     // an empty array used to fall through to int(0) and "sample" index 0 of
-    // nothing — the caller then indexed its own empty array and got undefined
+    // nothing; the caller then indexed its own empty array and got undefined
     // silently. Same fail-loud policy as the non-finite guard below.
     if (weights.length === 0) throw new Error('Rng.weighted: empty weights array');
     let total = 0;
     for (const w of weights) {
       // fail loudly on corrupt weights: a NaN here used to fall through to
-      // the last index and an Infinity starved every other entry — both
+      // the last index and an Infinity starved every other entry, both
       // silently (independent-review finding). Any non-finite weight means
       // an upstream utility computation is already broken.
       if (!Number.isFinite(w)) {
@@ -123,7 +123,7 @@ export class Rng {
   }
 }
 
-/** logistic sigmoid — the workhorse of every probability model in the engine */
+/** logistic sigmoid; every probability model in the engine uses it */
 export function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
 }
