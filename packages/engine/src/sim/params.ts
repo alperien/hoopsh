@@ -334,6 +334,17 @@ export interface SimParams {
     crunchMarginPts: number;
     /** crunch energy floor: a starter this rested can be pulled back on late */
     crunchEnergyMin: number;
+    /** concede (garbage time): in the final period the LEADER pulls his
+     *  starters once the margin clears a clock-scaled line —
+     *  line(clock) = concedeMarginBase + concedeMarginPerMin × minutes left */
+    concedeMarginBase: number;
+    concedeMarginPerMin: number;
+    /** extra margin the TRAILING coach needs before he concedes too */
+    concedeTrailLagPts: number;
+    /** hysteresis width: concede exits this many points below the entry line */
+    concedeExitPts: number;
+    /** energy floor for a garbage-time bench body (floor presence, not burst) */
+    concedeEnergyMin: number;
   };
 
   /**
@@ -481,6 +492,29 @@ export interface SimParams {
     actionCommitScale: number;   // concept 2 — called-action payoff + patience
     advantageScale: number;      // concept 3 — cutter / swing / hierarchy passes
     tempoScale: number;          // concept 5 — transition urgency
+    scorePressureScale: number;  // concept 7 — all-game score pressure (press/coast)
+    /** concept 7: max fractional continuation tilt at/beyond the saturation
+     *  margin — presses the trailing team's yardstick down, coasts the
+     *  leader's up; 0 = coupling off */
+    scorePressureTilt: number;
+    /** concept 7: margin (pts) at which the press/coast lean saturates —
+     *  linear through a tie, clamped beyond */
+    scorePressureMarginRef: number;
+    /** concept 7 channel 2 (defensive intensity): max fractional on-ball
+     *  containment-gap / closeout-slack lean at/beyond the saturation
+     *  margin — the trailing team's defense presses up (tighter), the
+     *  leader's sags off (looser); no urgency fade by design; 0 = channel
+     *  off */
+    scorePressureDefGain: number;
+    probeScale: number;          // concept 8 — early-clock probe window (swing culture)
+    /** concept 8: shot-clock share (sc/full) above which halfcourt offense
+     *  is probing — the ramp's zero point; must stay < 1 (ramp divisor) */
+    probeClockShare: number;
+    /** concept 8: EV added to the pass channel inside the probe window */
+    probeSwingBonus: number;
+    /** concept 8: EV subtracted from uShoot inside the probe window (drives
+     *  are deliberately exempt — the FTA protection) */
+    probeShootMalus: number;
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
@@ -1150,7 +1184,49 @@ export const defaultParams: SimParams = {
     // > 35) regardless of the normal fatigue read. Were inline in checkSubs.
     crunchClockSec: 300,
     crunchMarginPts: 10,
-    crunchEnergyMin: 35
+    crunchEnergyMin: 35,
+    // Concede (garbage time): in the final period starters come out once the
+    // margin clears line(clock) = base + perMin × minutes remaining — the
+    // linear stand-in for the classic safe-lead heuristics (James'
+    // (lead − 3.5)² ≥ seconds left gives ~22.5 at 6:00, ~16.9 at 3:00; the
+    // designed line sits within a point or two across the window). All FEEL
+    // at the design-garbagetime.md values: base 15 / perMin 1.0 / lag 4 /
+    // exit 6 / energyMin 25 — the leader concedes up 21 at 6:00, up 18 at
+    // 3:00, up 27 at the Q4 tip; the trailer follows concedeTrailLagPts
+    // later.
+    // LIVE, verified on the COUPLED engine only (findings/
+    // b2-verify-concede.md): with channel 2 carrying the margin coupling,
+    // the OOS-walk 30+ regression that blocked the first flip attempt is
+    // gone (Δ30+ −0.83pp ± 1.18 — treatment BELOW control), self-play 30+
+    // improves −3.5pp (1.7se) and crosses the ≤16 signed-sd gate, close/OT
+    // integrity spotless, bands untouched, starters' rest −0.8…−0.9 min/g.
+    // Concede REQUIRES the live coupling — do not detach them: uncoupled,
+    // generated pools' uneven bench units make post-entry bench-vs-bench
+    // play margin-EXPANDING, not the zero-mean drift the design assumed
+    // (walk 30+ 5.8→8.3% fam-a, 7.9→10.4% fam-b —
+    // findings/b2-fit-concede-oos.md), and the trailLag ladder (4→8→12)
+    // could not rescue it without surrendering the balanced-cohort
+    // compression (findings/b2-fit-lagkeep.md); under the coupling the
+    // adverse long-span flux flips sign and the regression dissolves
+    // mechanistically, not by masking.
+    concedeMarginBase: 15,
+    concedeMarginPerMin: 1.0,
+    // FEEL — the trailing coach holds hope ~a possession and a half longer;
+    // he pulls only when the deficit is unambiguous (leader's bench first,
+    // a token starter run for the trailer, then both benches — the real
+    // garbage-time sequence).
+    concedeTrailLagPts: 4,
+    // FEEL — hysteresis ≈ two possessions: a single 3-and-FT swing cannot
+    // flap the lineup, and re-entry must beat a falling line. CONSTRAINT:
+    // base + lag − exit (designed: 13) must stay > endgame.foulMaxDeficit
+    // (12) — a still-conceded trailer must never sit inside the intentional-
+    // foul deficit window (concede.test.ts pins this).
+    concedeExitPts: 6,
+    // FEEL — any bench body who can stand plays garbage time: looser than
+    // crunchEnergyMin 35 because the incoming player needs floor presence,
+    // not burst (mostly a degenerate-roster guard — bench sitters recover
+    // toward 100 anyway, movement.ts bench recovery).
+    concedeEnergyMin: 25
   },
 
   endgame: {
@@ -1240,6 +1316,81 @@ export const defaultParams: SimParams = {
     actionCommitScale: 1,
     advantageScale: 1,
     tempoScale: 1,
+    // concept 7's master (FEEL — 1.0 by definition at introduction, the
+    // budget knob over every concept-7 term; joins the sweep surface in the
+    // calibration commit, after the coupling goes live)
+    scorePressureScale: 1,
+    // Concept 7 (SCORE PRESSURE) sub-dials. The tilt is the max fractional
+    // continuation reshape at/beyond the saturation margin: the trailing
+    // team presses (yardstick down), the leader coasts (yardstick up).
+    // MEASURED NULL — the fit ladder ran tilt 0.05-0.20 at n=240/point
+    // (findings/b2-fit-tilt005/010/015/020.md) and θ (the per-quarter
+    // margin mean-reversion the coupling exists to buy) never moved: the
+    // yardstick channel's early-offense drift is cancelled by the
+    // transition counterforce the design itself named (a pressing team's
+    // quick misses feed the leader's transition — design-coupling.md §0),
+    // while the side effects (fga up ~+0.6, tov down ~−0.7 at tilt 0.10)
+    // appear anyway. Kept at 0: channel 2 (scorePressureDefGain below)
+    // carries the coupling. At 0 the multiplier is exactly 1
+    // (continuation × 1 === continuation), so the channel stays provably
+    // inert — do not revive it by magnitude escalation; the transfer
+    // function is flat where it is safe to operate.
+    scorePressureTilt: 0,
+    // FEEL — identity-shape: how deep a lead saturates the press/coast. At
+    // the designed tilt, a 10-point margin is a ∓5% lean on the yardstick
+    // (between swingBase and transitionBonus in EV terms — a real but
+    // subtle lean); the ∓10% cap is ~1/3 of the endgame hurry's full cut.
+    scorePressureMarginRef: 20,
+    // Concept 7 CHANNEL 2 (DEFENSIVE INTENSITY): the same signed pressure,
+    // applied by defense.ts#containOnBall to the on-ball containment gap
+    // and the closeout slack — the trailer's defense presses up, the
+    // leader's sags off, moving contest levels (and so opponent make%,
+    // shot.contestCoef) directly. THE live coupling: this channel carries
+    // the margin mean-reversion after channel 1 measured null (see
+    // scorePressureTilt above — design-coupling.md §3's staged-channel-2 /
+    // OQ1 trigger). Shares the scorePressureScale master (scale × gain);
+    // deliberately NO urgency fade — defense manufactures no violations
+    // (the asymmetry vs channel 1 is documented at
+    // concepts.ts#scorePressureDefMult).
+    // FITTED — the channel-2 θ ladder, g ∈ {0.10, 0.20, 0.30, 0.45} at
+    // n=240/point (findings/b2-fit-defgain010/020/030/045.md), confirmed
+    // by the ship-set trial with concede riding along
+    // (findings/b2-trial-setC.md). At 0.30: θ = 0.086-0.098/quarter,
+    // inside the P1 band [0.07, 0.16]; mean |m| 12.4 (NBA 12.58);
+    // blowout-20+ 19.2% (NBA 19.1%); 91% of per-pairing talent drift
+    // preserved (K = 0.910 ± 0.169, favorite win% unchanged 70.8→70.8);
+    // fga/tov in-band (fga +0.4, tov −0.6). The wall is measured: 0.45
+    // breaches the fga ceiling (+0.87) and crashes tov (−0.89,
+    // findings/b2-fit-defgain045.md) — do not escalate the gain to buy
+    // more θ; the master scale's sweep rail (knobs.ts) is the sanctioned
+    // adjustment surface.
+    scorePressureDefGain: 0.3,
+    // concept 8's master (FEEL — 1.0 by definition at introduction, the
+    // budget knob over every probe-culture term)
+    probeScale: 1,
+    // FEEL — sc/full above which halfcourt offense counts as probing:
+    // halfcourt entry lands at sc ≈ 18-20, so 0.62 ≈ the first 4-5 s of the
+    // set offense; the ramp is zero by mid-clock, far above urgencySec.
+    // Ships at its DESIGNED value even while the concept is staged — the
+    // window ramp divides by (1 − probeClockShare), so "window share 1"
+    // would be 0/0, not off; the magnitudes below are the off-switch.
+    probeClockShare: 0.62,
+    // STAGED — the two probe magnitudes stay at 0 (the provably inert
+    // staging: the window terms are exactly +0 appended at the END of the
+    // shoot/pass utility sums, x − 0 and x + 0 bit-identical through the
+    // softmax). The B2 measurement campaign priced them and DEFERRED the
+    // flip: standalone the mechanism is positive (+0.13 passes/poss,
+    // fga −1.0, every gated band in position at the selected 0.15/0.08
+    // dose — findings/b2-fit-probe-high/bisect.md) but DESTRUCTIVE in
+    // combination with the live channel-2 coupling: θ 0.098→0.038 and
+    // talent-drift keep 91%→28% on the fixed pools
+    // (findings/b2-trial-setB.md vs setC) — the probe's early-shot
+    // suppression blocks exactly the channel talent expresses through.
+    // Deferred to its own arc with an interaction-aware design; do not
+    // flip these alongside the coupling, and re-measure the interaction
+    // (not just the standalone dose) when that arc lands.
+    probeSwingBonus: 0,
+    probeShootMalus: 0,
     // Pass-back damping (concept 3's negative side): an immediate return
     // pass UNDOES the advantage — it recreates the geometry the last pass
     // just left, so it is worth less than the receiver's raw shot quality

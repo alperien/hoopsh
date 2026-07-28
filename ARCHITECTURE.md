@@ -149,6 +149,23 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   preserves the byte-identical legacy path. Its magnitude dials sit on the
   calibration sweep surface like any other `SimParams` constants; its
   window/threshold dials are design, not calibration, and stay off it.
+- Game-state coupling: the scoreboard feeds back into play all game, not just
+  in the endgame windows. The trailing team's defense presses up and the
+  leader's sags off — the same containment/closeout models that price every
+  contest, leaned by the margin (concept 7 in the AI layer) — so margins
+  mean-revert the way real ones do (roughly 10% of the margin per quarter at
+  the shipped magnitude) instead of diffusing without bound, and blowout
+  rates land at real levels. The channel was chosen by measurement, not
+  assumption: the design's offensive press/coast tilt on the decision
+  yardstick is wired but measured distribution-null, and ships at zero.
+  Decided games additionally trigger a garbage-time concede rotation
+  (`sim/subs.ts`): past a clock-scaled safe-lead line, both benches close
+  the game out — leader first, with hysteresis so lineups never flip-flop —
+  which rests starters about a minute per game and stops blowouts from
+  growing to the horn. The concede requires the live coupling (uncoupled,
+  bench-vs-bench endings measured margin-expanding on generated rosters);
+  the landed distribution record and its residuals are in
+  `docs/INTERNALS.md`.
 
 ### 4.7 Event stream & replay
 

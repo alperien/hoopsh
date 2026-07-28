@@ -174,17 +174,21 @@ stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
 endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
 burn) — default ON since the calib/integration landing, decided on measured
 survey evidence (`endgame: false` = the byte-identical legacy path) ·
+game-state coupling (trailing-team defensive pressure + garbage-time concede
+rotation) — landed at the mech/game-state landing, magnitudes fitted and
+verified by measurement; the distribution record and residuals live in
+docs/INTERNALS.md ·
 NCAA rule pack behind the harness `--league` flag (partially wired — see
 REFACTOR.md's register)
 
 **Phase 2R (current — tuning, not building):** the mechanics above are implemented
-and wired. The coordinated re-sweep of the integrated engine and the endgame-flag
-decision both landed at the calib/integration landing (first full 17/17 band
-lock); the open work is the B2 mechanism items (score-pressure coupling,
-garbage-time rotation, pass volume), fidelity residuals (hub post-up share), and
-the open items in REFACTOR.md's register.
+and wired. The coordinated re-sweep, the endgame-flag decision (first full 17/17
+band lock), and the B2 game-state coupling all landed on measured evidence; the
+open work is the pass-volume arc (the probe mechanism is wired but ships staged
+at zero — deferred at a measured interaction gate), fidelity residuals (hub
+post-up share), and the open items in REFACTOR.md's register.
 
-**Next (validation arc):** mechanism audit of the distributional misses ·
+**Next (validation arc):**
 30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
 windows) · prediction backtest (Brier, calibration curves) via the season layer ·
 sourced NBA data in-repo with provenance, bands/targets generated not typed ·
@@ -357,6 +361,23 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   preserves the byte-identical legacy path. Its magnitude dials sit on the
   calibration sweep surface like any other `SimParams` constants; its
   window/threshold dials are design, not calibration, and stay off it.
+- Game-state coupling: the scoreboard feeds back into play all game, not just
+  in the endgame windows. The trailing team's defense presses up and the
+  leader's sags off — the same containment/closeout models that price every
+  contest, leaned by the margin (concept 7 in the AI layer) — so margins
+  mean-revert the way real ones do (roughly 10% of the margin per quarter at
+  the shipped magnitude) instead of diffusing without bound, and blowout
+  rates land at real levels. The channel was chosen by measurement, not
+  assumption: the design's offensive press/coast tilt on the decision
+  yardstick is wired but measured distribution-null, and ships at zero.
+  Decided games additionally trigger a garbage-time concede rotation
+  (`sim/subs.ts`): past a clock-scaled safe-lead line, both benches close
+  the game out — leader first, with hysteresis so lineups never flip-flop —
+  which rests starters about a minute per game and stops blowouts from
+  growing to the horn. The concede requires the live coupling (uncoupled,
+  bench-vs-bench endings measured margin-expanding on generated rosters);
+  the landed distribution record and its residuals are in
+  `docs/INTERNALS.md`.
 
 ### 4.7 Event stream & replay
 
@@ -464,14 +485,14 @@ event `wt` key on it). Do not mix them.
 | `sim/shooting.ts` | windup → release → resolution, assists | anything between "decides to shoot" and the rim |
 | `sim/passing.ts` | pass flight, steals/OOB, reach-ins | turnover mechanics |
 | `sim/fouls.ts` | foul bookkeeping, bonus, FT sequences | whistle rules |
-| `sim/subs.ts` | lineup swaps, fatigue rotation, foul-out replacement | rotations |
+| `sim/subs.ts` | lineup swaps, fatigue rotation, foul-out replacement, garbage-time concede (LIVE: final-period clock-scaled margin line + hysteresis, both benches close decided games, leader first; requires the live coupling — provenance in `params.ts` `sub.concede*`) | rotations, garbage time |
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
 | `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
 | `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
-| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one) | decision bias terms, late-clock behavior |
+| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one; concept 7 = score pressure: channel-1 continuation tilt wired but MEASURED NULL, ships at 0 — channel-2 defensive intensity LIVE at `scorePressureDefGain` 0.3; concept 8 = probe culture, STAGED at zero magnitudes) | decision bias terms, late-clock behavior, game-state coupling |
 | `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
-| `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag | defensive positioning |
+| `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag; the on-ball containment gap + closeout slack consume concept 7's channel-2 score-pressure lean | defensive positioning |
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
 | `sim/endgame.ts` | endgame layer (`GameConfig.endgame`, **default ON** since the n=1260/arm flag-on survey; explicit `endgame: false` is the byte-identical legacy path): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
@@ -597,9 +618,140 @@ positions from `npm run calreport`, which quotes n40 grand-mean centers with
 standard errors — quoting a smaller nested window's mean as "the center" was
 an error the third review caught, twice, in our own write-up. The pre-texture
 FTA-low and 3P%-high residuals PASS after the texture re-tune):
-- **CURRENT STATE (integration era — measured 2026-07-28 at the
+- **CURRENT STATE (B2 game-state era — measured 2026-07-28 at the
+  `mech/game-state` landing `4bd7a72`; the mechanics points are the tune
+  pair `21e703d` (coupling live) / `5cd67d0` (concede live), and
+  `4bd7a72` re-baselines the 24-seed goldens + measured noise floor at
+  the landed defaults — its diff is the drift record (AGENTS §4.4).
+  Out-of-repo citations below ("b2-…" / "design-…" findings) follow the
+  branch commit-message convention: the swarm run's findings files.
+  Re-measure commands per finding.):**
+  - **What ships — game-state coupling (W17), concept 7 (SCORE
+    PRESSURE, `sim/ai/concepts.ts`), two channels under one master
+    (`ai.scorePressureScale`, sweep-registered [0.5, 1.5]).**
+    **Channel 1 (continuation press/coast tilt): measured NULL, kept
+    at 0.** The fit ladder ran `scorePressureTilt` ∈ {0.05, 0.10,
+    0.15, 0.20} at n=240/point on the standard-pair cohort
+    (b2-fit-tilt005/010/015/020 findings): θ — the per-quarter margin
+    mean-reversion the coupling exists to buy — never separated from
+    zero (tilt 0.10: slope +0.015 ± 0.027, the design's target band
+    excluded at ≈3 se; tilt 0.20: θ 0.024, implied dθ/dtilt ≈ 0.09
+    per unit ⇒ landing needs tilt ≈ 1.0+, outside the mechanism's
+    meaningful range) while its side effects arrived first (fga
+    +0.61 +1.7z, tov −0.72 −3.2z at tilt 0.10). The transition
+    counterforce the design itself named cancels the yardstick
+    channel's drift; do not revive it by magnitude escalation
+    (`params.ts` records the ruling at the constant).
+    **Channel 2 (defensive intensity): LIVE at
+    `ai.scorePressureDefGain` 0.3** — the trailing team's defense
+    presses up, the leader's sags off, through the existing on-ball
+    containment gap + closeout slack (`defense.ts`; no urgency fade —
+    defense manufactures no violations). Fitted by the gain ladder
+    g ∈ {0.10, 0.20, 0.30, 0.45} at n=240/point (b2-fit-defgain*
+    findings): dθ/dg ≈ 0.27 per unit gain; at 0.30, θ =
+    0.086–0.098/quarter — inside the design band [0.07, 0.16] — with
+    ~91% of per-pairing talent drift preserved (K = 0.910 ± 0.169,
+    favorite win% 70.8 → 70.8; b2-trial-setC findings). The 0.45 wall
+    is measured: fga +0.87 over its ceiling, tov −0.89
+    (b2-fit-defgain045 findings). Do not buy θ with gain; the master
+    scale's sweep rail is the sanctioned adjustment surface.
+  - **Garbage-time concede (W18, `sim/subs.ts`): LIVE at design
+    values** (base 15 / perMin 1.0 / trailLag 4 / exit 6 / energyMin
+    25, all FEEL — design-garbagetime findings, executed as designed).
+    Final-period-only clock-scaled margin line with hysteresis; leader
+    concedes first structurally. REQUIRES the live coupling — do not
+    detach them: uncoupled, generated pools' bench-vs-bench play is
+    margin-EXPANDING and concede regressed the OOS walk's 30+ tail
+    (5.8→8.3% fam-a, 7.9→10.4% fam-b — b2-fit-concede-oos findings;
+    no trailLag value rescued it, b2-fit-lagkeep findings). On the
+    coupled engine the regression dissolves mechanistically, not by
+    masking (walk Δ30+ −0.83pp ± 1.18 — treatment BELOW control;
+    self-play 30+ −3.5pp at 1.7se; 0 adverse close/OT flips across
+    680 byte-paired games; b2-verify-concede findings).
+  - **Concept 8 (PROBE CULTURE, the pass-volume increment W19):
+    wired, STAGED at zero magnitudes.** Standalone-positive at the
+    selected 0.15/0.08 dose: +0.13 passes/poss (≈ +12/tg), fga −1.0,
+    every gated band in position (b2-fit-probe-high/-bisect
+    findings). DEFERRED at the interaction gate: joined to the live
+    coupling it is destructive — θ 0.098 → 0.038 and fixed-pool
+    talent-drift keep 0.91 → 0.26–0.28, with cohort-contingent margin
+    distortion in BOTH directions (b2-trial-setB vs -setC findings).
+    Ships zero; the flip belongs to a successor arc with the
+    interaction priced (REFACTOR W19/W28).
+  - **The landed distribution record — W14's headline gap,
+    substantially closed** (b2-landed-record findings: 680 games at
+    the shipped defaults, zero overrides, three cohorts, definitions
+    per the owning baseline files). Standard pair (n=240): mean |m|
+    **12.41** (NBA 12.58; baseline 15.31), signed sd 14.93 (NBA
+    15.64), blowout-20+ **19.2%** (NBA 19.1%), 30+ 3.8% (NBA 6.3% —
+    overshoot BELOW, the clamp-saturation note), θ **+0.098 ± 0.028**,
+    growth 48′/12′ 1.65 (sub-diffusive). OOS pairing walk (n=240):
+    mean |m| **12.20**, blowout-20+ **19.6%**, θ +0.067 ± 0.029
+    (0.1 se under the 0.07 edge — pass-with-flag, single family).
+    Self-play (n=200, zero talent gap by construction): signed sd
+    **15.52 ± 0.78** — UNDER the ~16 independence floor the
+    margin-distribution survey adjudicated as the headline gap
+    (within-game coupling now demonstrably exists; NBA's 15.64
+    includes talent spread); mean |m| 12.52 from 14.99. corr(h,a)
+    moved uniformly right but lands PARTIAL on the fixed-environment
+    criterion: +0.05…+0.12 (std +0.053, self-play +0.099, oos
+    within-cell +0.122) from baselines ≈ −0.03…−0.12, short of the
+    ≥ +0.10 line on the fixed cohorts (NBA +0.254,
+    mixture-inclusive) — registered residual (REFACTOR W24). OT share
+    2.5/2.9/3.0% across the cohorts vs the real 4.80% — still low,
+    registered residual (W25). Distributional stats stay report-only;
+    adjudicate at n≥240 (`npm run oos` prints the 60-game indicative
+    draw; the record's cohort constructions and per-game rows are in
+    the findings).
+  - **Bands at the landing: 17/17 at n=48 AND n=96 on the acceptance
+    base** (CI-mirror `npm run batch -- --games 48` gate PASS;
+    acceptance n=96 reads fga 91.3 — the `4bd7a72` commit record) —
+    **with an fga verify-base flicker noted honestly**: the 40×3
+    verify at the tip reads ONE base over the fga ceiling (swp-beta
+    92.60; alpha/gamma 17/17), and the breach moves base between
+    adjacent runs (per-base fga se ≈ 0.5 at n=40 — b2-scale-095
+    findings), so the per-base excursion is draw-level. The
+    systematic content is the CENTER: fga n40 sits at 91.81 (sd 0.61)
+    against the 92.0 ceiling at the regenerated floor (pre-B2 91.64 —
+    the coupling adds ~+0.4 fga on the cohort measurements,
+    b2-trial-setC note 3), and the scale micro-ladder 0.85–1.0
+    measured NO fga relief (b2-scale-085/090/095 findings). The
+    headroom belongs to the next coordinated re-sweep (design-coupling
+    OQ2); the staged probe is the known fga refund when it ships
+    (standalone −1.0). Registered: REFACTOR W26. Re-measure:
+    `npm run sweep -- --iters 0 --verify 40`.
+  - **Fidelity watch — star centers after the flips**
+    (b2-fidelity-watch findings: 5 × 40-game bases per star plus a
+    paired-seed attribution run `21e703d` → `5cd67d0`; per the
+    pre-approved watch protocol nothing was nudged). The 12-game z=3
+    gate is GREEN 18/18 — as the design predicted, it cannot see
+    shifts of this size. Concede's own minutes effect on the star
+    fixtures: **−1.0/−1.1/−1.4 min/g** (Curry/LeBron/Jokić; design
+    predicted −0.8…−1.3 — Jokić slightly over), and the blowout-rest
+    bimodality is real (generated-roster top-5 minutes grow a
+    secondary mass at 24–28 min/g — b2-fit-concede-oos §5). Center
+    ledger at HEAD: **4 pre-existing** outside profile edges, none
+    B2-caused (Jokić TRB 9.62 vs its 10.0 EARNED floor, ≈2.9se out —
+    predates B2 at the same depth; Jokić FG% 50.3% vs 52; Jokić post
+    shots 1.00 vs 1.8 — the long-standing largest residual, slightly
+    deeper; LeBron FG% 47.8% vs 50) and **2 NEW statistically ON
+    their edges** (0.1se each): Jokić AST 6.98 vs its 7.0 floor
+    (≈ −0.3 of the slide concede-attributable on paired seeds) and
+    Curry TRB 3.52 vs 3.5 (NOT concede-attributable — coupling-era /
+    composite drift). B2 improvements for the ledger: Jokić 3PA back
+    inside, LeBron 3PA ratchet now met, Curry AST off its ceiling.
+    Owner ruling (accept garbage-rested centers per the design's
+    counterpoint vs nudge fixture `rotationMinutes`) remains open —
+    a nudge would not fix the four pre-existing misses. Registered:
+    REFACTOR W29. Re-measure: `npm run fidelity -- --games 40` (the
+    single `fid` draw prints 5 enforced FAILs — draw-level; adjudicate
+    centers on multiple bases per §4.4).
+- **B1 INTEGRATION STATE (historical — measured 2026-07-28 at the
   `calib/integration` landing; the measurement point is the winner bake
   `7e05c97` (commits after it are docs/comment-only, fingerprint-identical).
+  Superseded where they overlap by the B2 game-state block above — the
+  margin-distribution and pass-volume rows below record the diagnosis
+  whose mechanics B2 landed/deferred.
   Magnitudes from the noise floor re-baselined in the winner commit;
   positions from the landing verification runs quoted per finding —
   `npm run calreport` n40 centers at the new floor are the one read not
@@ -733,6 +885,10 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
     report-only; the B2 mechanism rows own the fix (score-pressure
     coupling + garbage-time rotation, REFACTOR register — designs
     ready, design-coupling / design-garbagetime findings).
+    **B2 update (2026-07-28): LANDED** — channel-2 coupling live at
+    g=0.3 + concede live; the measured record is the B2 block above
+    (std mean |m| 12.41, blowout-20+ 19.2%, self-play signed sd 15.52
+    — the ~16 independence floor beaten).
   - **Pass volume: reference corrected and cited; the gap is an open
     mechanism item.** The cited real rate is ~2.84-2.86
     passes/possession (2023-24: 281.3 passes made per team-game, ÷ ~99
@@ -751,6 +907,10 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
     findings: an early-shot-clock probe window coordinated with a
     riskBase re-price, ~+25 passes/team-game as the honest first step —
     the full gap is a multi-phase arc, not one knob).
+    **B2 update (2026-07-28):** the probe window is WIRED and STAGED
+    at zero magnitudes — standalone-positive but deferred at the
+    measured probe×coupling interaction gate (the B2 block above;
+    REFACTOR W19/W28).
   - **Out-of-sample distributional state — adjudicate at n≥240; the
     60-game default is ±2 draw noise on these stats.** The
     margin-distribution survey re-measured the oos pool at n=240
@@ -901,6 +1061,17 @@ the wave-2 landing regressed this report and did not re-run it (avg
 margin 15.1 / blowout 32% / close 17% documented 2026-07-27 — itself a
 60-game draw that overstated the close-share and mean misses; REFACTOR
 register W14 holds the record). One-generated-set caveat stands.
+**B2 game-state landing update (2026-07-28, `4bd7a72`):** the
+adjudicated-scale read now exists at the shipped defaults — the OOS
+pairing-walk cohort at n=240 (b2-landed-record findings, the oos.ts
+pool + pairing walk replicated exactly; games 0–11 byte-identical to
+`npm run oos -- --seed b2oos-a --games 12`) measures mean |m| 12.20 /
+blowout-20+ 19.6% / close 26.7% / OT 2.9% vs real 12.58 / 19.1% /
+23.3% / 4.80%, bands 16/17 with the family's own documented pool-draw
+pace miss, identical in kind to its baseline (not regressed). The
+margin/blowout misses W14 recorded are substantially closed; OT stays
+low (registered residual W25). The 60-game `npm run oos` default
+remains an indicative draw.
 
 **Texture (measured by `npm run texture`; latest read 2026-07-28 at the
 landing, 8 games, single base — indicative per §4.4):** average live speed
@@ -914,7 +1085,10 @@ ft/s-vs-mph confusion whose full record is in the friction-signature
 history above), 6.40 ft/s on 2026-07-27. Stationary share 33%, ping-pong
 share of passes 11.3% (was 26.8% pre-increment — the eye-test oscillation,
 largely gone), passes/possession 1.97 vs the cited NBA ~2.84-2.86 (see the
-pass-volume finding above) — the damping overshot; open B2 mechanism item.
+pass-volume finding above) — the damping overshot; the designed probe
+window is wired and STAGED at zero, deferred at the probe×coupling
+interaction gate (B2 block; the landed cohorts measured 1.81–1.95
+passes/poss, b2-landed-record findings).
 Mechanisms: pass-back damping (concept 3's negative side), stillness
 deadbands with walked spacing moves, purposeful relocation with the denied
 shooter's baseline escape. Texture now measures the shipped default
@@ -1067,6 +1241,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 | What a rating means physically | `model/derived.ts` (curves) |
 | League rules | `rules/rulepack.ts` (data, not code) |
 | Late-game management (default ON; `endgame: false` = legacy path) | `sim/endgame.ts` + concept 6 in `sim/ai/concepts.ts` |
+| Game-state coupling (all-game score pressure) / garbage-time concede | concept 7 in `sim/ai/concepts.ts` (channel 2 consumed by `sim/ai/defense.ts`) / the concede branch in `sim/subs.ts` |
 | Stat math | `stats/` — pure event folding |
 | Realism measurement / tuning | `harness/` |
 | Multi-game runs (seasons, matchup Monte-Carlo) | `harness/` season layer — see `docs/SEASON.md` |

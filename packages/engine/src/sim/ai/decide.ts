@@ -21,7 +21,7 @@ import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, probeCulture, scorePressure, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: ShotMoveType }
@@ -49,6 +49,12 @@ export function decideBall(s: GameState): BallAction {
   const sc = Math.max(0, s.poss.shotClock);
   let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
   if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
+  // CONCEPT 7: SCORE PRESSURE — the always-on margin lean: trailing presses
+  // the yardstick down, leading coasts it up (doctrine in ai/concepts.ts).
+  // Ordered BEFORE concept 6 — base lean first, late spike second: the two
+  // are multiplicative so value-commutative, but float order is part of the
+  // byte-stability contract.
+  continuation = scorePressure(s, h.side, continuation);
   // CONCEPT 6: GAME-STATE URGENCY (endgame layer, GameConfig.endgame only) —
   // scoreboard and game clock reshape the yardstick itself: clock-kill with
   // a lead, hurry-up when chasing, hold-for-one / 2-for-1 at period ends.
@@ -156,7 +162,12 @@ export function decideBall(s: GameState): BallAction {
   // CONCEPT 5: TEMPO — transition looks are worth extra before the defense
   // sets (flat early-offense term + the steal-break premium; concepts.ts)
   const T = tempo(s);
-  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake;
+  // CONCEPT 8: PROBE CULTURE — the early-clock probe window: swings gain,
+  // early shots lose, fading to zero by mid-clock; never in transition and
+  // never on the drive channel (doctrine in ai/concepts.ts). Both terms
+  // append at the END of their sums — float order is the byte contract.
+  const probe = probeCulture(s, sc / full);
+  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot;
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
@@ -189,7 +200,8 @@ export function decideBall(s: GameState): BallAction {
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
       + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
-      - continuation * A.passContinuationScale;
+      - continuation * A.passContinuationScale
+      + probe.swing;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,

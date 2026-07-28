@@ -11,7 +11,7 @@
 
 import type { TeamSide } from '../core/events.js';
 import { clamp } from '../core/rng.js';
-import { agent, emit, onCourt, type Agent, type GameState } from './state.js';
+import { agent, emit, onCourt, other, type Agent, type GameState } from './state.js';
 
 /**
  * Swap one on-court player for one bench player in a team's lineup slot.
@@ -62,6 +62,47 @@ function minutesPace(s: GameState, teamIdx: TeamSide, a: Agent): number | null {
   return a.secondsPlayed / Math.max(1, target * 60 * elapsed);
 }
 
+/**
+ * Garbage-time concede hysteresis — updates the per-side "this game is
+ * decided" flags (GameState.conceded) that checkSubs' concede branch reads.
+ * Called once per checkSubs pass (dead balls, the only places subs can
+ * happen); together with the unconditional crunch clear at the call site it
+ * is the only writer of s.conceded. Final scheduled period (or OT) only,
+ * matching the crunch predicate's period gate; any earlier period clears
+ * both flags (belt-and-suspenders — a stale flag also cannot survive into
+ * OT, which arrives tied and exits below the line at its first dead ball).
+ *
+ * The trigger is a clock-scaled margin line, not a flat threshold:
+ *   line(clock) = concedeMarginBase + concedeMarginPerMin × minutes left
+ * because the "safe" lead grows with remaining time (margin divergence is
+ * √t diffusion; the linear line tracks the classic safe-lead heuristics
+ * within a point or two across the window). The LEADER concedes at the
+ * line; the trailing coach holds hope concedeTrailLagPts longer — so
+ * "leader first" is structural, not scheduled. Exit sits concedeExitPts
+ * below entry: re-inserting starters is a deliberate act, not a flicker,
+ * and because the line itself falls as the clock runs, re-entry after an
+ * exit means re-stretching the lead against a falling bar. No rng, no
+ * events — a game that never crosses the line is byte-identical.
+ */
+export function updateConcede(s: GameState): void {
+  if (s.period < s.rules.periods) {
+    s.conceded[0] = false;
+    s.conceded[1] = false;
+    return;
+  }
+  const P = s.params.sub;
+  const line = P.concedeMarginBase + P.concedeMarginPerMin * (s.clock / 60);
+  for (const side of [0, 1] as TeamSide[]) {
+    const lead = s.score[side] - s.score[other(side)];
+    // the trailer's bar sits concedeTrailLagPts above the leader's
+    const enterAt = lead >= 0 ? line : line + P.concedeTrailLagPts;
+    const m = Math.abs(lead);
+    if (m >= enterAt) s.conceded[side] = true;
+    else if (m < enterAt - P.concedeExitPts) s.conceded[side] = false;
+    // inside [enterAt − concedeExitPts, enterAt): hold the current state
+  }
+}
+
 export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
   // crunch-time definition: final scheduled period (or OT), under 5 minutes
@@ -71,6 +112,14 @@ export function checkSubs(s: GameState, protect?: string): void {
     s.period >= s.rules.periods &&
     s.clock < P.crunchClockSec &&
     Math.abs(s.score[0] - s.score[1]) <= P.crunchMarginPts;
+  // GARBAGE-TIME CONCEDE, hysteresis update (once per pass, before the
+  // player loop). The order is the contract: crunch clears concede
+  // UNCONDITIONALLY — a blown-open game that tightens back into
+  // one-possession territory inside 5:00 gets its starters back through the
+  // crunch branch below no matter what the concede flags said (the 20→8
+  // collapse path rides this precedence).
+  if (crunch) s.conceded = [false, false];
+  else updateConcede(s);
 
   for (const side of [0, 1] as TeamSide[]) {
     const team = s.teams[side];
@@ -89,6 +138,31 @@ export function checkSubs(s: GameState, protect?: string): void {
             .map((sid) => agent(s, sid))
             .find((x) => !x.onCourt && !x.fouledOut && x.energy > P.crunchEnergyMin);
           if (starter) swapPlayers(s, side, a, starter);
+        }
+        continue;
+      }
+      if (s.conceded[side]) {
+        // decided game: starters come OUT, and whoever's on the bench closes
+        // it. ORDERING TRAP: this branch must sit BEFORE the fatigue/minutes
+        // rotation below — a starter benched in a conceded Q4 immediately
+        // reads behind pace with rising energy, and the controller's
+        // eager-return path would re-insert him at the very next dead ball
+        // and fight the concede forever. The `continue` suspends the fatigue
+        // rotation AND the minutes controller while the side stays conceded.
+        if (starters.has(id)) {
+          const bench = team.players
+            .map((p) => agent(s, p.id))
+            .filter((b) =>
+              !b.onCourt && !b.fouledOut && !starters.has(b.p.id) &&
+              b.energy > P.concedeEnergyMin);
+          if (bench.length > 0) {
+            // same-position preference, then most-rested (the same
+            // Number(bool) sort trick as the rotation below)
+            bench.sort((x, y) =>
+              Number(y.p.pos === a.p.pos) - Number(x.p.pos === a.p.pos) ||
+              y.energy - x.energy);
+            swapPlayers(s, side, a, bench[0]!);
+          }
         }
         continue;
       }

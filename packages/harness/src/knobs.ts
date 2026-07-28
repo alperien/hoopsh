@@ -205,7 +205,22 @@ export const SWEEPABLE: Knob[] = [
   { path: 'endgame.twoForOneCut', lo: 0.3, hi: 0.7 },
   // multiplies foul.reachInPerSec (itself swept above): the PAIR sets
   // late-game foul-parade FT volume — expect them to move together
-  { path: 'endgame.foulHuntRateMult', lo: 30, hi: 90 }
+  { path: 'endgame.foulHuntRateMult', lo: 30, hi: 90 },
+
+  // Concept 7 (score pressure) master — budgets the live channel-2
+  // defensive-intensity coupling (scale × scorePressureDefGain; the gain
+  // itself is a FITTED magnitude, θ-ladder provenance in params.ts, and
+  // stays OFF the surface — the master is the one sweep-owned dial, same
+  // shape as endgame.scale above). The lo rail is a DISTRIBUTIONAL floor,
+  // not a band-safety bound: the band objective cannot see what this knob
+  // is for — margin mean-reversion, blowout tails, corr(h,a) are
+  // distributional stats in no scoring path — so a sweep chasing league
+  // means could zero the coupling at no visible cost and silently
+  // re-fatten the 30+ tail. 0.5 keeps at least half the fitted reversion;
+  // the oos distributional report is the backstop that catches drift the
+  // bands can't. Same doctrine as the ai.swingBase cap above ("bands
+  // cannot see creation structure").
+  { path: 'ai.scorePressureScale', lo: 0.5, hi: 1.5 }
 ];
 
 /** set a dot-path on a nested object (mutates) */

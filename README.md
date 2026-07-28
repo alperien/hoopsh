@@ -145,17 +145,21 @@ stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
 endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
 burn) — default ON since the calib/integration landing, decided on measured
 survey evidence (`endgame: false` = the byte-identical legacy path) ·
+game-state coupling (trailing-team defensive pressure + garbage-time concede
+rotation) — landed at the mech/game-state landing, magnitudes fitted and
+verified by measurement; the distribution record and residuals live in
+docs/INTERNALS.md ·
 NCAA rule pack behind the harness `--league` flag (partially wired — see
 REFACTOR.md's register)
 
 **Phase 2R (current — tuning, not building):** the mechanics above are implemented
-and wired. The coordinated re-sweep of the integrated engine and the endgame-flag
-decision both landed at the calib/integration landing (first full 17/17 band
-lock); the open work is the B2 mechanism items (score-pressure coupling,
-garbage-time rotation, pass volume), fidelity residuals (hub post-up share), and
-the open items in REFACTOR.md's register.
+and wired. The coordinated re-sweep, the endgame-flag decision (first full 17/17
+band lock), and the B2 game-state coupling all landed on measured evidence; the
+open work is the pass-volume arc (the probe mechanism is wired but ships staged
+at zero — deferred at a measured interaction gate), fidelity residuals (hub
+post-up share), and the open items in REFACTOR.md's register.
 
-**Next (validation arc):** mechanism audit of the distributional misses ·
+**Next (validation arc):**
 30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
 windows) · prediction backtest (Brier, calibration curves) via the season layer ·
 sourced NBA data in-repo with provenance, bands/targets generated not typed ·
