@@ -29,6 +29,15 @@ export interface BatchOptions {
    * home-side effects in isolation.
    */
   mirror?: boolean;
+  /**
+   * Force GameConfig.endgame ON (or OFF) for every game in the batch;
+   * omitted = the key is not passed at all, so games run whatever default
+   * the engine ships (`cfg.endgame ?? …`, sim/game.ts). Forcing ON is the
+   * flag-on acceptance measurement (REFACTOR.md W2's re-sweep); omission
+   * keeps a default batch grading the config that actually ships, whichever
+   * way the coordinated default flip lands.
+   */
+  endgame?: boolean;
   onGame?: (i: number, box: BoxScore) => void;
 }
 
@@ -48,7 +57,8 @@ export function runBatch(opts: BatchOptions): Accumulator {
       seed: `${base}-${i}`,
       home: flip ? away : home,
       away: flip ? home : away,
-      collectFrames: false
+      collectFrames: false,
+      ...(opts.endgame === undefined ? {} : { endgame: opts.endgame })
     });
     const box = boxScore(result.events, [flip ? away : home, flip ? home : away]);
     accumulate(acc, box);

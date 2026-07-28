@@ -67,6 +67,11 @@ const WORKER = path.join(HERE, 'run-worker.ts');
 export interface GameTaskResults {
   /** slim box summary — exactly the fields aggregate.ts's accumulate() reads */
   batch: TeamGameSummary;
+  /** same as `batch`, but simulated with the endgame layer FORCED ON — the
+   *  flag-on acceptance-band measurement the coordinated re-sweep needs
+   *  (REFACTOR.md W2; the flag-on survey had to hand-roll this exact loop).
+   *  A separate TASK for the same reason as flowEndgame below. */
+  batchEndgame: TeamGameSummary;
   /** per-game flow metrics — reduce with flow-metrics.ts's reduceFlows() */
   flow: GameFlow;
   /** same as `flow`, but simulated with the endgame layer ON — the off/on
@@ -89,28 +94,44 @@ export type GameTaskName = keyof GameTaskResults;
  * teams for EVERY league until an NCAA roster generator exists (see
  * data/ncaa/README.md §6.4 — deliberate, and why NCAA reports read as
  * "NBA players under college rules").
+ *
+ * `endgame` semantics: `true` FORCES the endgame layer on; `undefined` OMITS
+ * the key so the game runs whatever GameConfig.endgame default the engine
+ * ships (`cfg.endgame ?? …`, sim/game.ts). Omission — not an explicit false —
+ * is deliberate: the default flip is a coordinated engine change (REFACTOR.md
+ * W2), and the default-config tasks here must keep grading the config that
+ * actually ships, whichever way that flip lands. Identical behavior today
+ * (the shipped default is OFF).
  */
-function playGame(seed: string, flip: boolean, league: LeagueConfig, endgame = false): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
+function playGame(seed: string, flip: boolean, league: LeagueConfig, endgame?: boolean): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
   const def = sampleMatchup();
   const home = flip ? def.away : def.home;
   const away = flip ? def.home : def.away;
-  const result = simulateGame({ seed, home, away, rules: league.rules, collectFrames: false, endgame });
+  const result = simulateGame({
+    seed, home, away, rules: league.rules, collectFrames: false,
+    ...(endgame === undefined ? {} : { endgame })
+  });
   return { events: result.events, teams: [home, away] };
+}
+
+/** shared body of the batch / batchEndgame tasks — one code path so the
+ *  flag-on measurement can never drift from the default-config gate */
+function batchSummary(seed: string, flip: boolean, league: LeagueConfig, endgame?: boolean): TeamGameSummary {
+  const { events, teams } = playGame(seed, flip, league, endgame);
+  // pace normalizes to the league's own regulation minutes (poss/48 NBA,
+  // poss/40 NCAA) so it lands in the same convention its band is stated in
+  const box = boxScore(events, teams, { paceMinutes: league.paceMinutes });
+  // ship ONLY what accumulate() reads — drops per-player lines and shot
+  // events from the IPC payload (a full BoxScore would still be correct,
+  // just needlessly large)
+  return { teams: box.teams, pace: box.pace };
 }
 
 type GameTaskFns = { [K in GameTaskName]: (seed: string, flip: boolean, league: LeagueConfig) => GameTaskResults[K] };
 
 const GAME_TASKS: GameTaskFns = {
-  batch: (seed, flip, league) => {
-    const { events, teams } = playGame(seed, flip, league);
-    // pace normalizes to the league's own regulation minutes (poss/48 NBA,
-    // poss/40 NCAA) so it lands in the same convention its band is stated in
-    const box = boxScore(events, teams, { paceMinutes: league.paceMinutes });
-    // ship ONLY what accumulate() reads — drops per-player lines and shot
-    // events from the IPC payload (a full BoxScore would still be correct,
-    // just needlessly large)
-    return { teams: box.teams, pace: box.pace };
-  },
+  batch: (seed, flip, league) => batchSummary(seed, flip, league),
+  batchEndgame: (seed, flip, league) => batchSummary(seed, flip, league, true),
   flow: (seed, flip, league) => gameFlow(playGame(seed, flip, league).events, league.rules),
   flowEndgame: (seed, flip, league) => gameFlow(playGame(seed, flip, league, true).events, league.rules)
 };
