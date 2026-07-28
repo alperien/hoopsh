@@ -2,57 +2,58 @@
  * The bounded-rationality layer, consolidated (INTERNALS design rule 2).
  *
  * The EV core (shotEV / passRisk / the drive option price) is self-consistent
- * with resolution — but real players are not EV-optimizers; they run DRILLED
- * BEHAVIORS. Every non-EV bias in decideBall used to be its own hand-shaped
+ * with resolution, but real players are not EV-optimizers; they run drilled
+ * behaviors. Every non-EV bias in decideBall used to be its own hand-shaped
  * patch (both external reviews called them epicycles, correctly). They are
- * now EIGHT named concepts, each modeling one drilled behavior, each with a
- * MASTER SCALE in params.ai (default 1.0) so the sweep can budget an entire
- * concept — and the whole layer is measured, not assumed small (the
- * decision-vs-EV divergence metric in the harness).
+ * now eight named concepts, each modeling one drilled behavior, each with a
+ * master scale in params.ai (default 1.0) so the sweep can budget an entire
+ * concept. The whole layer is measured rather than assumed small: see the
+ * decision-vs-EV divergence metric in the harness.
  *
- *   1. DECISIVENESS (decisivenessScale) — a drilled shot fires in its trigger
- *      context: the open catch-and-shoot three, the transition pull-up, the
- *      worked post move, the conceded mid-range jumper. Green-light-gated:
+ *   1. Decisiveness (decisivenessScale): a drilled shot fires in its trigger
+ *      context (the open catch-and-shoot three, the transition pull-up, the
+ *      worked post move, the conceded mid-range jumper). Green-light-gated:
  *      it belongs to shooters/post threats/mid-range artists, never to the
- *      player the defense WANTS shooting.
- *   2. ACTION COMMITMENT (actionCommitScale) — a called action is a plan:
- *      its designed payoff is preferred (entry feed, handoff, attack off the
+ *      player the defense wants shooting.
+ *   2. Action commitment (actionCommitScale): a called action is a plan.
+ *      Its designed payoff is preferred (entry feed, handoff, attack off the
  *      screen/clear-out) and its carrier waits for it to arrive (screen
  *      coming, DHO sprint, the post backdown, the live drive maturing).
- *   3. ADVANCE THE ADVANTAGE (advantageScale) — passes that improve the
- *      TEAM's position beyond the receiver's immediate shot: hitting a
+ *   3. Advance the advantage (advantageScale): passes that improve the
+ *      team's position beyond the receiver's immediate shot: hitting a
  *      cutter, swinging the ball, routing up the creation hierarchy.
- *   4. USAGE PRESSURE (usageGainEV — its own closed loop in decideBall) —
- *      load is identity: the gap between a player's target share and his
- *      realized share biases self-creation. Kept where the loop lives.
- *   5. TEMPO (tempoScale) — transition urgency: looks are worth more before
+ *   4. Usage pressure (usageGainEV, its own closed loop in decideBall):
+ *      load is part of a player's identity, so the gap between his target
+ *      share and his realized share biases self-creation. Kept where the
+ *      loop lives.
+ *   5. Tempo (tempoScale): transition urgency. Looks are worth more before
  *      the defense sets, and the window closes fast.
- *   6. GAME-STATE URGENCY (params.endgame.scale — the endgame layer,
- *      GameConfig.endgame only) — the game clock and scoreboard reshape the
- *      CONTINUATION VALUE itself: a leading team's live possession is worth
+ *   6. Game-state urgency (params.endgame.scale, the endgame layer,
+ *      GameConfig.endgame only): the game clock and scoreboard reshape the
+ *      continuation value itself. A leading team's live possession is worth
  *      more unspent (clock-kill), a chasing team's is worth less (hurry),
- *      the period horn is a second shot clock (last shot / 2-for-1). Never
- *      a play call — the same softmax over the same utilities, with the
- *      yardstick moved.
- *   7. SCORE PRESSURE (scorePressureScale) — the all-game margin lean:
- *      trailing presses (the continuation yardstick drops, good-not-great
- *      looks fire earlier), leading coasts (it rises, the leader works
+ *      and the period horn is a second shot clock (last shot / 2-for-1).
+ *      Never a play call: the same softmax over the same utilities, with
+ *      the yardstick moved.
+ *   7. Score pressure (scorePressureScale): the all-game margin lean.
+ *      Trailing presses (the continuation yardstick drops, good-not-great
+ *      looks fire earlier); leading coasts (it rises, the leader works
  *      longer). Linear through a tie, saturating at the margin ref; no
- *      flag, no clock window, no aliveness gate — garbage time keeps the
- *      coupling on purpose. TWO channels under the one master: the
+ *      flag, no clock window, no aliveness gate, and garbage time keeps
+ *      the coupling on purpose. Two channels under the one master: the
  *      continuation tilt (offense, urgency-faded) and the defensive-
  *      intensity gap/slack lean (defense.ts on-ball containment,
- *      deliberately NOT faded — the doctrine at scorePressureDefMult).
- *   8. PROBE CULTURE (probeScale) — early-clock swing appetite: the first
+ *      deliberately not faded; the doctrine at scorePressureDefMult).
+ *   8. Probe culture (probeScale): early-clock swing appetite. The first
  *      ~5 s of set offense are pass-friendly and shot-averse (probe the
  *      defense before attacking it); ramps to zero by mid-clock, never in
  *      transition, never on the drive channel.
  *
- * Contract for byte-stable refactors: these functions return the SAME terms
- * the inline sites used to compute, in component form — call sites add them
- * in the original order (floating-point addition is order-sensitive; the
- * consolidation must not silently re-tune the engine). At master scale 1.0
- * every term is exactly its pre-consolidation value.
+ * Contract for byte-stable refactors: these functions return the same terms
+ * the inline sites used to compute, in component form, and call sites add
+ * them in the original order (floating-point addition is order-sensitive;
+ * the consolidation must not silently re-tune the engine). At master scale
+ * 1.0 every term is exactly its pre-consolidation value.
  *
  * Each term's incident history (what broke without it, what flooding it
  * ungated caused) stays in comments on the term that earned it.
@@ -74,52 +75,52 @@ type ShotMove = ShotMoveType;
  * Drilled green-light shots. At most one term fires (the contexts are
  * mutually exclusive by shotMove), so this returns a single addition.
  *
- * catch-and-shoot: a genuinely OPEN three off the catch is the payoff of
- * ball movement — letting it fly is drilled behavior, and without this term
+ * catch-and-shoot: a genuinely open three off the catch is the payoff of
+ * ball movement. Letting it fly is drilled behavior, and without this term
  * the continuation value talks every receiver out of shooting (kicks die in
  * re-swings and creators never earn assists). Two gates, both from
- * incidents: contest < 0.5 so only the CREATED advantage fires, not an
- * ordinary swing catch (ungated: pace 133 vs band 95-103); three-point zone
- * only, because the drilled catch-and-shoot is a JUMP-SHOT concept — paint
+ * incidents. Contest < 0.5, so only the created advantage fires, not an
+ * ordinary swing catch (ungated: pace 133 vs band 95-103). Three-point zone
+ * only, because the drilled catch-and-shoot is a jump-shot concept: paint
  * catches are finishes the cut machinery already values, and applying the
  * bonus there flooded the rim and sank 3PA share to 26%. Scaled by the
  * shooter's own three-point appetite with a hard floor at tendency 25: the
- * green light belongs to shooters — a sagged-off big is OPEN precisely
+ * green light belongs to shooters, and a sagged-off big is open precisely
  * because the defense wants him shooting (unscaled, he obliged: bigs
  * chucked ~9% of their FGA from deep and league 3P% sagged).
  *
  * transition pull-up: before the defense sets, a rhythm three off the
- * dribble is a drilled shot for shooters — the trailer/early-offense three
- * a drive-first star actually takes (his halfcourt threes are conceded to
- * the rim threat). Green-light gated identically; without this the downhill
- * benchmark attempted 0.7 threes against a real 5-7.
+ * dribble is a drilled shot for shooters. It is the trailer/early-offense
+ * three a drive-first star actually takes (his halfcourt threes are conceded
+ * to the rim threat). Green-light gated identically; without this the
+ * downhill benchmark attempted 0.7 threes against a real 5-7.
  *
- * worked post move: after the backdown the turnaround is the plan — without
+ * worked post move: after the backdown the turnaround is the plan. Without
  * this the spray won 8:1 and post scoring never materialized.
  *
- * mid-range game: the conceded in-between jumper — the elbow pull-up over a
+ * mid-range game: the conceded in-between jumper. The elbow pull-up over a
  * defender who went under or sat in drop, the pick-and-pop 16-footer the sag
- * leaves open. Deliberately the one drilled shot whose EV does NOT clear the
+ * leaves open. Deliberately the one drilled shot whose EV does not clear the
  * continuation bar on its own (a three is worth more; the make model prices
  * that honestly, and buffing it to ~65% from 16 ft would be the wrong fix):
- * real mid-range volume is an IDENTITY fact — the artists take it because it
- * is their shot and the defense offers it all game — so the decision layer is
+ * real mid-range volume is an identity fact, the artists take it because it
+ * is their shot and the defense offers it all game, so the decision layer is
  * where it lives. Pre-term the shot was structurally extinct: argmax in 0 of
  * 780 instrumented decisions at 17-20 ft, mid share 1.4% vs the real 6.8%,
- * and the few "mid" attempts were 20-ft arc-toes. Three gates, all earned:
- * contest < midContestCeil (the drilled middy is a shot the defense at least
- * PARTLY concedes — the ceiling sits above the arc gate's 0.5 because the mid
+ * and the few "mid" attempts were 20-ft arc-toes. Three gates, all earned.
+ * Contest < midContestCeil: the drilled middy is a shot the defense at least
+ * partly concedes; the ceiling sits above the arc gate's 0.5 because the mid
  * game definitionally lives in front of drop coverage, a defender in the
- * picture; truly smothered it is the bad habit contestBrake already taxes);
- * the shared mid green light (ai/shared.ts midGreenLight — zero for
- * rim-runners, whose open 16-footer is the defense's win); and distance ≤
+ * picture, and a truly smothered look is the bad habit contestBrake already
+ * taxes. The shared mid green light (ai/shared.ts midGreenLight): zero for
+ * rim-runners, whose open 16-footer is the defense's win. And distance ≤
  * midGreenMaxFt, because the
  * drilled shot is the 14-19.5 ft game, not the 20-23 ft long 2 modern
  * offenses removed (ungated by distance the term would amplify the corner-
- * spot junk 2 at ~21.6 ft — the D3 trickle — and the restored "mid-range"
+ * spot junk 2 at ~21.6 ft, the D3 trickle, and the restored "mid-range"
  * would still be all arc-toes). The pull-up flavor is additionally scaled by
  * tend.pullUp (self-creation off the dribble is its own appetite); the
- * catch-and-shoot flavor is not (the pop catch IS the trigger — a pop big
+ * catch-and-shoot flavor is not (the pop catch is the trigger; a pop big
  * like the postAnchor fixture has pullUp 12 but the elbow face-up is his
  * bread and butter).
  */
@@ -140,15 +141,15 @@ export function decisiveness(
     (h.spotKey === 'elbow_l' || h.spotKey === 'elbow_r') &&
     (shotMove === 'catch_shoot' || (shotMove === 'pull_up' && h.dribblesSinceCatch === 0))
   ) {
-    // the worked elbow shot: an elbow station is reachable ONLY through
+    // the worked elbow shot: an elbow station is reachable only through
     // the identity-gated routes (the short pop and the elbow assignment,
-    // both cut on the same mid score), so — exactly like the worked post
-    // move — the plan itself is the green light and the bonus is flat.
-    // It covers the quick catch-and-shoot AND the patient catch-and-FACE
-    // (zero dribbles: survey, rise — the delayed rise is still the
+    // both cut on the same mid score), so, exactly like the worked post
+    // move, the plan itself is the green light and the bonus is flat.
+    // It covers the quick catch-and-shoot and the patient catch-and-face
+    // (zero dribbles: survey, then rise; the delayed rise is still the
     // station's drilled shot, and the make model already charges it the
-    // pull-up difficulty). A LIVE-dribble pull-up is genuinely different —
-    // self-creation — and falls through to the tendency-gated term below
+    // pull-up difficulty). A live-dribble pull-up is self-creation and
+    // falls through to the tendency-gated term below
     // (probe: 38 of 56 elbow-station decisions came after the 0.9 s catch
     // window and died against a zero pullUp gate, which is wrong for a
     // face-up big whose pullUp dial correctly says "no off-dribble game").
@@ -158,7 +159,7 @@ export function decisiveness(
     zone === 'mid' && distFt <= A.midGreenMaxFt &&
     (shotMove === 'pull_up' || shotMove === 'catch_shoot')
   ) {
-    // joint identity gate for pull-ups (midPullUpLight — the doctrine and
+    // joint identity gate for pull-ups (midPullUpLight; the doctrine and
     // the zero-veto/geometric-mean reasoning live on the helper in
     // ai/shared.ts, shared with the drive stop-short so the snake and the
     // rise belong to the same player); catches gate on the mid appetite
@@ -172,19 +173,19 @@ export function decisiveness(
 // --------------------------------------- 2. ACTION COMMITMENT (pass/drive/hold)
 
 /**
- * The called action's designed PASS payoff, plus the target flags the call
+ * The called action's designed pass payoff, plus the target flags the call
  * site needs for passKind selection.
  *
- * entry: a big posted and settled on the block wants the entry — the feed is
- * the whole point of the action (any current holder may throw it).
- * handoff: once the DHO receiver has sprinted into range, handing it off IS
- * the play — the catch stuns his trailing defender (passing.ts).
- * pop throwback: the handler comes off the screen reading the BIG. The roll
+ * entry: a big posted and settled on the block wants the entry; the feed is
+ * the point of the action (any current holder may throw it).
+ * handoff: once the DHO receiver has sprinted into range, handing it off is
+ * the play; the catch stuns his trailing defender (passing.ts).
+ * pop throwback: the handler comes off the screen reading the big. The roll
  * half of that read was already priced (the roll is a cut, so the pocket
  * pass earns the cutter bonus); the pop half had no designed feed, so the
  * popped big stood at the elbow unused (probe: the short pop produced swing
- * stations, not shots). Arrival-gated like the entry — the throwback goes
- * to a popper standing AT his spot, not one mid-relocation.
+ * stations, not shots). Arrival-gated like the entry: the throwback goes
+ * to a popper standing at his spot, not one mid-relocation.
  */
 export function commitmentPass(
   s: GameState, h: Agent, m: Agent, act0: Action
@@ -212,9 +213,9 @@ export function commitmentPass(
 }
 
 /**
- * The called action's designed DRIVE payoff. At most one fires (an action
- * has one kind): attacking off a live screen is the whole point of calling
- * for it; a cleared side is an invitation — the iso call is a commitment to
+ * The called action's designed drive payoff. At most one fires (an action
+ * has one kind). Attacking off a live screen is the point of calling for
+ * it; a cleared side is an invitation, and the iso call is a commitment to
  * attack.
  */
 export function commitmentDrive(s: GameState, holderId: string, act0: Action): number {
@@ -229,29 +230,30 @@ export function commitmentDrive(s: GameState, holderId: string, act0: Action): n
 }
 
 /**
- * The carrier's PATIENCE while his action matures — hold boosts, returned as
+ * The carrier's patience while his action matures: hold boosts, returned as
  * components the call site adds in its original order.
  *
  * driveHold: mid-drive, keep attacking. The collapse option priced at launch
- * is still maturing while the dribble is live — without this, hold falls to
+ * is still maturing while the dribble is live; without this, hold falls to
  * the halfcourt baseline one tick after launch and every drive ends in an
  * instant kick before the help ever commits. Scaled by remaining drive
- * seconds (capped at 1s): strong at launch, gone by the terminal decision —
- * penetrate first, THEN finish or spray. A flat boost instead suppresses the
- * kick outright and drives die at the rim in contested junk.
+ * seconds (capped at 1s): strong at launch, gone by the terminal decision,
+ * so the drive penetrates first and then finishes or sprays. A flat boost
+ * instead suppresses the kick outright and drives die at the rim in
+ * contested junk.
  *
- * wait: a screen is on its way — wait for it instead of swinging the ball
+ * wait: a screen is on its way; wait for it instead of swinging the ball
  * away (audit: without this, the handler passed before 93% of screens
- * arrived). A live DHO of mine gets the same "wait for the action to
- * arrive" semantics while the receiver sprints in.
+ * arrived). A live DHO of mine gets the same wait-for-the-action-to-arrive
+ * semantics while the receiver sprints in.
  *
- * postWork: the backdown — a post player who just caught the entry works his
+ * postWork: the backdown. A post player who just caught the entry works his
  * position for a beat before the shoot-or-spray decision (same shape as the
  * drive hold: the advantage is still maturing while he carves out space).
- * The self-post walk-down gets the same commitment: he CALLED this action —
- * without the boost, a high-vision hub passed away mid-dribble on nearly
- * every self-post and the call never reached the block (fidelity incident:
- * 1.2 post shots/game for a 92-post-tendency center).
+ * The self-post walk-down gets the same commitment, since he called this
+ * action: without the boost, a high-vision hub passed away mid-dribble on
+ * nearly every self-post and the call never reached the block (fidelity
+ * incident: 1.2 post shots/game for a 92-post-tendency center).
  */
 export function commitmentHold(
   s: GameState, h: Agent, act0: Action, postingUp: boolean, driving: boolean
@@ -283,18 +285,18 @@ export function commitmentHold(
 // -------------------------------------- 3. ADVANCE THE ADVANTAGE (pass)
 
 /**
- * Passes that improve the TEAM's position beyond the receiver's own shot,
+ * Passes that improve the team's position beyond the receiver's own shot,
  * returned as components the call site adds in its original order.
  *
  * cutter: hitting an active cutter is the highest-leverage read in motion
  * offense. swing: ball movement has baseline value (swingBase) shaped by the
- * passer's willingness (passOut) and vision. pull: re-initiation — routing
- * the ball UP the creation hierarchy has value beyond the receiver's own
- * shot (he creates the NEXT action). Relative and clamped at zero: the
- * primary feels no pull toward lesser handlers, but passing DOWN is never
- * penalized — a kick-out is judged on shot merit alone (penalizing it
+ * passer's willingness (passOut) and vision. pull: re-initiation. Routing
+ * the ball up the creation hierarchy has value beyond the receiver's own
+ * shot, since he creates the next action. Relative and clamped at zero: the
+ * primary feels no pull toward lesser handlers, but passing down is never
+ * penalized, and a kick-out is judged on shot merit alone (penalizing it
  * produced a ball-stopping primary). Clock-scaled: hierarchy is an
- * early-offense concept — as the clock drains, shot value takes over.
+ * early-offense concept, and shot value takes over as the clock drains.
  */
 export function advantagePass(
   s: GameState, h: Agent, m: Agent, cutting: boolean, shotClockShare: number
@@ -307,8 +309,8 @@ export function advantagePass(
     ((h.p.attr.passVision - 50) / 100) * A.swingVisionScale;
   const pull =
     (Math.max(0, creation(m) - creation(h)) / 100) * A.playmakerScale * shotClockShare;
-  // the negative side of advancing: an immediate return pass UNDOES it —
-  // it recreates the geometry the last pass just left. Freshness-decayed;
+  // the negative side of advancing: an immediate return pass undoes it by
+  // recreating the geometry the last pass just left. Freshness-decayed;
   // a true give-and-go survives because the returner is cutting (the
   // cutter term prices the advancing half of the play). Texture incident:
   // 26.8% of all passes were A->B->A returns inside 3s before this term.
@@ -328,39 +330,39 @@ export function advantagePass(
 // ------------------------------------- 6. GAME-STATE URGENCY (continuation)
 
 /**
- * The endgame layer's ball-handler half (GameConfig.endgame only — decide.ts
+ * The endgame layer's ball-handler half (GameConfig.endgame only; decide.ts
  * never calls this on the default path, so flag-off is byte-identical).
  *
  * The base continuation curve assumes an endless game: "what the remaining
  * shot-clock seconds are worth" with no scoreboard and no horn. Real late-
  * game basketball is exactly the places that assumption breaks, so every
- * behavior here is a reshaping of that ONE number — the yardstick every
- * action is already measured against — rather than any new action:
+ * behavior here is a reshaping of that one number, the yardstick every
+ * action is already measured against, rather than any new action:
  *
- *  - HORN COLLAPSE: the period clock is a second shot clock. Inside the
- *    urgency window of the HORN, the continuation collapses the same way it
+ *  - Horn collapse: the period clock is a second shot clock. Inside the
+ *    urgency window of the horn, the continuation collapses the same way it
  *    already does for the shot clock (min of the two governs). Without
  *    this, a team catching the ball with 8 s in a period idles into the
  *    heave check; with it, quarter endings produce a real last shot.
- *  - CLOCK-KILL (leading, final period): every second burned is worth
- *    points — the opponent's chase needs possessions and the clock is
- *    denying them. Continuation RISES (ramping toward the horn, fading in
- *    blowouts), so early-clock looks that used to fire now lose to "keep
- *    working" and the possession drains to the urgency window before the
- *    offense attacks: milk to ~:07, then play. The boost itself fades
- *    inside the urgency window (holdFade) — late-clock offense is
- *    UNCHANGED, so shot-clock violations don't spike.
- *  - HURRY (trailing, final period): the mirror image — a chasing team's
- *    unspent seconds are a cost, not an asset. Continuation FALLS by the
- *    shared hurriedness signal (sim/endgame.ts: clock ramp × deficit depth
+ *  - Clock-kill (leading, final period): every second burned is worth
+ *    points, because the opponent's chase needs possessions and the clock
+ *    is denying them. Continuation rises (ramping toward the horn, fading
+ *    in blowouts), so early-clock looks that used to fire now lose to
+ *    "keep working" and the possession drains to the urgency window before
+ *    the offense attacks: milk to ~:07, then play. The boost itself fades
+ *    inside the urgency window (holdFade), so late-clock offense is
+ *    unchanged and shot-clock violations don't spike.
+ *  - Hurry (trailing, final period): the mirror image. A chasing team's
+ *    unspent seconds are a cost. Continuation falls by the shared
+ *    hurriedness signal (sim/endgame.ts: clock ramp × deficit depth
  *    × chase-aliveness), so good-not-great early looks fire immediately.
- *  - HOLD FOR ONE: inside ~one possession of any period's horn (and, in the
- *    final period, only when tied/leading or down ≤ lastShotDeficitMax —
+ *  - Hold for one: inside ~one possession of any period's horn (and, in the
+ *    final period, only when tied/leading or down ≤ lastShotDeficitMax;
  *    down 4+ the hurry keeps the wheel), deny the opponent a rebuttal:
  *    continuation rises until the horn collapse releases the last shot.
- *  - 2-FOR-1 (non-final periods): in the ~0:28-0:38 window, acting early
- *    buys a whole extra possession, so the remaining seconds of THIS
- *    possession are worth less — a tent-shaped continuation cut produces
+ *  - 2-for-1 (non-final periods): in the ~0:28-0:38 window, acting early
+ *    buys a whole extra possession, so the remaining seconds of this
+ *    possession are worth less. A tent-shaped continuation cut produces
  *    the early, slightly-worse shot that real 2-for-1 hunting is.
  */
 export function endgameContinuation(
@@ -372,16 +374,16 @@ export function endgameContinuation(
   const clock = s.clock;
   let mult = 1;
 
-  // horn collapse — bring the period clock into the urgency window the base
+  // horn collapse: bring the period clock into the urgency window the base
   // curve already applies to the shot clock (factor of clamp(x/U) on the
-  // BINDING clock; divide out what the base already applied for sc)
+  // binding clock; divide out what the base already applied for sc)
   if (clock < sc) {
     const applied = sc < U ? sc / U : 1;
     const desired = clamp(clock / U, 0, 1);
     if (desired < applied) mult *= desired / Math.max(1e-6, applied);
   }
 
-  // every HOLD-side boost dies inside the urgency window: milking never
+  // every hold-side boost dies inside the urgency window: milking never
   // re-inflates a collapsing continuation (that would manufacture violations)
   const eff = Math.min(sc, clock);
   const holdFade = clamp((eff - U) / U, 0, 1);
@@ -395,20 +397,20 @@ export function endgameContinuation(
       const blowoutFade = clamp(2 - margin / E.leadHoldMarginRef, 0, 1);
       mult *= 1 + E.scale * E.leadHoldMaxBoost * ramp * blowoutFade * holdFade;
     } else if (margin === 0 && clock <= E.holdForOneClockSec) {
-      // tied, one possession left: the last shot wins the game — hold for it
+      // tied, one possession left: the last shot wins the game, so hold for it
       mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
     } else if (margin < 0) {
       const deficit = -margin;
       if (clock <= E.holdForOneClockSec && deficit <= E.lastShotDeficitMax) {
         // down one score with one possession left: the shot that ties/wins
-        // is THE possession — patience, not panic
+        // is the possession itself, so hold for it instead of hurrying
         mult *= 1 + E.scale * E.holdForOneBoost * holdFade;
       } else {
         mult *= 1 - E.scale * E.hurryMaxCut * hurriedness(s, side);
       }
     }
   } else if (clock >= E.twoForOneMinClockSec && clock <= E.twoForOneMaxClockSec) {
-    // 2-for-1: tent across the window — strongest at its center, where the
+    // 2-for-1: tent across the window, strongest at its center, where the
     // possession arithmetic is cleanest
     const mid = (E.twoForOneMinClockSec + E.twoForOneMaxClockSec) / 2;
     const half = Math.max(1e-6, (E.twoForOneMaxClockSec - E.twoForOneMinClockSec) / 2);
@@ -431,16 +433,17 @@ export function endgameContinuation(
  * Two layers, both dead once the defense is set (the phase flip at
  * transSetBackCount back is itself the state gate):
  *  - transitionBonus: the original flat early-offense term (SWEPT).
- *  - stealBreakBonus: the live-ball break premium — a steal catches the
+ *  - stealBreakBonus: the live-ball break premium. A steal catches the
  *    defense mid-offense (facing the wrong way, cross-matched, floor
  *    balance gone), a categorically better break than the push off a
- *    defensive rebound. REAL: ~1.2-1.3 PPP off steals vs ~1.05-1.1 off
- *    rebounds. Deliberately FLAT through the phase rather than scaled by
- *    defenders-back: the probe showed a headcount-scaled bonus fades
- *    exactly when the finish decision arrives (defenders got back DURING
- *    the push), gutting per-attempt quality — while the organized-vs-caught
- *    distinction the premium prices outlives the raw headcount (a defense
- *    that sprinted back off a steal is home but not matched up).
+ *    defensive rebound; real numbers run ~1.2-1.3 PPP off steals vs
+ *    ~1.05-1.1 off rebounds. Deliberately flat through the phase rather
+ *    than scaled by defenders-back: the probe showed a headcount-scaled
+ *    bonus fades exactly when the finish decision arrives (defenders got
+ *    back during the push), gutting per-attempt quality, while the
+ *    organized-vs-caught distinction the premium prices outlives the raw
+ *    headcount (a defense that sprinted back off a steal is home but not
+ *    matched up).
  */
 export function tempo(s: GameState): { shoot: number; drive: number } {
   const D = s.params.decide;
@@ -458,14 +461,14 @@ export function tempo(s: GameState): { shoot: number; drive: number } {
 // ------------------- 7. SCORE PRESSURE (continuation + defensive intensity)
 
 /**
- * The shared scoreboard read for BOTH concept-7 channels: signed pressure
- * from `side`'s own chair. + when trailing (press: the yardstick drops,
- * good-not-great looks fire earlier; the defense plays up), − when leading
- * (coast: the yardstick rises, the leader works longer; the defense sags).
- * Linear through a tie, saturating at scorePressureMarginRef — clamp, not
- * tanh (exactly reproducible arithmetic; same saturation style as
- * leadHold's clamp). Pure arithmetic over s.score + params: no rng, no
- * events, no state writes. Consumed by scorePressure (channel 1, the
+ * The shared scoreboard read for both concept-7 channels: signed pressure
+ * from `side`'s own chair. Positive when trailing (press: the yardstick
+ * drops, good-not-great looks fire earlier; the defense plays up), negative
+ * when leading (coast: the yardstick rises, the leader works longer; the
+ * defense sags). Linear through a tie, saturating at scorePressureMarginRef;
+ * clamp rather than tanh (exactly reproducible arithmetic; same saturation
+ * style as leadHold's clamp). Pure arithmetic over s.score + params: no rng,
+ * no events, no state writes. Consumed by scorePressure (channel 1, the
  * decideBall continuation) and scorePressureDefMult (channel 2, the
  * defense.ts containment posture).
  */
@@ -475,19 +478,19 @@ export function scorePressureOf(s: GameState, side: TeamSide): number {
 }
 
 /**
- * Channel 1 — the all-game score coupling on the continuation yardstick:
- * the scoreboard reshapes it exactly the way concept 6 does, but as a
- * gentle, symmetric, always-on lean — no flag, no rng, no events, no state
+ * Channel 1: the all-game score coupling on the continuation yardstick.
+ * The scoreboard reshapes it exactly the way concept 6 does, but as a
+ * gentle, symmetric, always-on lean: no flag, no rng, no events, no state
  * writes, no clock window, no aliveness gate. Trailing presses (the
  * yardstick drops, so good-not-great looks fire earlier across every
  * channel that measures against it); leading coasts (the yardstick rises,
  * so the leader works longer and surrenders the early-offense premium).
- * Garbage time keeps the coupling ON PURPOSE — the never-flattening
+ * Garbage time keeps the coupling on purpose: the never-flattening
  * blowout is exactly the region concept 6's own fades (blowoutFade,
  * chaseAliveness) deliberately give up.
  *
- * Called from decideBall on EVERY path, immediately BEFORE the concept-6
- * reshape — base lean first, late spike second (multiplicative, so value-
+ * Called from decideBall on every path, immediately before the concept-6
+ * reshape: base lean first, late spike second (multiplicative, so value-
  * commutative, but float order is part of the byte-stability contract
  * above). At the STAGED default (scorePressureTilt 0) the multiplier is
  * exactly 1 and the continuation passes through bit-identical.
@@ -495,7 +498,7 @@ export function scorePressureOf(s: GameState, side: TeamSide): number {
 export function scorePressure(s: GameState, side: TeamSide, continuation: number): number {
   const A = s.params.ai;
   const pressure = scorePressureOf(s, side);
-  // the boost half must die inside the urgency window — a leader's raised
+  // the boost half must die inside the urgency window: a leader's raised
   // yardstick must never re-inflate a collapsing continuation (that would
   // manufacture shot-clock violations; same doctrine as concept 6's holdFade
   // in endgameContinuation above). Applied symmetrically to keep the function
@@ -508,23 +511,23 @@ export function scorePressure(s: GameState, side: TeamSide, continuation: number
 }
 
 /**
- * Channel 2 — DEFENSIVE INTENSITY (staged by the channel-1 θ null:
+ * Channel 2: defensive intensity (staged by the channel-1 θ null:
  * findings/b2-fit-tilt*.md measured the continuation tilt flat on θ across
  * 0.05→0.20, the design-coupling.md §3 staged-channel-2 / OQ1 trigger).
  * The multiplier defense.ts#containOnBall applies to the on-ball
- * containment gap AND the closeout slack. A trailing team's defense
- * presses UP — tighter gap, less slack before the closeout sprint fires —
+ * containment gap and the closeout slack. A trailing team's defense
+ * presses up (tighter gap, less slack before the closeout sprint fires),
  * so contest levels rise and opponent make% falls through
- * shot.contestCoef; a leading team's defense sags OFF — softer contests,
- * protect the drive line, let the clock work. Same master:
+ * shot.contestCoef; a leading team's defense sags off (softer contests,
+ * protect the drive line, let the clock work). Same master:
  * scorePressureScale budgets both channels (scale × gain), same clamp
  * saturation via scorePressureOf.
  *
- * Deliberately NO urgency fade — the asymmetry vs channel 1 is doctrine,
- * not an omission. Channel 1's fade exists because a leader's RAISED
+ * Deliberately no urgency fade; the asymmetry vs channel 1 is doctrine,
+ * not an omission. Channel 1's fade exists because a leader's raised
  * yardstick inside the urgency window would re-inflate a collapsing
- * continuation and manufacture shot-clock violations — an offense-only
- * failure mode (the yardstick decides WHEN the shot fires). Gap and slack
+ * continuation and manufacture shot-clock violations, an offense-only
+ * failure mode (the yardstick decides when the shot fires). Gap and slack
  * shape contest quality and closeout sprinting; they cannot create
  * violations, and real late-game defense stays pressed to the horn.
  *
@@ -532,12 +535,12 @@ export function scorePressure(s: GameState, side: TeamSide, continuation: number
  * and downstream probabilities, never draw counts), no events, no state
  * writes. At the STAGED default (scorePressureDefGain 0) the multiplier is
  * exactly 1 (0 × pressure = ±0; 1 − ±0 === 1), so gap × 1 and slack × 1
- * pass through bit-identical — the wiring ships provably inert.
+ * pass through bit-identical and the wiring ships provably inert.
  */
 export function scorePressureDefMult(s: GameState, defSide: TeamSide): number {
   const A = s.params.ai;
-  // SIGN CONVENTION: the pressure is read from the DEFENDING team's chair —
-  // defSide is the defender's OWN side, so scorePressureOf is positive when
+  // Sign convention: the pressure is read from the defending team's chair.
+  // defSide is the defender's own side, so scorePressureOf is positive when
   // the defender's team trails ⇒ multiplier < 1 ⇒ tighter (press up), and
   // negative when it leads ⇒ multiplier > 1 ⇒ looser (sag off). Feeding the
   // offense's side here would invert the whole coupling.
@@ -548,28 +551,27 @@ export function scorePressureDefMult(s: GameState, defSide: TeamSide): number {
 
 /**
  * The early-clock probe window ("swing culture"): real offenses probe
- * before they attack — the first ~5 s of halfcourt offense are
- * pass-friendly and shot-averse (side-to-side swings against a SET
+ * before they attack. The first ~5 s of halfcourt offense are
+ * pass-friendly and shot-averse (side-to-side swings against a set
  * defense), then the possession attacks. The engine otherwise has no
  * clock-shaped pass appetite at all: swing value is flat, and the only
  * clock-scaled pass term (the hierarchy pull) routes up-hierarchy only.
- * The window converts early HOLD windows into passes — exactly the windows
- * where drives haven't launched yet, which is what protects FTA — and its
- * passes sit well upstream of eventual shots, which is what protects
- * assisted share.
+ * The window converts early hold windows into passes, exactly the windows
+ * where drives haven't launched yet, which protects FTA; and its passes
+ * sit well upstream of eventual shots, which protects assisted share.
  *
  * Called from decideBall each decision. Returns the swing bonus (appended
- * at the END of the pass-utility sum) and the shoot malus (appended at the
- * END of the uShoot sum) — deliberately NOT applied to the drive channel
- * (drives keep firing in-window: the FTA protection) and NOT to the
+ * at the end of the pass-utility sum) and the shoot malus (appended at the
+ * end of the uShoot sum). Deliberately not applied to the drive channel
+ * (drives keep firing in-window: the FTA protection) and not to the
  * continuation itself (measured poison: a yardstick raise taxes passes at
  * ~90% through passContinuationScale). Phase-gated to the set offense and
- * NEVER transition — the wave2 rejection record below: transition-side
+ * never transition, per the wave2 rejection record below: transition-side
  * subsidies feed hit-ahead swings and inflate assisted share, and the
  * stealBreakBonus economics must stay untouched. The ramp is full strength
- * off the walk-up, zero by mid-clock, hard zero long before urgencySec —
- * no violation risk by construction. Pure arithmetic over the shot-clock
- * share and params: no rng, no state writes, no events.
+ * off the walk-up, zero by mid-clock, hard zero long before urgencySec, so
+ * there is no violation risk by construction. Pure arithmetic over the
+ * shot-clock share and params: no rng, no state writes, no events.
  */
 export function probeCulture(s: GameState, shotClockShare: number): { swing: number; shoot: number } {
   const A = s.params.ai;
@@ -577,7 +579,7 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
     return { swing: 0, shoot: 0 };
   }
   // linear ramp: 1 at a full clock, 0 once the share falls to probeClockShare
-  // (the divisor is why the window share must stay < 1 — the STAGED-inert
+  // (the divisor is why the window share must stay < 1; the STAGED-inert
   // switch is the two magnitudes below, never this share)
   const w = clamp((shotClockShare - A.probeClockShare) / (1 - A.probeClockShare), 0, 1);
   return {
@@ -587,15 +589,15 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
 }
 
 /*
- * NOTE (wave2/shotmix, probed-and-rejected): a state-aware CONTINUATION cut
- * — continuation × (1 − cut × unsetness), unsetness from the shared
- * defenders-back count — was the diagnostic's preferred design for
+ * Note (wave2/shotmix, probed and rejected): a state-aware continuation
+ * cut, continuation × (1 − cut × unsetness) with unsetness from the shared
+ * defenders-back count, was the diagnostic's preferred design for
  * transition urgency and was implemented and measured here in five shapes
  * across two seed bases. Every shape lost to the flat, phase-gated
- * stealBreakBonus above: the yardstick cut moves the PASS bar too, feeding
+ * stealBreakBonus above: the yardstick cut moves the pass bar too, feeding
  * the break to hit-ahead swings (assisted share +4-10pp over a band the
  * engine already exceeds), and headcount scaling fades exactly as defenders
- * get back DURING the push — gutting the finish decision the window exists
+ * get back during the push, gutting the finish decision the window exists
  * to reward. The phase flip at transSetBackCount back (game.ts, shared
  * definition in resolve.ts defendersBack) is itself the state gate; the
  * surviving state-aware piece is the defender-aware projected drive contest
