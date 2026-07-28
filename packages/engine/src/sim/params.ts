@@ -1189,15 +1189,27 @@ export const defaultParams: SimParams = {
     // margin clears line(clock) = base + perMin × minutes remaining — the
     // linear stand-in for the classic safe-lead heuristics (James'
     // (lead − 3.5)² ≥ seconds left gives ~22.5 at 6:00, ~16.9 at 3:00; the
-    // designed line sits within a point or two across the window). All FEEL.
-    // STAGED — concedeMarginBase ships at 999, a margin no game reaches, so
-    // the branch is provably unreachable and the wiring is byte-inert;
-    // flipped to the designed 15 in the calibration commit after the
-    // coupling lands. Designed values: base 15 / perMin 1.0 / lag 4 /
+    // designed line sits within a point or two across the window). All FEEL
+    // at the design-garbagetime.md values: base 15 / perMin 1.0 / lag 4 /
     // exit 6 / energyMin 25 — the leader concedes up 21 at 6:00, up 18 at
     // 3:00, up 27 at the Q4 tip; the trailer follows concedeTrailLagPts
     // later.
-    concedeMarginBase: 999,
+    // LIVE, verified on the COUPLED engine only (findings/
+    // b2-verify-concede.md): with channel 2 carrying the margin coupling,
+    // the OOS-walk 30+ regression that blocked the first flip attempt is
+    // gone (Δ30+ −0.83pp ± 1.18 — treatment BELOW control), self-play 30+
+    // improves −3.5pp (1.7se) and crosses the ≤16 signed-sd gate, close/OT
+    // integrity spotless, bands untouched, starters' rest −0.8…−0.9 min/g.
+    // Concede REQUIRES the live coupling — do not detach them: uncoupled,
+    // generated pools' uneven bench units make post-entry bench-vs-bench
+    // play margin-EXPANDING, not the zero-mean drift the design assumed
+    // (walk 30+ 5.8→8.3% fam-a, 7.9→10.4% fam-b —
+    // findings/b2-fit-concede-oos.md), and the trailLag ladder (4→8→12)
+    // could not rescue it without surrendering the balanced-cohort
+    // compression (findings/b2-fit-lagkeep.md); under the coupling the
+    // adverse long-span flux flips sign and the regression dissolves
+    // mechanistically, not by masking.
+    concedeMarginBase: 15,
     concedeMarginPerMin: 1.0,
     // FEEL — the trailing coach holds hope ~a possession and a half longer;
     // he pulls only when the deficit is unambiguous (leader's bench first,
