@@ -64,6 +64,16 @@ const RATCHET_FLOOR = 16;
 const GATE_MIN_GAMES = 24;
 
 const games = flagNumber(process.argv, '--games', 50);
+// Red-team MINOR-4 (FINDINGS-REDTEAM.md; REFACTOR.md W13): `--games 0` used
+// to print an all-FAIL report of zeros and exit 0 (the gate below is
+// report-only under GATE_MIN_GAMES), so a scripted caller checking exit
+// codes saw success on a run that simulated NOTHING. A batch that grades
+// zero games is a misconfiguration, never a pass — die loudly before
+// simulating anything.
+if (!Number.isInteger(games) || games < 1) {
+  console.error(`--games requires an integer >= 1, got ${games} — refusing to grade a run that simulates nothing`);
+  process.exit(1);
+}
 const seedBase = flagValue(process.argv, '--seed', 'acceptance');
 const league = resolveLeague(flagValue(process.argv, '--league', 'nba'));
 const endgame = process.argv.includes('--endgame');
