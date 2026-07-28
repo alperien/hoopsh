@@ -666,7 +666,7 @@ export const defaultParams: SimParams = {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
     baseRim: 0.5914,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.3574,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    basePaint: -0.4343418182430332,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.955,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
@@ -733,7 +733,7 @@ export const defaultParams: SimParams = {
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
-    blockBase: 0.2859,
+    blockBase: 0.34904634250729627,
     blockSkillCoef: 0.5,
     // Within-zone distance penalty model. Both constants have real-world meaning:
     //   threes: each foot beyond the NBA three-point line costs ≈1.3 pp FG% —
@@ -797,7 +797,7 @@ export const defaultParams: SimParams = {
     shootFoulCap: 0.6,
     // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
     // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.0165,
+    reachInPerSec: 0.019111332459994627,
     // FEEL — power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
@@ -836,7 +836,7 @@ export const defaultParams: SimParams = {
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0368
+    looseBallPerReb: 0.03587196175507723
   },
 
   pass: {
@@ -851,7 +851,7 @@ export const defaultParams: SimParams = {
     skillCoef: 0.75,
     // Of failed passes, ~55% are stolen (credited to a defender) and the rest
     // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
-    stealShare: 0.543,
+    stealShare: 0.5191718888538026,
     // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45,
@@ -1154,11 +1154,16 @@ export const defaultParams: SimParams = {
   },
 
   endgame: {
-    // Concept-6 defaults are all FEEL — hand-set from real endgame texture
-    // (clutch FT share ~35%+, milked possessions releasing at ~5-8 s of shot
-    // clock, the ~0:30 foul point) and verified by the flow harness probe,
-    // NOT swept: the flag ships OFF, so no band constrains these yet. The
-    // basketball meaning of each is on its interface doc above.
+    // Provenance, two eras. Windows/thresholds (clock seconds, deficits,
+    // hunt geometry) are FEEL — hand-set from real endgame texture (clutch
+    // FT share ~35%+, milked possessions releasing at ~5-8 s of shot clock,
+    // the ~0:30 foul point) and verified by the flow harness probe. The
+    // magnitude dials (leadHoldMaxBoost, hurryMaxCut, twoForOneCut) are
+    // SWEPT — the flag now ships ON (n=1260/arm survey, 2026-07-28), so the
+    // 2026-07-28 coordinated sweep re-centered them with the bands
+    // (iters 14 × cands 4, verify 40×3: 16/17 on all bases, fga the
+    // residual). Keep the odd precision. The basketball meaning of each is
+    // on its interface doc above.
     scale: 1,
     // a leading team starts protecting the ball inside ~2:30; the ramp means
     // the full milk only shows in the final minute
@@ -1167,7 +1172,7 @@ export const defaultParams: SimParams = {
     // — above any shot the engine generates, so the holder waits for the
     // urgency window (the boost itself fades inside urgencySec, see
     // concepts.ts, so late-clock offense still fires and violations don't spike)
-    leadHoldMaxBoost: 0.5,
+    leadHoldMaxBoost: 0.4080228074971693,
     // full clock-kill up ~8, none by up ~16 — a 3-possession Q4 lead is
     // managed, a 16-point one is garbage time
     leadHoldMarginRef: 8,
@@ -1175,7 +1180,7 @@ export const defaultParams: SimParams = {
     hurryClockSec: 180,
     // -45% continuation at full desperation drops the bar to ~0.8 expected
     // points — any decent look fires immediately (possessions of 4-8 s)
-    hurryMaxCut: 0.45,
+    hurryMaxCut: 0.37439372745962823,
     // down two scores (6) is the fully-urgent chase
     hurryDeficitRef: 6,
     // a one-point deficit still carries 40% of full chase depth
@@ -1200,7 +1205,7 @@ export const defaultParams: SimParams = {
     // at 0.3 the window's shot rate barely moved over flag-off: the tent
     // shape means the AVERAGE cut across the window is about half the peak,
     // and half of 0.3 didn't clear the continuation bar often enough)
-    twoForOneCut: 0.45,
+    twoForOneCut: 0.38530755876233497,
     // fouling starts at min(35 s, one full shot clock per possession needed)
     foulTrailMaxClockSec: 35,
     foulMinDeficit: 3,
@@ -1285,7 +1290,7 @@ export const defaultParams: SimParams = {
     threeApptScale: 0.35,
     tacticsThreeScale: 0.18,
     contestBrakeAt: 0.35,
-    contestBrakeBase: 0.3158,
+    contestBrakeBase: 0.3,
     contestBrakeIQ: 0.35,
     holdAdvance: 0.35,
     holdHalfcourt: 0.0312,
@@ -1454,7 +1459,7 @@ export const defaultParams: SimParams = {
     // an elite mid-range identity fire mid-clock — while fixture-level
     // identities (shotMid 34-44) get a scaled fraction and fire in the
     // 5-10 s window, matching the late-clock skew of real mid attempts.
-    midRangeBonus: 0.7,
+    midRangeBonus: 0.7081286886721777,
     // REAL — 19.5 ft: the analytic boundary between the mid-range game and
     // the long 2 (the 14-19.5 ft band is the real-corpus reference: ~6.8%
     // of NBA FGA). The green light stops here on purpose: the 20-23 ft
@@ -1497,7 +1502,7 @@ export const defaultParams: SimParams = {
     // under 1.0 on purpose: the rim drive must stay the default or the
     // player stops pressuring the basket and the defense stops dropping —
     // which is the very coverage that makes the middy available.
-    driveMidStopChance: 0.4,
+    driveMidStopChance: 0.450324718369197,
     // REAL — 16 ft: the canonical pull-up spot, a step behind the
     // free-throw line's 13.75 ft rim distance and the center of the
     // 14-19.5 ft real-mid band. Matches the elbow spot's radial distance
