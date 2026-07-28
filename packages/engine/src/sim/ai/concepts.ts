@@ -5,7 +5,7 @@
  * with resolution — but real players are not EV-optimizers; they run DRILLED
  * BEHAVIORS. Every non-EV bias in decideBall used to be its own hand-shaped
  * patch (both external reviews called them epicycles, correctly). They are
- * now FIVE named concepts, each modeling one drilled behavior, each with a
+ * now SEVEN named concepts, each modeling one drilled behavior, each with a
  * MASTER SCALE in params.ai (default 1.0) so the sweep can budget an entire
  * concept — and the whole layer is measured, not assumed small (the
  * decision-vs-EV divergence metric in the harness).
@@ -34,6 +34,12 @@
  *      the period horn is a second shot clock (last shot / 2-for-1). Never
  *      a play call — the same softmax over the same utilities, with the
  *      yardstick moved.
+ *   7. SCORE PRESSURE (scorePressureScale) — the all-game margin lean:
+ *      trailing presses (the continuation yardstick drops, good-not-great
+ *      looks fire earlier), leading coasts (it rises, the leader works
+ *      longer). Linear through a tie, saturating at the margin ref; no
+ *      flag, no clock window, no aliveness gate — garbage time keeps the
+ *      coupling on purpose.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -440,6 +446,45 @@ export function tempo(s: GameState): { shoot: number; drive: number } {
     shoot: term * A.tempoScale,
     drive: term * A.driveTransitionMult * A.tempoScale
   };
+}
+
+// --------------------------------------- 7. SCORE PRESSURE (continuation)
+
+/**
+ * The all-game score coupling: the scoreboard reshapes the continuation
+ * yardstick exactly the way concept 6 does, but as a gentle, symmetric,
+ * always-on lean — no flag, no rng, no events, no state writes, no clock
+ * window, no aliveness gate. Trailing presses (the yardstick drops, so
+ * good-not-great looks fire earlier across every channel that measures
+ * against it); leading coasts (the yardstick rises, so the leader works
+ * longer and surrenders the early-offense premium). Garbage time keeps the
+ * coupling ON PURPOSE — the never-flattening blowout is exactly the region
+ * concept 6's own fades (blowoutFade, chaseAliveness) deliberately give up.
+ *
+ * Called from decideBall on EVERY path, immediately BEFORE the concept-6
+ * reshape — base lean first, late spike second (multiplicative, so value-
+ * commutative, but float order is part of the byte-stability contract
+ * above). At the STAGED default (scorePressureTilt 0) the multiplier is
+ * exactly 1 and the continuation passes through bit-identical.
+ */
+export function scorePressure(s: GameState, side: TeamSide, continuation: number): number {
+  const A = s.params.ai;
+  // + when trailing (press: the yardstick drops, good-not-great looks fire
+  //   earlier), − when leading (coast: the yardstick rises, the leader works
+  //   longer and surrenders the early-offense premium). Linear through a tie,
+  //   saturating at scorePressureMarginRef — clamp, not tanh (exactly
+  //   reproducible arithmetic; same saturation style as leadHold's clamp).
+  const pressure = clamp((s.score[other(side)] - s.score[side]) / A.scorePressureMarginRef, -1, 1);
+  // the boost half must die inside the urgency window — a leader's raised
+  // yardstick must never re-inflate a collapsing continuation (that would
+  // manufacture shot-clock violations; same doctrine as concept 6's holdFade
+  // in endgameContinuation above). Applied symmetrically to keep the function
+  // branch-free: a press cut inside the window is redundant anyway (urgency
+  // already forces the shot). min(sc, clock) keeps period horns out of it.
+  const eff = Math.min(Math.max(0, s.poss.shotClock), s.clock);
+  const U = s.params.decide.urgencySec;
+  const fade = clamp((eff - U) / U, 0, 1);
+  return continuation * (1 - A.scorePressureScale * A.scorePressureTilt * pressure * fade);
 }
 
 /*

@@ -481,6 +481,14 @@ export interface SimParams {
     actionCommitScale: number;   // concept 2 — called-action payoff + patience
     advantageScale: number;      // concept 3 — cutter / swing / hierarchy passes
     tempoScale: number;          // concept 5 — transition urgency
+    scorePressureScale: number;  // concept 7 — all-game score pressure (press/coast)
+    /** concept 7: max fractional continuation tilt at/beyond the saturation
+     *  margin — presses the trailing team's yardstick down, coasts the
+     *  leader's up; 0 = coupling off */
+    scorePressureTilt: number;
+    /** concept 7: margin (pts) at which the press/coast lean saturates —
+     *  linear through a tie, clamped beyond */
+    scorePressureMarginRef: number;
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
@@ -1240,6 +1248,24 @@ export const defaultParams: SimParams = {
     actionCommitScale: 1,
     advantageScale: 1,
     tempoScale: 1,
+    // concept 7's master (FEEL — 1.0 by definition at introduction, the
+    // budget knob over every concept-7 term; joins the sweep surface in the
+    // calibration commit, after the coupling goes live)
+    scorePressureScale: 1,
+    // Concept 7 (SCORE PRESSURE) sub-dials. The tilt is the max fractional
+    // continuation reshape at/beyond the saturation margin: the trailing
+    // team presses (yardstick down), the leader coasts (yardstick up).
+    // STAGED — fitted by the coupling protocol (target θ = 10-13% of the
+    // margin mean-reverted per quarter, measured as the Q2-Q4 quarter-delta
+    // regression slope; fit seed 0.10), flipped in the calibration commit.
+    // At 0 the multiplier is exactly 1 (continuation × 1 === continuation),
+    // so the wiring ships provably byte-inert.
+    scorePressureTilt: 0,
+    // FEEL — identity-shape: how deep a lead saturates the press/coast. At
+    // the designed tilt, a 10-point margin is a ∓5% lean on the yardstick
+    // (between swingBase and transitionBonus in EV terms — a real but
+    // subtle lean); the ∓10% cap is ~1/3 of the endgame hurry's full cut.
+    scorePressureMarginRef: 20,
     // Pass-back damping (concept 3's negative side): an immediate return
     // pass UNDOES the advantage — it recreates the geometry the last pass
     // just left, so it is worth less than the receiver's raw shot quality

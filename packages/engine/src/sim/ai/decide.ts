@@ -21,7 +21,7 @@ import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, scorePressure, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: ShotMoveType }
@@ -49,6 +49,12 @@ export function decideBall(s: GameState): BallAction {
   const sc = Math.max(0, s.poss.shotClock);
   let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
   if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
+  // CONCEPT 7: SCORE PRESSURE — the always-on margin lean: trailing presses
+  // the yardstick down, leading coasts it up (doctrine in ai/concepts.ts).
+  // Ordered BEFORE concept 6 — base lean first, late spike second: the two
+  // are multiplicative so value-commutative, but float order is part of the
+  // byte-stability contract.
+  continuation = scorePressure(s, h.side, continuation);
   // CONCEPT 6: GAME-STATE URGENCY (endgame layer, GameConfig.endgame only) —
   // scoreboard and game clock reshape the yardstick itself: clock-kill with
   // a lead, hurry-up when chasing, hold-for-one / 2-for-1 at period ends.
