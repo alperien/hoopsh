@@ -116,6 +116,7 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 | What a rating means physically | `model/derived.ts` (curves) |
 | League rules | `rules/rulepack.ts` (data, not code) |
 | Late-game management (default ON; `endgame: false` = legacy path) | `sim/endgame.ts` + concept 6 in `sim/ai/concepts.ts` |
+| Game-state coupling (all-game score pressure) / garbage-time concede | concept 7 in `sim/ai/concepts.ts` (channel 2 consumed by `sim/ai/defense.ts`) / the concede branch in `sim/subs.ts` |
 | Stat math | `stats/` — pure event folding |
 | Realism measurement / tuning | `harness/` |
 | Multi-game runs (seasons, matchup Monte-Carlo) | `harness/` season layer — see `docs/SEASON.md` |
