@@ -57,7 +57,7 @@ free-throw teleport-glides. `movement.ts#advanceClock` is the only writer of `t`
 
 ### 1.6 Invariants take precedence
 `packages/engine/test/invariants.test.ts` encodes guarantees verified by adversarial
-audits. **If a change makes an invariant fail, the change is wrong — never the
+audits. **If a change makes an invariant fail, the change is wrong, never the
 invariant.** Weakening or deleting a test to make code pass is the highest-severity
 violation defined in this repo. (Tests may be corrected only when the test itself
 has a demonstrable bug; document the reasoning in the commit message.)

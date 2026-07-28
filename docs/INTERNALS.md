@@ -38,11 +38,11 @@ event `wt` key on it). Do not mix them.
 | `sim/shooting.ts` | windup → release → resolution, assists | anything between "decides to shoot" and the rim |
 | `sim/passing.ts` | pass flight, steals/OOB, reach-ins | turnover mechanics |
 | `sim/fouls.ts` | foul bookkeeping, bonus, FT sequences | whistle rules |
-| `sim/subs.ts` | lineup swaps, fatigue rotation, foul-out replacement, garbage-time concede (LIVE: final-period clock-scaled margin line + hysteresis, both benches close decided games, leader first; requires the live coupling — provenance in `params.ts` `sub.concede*`) | rotations, garbage time |
+| `sim/subs.ts` | lineup swaps, fatigue rotation, foul-out replacement, garbage-time concede (LIVE: final-period clock-scaled margin line + hysteresis, both benches close decided games, leader first; requires the live coupling; provenance in `params.ts` `sub.concede*`) | rotations, garbage time |
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
 | `sim/ai.ts` | all basketball behavior — the stable barrel over `sim/ai/` | start below, per layer |
 | `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
-| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one; concept 7 = score pressure: channel-1 continuation tilt wired but MEASURED NULL, ships at 0 — channel-2 defensive intensity LIVE at `scorePressureDefGain` 0.3; concept 8 = probe culture, STAGED at zero magnitudes) | decision bias terms, late-clock behavior, game-state coupling |
+| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one; concept 7 = score pressure: channel-1 continuation tilt wired but MEASURED NULL, ships at 0; channel-2 defensive intensity LIVE at `scorePressureDefGain` 0.3; concept 8 = probe culture, STAGED at zero magnitudes) | decision bias terms, late-clock behavior, game-state coupling |
 | `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
 | `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag; the on-ball containment gap + closeout slack consume concept 7's channel-2 score-pressure lean | defensive positioning |
@@ -51,7 +51,7 @@ event `wt` key on it). Do not mix them.
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | every tunable constant (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
-| `core/events.ts` | the event schema — the public contract | anything consumers see |
+| `core/events.ts` | the event schema, the public contract | anything consumers see |
 | `core/rng.ts` | seeded sfc32 + distributions | never use Math.random |
 | `geometry/court.ts` | court build, shot zones, spacing spots | three-point geometry |
 | `rules/rulepack.ts` | league packs (NBA/NCAA/EURO) | league differences |
@@ -78,10 +78,10 @@ modules an agent is likely to be pointed at):
 | `flow.ts` + `flow-metrics.ts` | game-arc forensics + event grammar (CLI/report + doctrine in flow.ts; pure metric library in flow-metrics.ts) |
 | `turing.ts` | blind PBP discrimination protocol vs real bbref logs |
 | `oos.ts` | out-of-sample generated-roster bands + the distributional report |
-| `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
+| `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues; see `docs/SEASON.md` |
 | `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
 | `parallel.ts` | worker-pool game runner; determinism across worker counts is the acceptance test |
-| `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
+| `fingerprint.ts` | golden fingerprint corpus, the refactor tripwire |
 | `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
 | `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
 
