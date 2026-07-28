@@ -334,6 +334,17 @@ export interface SimParams {
     crunchMarginPts: number;
     /** crunch energy floor: a starter this rested can be pulled back on late */
     crunchEnergyMin: number;
+    /** concede (garbage time): in the final period the LEADER pulls his
+     *  starters once the margin clears a clock-scaled line —
+     *  line(clock) = concedeMarginBase + concedeMarginPerMin × minutes left */
+    concedeMarginBase: number;
+    concedeMarginPerMin: number;
+    /** extra margin the TRAILING coach needs before he concedes too */
+    concedeTrailLagPts: number;
+    /** hysteresis width: concede exits this many points below the entry line */
+    concedeExitPts: number;
+    /** energy floor for a garbage-time bench body (floor presence, not burst) */
+    concedeEnergyMin: number;
   };
 
   /**
@@ -1158,7 +1169,37 @@ export const defaultParams: SimParams = {
     // > 35) regardless of the normal fatigue read. Were inline in checkSubs.
     crunchClockSec: 300,
     crunchMarginPts: 10,
-    crunchEnergyMin: 35
+    crunchEnergyMin: 35,
+    // Concede (garbage time): in the final period starters come out once the
+    // margin clears line(clock) = base + perMin × minutes remaining — the
+    // linear stand-in for the classic safe-lead heuristics (James'
+    // (lead − 3.5)² ≥ seconds left gives ~22.5 at 6:00, ~16.9 at 3:00; the
+    // designed line sits within a point or two across the window). All FEEL.
+    // STAGED — concedeMarginBase ships at 999, a margin no game reaches, so
+    // the branch is provably unreachable and the wiring is byte-inert;
+    // flipped to the designed 15 in the calibration commit after the
+    // coupling lands. Designed values: base 15 / perMin 1.0 / lag 4 /
+    // exit 6 / energyMin 25 — the leader concedes up 21 at 6:00, up 18 at
+    // 3:00, up 27 at the Q4 tip; the trailer follows concedeTrailLagPts
+    // later.
+    concedeMarginBase: 999,
+    concedeMarginPerMin: 1.0,
+    // FEEL — the trailing coach holds hope ~a possession and a half longer;
+    // he pulls only when the deficit is unambiguous (leader's bench first,
+    // a token starter run for the trailer, then both benches — the real
+    // garbage-time sequence).
+    concedeTrailLagPts: 4,
+    // FEEL — hysteresis ≈ two possessions: a single 3-and-FT swing cannot
+    // flap the lineup, and re-entry must beat a falling line. CONSTRAINT:
+    // base + lag − exit (designed: 13) must stay > endgame.foulMaxDeficit
+    // (12) — a still-conceded trailer must never sit inside the intentional-
+    // foul deficit window (concede.test.ts pins this).
+    concedeExitPts: 6,
+    // FEEL — any bench body who can stand plays garbage time: looser than
+    // crunchEnergyMin 35 because the incoming player needs floor presence,
+    // not burst (mostly a degenerate-roster guard — bench sitters recover
+    // toward 100 anyway, movement.ts bench recovery).
+    concedeEnergyMin: 25
   },
 
   endgame: {

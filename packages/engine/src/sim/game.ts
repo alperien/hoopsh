@@ -174,6 +174,7 @@ function initState(cfg: GameConfig): GameState {
     endgame: cfg.endgame ?? true,
     timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
     runPts: [0, 0],
+    conceded: [false, false],
     poss: {
       team: 0,
       shotClock: rules.shotClockSec,

@@ -253,6 +253,16 @@ export interface GameState {
   endgame: boolean;
   timeoutsLeft: [number, number];
   runPts: [number, number];
+  /**
+   * GARBAGE-TIME CONCEDE flags, per side: "this game is decided — starters
+   * out, whoever's on the bench closes it." Written only inside checkSubs
+   * (sim/subs.ts: updateConcede plus the unconditional crunch clear — dead
+   * balls, the only places subs happen), read only by its concede branch.
+   * Final period only, hysteresis in both directions. Like runPts:
+   * always-maintained bookkeeping with no rng and no events — a game that
+   * never crosses the concede line is byte-identical.
+   */
+  conceded: [boolean, boolean];
 
   poss: Possession;
   phase: Phase;
