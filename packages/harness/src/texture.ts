@@ -10,21 +10,35 @@
  * Metrics:
  *   movement — per-player speeds between consecutive LIVE frames (game clock
  *     decreasing filters out dead balls/FT rituals; >30 ft/s pairs are
- *     dropped as substitution slot-swaps). NBA tracking reference: players
- *     average ~4.2 MPH ≈ 6.2 ft/s (UNITS MATTER — an earlier version of
+ *     dropped as substitution slot-swaps). NBA tracking reference — CITED,
+ *     imported below from data/nba/tracking-references-2023-24.json: league
+ *     AVG_SPEED 4.22 mph = 6.19 ft/s (UNITS MATTER — an earlier version of
  *     this header said "4.2 ft/s", a units-confused recollection that
  *     nearly drove a further round of engine slowing; the third review's
- *     warning that the target itself was recollection was exact). Standing
- *     still IS a basketball behavior — spacing is held, not jogged.
+ *     warning that the target itself was recollection was exact).
+ *     DEFINITIONS MATTER TOO: the NBA stat averages ALL on-court time
+ *     including standing and dead balls, with an unpublished denominator
+ *     (the AVG_SPEED column ≠ distance/minutes — a ~7% gap in both archived
+ *     seasons), while this tool measures live-clock chord speed — a THIRD
+ *     quantity. Sim-vs-NBA deltas under ~10-15% are definitional noise, not
+ *     calibration signal (the data file's definitionTraps block is the full
+ *     story). Standing still IS a basketball behavior — spacing is held,
+ *     not jogged.
  *   passing — ping-pong share: an A→B pass answered by B→A within the window,
  *     the signature of utility ties oscillating; plus passes per possession
- *     (NBA ~3.2: ~300 passes / ~95 possessions per team-game).
+ *     (NBA 2023-24, same data file: 281.3 passes made / ~99 possessions per
+ *     team-game ≈ 2.84–2.86 — the earlier uncited "~3.2: ~300 / ~95"
+ *     overstated the numerator and understated the denominator).
  *
  * Run: npm run texture [-- --games 8 --seed texture]
  */
 
 import { simulateGame } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
+// The cited reference values this report compares against. Provenance, exact
+// definitions, and the definition traps live in the data file — printed
+// numbers can never drift from the citation because they ARE the citation.
+import ref from '../../../data/nba/tracking-references-2023-24.json' with { type: 'json' };
 
 function argOf(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);
@@ -90,12 +104,22 @@ for (let g = 0; g < GAMES; g++) {
   }
 }
 
-const row = (label: string, val: string, ref: string) =>
-  ` info  ${label.padEnd(30)} ${val.padStart(9)}   NBA ~${ref}`;
+const SPEED = ref.speedDistance.AVG_SPEED;
+const PASSES = ref.passing.PASSES_MADE;
+const PPP = ref.derived.passesPerPossession;
+const row = (label: string, val: string, refStr: string) =>
+  ` info  ${label.padEnd(30)} ${val.padStart(9)}   NBA ~${refStr}`;
 console.log(`Texture forensics — ${GAMES} games (seed base '${SEED}')\n`);
-console.log(row('avg live speed (ft/s)', (move.speedSum / move.n).toFixed(2), '6.2 (4.2 MPH)'));
+console.log(row('avg live speed (ft/s)', (move.speedSum / move.n).toFixed(2), `${SPEED.ftps} (${SPEED.mph} mph, 2023-24 — see note)`));
 console.log(row('stationary share (<1 ft/s)', `${((100 * move.still) / move.n).toFixed(0)}%`, 'large; standing holds spacing'));
 console.log(row('walking share (1-6 ft/s)', `${((100 * move.walk) / move.n).toFixed(0)}%`, ''));
 console.log(row('running share (>6 ft/s)', `${((100 * move.run) / move.n).toFixed(0)}%`, ''));
-console.log(row('passes per possession', (pass.passes / pass.possessions).toFixed(2), '3.2'));
+console.log(row('passes per possession', (pass.passes / pass.possessions).toFixed(2), `${PPP.range.join('–')} (${PASSES.perGame} passes/game, 2023-24)`));
 console.log(row('ping-pong share of passes', `${((100 * pass.pingpong) / pass.passes).toFixed(1)}%`, 'rare; a return pass is a read, not a tie'));
+console.log(`
+ note  speed refs differ BY DEFINITION: the sim number is live-game-clock chord speed;
+       NBA AVG_SPEED averages ALL on-court time (standing and dead balls included) with
+       an unpublished denominator — the column ≠ distance/minutes (${ref.derived.distOverOnCourtTimeMph.mph} mph by division
+       vs ${SPEED.mph} published, ~7% gap in both archived seasons). Deltas under ~10-15% are
+       definitional noise, not a speed problem — the trap behind the 2026-07-26 units
+       incident. Provenance + traps: data/nba/tracking-references-2023-24.json`);
