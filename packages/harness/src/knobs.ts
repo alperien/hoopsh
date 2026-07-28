@@ -172,7 +172,33 @@ export const SWEEPABLE: Knob[] = [
   // pnrRollGravityCut and dunkerGravityThreshold.
   { path: 'ai.midRangeBonus', lo: 0.25, hi: 0.9 },
   { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 },
-  { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 }
+  { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 },
+
+  // Endgame layer (params.endgame; live only under GameConfig.endgame) —
+  // registered for the flag-ON coordinated re-sweep: the n=1260/arm flag-on
+  // survey measured fga 93.31 vs its 92.0 ceiling (3/3 seed bases), driven
+  // by the layer's possession mix (hurry quick shots, 2-for-1 early
+  // releases, fewer milked violations), so re-centering has to trade these
+  // magnitudes against the pace/volume knobs. In a flag-OFF run they are
+  // unread — dead search dimensions — so sweep with the flag on (or once it
+  // defaults on). Only MAGNITUDE dials are registered; the window/threshold
+  // dials (leadHoldClockSec, hurryClockSec, the 2-for-1 window, the foul
+  // window/deficit gates), the chase-aliveness arithmetic (when a deficit
+  // reads dead), hunt geometry, and the timeout triggers stay OFF the
+  // surface: they define WHEN a real coach's behavior activates —
+  // identity-shape, same doctrine as the mid-range green-light shape above.
+  // timeoutRunPts additionally has no cited real base rate to calibrate
+  // against (nba-ground-truth row 34): nothing for a band to aim at.
+  { path: 'endgame.scale', lo: 0.5, hi: 1.5 },
+  { path: 'endgame.leadHoldMaxBoost', lo: 0.25, hi: 0.8 },
+  { path: 'endgame.hurryMaxCut', lo: 0.25, hi: 0.7 },
+  // probed at 0.3 the 2-for-1 window's shot rate barely moved over flag-off
+  // (params.ts: the tent shape halves the average cut) — lo sits at that
+  // measured do-nothing point rather than lower
+  { path: 'endgame.twoForOneCut', lo: 0.3, hi: 0.7 },
+  // multiplies foul.reachInPerSec (itself swept above): the PAIR sets
+  // late-game foul-parade FT volume — expect them to move together
+  { path: 'endgame.foulHuntRateMult', lo: 30, hi: 90 }
 ];
 
 /** set a dot-path on a nested object (mutates) */

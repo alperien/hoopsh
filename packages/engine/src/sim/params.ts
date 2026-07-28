@@ -345,10 +345,16 @@ export interface SimParams {
    * the reach-in machinery, the dead-ball choke point) — never a scripted
    * playbook. See sim/ai/concepts.ts (concept 6) and sim/endgame.ts.
    *
-   * NOT in harness/knobs.ts yet, deliberately: the sweep runs default
-   * config (flag off), where these knobs are unreachable — registering
-   * unreachable knobs is pure noise in the search space (params.ts header,
-   * "ONE EXCEPTION" spirit). Register them when the flag defaults on.
+   * Sweep surface (harness/knobs.ts): the MAGNITUDE dials — scale,
+   * leadHoldMaxBoost, hurryMaxCut, twoForOneCut, foulHuntRateMult — are
+   * registered for the flag-ON coordinated re-sweep (the n=1260/arm
+   * flag-on survey measured fga +1.41 over its band ceiling; re-centering
+   * has to trade these against pace/volume). In a flag-OFF run they are
+   * unread, so a flag-off sweep pays a small dead-dimension tax for them —
+   * the accepted price of sweeping flag-on ahead of the default flip. The
+   * WINDOW/threshold dials and the chase arithmetic stay off the surface:
+   * they define WHEN late-game behavior activates — identity-shape, not a
+   * rate (see the knobs.ts doctrine header).
    */
   endgame: {
     /** master scale on every concept-6 modulation (same budget-knob pattern as ai.*Scale) */
