@@ -141,9 +141,14 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
 - Live-ball turnovers and defensive rebounds trigger transition: if the defense isn't
   set, early-offense quality bonuses apply. Fast-break points emerge.
 - Endgame management (timeouts, intentional fouling, hold-for-last, two-for-one,
-  clock burn) exists as a flag-gated layer (`GameConfig.endgame`, default OFF)
-  that modulates the same EV framework rather than scripting plays; turning it
-  on by default is an open calibration decision (REFACTOR.md register).
+  clock burn) is a layer that modulates the same EV framework rather than
+  scripting plays (`GameConfig.endgame`). It defaults ON: the decision was
+  measured, not assumed — an n=1260-games-per-arm flag-on survey showed the
+  layer moving OT share, clutch free-throw texture, and comeback rates toward
+  cited NBA rates with every invariant probe green — and `endgame: false`
+  preserves the byte-identical legacy path. Its magnitude dials sit on the
+  calibration sweep surface like any other `SimParams` constants; its
+  window/threshold dials are design, not calibration, and stay off it.
 
 ### 4.7 Event stream & replay
 
