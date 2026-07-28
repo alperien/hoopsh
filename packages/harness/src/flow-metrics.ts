@@ -1,19 +1,19 @@
 /**
- * Per-game flow measurement + order-preserving reduction — the pure library
+ * Per-game flow measurement + order-preserving reduction: the pure library
  * half of flow.ts (which keeps the CLI/report and the doctrine header; the
- * operational definitions of every metric below live THERE, next to the
+ * operational definitions of every metric below live there, next to the
  * reference-data provenance notes, and must stay in sync with
  * data/nba/flow-reference.json).
  *
  * Split out of flow.ts so the parallel game-runner (parallel.ts /
  * run-worker.ts) can import gameFlow() without importing flow.ts's CLI
- * module — flow.ts itself imports the runner, and this split keeps that
+ * module; flow.ts itself imports the runner, and this split keeps that
  * dependency a straight line instead of a cycle.
  *
- * DETERMINISM NOTE on reduceFlows: it folds per-game GameFlow rows in ARRAY
- * ORDER (game 0, 1, 2, …). Parallel runs concatenate worker slices back into
+ * Determinism note on reduceFlows: it folds per-game GameFlow rows in array
+ * order (game 0, 1, 2, …). Parallel runs concatenate worker slices back into
  * global game order before calling it, so the floating-point operation
- * sequence — and therefore every reported digit — is identical no matter how
+ * sequence (and therefore every reported digit) is identical no matter how
  * many workers produced the rows. Keep it that way: any change that reduces
  * out-of-order (or inside the workers) breaks worker-count invariance.
  */
@@ -46,13 +46,13 @@ export interface GameFlow {
 }
 
 /**
- * `reg` describes the REGULATION shape (defaults: NBA 4×12). The "Q4"
+ * `reg` describes the regulation shape (defaults: NBA 4×12). The "Q4"
  * metrics (clutch window, 10+-lead comebacks) actually mean "the final
- * regulation period" — under an NCAA pack (2×20) that's the second half,
+ * regulation period"; under an NCAA pack (2×20) that's the second half,
  * which is exactly how college clutch is defined. qPts keeps 4 slots for the
  * report's quarter profile; a halves league fills only the first two.
  * Passing a RulePack works directly (it has both fields). Reference values
- * in flow.ts's report remain NBA-only — league-specific flow references are
+ * in flow.ts's report remain NBA-only; league-specific flow references are
  * calibration-milestone work.
  */
 export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinutes: number } = { periods: 4, periodMinutes: 12 }): GameFlow {
@@ -190,7 +190,7 @@ export interface FlowAverages {
 }
 
 /**
- * Fold per-game GameFlow rows (in game order — see the header's determinism
+ * Fold per-game GameFlow rows (in game order; see the header's determinism
  * note) into the report averages. Extracted verbatim from the old
  * measureFlow() tail so single-process and parallel runs share one reduction.
  */

@@ -1,16 +1,16 @@
-// Package barrel — the CLI entry scripts (simone.ts, cli.ts, bench.ts,
+// Package barrel. The CLI entry scripts (simone.ts, cli.ts, bench.ts,
 // broadcast-demo.ts, export-rosters.ts, sweep.ts, season-cli.ts) are run
-// directly via `node`/npm scripts and do NOT go through this barrel; what's
+// directly via `node`/npm scripts and do not go through this barrel; what's
 // exported here is the subset other packages/scripts import as a library:
 // batch running (run.ts), aggregation/scoring (aggregate.ts), the acceptance
 // bands themselves (bands.ts), and the season layer (season.ts, matchup.ts,
-// league.ts — see docs/SEASON.md). sweep-worker.ts and knobs.ts are
-// deliberately NOT re-exported — they're sweep.ts-internal implementation,
+// league.ts; see docs/SEASON.md). sweep-worker.ts and knobs.ts are
+// deliberately not re-exported; they're sweep.ts-internal implementation,
 // not a public API.
 export { runBatch } from './run.js';
 export type { BatchOptions } from './run.js';
 // the parallel game-runner (run-worker.ts is its subprocess entry and, like
-// sweep-worker.ts, deliberately NOT re-exported)
+// sweep-worker.ts, deliberately not re-exported)
 export { runGames, runGamesInProcess, resolveWorkerCount, GAME_TASK_NAMES } from './parallel.js';
 export type { GameTaskName, GameTaskResults, ParallelRunOptions } from './parallel.js';
 export {
@@ -20,7 +20,7 @@ export type { Accumulator, LeagueAverages, BandResult, TeamGameSummary } from '.
 export { NBA_BANDS } from './bands.js';
 export type { Band } from './bands.js';
 // league selection: one id resolves rule pack + bands + pace basis together
-// (leagues.ts — NOT league.ts, which generates fictional season teams)
+// (leagues.ts, not league.ts, which generates fictional season teams)
 export { resolveLeague, loadNcaaBands, LEAGUE_IDS } from './leagues.js';
 export type { LeagueConfig } from './leagues.js';
 export {

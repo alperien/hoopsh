@@ -1,17 +1,17 @@
 /**
- * Shared CLI flag parsing for harness scripts — loud on malformed input.
+ * Shared CLI flag parsing for harness scripts; loud on malformed input.
  *
  * Exists because of a real silent-corruption incident: broadcast-demo.ts read
  * `--seed`'s value with a bare non-null assertion, so `npm run broadcast --
  * --seed` (flag given, value forgotten) silently simulated a game seeded with
  * the literal string "undefined" and wrote out/broadcast-undefined.txt. No
- * crash, no warning — in a determinism-first project, a seed that isn't what
+ * crash, no warning. In a determinism-first project, a seed that isn't what
  * the caller thinks it is must fail loudly, not quietly produce a plausible-
  * looking game (review finding #3).
  */
 
 /** value of `flag`, or `fallback` when the flag is absent; throws when the
- *  flag is PRESENT but its value is missing or is the next flag */
+ *  flag is present but its value is missing or is the next flag */
 export function flagValue(argv: readonly string[], flag: string, fallback: string): string {
   const i = argv.indexOf(flag);
   if (i === -1) return fallback;

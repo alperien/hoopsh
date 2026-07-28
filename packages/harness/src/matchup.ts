@@ -1,23 +1,23 @@
 /**
- * Monte-Carlo matchup API — the shape a prediction consumer actually needs.
+ * Monte-Carlo matchup API: the shape a prediction consumer needs.
  *
  * A single simulated game is one draw from the engine's outcome
- * distribution; a prediction needs the DISTRIBUTION: win probability with
+ * distribution; a prediction needs the distribution: win probability with
  * honest uncertainty, the margin's center and spread, and per-player stat
  * lines. `simulateMatchup(home, away, n)` runs n independent games (seeds
  * derived from a base + sim index, so the whole distribution is
  * reproducible) and summarizes them.
  *
- * STATISTICS, STATED PLAINLY:
+ * Statistics:
  *
  * - Win probability CI: Wilson score interval (see `wilsonInterval`), not
- *   the naive normal ("Wald") interval — Wald misbehaves exactly where
- *   matchup predictions live (p near 0.5 is fine, but lopsided matchups
+ *   the naive normal ("Wald") interval. Wald misbehaves exactly where
+ *   matchup predictions live: p near 0.5 is fine, but lopsided matchups
  *   push p toward 0/1 where Wald's coverage collapses and its bounds leave
  *   [0,1]; Wilson stays inside [0,1] and keeps ~nominal coverage at small
- *   n).
+ *   n.
  *
- * - n-SENSITIVITY (the "how many sims?" question): the standard error of a
+ * - n-sensitivity (the "how many sims" question): the standard error of a
  *   win-probability estimate is sqrt(p(1-p)/n) <= 0.5/sqrt(n). To tell a
  *   55% team from a coin flip you are testing p=0.55 against p0=0.50; the
  *   one-sample binomial power formula (`simsToResolveEdge`) gives
@@ -28,22 +28,22 @@
  *     52% vs 50%  ->  ~4,895 sims      70% vs 50%  ->   ~47 sims
  *   Equivalently by CI width: the 95% CI half-width is ~0.98/sqrt(n)
  *   (worst case p=0.5): n=100 -> ±9.8pp, n=400 -> ±4.9pp, n=1600 -> ±2.5pp.
- *   A 5-point edge is EXPENSIVE to resolve; the API reports the CI so a
+ *   A 5-point edge is expensive to resolve; the API reports the CI so a
  *   consumer can see when n was too small instead of trusting a bare 0.55.
  *
  * - Margin distribution: mean, sample sd, percentiles (linear-interpolation
- *   quantiles), and a binned histogram. Margins are from the HOME team's
+ *   quantiles), and a binned histogram. Margins are from the home team's
  *   perspective; ties are impossible (the engine plays overtime until
  *   decided), so P(margin>0) = homeWinProb exactly.
  *
- * NOTE ON "HOME": the engine currently models NO home-court advantage (and
+ * Note on "home": the engine currently models no home-court advantage (and
  * run.ts's mirror option exists to verify it stays that way), so home/away
- * here is positional, not an edge — a real-world prediction consumer must
+ * here is positional, not an edge; a real-world prediction consumer must
  * add HCA exogenously (docs/SEASON.md). The `mirror` option alternates
  * which side is the engine's home team purely to cancel any accidental
  * structural home bias; margins stay home-team-signed either way.
  *
- * Parallelism: same seam as the season driver — pass a `SimulateGames` to
+ * Parallelism: same seam as the season driver. Pass a `SimulateGames` to
  * fan the n sims out to workers; results are re-sorted by sim index before
  * any statistic is computed, so completion order cannot change a digit.
  */
@@ -81,11 +81,11 @@ export function wilsonInterval(successes: number, n: number, z = 1.96): [number,
  * Defaults are the conventional 95% confidence (zAlpha = 1.959964, the
  * two-sided 5% normal quantile) and 80% power (zPower = 0.841621, the 20%
  * one-sided quantile). They're parameters, not a lookup table, so callers
- * wanting 90% power pass zPower = 1.281552 — the z values are the caller's
+ * wanting 90% power pass zPower = 1.281552. The z values are the caller's
  * to choose; this function is just the algebra.
  *
  * simsToResolveEdge(0.55) → 783: the honest answer to "can 100 sims see a
- * 55/45 edge?" is NO — at n=100 the 95% CI half-width is ~±10pp.
+ * 55/45 edge?" is no: at n=100 the 95% CI half-width is ~±10pp.
  */
 export function simsToResolveEdge(
   p1: number,
@@ -101,7 +101,7 @@ export function simsToResolveEdge(
   return Math.ceil((num * num) / ((p1 - p0) * (p1 - p0)));
 }
 
-/** Linear-interpolation quantile (R type 7) of an ASCENDING-sorted array. */
+/** Linear-interpolation quantile (R type 7) of an ascending-sorted array. */
 export function percentileSorted(sorted: readonly number[], q: number): number {
   if (sorted.length === 0) throw new Error('percentileSorted: empty sample');
   if (q < 0 || q > 1) throw new Error(`percentileSorted: q ${q} outside [0,1]`);
@@ -169,12 +169,12 @@ export interface MatchupDistribution {
 export interface MatchupOptions {
   /** seed base (default "matchup"); sim i uses gameSeed(base, i, …) */
   seedBase?: string;
-  /** THE PARALLELISM SEAM — same contract as the season driver's */
+  /** the parallelism seam; same contract as the season driver's */
   simulate?: SimulateGames;
   /** alternate which side the engine treats as home on odd sims, to cancel
    *  any accidental structural home bias (the engine claims none; this is
    *  belt-and-braces for prediction use). Margins/probabilities are always
-   *  reported for the LOGICAL home team either way. Default false. */
+   *  reported for the logical home team either way. Default false. */
   mirror?: boolean;
   /** histogram bin width in points (default 5) */
   binWidth?: number;
@@ -218,7 +218,7 @@ function buildHistogram(margins: readonly number[], binWidth: number): MarginBin
  *
  * Deterministic in (home, away, n, seedBase): the i-th sim's seed is
  * gameSeed(seedBase, i, engineHomeId, engineAwayId), so growing n from 100
- * to 1000 REUSES the first 100 games' results exactly (a cheap way to
+ * to 1000 reuses the first 100 games' results exactly (a cheap way to
  * refine an estimate: only the new sims cost anything under a caching
  * seam, and the first 100 margins are bit-identical regardless).
  */
@@ -254,7 +254,7 @@ export async function simulateMatchup(
     throw new Error(`simulate seam returned ${outcomes.length} outcomes for ${n} tasks`);
   }
 
-  // margins from the LOGICAL home team's perspective, id-keyed so mirrored
+  // margins from the logical home team's perspective, id-keyed so mirrored
   // sims contribute with the correct sign
   const margins: number[] = [];
   let homeWins = 0;
@@ -271,7 +271,7 @@ export async function simulateMatchup(
     if (margin > 0) homeWins += 1;
 
     for (const line of o.players) {
-      // PlayerLine.team is the ENGINE side (0 = that game's home), so map
+      // PlayerLine.team is the engine side (0 = that game's home), so map
       // through the outcome's ids to the logical team
       const teamId = line.team === 0 ? o.homeId : o.awayId;
       const key = `${teamId}/${line.id}`;
