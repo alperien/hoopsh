@@ -51,7 +51,7 @@ describe('adversarial input', () => {
 
   it('Rng.weighted rejects an empty weights array loudly', () => {
     // used to fall through to int(0) === 0 and the caller then indexed its
-    // own empty array — undefined, silently
+    // own empty array and got undefined, silently
     const rng = new Rng('adv-weights-empty');
     expect(() => rng.weighted([])).toThrow(/empty weights/);
   });

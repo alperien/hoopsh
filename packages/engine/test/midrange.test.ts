@@ -4,8 +4,8 @@
  * Before the mechanism landed, the mid-range game was structurally extinct.
  * Every shot was priced against a continuation value (>= 1.18 EV until the
  * 5 s urgency window) that even the best mid-range look (EV ~1.14) never
- * cleared — uShoot was argmax in 0 of 780 instrumented decisions at
- * 17-20 ft — and no spacing spot or action ever stationed a player in the
+ * cleared (uShoot was argmax in 0 of 780 instrumented decisions at
+ * 17-20 ft), and no spacing spot or action ever stationed a player in the
  * 14-20 ft band. Mid attempts ran 2.75% of FGA with a 19.9 ft median: the
  * few "mid" shots were arc-toeing accidents, not 16-footers.
  *

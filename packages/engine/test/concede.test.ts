@@ -10,8 +10,8 @@
  * dormancy describe (999 ⇒ branch unreachable, blowouts keep starters) is
  * retired, since a conceded blowout is now exactly what the engine is
  * supposed to produce. In its place: the §5.1 pins at the shipped
- * defaults — the conceded-lineup composition fold, the no-thrash
- * hysteresis machine, and the close-game guarantees.
+ * defaults (the conceded-lineup composition fold, the no-thrash
+ * hysteresis machine, and the close-game guarantees).
  *
  * The unit describes force the thresholds through withParams (15/1.0/4/6/
  * 25, today identical to the shipped defaults) so those pins keep meaning
@@ -297,7 +297,7 @@ const lineAt = (clock: number): number =>
 /** the side's own entry bar: leaders at the line, trailers lag behind it */
 const barFor = (lead: number, clock: number): number =>
   lead >= 0 ? lineAt(clock) : lineAt(clock) + D.concedeTrailLagPts;
-/** dead-ball markers: events that prove a checkSubs pass just ran/runs —
+/** dead-ball markers: events that prove a checkSubs pass just ran/runs:
  *  period start, FT entry, and dead-ball inbounds. Substitutions are not
  *  markers (they are emitted mid-wave, before the lineup settles). */
 const isDeadBall = (e: GameEvent): boolean =>

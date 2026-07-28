@@ -61,7 +61,7 @@ describe('roster:new scaffold', () => {
         const r = (v as (arg: unknown) => unknown)({ id: 'probe', name: 'probe' }) as Record<string, unknown> | null;
         if (r && typeof r === 'object' && 'attr' in r && 'tend' in r && 'pos' in r) discovered.push(k);
       } catch {
-        // not archetype-shaped — fine
+        // not archetype-shaped; fine
       }
     }
     expect(Object.keys(ARCHETYPES).sort()).toEqual(discovered.sort());

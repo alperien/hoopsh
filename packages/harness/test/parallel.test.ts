@@ -57,7 +57,7 @@ describe('parallel runner — loud failure', () => {
     let message = '';
     try {
       // an unknown task crashes both workers inside run-worker.ts before any
-      // simulation happens — cheap way to exercise the real subprocess
+      // simulation happens. Cheap way to exercise the real subprocess
       // failure path end to end
       await runGames({ task: 'nope' as GameTaskName, games: 2, seedBase: 'par-crash', workers: 2 });
     } catch (err) {

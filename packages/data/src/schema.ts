@@ -57,9 +57,9 @@ export interface ValidationIssue {
 // responsibility of whoever adds a new rating there; TypeScript won't catch
 // a forgotten key here since these are plain string arrays.
 //
-// Exported (along with the range constants below) so authoring tooling —
-// tools/gen-schema.mjs (the JSON Schema generator) and tools/roster-*.mjs —
-// derives its key lists and ranges from the same arrays this validator
+// Exported (along with the range constants below) so the authoring tools,
+// tools/gen-schema.mjs (the JSON Schema generator) and tools/roster-*.mjs,
+// derive their key lists and ranges from the same arrays this validator
 // enforces. That import edge is the anti-drift mechanism: there is no second
 // hand-copied key list anywhere for a new rating to be forgotten from. Add a
 // key here and every downstream tool picks it up on next run. The committed
@@ -239,7 +239,7 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
   // rotationMinutes is optional, but if present it must be shaped right:
   // subs.ts multiplies each target into its minutes-pace leash, so a
   // non-numeric value doesn't fail loudly. It turns into NaN and silently
-  // disables the leash comparisons for that player — a rotation that plays
+  // disables the leash comparisons for that player: a rotation that plays
   // nothing like what the pack says, the exact failure mode this validator
   // exists to prevent. Keys pointing at ids not on the roster are ignored
   // harmlessly by the engine, so those are a roster-validate warning rather
@@ -272,7 +272,7 @@ export function toTeamPack(team: Team): TeamPack {
  * failure paths report through the same ValidationIssue shape. A JSON
  * syntax error becomes one issue at path `$`; a well-formed-but-invalid
  * pack goes through the full validateTeamPack() field-by-field report.
- * Either way `team` comes back null on any issue — see the validation
+ * Either way `team` comes back null on any issue; see the validation
  * policy note at the top of this file for why there's no partial pack.
  */
 export function loadTeamPack(json: string): { team: Team | null; issues: ValidationIssue[] } {

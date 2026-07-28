@@ -12,7 +12,7 @@
  * noise floor (noise-floor.gen.ts; regenerate with `npm run noisefloor`).
  * Each band edge extends by z·sd of the 24-game sampling distribution under
  * the null. At z=3 a failure means "the sim changed", not "the seed
- * changed" — the distinction feel-widened percentages could never make
+ * changed", a distinction feel-widened percentages could never make
  * (third external review). Where the sim's true center sits on a band edge
  * (measured: pace at the 95 floor, ORtg at the 121 ceiling), that is a
  * standing calibration finding for INTERNALS, not gate noise.

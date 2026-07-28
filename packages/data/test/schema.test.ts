@@ -22,7 +22,7 @@ describe('data pack schema', () => {
 
   it('rejects a repeated starter id (5 entries, 4 unique players)', () => {
     const bad = toTeamPack(cascadiaBreakers());
-    // duplicate the first starter over the second — length stays 5 and every
+    // duplicate the first starter over the second: length stays 5 and every
     // entry is a real roster id, so only the uniqueness check can catch it
     bad.team.starters = [
       bad.team.starters[0]!, bad.team.starters[0]!,

@@ -89,7 +89,7 @@ describe(`team rebounds over ${GAMES} games`, () => {
       r.events.forEach((e, i) => {
         if (e.type !== 'rebound' || e.player || e.deadBall || e.offensive) return;
         // the possession flip: def_rebound outcome, then an 'inbound' start
-        // for the awarded side (never 'live_rebound' — the ball went dead)
+        // for the awarded side (never 'live_rebound'; the ball went dead)
         const rest = r.events.slice(i + 1);
         const end = rest.find((n) => n.type === 'possession_end');
         const start = rest.find((n) => n.type === 'possession_start');

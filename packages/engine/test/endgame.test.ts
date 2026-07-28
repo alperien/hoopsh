@@ -37,7 +37,7 @@ import { sampleMatchup } from '@hoopsh/data';
 // sample for ~2x the runtime, the cheapest honest fix.
 const GAMES = 16;
 
-// one shared flag-ON pool — sim once, assert many (invariants-suite pattern)
+// one shared flag-ON pool: sim once, assert many (invariants-suite pattern)
 const on: GameResult[] = [];
 for (let i = 0; i < GAMES; i++) {
   const { home, away } = sampleMatchup();
@@ -114,7 +114,7 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
       expect(used[0]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
       expect(used[1]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
     }
-    // probed: ~1.5-2/game across this pool — assert well under that
+    // probed: ~1.5-2/game across this pool, so assert well under that
     expect(total).toBeGreaterThanOrEqual(3);
   });
 

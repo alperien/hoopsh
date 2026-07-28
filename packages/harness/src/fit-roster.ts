@@ -374,7 +374,7 @@ export function zoneRefs(): { rim: ZoneRef; paint: ZoneRef; mid: ZoneRef } {
   // paint: floaters off drives (45%) and short post touches (10%)
   const paintAmb = S.contestCoef * (REF_CONTEST.paint - S.contestMidpoint)
     + 0.45 * S.moveDrive + 0.1 * S.movePost + fat;
-  // mid: 65% pull-ups — nobody stands open at 18 ft
+  // mid: 65% pull-ups; nobody stands open at 18 ft
   const midAmb = S.contestCoef * (REF_CONTEST.mid - S.contestMidpoint)
     + 0.65 * S.movePullUp + fat;
   return {
@@ -542,7 +542,7 @@ export function zoneTendencies(rates: Rates): { shotRim: number; shotMid: number
   const scale = (def: number, obs: number, league: number): number =>
     Math.round(clamp(def * Math.pow(Math.max(0.05, obs / league), ZONE_TEND_SHAPE) + vol, 1, 99));
   // rim tendency covers rim AND paint appetite (decideBall zoneTend treats
-  // rim/paint as one bucket — decide.ts:90), so compare their combined share
+  // rim/paint as one bucket, decide.ts:90), so compare their combined share
   const rimObs = rates.mix.rim + rates.mix.paint;
   const rimLeague = LEAGUE_MIX.rim + LEAGUE_MIX.paint;
   return {
@@ -985,7 +985,7 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
 /**
  * Wrap the fitted players as a schema-valid TeamPack: pad the roster to 10
  * with league-neutral archetype cast (a pack needs ≥8 players and exactly 5
- * starters — data/schema.ts), pick starters by MPG, and set team threeBias
+ * starters per data/schema.ts), pick starters by MPG, and set team threeBias
  * from the roster's aggregate 3PA share.
  */
 export function assembleTeamPack(
