@@ -384,43 +384,61 @@ describe('LIVE default §5.1: conceded-lineup composition (pool + adversarial fi
 });
 
 describe('LIVE default §5.1: no-thrash hysteresis (per-side state machine)', () => {
-  it('≤1 concede wave per side per game, and starters return only past the exit floor or in crunch', () => {
-    // A "wave" is the side's on-floor starter count falling from ≥3 to ≤1
-    // in the final period AFTER the side has crossed its entry bar (the
-    // arming gate keeps natural early-Q4 rest rotations — which also dip
-    // to 0-1 starters, probed — out of scope). Once waved, a return to ≥3
-    // is legal only below the exit floor (+2 slack) or once crunch has
-    // taken over (crunch clears concede unconditionally). Each transition
-    // costs a full sub wave in replay texture, so thrash is the failure
-    // this pins out (design §1.3). The waves-≤1 assertion is unconditional;
-    // the return-legality assertion inside the fold only executes when this
-    // pool's seeds happen to produce an armed exit/re-entry (b8-F1: it has
-    // no existence floor here BY DESIGN — a margin collapse is emergent, so
-    // seed reshuffles can zero it out; measured 0 on the current engine).
-    // The guaranteed-execution pin for return legality is the constructed
-    // collapse suite directly below, which drives checkSubs through hold /
-    // exit-floor / crunch states deterministically.
+  it('every armed concede wave follows a legalized exit, and armed returns pass the exit floor or crunch', () => {
+    // A "wave" is the side's on-floor starter count falling from >=3 to <=1
+    // in the final period while the concede flag is armed. The flag here
+    // MIRRORS the engine's rule at its actual decision points (dead balls
+    // and substitution events): it arms at m >= bar, clears below the exit
+    // floor or in crunch. The earlier version of this pin kept `armed`
+    // sticky for the whole period and capped waves at 1; the post-re-center
+    // draws produce LEGAL re-concedes (margin collapses below the exit
+    // floor, then re-crosses the entry bar), which that fold miscounted as
+    // thrash (re-anchored 2026-07-29; the dead-ball mirror measured 6 armed
+    // waves / 0 violations over this pool). Thrash — a wave entered without
+    // a legalized exit, or a return inside the band — is what fails here.
+    // The guaranteed-execution pin for return legality remains the
+    // constructed collapse suite below.
+    const isDecisionPoint = (e: GameEvent): boolean =>
+      e.type === 'substitution' || e.type === 'period_start' ||
+      e.type === 'free_throw' ||
+      (e.type === 'possession_start' && e.kind === 'inbound');
+    let armedWavesPool = 0;
     for (const g of pool) {
-      const armed: [boolean, boolean] = [false, false];
+      const flag: [boolean, boolean] = [false, false];
+      const exitLegalized: [boolean, boolean] = [true, true];
       const waves: [number, number] = [0, 0];
       const state: ['high' | 'low', 'high' | 'low'] = ['high', 'high'];
       foldFinalPeriod(g, ({ e, side, m, bar, count }) => {
-        if (m >= bar) armed[side] = true;
+        const crunch = e.clock < D.crunchClockSec && m <= D.crunchMarginPts;
+        if (isDecisionPoint(e)) {
+          if (crunch) flag[side] = false;
+          else if (m >= bar) flag[side] = true;
+          else if (m < bar - D.concedeExitPts) flag[side] = false;
+          if (crunch || m < bar - D.concedeExitPts) exitLegalized[side] = true;
+        }
         if (state[side] === 'high' && count <= 1) {
           state[side] = 'low';
-          if (armed[side]) waves[side]++;
+          if (flag[side]) {
+            waves[side]++;
+            armedWavesPool++;
+            expect(exitLegalized[side]).toBe(true); // no wave without a legalized exit
+            exitLegalized[side] = false;
+          }
         } else if (state[side] === 'low' && count >= 3) {
           state[side] = 'high';
-          if (armed[side]) {
-            const crunch = e.clock < D.crunchClockSec && m <= D.crunchMarginPts;
+          if (flag[side]) {
             const belowExit = m < bar - D.concedeExitPts + 2;
-            expect(belowExit || crunch).toBe(true);
+            expect(belowExit || crunch).toBe(true); // returns only past the floor or in crunch
           }
         }
       });
-      expect(waves[0]).toBeLessThanOrEqual(1);
-      expect(waves[1]).toBeLessThanOrEqual(1);
+      // runaway-thrash ceiling: legal re-concedes exist but are rare; more
+      // than two armed waves on one side in one game is machinery failure
+      expect(waves[0]).toBeLessThanOrEqual(2);
+      expect(waves[1]).toBeLessThanOrEqual(2);
     }
+    // non-vacuity: this pool produces armed waves (measured 6 at re-anchor)
+    expect(armedWavesPool).toBeGreaterThanOrEqual(1);
   });
 });
 
