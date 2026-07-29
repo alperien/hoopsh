@@ -59,11 +59,13 @@ function runnableLines(): { line: string; block: number }[] {
 describe('README quickstart commands run verbatim', () => {
   const lines = runnableLines();
 
-  it('finds the runnable quickstart lines', () => {
+  it('finds the runnable quickstart lines', { timeout: 30_000 }, () => {
     expect(lines.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('every runnable README line exits 0 (executed in block order)', () => {
+  // node:test and vitest both accept the {timeout} options form; vitest's
+  // 5s default would otherwise kill this test (the block runs ~2 min).
+  it('every runnable README line exits 0 (executed in block order)', { timeout: 600_000 }, () => {
     for (const { line } of lines) {
       let output = '';
       try {
