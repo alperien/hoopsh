@@ -99,9 +99,25 @@ function validateTeam(team: Team): void {
   if (ids.size !== team.players.length) throw new Error(`${team.id}: duplicate player ids`);
 }
 
+function validateTeams(home: Team, away: Team): void {
+  validateTeam(home);
+  validateTeam(away);
+  // ids must be unique across the UNION of both rosters, not just within
+  // each: one agents Map serves both sides, keyed by player id, so a
+  // cross-team collision made mkAgents(away) silently overwrite the home
+  // agent — the game ran to a garbage result (0-120 finals, 288-minute team
+  // box sums) with no warning. No upstream layer can catch this (the roster
+  // validator sees one pack at a time), so the check lives at the boundary.
+  const homeIds = new Set(home.players.map((p) => p.id));
+  for (const p of away.players) {
+    if (homeIds.has(p.id)) {
+      throw new Error(`duplicate player id across teams: ${p.id} (${home.id} vs ${away.id})`);
+    }
+  }
+}
+
 function initState(cfg: GameConfig): GameState {
-  validateTeam(cfg.home);
-  validateTeam(cfg.away);
+  validateTeams(cfg.home, cfg.away);
   const rules = cfg.rules ?? NBA;
   const params = cfg.params ? withParams(cfg.params) : structuredClone(defaultParams);
   const rng = new Rng(cfg.seed);

@@ -1,12 +1,12 @@
 /**
- * Adversarial-input guard: permanent fixtures from the independent review.
+ * Adversarial-input guard — permanent fixtures from the independent review.
  *
- * The review showed that a single NaN rating silently corrupted a game
+ * The review demonstrated that a single NaN rating silently corrupted a game
  * (0-0 stall, fake game_end, broken pace invariant) because nothing between
  * the caller and the sigmoid chain checked finiteness. These tests pin the
- * fix: non-finite input fails loudly at the boundary, corrupt randomness
- * weights fail loudly at the RNG, and extreme-but-finite rosters, which are
- * legal input by design, still complete with every core invariant intact.
+ * fix: non-finite input FAILS LOUDLY at the boundary, corrupt randomness
+ * weights fail loudly at the RNG, and extreme-but-finite rosters — which are
+ * legal input by design — still complete with every core invariant intact.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -33,9 +33,31 @@ describe('adversarial input', () => {
       .toThrow(/non-finite rating/);
   });
 
+  it('a duplicate player id ACROSS teams throws at the boundary and names the id', () => {
+    // one agents Map serves both sides, keyed by player id — before the
+    // cross-team check, mkAgents(away) silently overwrote the colliding home
+    // agent: the game ran to completion with garbage output (0-120 finals,
+    // 288-minute team box sums) and exit 0, reachable from the shipped CLI
+    // by passing the same pack twice. Per-team duplicate checks cannot see
+    // it; only the union check at the simulateGame boundary can.
+    const { home, away } = sampleMatchup();
+    const dup = structuredClone(away);
+    // collide a BENCH player so the per-team checks (starters on roster,
+    // within-team duplicates) still pass and the union check is what throws
+    const bench = dup.players.find((p) => !dup.starters.includes(p.id))!;
+    const collidingId = home.players[0]!.id;
+    bench.id = collidingId;
+    expect(() => simulateGame({ seed: 'adv-dup-id', home, away: dup, collectFrames: false }))
+      .toThrow(new RegExp(`duplicate player id across teams: ${collidingId}`));
+    // the degenerate "team vs itself" experiment (same pack twice) fails the
+    // same way instead of producing the silent 0-120
+    expect(() => simulateGame({ seed: 'adv-dup-self', home, away: home, collectFrames: false }))
+      .toThrow(/duplicate player id across teams/);
+  });
+
   it('a game that cannot finish throws instead of returning a fake result', () => {
     // The tick-loop safety cap is a bug tripwire. An earlier version emitted
-    // a legitimate-looking game_end when it tripped, so a stalled game could
+    // a legitimate-looking game_end when it tripped — a stalled game could
     // masquerade as a valid result. safetyCapTicks is the diagnostics
     // override that lets us prove the loud-failure path in milliseconds.
     const { home, away } = sampleMatchup();
@@ -51,14 +73,14 @@ describe('adversarial input', () => {
 
   it('Rng.weighted rejects an empty weights array loudly', () => {
     // used to fall through to int(0) === 0 and the caller then indexed its
-    // own empty array and got undefined, silently
+    // own empty array — undefined, silently
     const rng = new Rng('adv-weights-empty');
     expect(() => rng.weighted([])).toThrow(/empty weights/);
   });
 
   it('withParams rejects unknown override keys loudly (dynamic callers get no typo mercy)', () => {
     // a typo'd sweep/era-pack path used to merge in silently and be read by
-    // nothing; the experiment then measured the unmodified engine while
+    // nothing — the experiment then measured the unmodified engine while
     // reporting the knob as applied
     expect(() => withParams({ shto: { baseRim: 0.5 } } as never)).toThrow(/unknown SimParams key "shto"/);
     expect(() => withParams({ shot: { baseRym: 0.5 } } as never)).toThrow(/unknown SimParams key "shot.baseRym"/);
@@ -69,8 +91,8 @@ describe('adversarial input', () => {
   });
 
   it("validate:'strict' enforces the pack contract that the default tier deliberately does not", () => {
-    // the same 999 that is legal input below is rejected when the caller
-    // opts into the strict tier. "Valid but unusual" vs "invalid" is a
+    // the same 999 that is LEGAL input below is rejected when the caller
+    // opts into the strict tier — "valid but unusual" vs "invalid" is a
     // caller choice, formalized (second external review).
     const { home, away } = poisoned('attr', 'three', 999);
     expect(() => simulateGame({ seed: 'adv-strict', home, away, collectFrames: false, validate: 'strict' }))
@@ -100,14 +122,13 @@ describe('adversarial input', () => {
       if ('score' in e && e.score) lastScore = e.score as [number, number];
     }
     expect(starts).toEqual(ends);          // pace integrity survives the abuse
-    // The bars are low on purpose: a 999-everything defense legitimately
-    // strangles the game. Every pass lane is lethal, so possessions die as
-    // turnovers; the first run found 15 total shots, and the texture
-    // increment's pass-back damping squeezed scoring further, which is
-    // coherent, not corrupt. The claim under test is invariant integrity,
-    // not playability: possessions balance, the game ran, shots happened,
-    // something scored. The corruption signature this fixture catches was a
-    // 0-0 stall.
+    // note the LOW bars: a 999-everything defense legitimately strangles the
+    // game (every pass lane is lethal, so possessions die as turnovers — the
+    // first run found 15 total shots, and the texture increment's pass-back
+    // damping squeezed scoring further, which is coherent, not corrupt). The
+    // claim under test is invariant integrity, not playability: possessions
+    // balance, the game ran, shots happened, SOMETHING scored — the
+    // corruption signature this fixture catches was a 0-0 stall.
     expect(shots).toBeGreaterThan(5);
     expect(result.events.length).toBeGreaterThan(400); // the game actually ran
     expect(lastScore[0] + lastScore[1]).toBeGreaterThan(0);
