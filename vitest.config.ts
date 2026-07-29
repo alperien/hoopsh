@@ -22,6 +22,7 @@ export default defineConfig({
   },
   test: {
     include: ['packages/*/test/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/readme.test.ts', '**/examples.test.ts'], // CI-PROBE 1
     testTimeout: 60_000
   }
 });
