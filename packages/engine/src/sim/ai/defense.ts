@@ -181,9 +181,11 @@ function containOnBall(s: GameState, d: Agent, holder: Agent, rim: V2): void {
   // ⇒ tighter gap and less closeout slack (play up, contest everything);
   // LEADING ⇒ press > 1 ⇒ sag off (soft contests, protect the drive line,
   // let the clock work). No urgency fade on purpose — late-game defense
-  // stays pressed (doctrine at concepts.ts#scorePressureDefMult). STAGED at
-  // scorePressureDefGain 0 ⇒ press === 1 exactly ⇒ this function is
-  // bit-identical to the unwired engine.
+  // stays pressed (doctrine at concepts.ts#scorePressureDefMult). LIVE:
+  // scorePressureDefGain ships at the θ-ladder-FITTED 0.3 (params.ts,
+  // tune commit fe2624d; pinned by coupling.test.ts). Gain 0 remains the
+  // exact off-switch (press === 1 ⇒ bit-identical to the unwired engine)
+  // but is no longer the shipped default.
   const press = scorePressureDefMult(s, d.side);
   // shooting threat CLOSES the gap; drive threat OPENS it — you play a
   // downhill freight train from depth and concede the pull-up (this is

@@ -73,11 +73,11 @@
         },
         "strength": {
           "$ref": "#/$defs/rating",
-          "description": "screen-setting punch (ai.ts actionTick \"fight\" term) and rebound box-out leverage alongside boxout/offReb/defReb in resolve.ts resolveRebound"
+          "description": "physical punch — ai/actions.ts only: the screen-contact \"fight\" stun term, the screener-selection score, and post-up credibility (posterScore). NOT a rebound input: the rebound lottery reads offReb/defReb/boxout/vertical/heightIn (resolve.ts reboundLottery)"
         },
         "vertical": {
           "$ref": "#/$defs/rating",
-          "description": "jump — tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound; also the height-advantage term for shooting over a defender"
+          "description": "jump — tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound (both blend sides). NOT the shot height-advantage term — that is standing reach, height + wingspan only (model/derived.ts reachFt)"
         },
         "lateral": {
           "$ref": "#/$defs/rating",

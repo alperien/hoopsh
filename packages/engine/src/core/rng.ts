@@ -3,6 +3,17 @@
  *
  * Every random draw in a game flows through one Rng instance owned by the sim.
  * Same seed + same inputs = bit-identical games on every platform.
+ *
+ * HONEST CAVEAT on "every platform": the generator (sfc32) and the cyrb128
+ * seeder are integer-op spec-exact everywhere, but `gaussian`/`sigmoid`
+ * below (Math.log/cos/sin/exp) — and vec.ts's Math.hypot — are
+ * implementation-approximated per the ECMAScript spec. Node and Chrome
+ * share V8 and agree bit-for-bit; a different engine (JavaScriptCore,
+ * SpiderMonkey) may differ in the last ulp, and a single differing draw
+ * cascades through every draw after it. No divergence has been observed;
+ * the cross-ENGINE half of the guarantee is V8-verified, not spec-backed
+ * (a10 contract scan F7).
+ *
  * Never use Math.random() anywhere in the engine.
  */
 
@@ -73,13 +84,13 @@ export class Rng {
   /** index sampled proportionally to non-negative weights (all-zero -> uniform) */
   weighted(weights: readonly number[]): number {
     // an empty array used to fall through to int(0) and "sample" index 0 of
-    // nothing; the caller then indexed its own empty array and got undefined
+    // nothing — the caller then indexed its own empty array and got undefined
     // silently. Same fail-loud policy as the non-finite guard below.
     if (weights.length === 0) throw new Error('Rng.weighted: empty weights array');
     let total = 0;
     for (const w of weights) {
       // fail loudly on corrupt weights: a NaN here used to fall through to
-      // the last index and an Infinity starved every other entry, both
+      // the last index and an Infinity starved every other entry — both
       // silently (independent-review finding). Any non-finite weight means
       // an upstream utility computation is already broken.
       if (!Number.isFinite(w)) {
@@ -123,7 +134,7 @@ export class Rng {
   }
 }
 
-/** logistic sigmoid; every probability model in the engine uses it */
+/** logistic sigmoid — the workhorse of every probability model in the engine */
 export function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
 }

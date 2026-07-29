@@ -1,6 +1,6 @@
 /**
  * Replay format: everything a viewer needs to render a game with zero
- * re-simulation. Metadata, downsampled position frames, the event stream,
+ * re-simulation — metadata, downsampled position frames, the event stream,
  * and a lineup timeline (who occupies which frame slot, over time).
  *
  * Frame row layout (see sim/game.ts recordFrame for the exact construction):
@@ -8,46 +8,48 @@
  * holderSlot: 0-4 home slots, 5-9 away slots, -1 = ball loose/in flight.
  *
  * Index-by-index:
- *   [0] t: wall-clock seconds (`round1(s.wallT)`), despite the short name
- *       here. This is not game-clock time (core/events.ts's `Base.t`); it's
- *       the same wall-clock axis as `Base.wt` and `LineupSnapshot.t` below,
- *       chosen as the frame key because a viewer scrubbing a replay timeline
- *       needs stoppages (free throws, dead-ball resets) to occupy real,
- *       seekable time instead of collapsing to an instant.
- *   [1] period: 1-based, matches Base.period.
- *   [2] clock: game-clock seconds remaining in the period (`s.clock`,
- *       clamped >= 0), for on-screen display. Frozen across consecutive
- *       frames during a dead-ball stoppage even though [0] keeps advancing;
- *       that's expected, not a bug.
- *   [3] ballX, [4] ballY: ball position in court feet (geometry/court.ts's
- *       coordinate system).
- *   [5] holderSlot: which of the 10 on-court slots (0-4 home, 5-9 away, in
- *       each side's `s.lineup` order) currently holds the ball, or -1 when
- *       the ball is loose or mid-flight (a pass or shot in the air, or a
- *       live rebound scramble). Discrete/categorical; see the interpolation
- *       note below.
- *   [6..15] h0x, h0y .. h4x, h4y: the 5 home on-court players' positions,
- *       in home lineup-slot order (slot i here is `holderSlot` value i when
- *       i is 0-4).
- *   [16..25] a0x, a0y .. a4x, a4y: the 5 away on-court players' positions,
- *       in away lineup-slot order (slot i here is `holderSlot` value 5+i).
+ *   [0] t        — WALL-CLOCK seconds (`round1(s.wallT)`), despite the short
+ *                  name here. This is NOT game-clock time (core/events.ts's
+ *                  `Base.t`) — it's the same wall-clock axis as `Base.wt` and
+ *                  `LineupSnapshot.t` below, chosen as the frame key because a
+ *                  viewer scrubbing a replay timeline needs stoppages (free
+ *                  throws, dead-ball resets) to occupy real, seekable time
+ *                  instead of collapsing to an instant.
+ *   [1] period   — 1-based, matches Base.period.
+ *   [2] clock    — GAME-CLOCK seconds remaining in the period (`s.clock`,
+ *                  clamped >= 0), for on-screen display. Frozen across
+ *                  consecutive frames during a dead-ball stoppage even though
+ *                  [0] keeps advancing — that's expected, not a bug.
+ *   [3] ballX, [4] ballY — ball position in court feet (geometry/court.ts's
+ *                  coordinate system).
+ *   [5] holderSlot — which of the 10 on-court slots (0-4 home, 5-9 away, in
+ *                  each side's `s.lineup` order) currently holds the ball, or
+ *                  -1 when the ball is loose or mid-flight (a pass or shot in
+ *                  the air, or a live rebound scramble). Discrete/categorical
+ *                  — see the interpolation note below.
+ *   [6..15]  h0x, h0y .. h4x, h4y — the 5 home on-court players' positions,
+ *                  in home lineup-slot order (slot i here is `holderSlot`
+ *                  value i when i is 0-4).
+ *   [16..25] a0x, a0y .. a4x, a4y — the 5 away on-court players' positions,
+ *                  in away lineup-slot order (slot i here is `holderSlot`
+ *                  value 5+i).
  *
- * Frames are recorded on a fixed wall-clock cadence (`frameEvery` sim ticks
- * at `tickHz`), not one row per simulation tick; this is the "downsampled"
+ * Frames are recorded on a fixed WALL-CLOCK cadence (`frameEvery` sim ticks
+ * at `tickHz`), not one row per simulation tick — this is the "downsampled"
  * in the summary above. A viewer reconstructing motion between two frames
  * should linearly interpolate ball/player x,y using [0] (wallT) to find the
- * playback fraction between the bracketing frames, but should not
- * interpolate `holderSlot`: snap to whichever bracketing frame is temporally
- * closer, since blending a discrete slot index is meaningless.
+ * playback fraction between the bracketing frames, but should NOT interpolate
+ * `holderSlot` — snap to whichever bracketing frame is temporally closer,
+ * since blending a discrete slot index is meaningless.
  *
  * Lineups are a separate timeline (`LineupSnapshot[]`) rather than 10 more
  * columns per frame because substitutions are rare (a handful per game)
- * while frames are recorded many times a minute; baking "who's in slot i"
+ * while frames are recorded many times a minute — baking "who's in slot i"
  * into every row would repeat the same 10 ids across hundreds of frames for
  * nothing. Instead, `buildReplay` below folds `game_start` and
  * `substitution` events into snapshots, and a viewer looks up "who occupies
- * slot i at wall-clock time T" by finding the last LineupSnapshot for that
- * side with `snapshot.t <= T` (nothing needs interpolating here; a lineup
+ * slot i at wall-clock time T" by finding the LAST LineupSnapshot for that
+ * side with `snapshot.t <= T` (nothing needs interpolating here — a lineup
  * is either in effect or it isn't).
  */
 
@@ -68,7 +70,7 @@ export interface ReplayTeamMeta {
   players: ReplayPlayerMeta[];
 }
 
-/** One lineup change on the replay timeline for one side; see the "Lineups are a separate timeline" note above. A viewer looks up the current lineup for `side` by finding the latest snapshot with `t <= playbackWallClock`. */
+/** One lineup change on the replay timeline for one side — see the "Lineups are a separate timeline" note above. A viewer looks up the current lineup for `side` by finding the latest snapshot with `t <= playbackWallClock`. */
 export interface LineupSnapshot {
   /** wall-clock timeline seconds this lineup takes effect */
   t: number;
@@ -76,11 +78,11 @@ export interface LineupSnapshot {
   slots: string[];
 }
 
-/** The complete self-contained replay artifact: serializable, and sufficient on its own to render a full game with no access to the engine's internal simulation state. */
+/** The complete self-contained replay artifact — serializable, and sufficient on its own to render a full game with no access to the engine's internal simulation state. */
 export interface Replay {
   /**
    * Replay format version. Bump whenever the serialized shape of this
-   * artifact changes (including the embedded `GameEvent` shapes) and
+   * artifact changes — INCLUDING the embedded `GameEvent` shapes — and
    * update packages/viewer in the same change (AGENTS.md DO-NOT #8): the
    * viewer HTML is designed to be saved standalone, so externally-held
    * copies have this field as their only way to detect a shape they
@@ -93,7 +95,14 @@ export interface Replay {
    *   `GameEvent` union; `FreeThrowEvent.oneAndOne?` added. Frame row
    *   layout unchanged. Consumers typed against v1 (`player` required)
    *   must treat a playerless rebound as a team rebound.
-   * - 1: initial format.
+   * - 1: initial format. CAUTION — two incompatible timeline semantics both
+   *   shipped as "version 1": the wall-clock timeline change (commit
+   *   c3d5bef) added `wt` to every event, switched frame row [0] from
+   *   GAME-clock to WALL-clock seconds, and re-keyed LineupSnapshot.t to
+   *   the wall clock without bumping this field (a historical DO-NOT #8
+   *   violation — a10 contract scan F4). An externally saved pre-c3d5bef
+   *   v1 replay therefore has frame [0] on the game-clock axis, and
+   *   nothing in the artifact distinguishes the two v1 shapes.
    */
   version: 2;
   seed: string;
@@ -116,8 +125,8 @@ export interface Replay {
 /**
  * Assemble the shippable `Replay` artifact from a finished game's raw
  * `GameResult` (which carries the full team rosters, not just the trimmed
- * per-player fields a viewer needs; this function is the trim/reshape
- * step). The only non-trivial work here is turning the sparse
+ * per-player fields a viewer actually needs — this function is the
+ * trim/reshape step). The only non-trivial work here is turning the sparse
  * `substitution` events into a walkable lineup timeline; everything else is
  * a straight field copy.
  */
@@ -138,9 +147,9 @@ export function buildReplay(result: GameResult): Replay {
   // event's two starting fives (one snapshot per side, both at t = game
   // start), then replay each substitution event in event order, mutating a
   // running `current` lineup array per side and pushing a fresh snapshot
-  // every time it changes. This walks the same events already in
-  // result.events (a derived view for convenient lookup, not new
-  // information), so a viewer could reconstruct this itself from the event
+  // every time it changes. This walks the SAME events already in
+  // result.events — it's a derived view for convenient lookup, not new
+  // information — so a viewer could reconstruct this itself from the event
   // stream alone, but doesn't have to.
   const lineups: LineupSnapshot[] = [];
   const current: [string[], string[]] = [[], []];
@@ -161,7 +170,7 @@ export function buildReplay(result: GameResult): Replay {
   }
 
   return {
-    // must stay in lockstep with the `Replay.version` literal type above;
+    // must stay in lockstep with the `Replay.version` literal type above —
     // the version history lives at that field's doc comment
     version: 2,
     seed: result.seed,

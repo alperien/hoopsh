@@ -33,14 +33,14 @@ export function swapPlayers(s: GameState, side: TeamSide, out: Agent, into: Agen
   into.vel = { x: 0, y: 0 };
   into.manId = out.manId;
   into.spotKey = out.spotKey;
-  // the OTHER team's defenders re-point too: matchups are otherwise healed
-  // only at startPossession (assignMatchups), but subs land at continuation
-  // dead balls and FT entries where the SAME possession resumes — a defender
-  // whose manId still named the benched man kept guarding a ghost's frozen
-  // spot for up to a full shot clock while the fresh sub played unassigned
-  // (scan a5: ~300 stale defender-ticks/game, waves of up to four defenders
-  // at once). The incoming man inherits the outgoing man's guarding
-  // assignment above; this is the same hand-off seen from the defense.
+  // The role hand-off runs in BOTH directions: opponents whose assignment
+  // pointed at the outgoing player now guard the substitute. Matchups are
+  // otherwise assigned only at startPossession, and several sub windows
+  // resume the SAME possession (continuation dead balls, FT entries) — so a
+  // defender whose manId named the benched man kept guarding a ghost's
+  // frozen spot while the fresh sub played unassigned (scan a5: ~300 stale
+  // defender-ticks/game; sim/ai audit A9-2: ~21 s of broken coverage per
+  // default game).
   for (const d of onCourt(s, other(side))) {
     if (d.manId === out.p.id) d.manId = into.p.id;
   }

@@ -16,9 +16,9 @@ export interface Attributes {
   speed: number;
   /** acceleration off a stop/cut (model/derived.ts acceleration); governs how fast velocity can change each tick in movement.ts */
   accel: number;
-  /** screen-setting punch (ai.ts actionTick "fight" term) and rebound box-out leverage alongside boxout/offReb/defReb in resolve.ts resolveRebound */
+  /** physical punch — ai/actions.ts only: the screen-contact "fight" stun term, the screener-selection score, and post-up credibility (posterScore). NOT a rebound input: the rebound lottery reads offReb/defReb/boxout/vertical/heightIn (resolve.ts reboundLottery) */
   strength: number;
-  /** jump — tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound; also the height-advantage term for shooting over a defender */
+  /** jump — tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound (both blend sides). NOT the shot height-advantage term — that is standing reach, height + wingspan only (model/derived.ts reachFt) */
   vertical: number;
   /** lateral defensive slide speed (model/derived.ts lateralSpeed); caps how well a defender mirrors a drive in ai.ts moveSpeed, and dilutes drive handling in decideBall's handlingBase term */
   lateral: number;
@@ -175,8 +175,9 @@ const DEFAULT_ATTR: Attributes = {
 // attempts at the rim outnumber threes even in three-happy eras. pullUp at
 // 35 and drive at 45 push the default player toward getting downhill and
 // finishing/kicking rather than settling for pull-up jumpers. iso/post sit
-// low (25/15) because those are low-frequency actions leaguewide even before
-// accounting for their STAGED status above.
+// low (25/15) because those are low-frequency actions leaguewide — both are
+// LIVE action-call weights today (ai/actions.ts isoCallShare/postCallShare),
+// not staged dials.
 const DEFAULT_TEND: Tendencies = {
   shotRim: 50, shotMid: 30, shotThree: 40, pullUp: 35,
   drive: 45, passOut: 50, iso: 25, post: 15,

@@ -657,10 +657,26 @@ implemented and DEFAULT-ON since the calib/integration landing
 patterns (mandatory/TV timeouts, ATO play-calls) remain unmodeled and
 ungraded — no cited base rate exists · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
+team-foul counting hardcodes the NBA rule under every pack (offensive fouls
+are personal-only, sim/fouls.ts `countsTeam`): under NCAA men's rules a
+player-control foul DOES count toward the team-foul/bonus total (while never
+awarding shots), so the NCAA pack under-counts toward its 7/10 thresholds —
+mechanizing it needs a rulepack field (a10 contract scan F5) ·
+the offensive-rebound shot-clock reset FLOORS at shotClockOffRebSec
+(`Math.max`, sim/possession.ts — a board with 20 s left keeps 20) where the
+real NBA/FIBA rule resets TO 14 unconditionally on a rim-contact miss; the
+difference binds only on early-clock misses (small pace bias; changing it is
+a calibration-ladder change — a10 contract scan F6) ·
 (the Stage 2 assists/assisted-share gaps are CLOSED: usage pressure,
 delivery quality, and DHO conversion brought assisted share to ~57-61% and
 the band is now enforced like any other — see the fidelity-phase commits) ·
 man-to-man with drop coverage, plus top-lock denial of extreme-gravity shooters (and its backdoor-cut counter) ·
+shotEV prices the shooting-foul EV unconditionally while resolution awards a
+whistle only when a contester exists (shooting.ts gates on `contest.by`), and
+skips the blockedFoulMult damping — a wide-open look carries ~0.15 phantom
+foul EV at the rim and every pass valuation (contest hardcoded `by: null`)
+includes it; bands are calibrated around the bias, so making shotEV
+realizability-aware is a re-calibration change, not a patch (a6 line audit) ·
 bench-exhausted foul-outs play on (NBA rule analog: a fouled-out player remains
 when no substitute exists — reachable only with short/foul-storm rosters; the
 no-fouled-out-actors invariant applies whenever replacements exist, and every
