@@ -11,12 +11,6 @@ score traces back to a simulated shot at an (x, y) location. It is a 2D probabil
 model with position as an input, not a physics sim: there is no ball height, and
 [docs/INTERNALS.md](./docs/INTERNALS.md) keeps the honest list of simplifications.
 
-Honesty note: league realism is graded against NBA acceptance bands that are
-authored from memory, not generated from sourced data (the game-flow references in
-`data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games).
-Grounding the bands in citable data, and fitting to distributions rather than
-means, remains the active roadmap arc.
-
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
 ("drop Jordan into 2015"), broadcast experiences — all of these are thin apps
 consuming one core's event stream. Leagues (NBA, NCAA, EuroLeague) are swappable
@@ -43,13 +37,19 @@ npm run test                     # full suite via node:test, zero installs (~2 m
 npm run broadcast                # two-voice broadcast script for a game
 
 npm run roster:new               # scaffold your own team from archetypes (wizard);
-                                 # writes new-team.team.json by default
-npm run roster:validate -- new-team.team.json  # pack linting: fixes + plausibility warnings
-npm run sim -- --home new-team.team.json       # ...and your team plays (docs/ROSTERS.md is the guide)
+                                 # writes out/new-team.team.json by default
+npm run roster:validate -- out/new-team.team.json  # pack linting: fixes + plausibility warnings
+npm run sim -- --home out/new-team.team.json       # ...and your team plays (docs/ROSTERS.md is the guide)
 
 npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
 npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
 ```
+
+A note on realism claims: the league-average checks the sim is tuned against
+were written down from memory, not generated from sourced data (the play-by-play
+references in `data/nba/` are the sourced part — 184 parsed real games). Making
+every target citable is an active roadmap item, so this README quotes no pass
+rates: run the checks yourself with `npm run batch`.
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
 declared in `devDependencies` so one plain `npm install` reproduces the full
@@ -65,7 +65,7 @@ dependencies. Installing real vitest simply takes over via `test:vitest`.
 ```bash
 npm run sim -- --seed showcase           # writes out/replay-showcase.json
 npm run viewer:embed out/replay-showcase.json out/game.html
-open out/game.html                       # court, players, ball, score, clock, ticker
+open out/game.html                       # macOS; Linux: xdg-open, Windows: start
 ```
 
 Or open `packages/viewer/index.html` directly and **drag any replay JSON onto it**.

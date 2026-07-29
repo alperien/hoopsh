@@ -45,12 +45,6 @@ score traces back to a simulated shot at an (x, y) location. It is a 2D probabil
 model with position as an input, not a physics sim: there is no ball height, and
 [docs/INTERNALS.md](./docs/INTERNALS.md) keeps the honest list of simplifications.
 
-Honesty note: league realism is graded against NBA acceptance bands that are
-authored from memory, not generated from sourced data (the game-flow references in
-`data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games).
-Grounding the bands in citable data, and fitting to distributions rather than
-means, remains the active roadmap arc.
-
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
 ("drop Jordan into 2015"), broadcast experiences — all of these are thin apps
 consuming one core's event stream. Leagues (NBA, NCAA, EuroLeague) are swappable
@@ -77,13 +71,19 @@ npm run test                     # full suite via node:test, zero installs (~2 m
 npm run broadcast                # two-voice broadcast script for a game
 
 npm run roster:new               # scaffold your own team from archetypes (wizard);
-                                 # writes new-team.team.json by default
-npm run roster:validate -- new-team.team.json  # pack linting: fixes + plausibility warnings
-npm run sim -- --home new-team.team.json       # ...and your team plays (docs/ROSTERS.md is the guide)
+                                 # writes out/new-team.team.json by default
+npm run roster:validate -- out/new-team.team.json  # pack linting: fixes + plausibility warnings
+npm run sim -- --home out/new-team.team.json       # ...and your team plays (docs/ROSTERS.md is the guide)
 
 npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
 npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
 ```
+
+A note on realism claims: the league-average checks the sim is tuned against
+were written down from memory, not generated from sourced data (the play-by-play
+references in `data/nba/` are the sourced part — 184 parsed real games). Making
+every target citable is an active roadmap item, so this README quotes no pass
+rates: run the checks yourself with `npm run batch`.
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
 declared in `devDependencies` so one plain `npm install` reproduces the full
@@ -99,7 +99,7 @@ dependencies. Installing real vitest simply takes over via `test:vitest`.
 ```bash
 npm run sim -- --seed showcase           # writes out/replay-showcase.json
 npm run viewer:embed out/replay-showcase.json out/game.html
-open out/game.html                       # court, players, ball, score, clock, ticker
+open out/game.html                       # macOS; Linux: xdg-open, Windows: start
 ```
 
 Or open `packages/viewer/index.html` directly and **drag any replay JSON onto it**.
@@ -468,7 +468,7 @@ seeds.
 
 1. **League acceptance bands** (harness): sim N games between balanced rosters; assert
    pace, points, FG%/3P%/FT%, 3PA rate, FTA rate, ORB%, TOV%, assists, steals, blocks,
-   fouls all inside bands taken from real league seasons.
+   fouls all inside acceptance bands (author-recalled ranges today; sourcing them from real league data is an active roadmap item — see README).
 2. **Archetype tests** (engine test suite): hand-built extreme profiles must produce the
    right *shape* of stat line — the elite shooter's 3PA share, the rim-runner's points
    at the rim, the floor general's assist rate. Direction and band, not exact values.
@@ -871,8 +871,8 @@ finding.
   4.115** (`npm run sweep -- --iters 0 --verify 40`, the tune-commit
   record); acceptance batch **17/17 at n=48 AND n=96** (fga
   88.7/88.8, pace 98.5/99.0 — `npm run batch -- --games 48|96`,
-  re-run at HEAD 2026-07-29 for this record); suite **346 tests /
-  345 pass / 0 fail / 1 todo** (`npm test`, 2026-07-29 — the three
+  re-run at HEAD 2026-07-29 for this record); suite green (`npm test`
+  prints the live count; measured 2026-07-29 — the three
   catalogued mechanics drift-trips re-greened at the re-center; two
   draw-fragile pins re-anchored to their properties in `7ea62a6`,
   no assertion weakened). Golden corpus re-baselined in the tune
@@ -1785,7 +1785,7 @@ is sufficient.
   "kind": "team",
   "team": {
     "id": "owls", "name": "Oak City Owls", "abbrev": "OWL",
-    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — team style dials
+    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — see the dial table below
     "players": [ /* >= 8 players, each with all 38 ratings — see below */ ],
     "starters": [ "owls-p01", "owls-p02", "owls-p03", "owls-p04", "owls-p05" ],  // exactly 5 distinct ids
     "rotationMinutes": { "owls-p01": 36 }   // optional coach targets; omit to sub on fatigue alone
@@ -1830,6 +1830,14 @@ genius and a low-skill chucker are both expressible, and `roster:validate`
 will not second-guess that combination.
 
 **Two dials are staged, honestly.** `consistency` (hot/cold variance) and
+What the dials do (0-100, 50 = league-neutral):
+
+| dial | effect |
+|---|---|
+| `threeBias` | shifts the shot diet toward (above 50) or away from (below 50) three-point attempts; it scales shot-selection utilities, it does not change make probability |
+| `helpAggr` | how early and far help defenders rotate off their man; high values trade rim protection for open kick-out threes |
+| `pace` | STAGED — defined and validated but read by no live system yet; setting it changes nothing today (the roster wizard's `--pace` flag stores it for when the tempo layer lands) |
+
 `pushPace`/team `pace` are read by staged systems documented in
 [`docs/INTERNALS.md`](./INTERNALS.md); set them plausibly anyway so packs
 don't need editing when the stages land.

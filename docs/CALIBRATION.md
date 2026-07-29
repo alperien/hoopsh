@@ -150,8 +150,8 @@ finding.
   4.115** (`npm run sweep -- --iters 0 --verify 40`, the tune-commit
   record); acceptance batch **17/17 at n=48 AND n=96** (fga
   88.7/88.8, pace 98.5/99.0 — `npm run batch -- --games 48|96`,
-  re-run at HEAD 2026-07-29 for this record); suite **346 tests /
-  345 pass / 0 fail / 1 todo** (`npm test`, 2026-07-29 — the three
+  re-run at HEAD 2026-07-29 for this record); suite green (`npm test`
+  prints the live count; measured 2026-07-29 — the three
   catalogued mechanics drift-trips re-greened at the re-center; two
   draw-fragile pins re-anchored to their properties in `7ea62a6`,
   no assertion weakened). Golden corpus re-baselined in the tune

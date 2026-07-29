@@ -203,7 +203,7 @@ seeds.
 
 1. **League acceptance bands** (harness): sim N games between balanced rosters; assert
    pace, points, FG%/3P%/FT%, 3PA rate, FTA rate, ORB%, TOV%, assists, steals, blocks,
-   fouls all inside bands taken from real league seasons.
+   fouls all inside acceptance bands (author-recalled ranges today; sourcing them from real league data is an active roadmap item — see README).
 2. **Archetype tests** (engine test suite): hand-built extreme profiles must produce the
    right *shape* of stat line — the elite shooter's 3PA share, the rim-runner's points
    at the rim, the floor general's assist rate. Direction and band, not exact values.

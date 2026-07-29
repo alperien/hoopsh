@@ -8,7 +8,7 @@ Project jargon — fingerprint, bands, sweep, SWEPT/REAL/FEEL — is defined in
 
 ## Setup — there is none
 
-Node 24.2+ and a clone. No `npm install`; the repo runs from TypeScript source
+Node 24+ and a clone (`.nvmrc` pins the major). No `npm install`; the repo runs from TypeScript source
 via Node's native type stripping.
 
 ```bash
@@ -35,7 +35,7 @@ own `npm run bench`.
 
 | Command | When | Time |
 |---|---|---|
-| `npm test` | every change, no exceptions | **~2 min** (346 tests) |
+| `npm test` | every change, no exceptions | **~2 min** (the run prints the live count) |
 | `npm run batch -- --games 24` | any mechanics/params change | 7s |
 | `npm run sweep -- --iters 0 --games 4 --verify 40` | params changes (3 seed bases) | 36s |
 | `npm run fingerprint` | refactors claiming no behavior change | 9s |
@@ -63,11 +63,11 @@ Say you are fixing a typo in `docs/ROSTERS.md`.
    ```
 
    At `edb9e3d` that reads `1217 events`, `Breakers 111, Monarchs 124`,
-   tests `346/345/0/1`.
+   tests all passing (the run prints the count; 1 pre-existing todo is normal).
 2. Make the edit.
-3. If the file is a Bible source (the `SOURCES` list in
-   `tools/build-bible.mjs` — README, ARCHITECTURE, AGENTS, PLAYBOOK, ROSTERS,
-   SEASON, ONBOARDING, INTERNALS), regenerate in the same commit:
+3. If the file is a Bible source (check the `SOURCES` list in
+   `tools/build-bible.mjs` — 11 docs at last count), regenerate in the same
+   commit:
    `npm run docs:bible`. CI fails on Bible drift. Never edit `docs/BIBLE.md`
    itself.
 4. Recapture the fingerprint. For a docs-only change it must be identical —
