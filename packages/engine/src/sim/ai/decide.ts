@@ -59,6 +59,10 @@ export function decideBall(s: GameState): BallAction {
   // produces patient early-clock offense and desperate late-clock heaves.
   const full = s.rules.shotClockSec;
   const sc = Math.max(0, s.poss.shotClock);
+  // shot clock remaining as a 0..1 share — the same quantity the concepts.ts
+  // params (probeClockShare etc.) are denominated in; fed to probeCulture
+  // and advantagePass below
+  const shotClockShare = sc / full;
   let continuation = D.continuationMax * Math.pow(sc / full, D.continuationCurve);
   if (sc < D.urgencySec) continuation *= sc / D.urgencySec;
   // CONCEPT 7: SCORE PRESSURE — the always-on margin lean: trailing presses
@@ -178,7 +182,7 @@ export function decideBall(s: GameState): BallAction {
   // early shots lose, fading to zero by mid-clock; never in transition and
   // never on the drive channel (doctrine in ai/concepts.ts). Both terms
   // append at the END of their sums — float order is the byte contract.
-  const probe = probeCulture(s, sc / full);
+  const probe = probeCulture(s, shotClockShare);
   const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot;
 
   // --- utility: pass to each teammate
@@ -207,7 +211,7 @@ export function decideBall(s: GameState): BallAction {
     // doctrine and incident history live in ai/concepts.ts; components are
     // added in the original order (floating-point order is part of the
     // determinism contract).
-    const adv = advantagePass(s, h, m, s.t < m.cutUntil, sc / full);
+    const adv = advantagePass(s, h, m, s.t < m.cutUntil, shotClockShare);
     const pay = commitmentPass(s, h, m, act0);
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
@@ -349,16 +353,18 @@ export function decideBall(s: GameState): BallAction {
  * direct utility penalty — this is what makes a packed paint deter drives and
  * (via the kickout branch) makes help defense produce open shooters.
  *
- * t ∈ (0.15, 0.95): ignore defenders standing on top of the handler (that's
- * the on-ball matchup, handled separately) and those already under the rim.
+ * along ∈ (0.15, 0.95): ignore defenders standing on top of the handler
+ * (that's the on-ball matchup, handled separately) and those already under
+ * the rim. (`along` is segmentT's parametric position on the handler→rim
+ * segment — geometry, NOT the game clock this file otherwise calls t.)
  * lat < 5 ft: within a body's width of the driving line, weighted linearly.
  */
 function defendersInLane(s: GameState, h: Agent, rim: V2): number {
   let count = 0;
   for (const d of liveOnCourt(s, other(h.side))) {
-    const t = segmentT(h.pos, rim, d.pos);
-    if (t > 0.15 && t < 0.95) {
-      const lat = dist(d.pos, lerp(h.pos, rim, t));
+    const along = segmentT(h.pos, rim, d.pos);
+    if (along > 0.15 && along < 0.95) {
+      const lat = dist(d.pos, lerp(h.pos, rim, along));
       if (lat < 5) count += 1 - lat / 5;
     }
   }

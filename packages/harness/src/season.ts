@@ -287,7 +287,10 @@ export function computeStandings(
 
   interface Acc {
     games: number; wins: number; losses: number;
-    pf: number; pa: number;
+    // spelled out (matching the exported VenueRecord) because `tot.pf` below
+    // is personal FOULS — the same two-letter code with two meanings inside
+    // one accumulator was a reader trap
+    pointsFor: number; pointsAgainst: number;
     home: VenueRecord; away: VenueRecord;
     tot: { fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
            trb: number; ast: number; stl: number; blk: number; tov: number; pf: number; poss: number };
@@ -295,7 +298,7 @@ export function computeStandings(
   }
   const emptyVenue = (): VenueRecord => ({ wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0 });
   const emptyAcc = (): Acc => ({
-    games: 0, wins: 0, losses: 0, pf: 0, pa: 0,
+    games: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0,
     home: emptyVenue(), away: emptyVenue(),
     tot: { fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, trb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0, poss: 0 },
     opponents: []
@@ -325,7 +328,7 @@ export function computeStandings(
     const homeWon = hs > as;
 
     h.games += 1; a.games += 1;
-    h.pf += hs; h.pa += as; a.pf += as; a.pa += hs;
+    h.pointsFor += hs; h.pointsAgainst += as; a.pointsFor += as; a.pointsAgainst += hs;
     h.wins += homeWon ? 1 : 0; h.losses += homeWon ? 0 : 1;
     a.wins += homeWon ? 0 : 1; a.losses += homeWon ? 1 : 0;
     h.home.wins += homeWon ? 1 : 0; h.home.losses += homeWon ? 0 : 1;
@@ -360,14 +363,14 @@ export function computeStandings(
       wins: a.wins,
       losses: a.losses,
       winPct: a.games === 0 ? 0 : a.wins / a.games,
-      pointsFor: a.pf,
-      pointsAgainst: a.pa,
-      diff: a.pf - a.pa,
-      avgMargin: (a.pf - a.pa) / g,
+      pointsFor: a.pointsFor,
+      pointsAgainst: a.pointsAgainst,
+      diff: a.pointsFor - a.pointsAgainst,
+      avgMargin: (a.pointsFor - a.pointsAgainst) / g,
       home: a.home,
       away: a.away,
       avg: {
-        pts: a.pf / g,
+        pts: a.pointsFor / g,
         fga: a.tot.fga / g,
         fgPct: a.tot.fga === 0 ? 0 : a.tot.fgm / a.tot.fga,
         tpa: a.tot.tpa / g,

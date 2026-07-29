@@ -93,8 +93,15 @@ function validateTeam(team: Team): void {
   // duplicate STARTER ids pass every other check here yet put the same body
   // in two lineup slots: the game runs 4-on-5 to a normal-looking result
   // (same silent-corruption class as the NaN incident — see
-  // assertValidRatings). data/src/schema.ts already rejects this at the pack
-  // layer, but the engine boundary accepts raw Team objects from any caller.
+  // assertValidRatings). The lineup array double-counts the duplicated
+  // player's seconds while box.ts folds lineup slots through a Set, so
+  // ["a","a","b","c","d"] silently broke the 240-minute invariant
+  // (192-minute team sums, a phantom lineup slot) with the game otherwise
+  // "working". Mirrors data/src/schema.ts's starters check — the pack layer
+  // rejects this too, but the engine boundary accepts raw Team objects from
+  // any caller and direct-API callers never pass through roster:validate
+  // (c4-F5). Two identical copies of this guard once lived in this function
+  // (the second was unreachable); their incident notes are merged here.
   if (new Set(team.starters).size !== team.starters.length) {
     throw new Error(`${team.id}: duplicate starter ids`);
   }
@@ -102,15 +109,6 @@ function validateTeam(team: Team): void {
     if (!team.players.some((p) => p.id === id)) {
       throw new Error(`${team.id}: starter ${id} not on roster`);
     }
-  }
-  // A repeated id isn't five starters: the lineup array double-counts the
-  // duplicated player's seconds while box.ts folds lineup slots through a
-  // Set, so ["a","a","b","c","d"] silently broke the 240-minute invariant
-  // (192-minute team sums, a phantom lineup slot) with the game otherwise
-  // "working". Mirrors data/src/schema.ts's starters check — direct-API
-  // callers never pass through roster:validate (c4-F5).
-  if (new Set(team.starters).size !== team.starters.length) {
-    throw new Error(`${team.id}: duplicate ids in starters [${team.starters.join(', ')}]`);
   }
   const ids = new Set(team.players.map((p) => p.id));
   if (ids.size !== team.players.length) throw new Error(`${team.id}: duplicate player ids`);

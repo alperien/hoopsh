@@ -632,8 +632,11 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   a.freeThrow = F('freeThrow', invertFreeThrow(line.ftPct), 'formula',
     `exact freeThrowP inverse: FT%=${(line.ftPct * 100).toFixed(1)}`);
   const two = invertTwoPoint(rates);
+  // the estimated rim% invertTwoPoint applied internally (its pRim), redone
+  // here only so the provenance string can show it — keep in lockstep
+  const estRimPct = clamp(zoneRefs().rim.leaguePct + TWO_PT_SHRINK * (rates.twoPct - two.leagueTwoPct), 0.15, 0.9);
   a.finishing = F('finishing', two.finishing, 'formula',
-    `rim logit inverse @ est. rim%=${(clamp(zoneRefs().rim.leaguePct + TWO_PT_SHRINK * (rates.twoPct - two.leagueTwoPct), 0.15, 0.9) * 100).toFixed(1)} (2P% ${(rates.twoPct * 100).toFixed(1)} vs league ${(two.leagueTwoPct * 100).toFixed(1)})`);
+    `rim logit inverse @ est. rim%=${(estRimPct * 100).toFixed(1)} (2P% ${(rates.twoPct * 100).toFixed(1)} vs league ${(two.leagueTwoPct * 100).toFixed(1)})`);
   a.midRange = F('midRange', two.midRange, 'formula',
     'mid logit inverse at the same shrunk uniform shift');
   a.drawFoul = F('drawFoul', invertDrawFoul(rates, line.tpPct), 'formula',
@@ -821,8 +824,9 @@ function scoreLine(a: Achieved, target: Achieved): number {
 
 /**
  * League-neutral supporting cast — the fidelity-benchmark/solve.ts
- * convention (duplicated from solve.ts, which is a CLI script whose import
- * would execute its main). POSITION-AWARE starters: the star fills his own
+ * convention. Forked from solve.ts back when importing it executed its main
+ * (solve.ts is import.meta.main-guarded now); the fork has since diverged.
+ * POSITION-AWARE starters: the star fills his own
  * slot and the cast fills the other four — starting a rimRunner center next
  * to a fitted center made twin towers that ATE the fitted big's boards
  * (observed: a 12-board center fitting to 8.5), which no fidelity cast does
@@ -982,7 +986,8 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
           ? (cand.attr as unknown as Record<string, number>)
           : (cand.tend as unknown as Record<string, number>);
         const b = bounds.get(`${d.path}.${d.key}`)!;
-        bag[d.key] = Math.round(clamp(bag[d.key]! + (rng.float() * 2 - 1) * step, b.lo, b.hi));
+        const jitter = (rng.float() * 2 - 1) * step; // uniform in ±step
+        bag[d.key] = Math.round(clamp(bag[d.key]! + jitter, b.lo, b.hi));
       }
       const ev = evaluate(cand, opts.seedBase, evalGames);
       if (ev.score < bestEval.score * (1 - ACCEPT_MARGIN)) {
