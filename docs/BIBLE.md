@@ -563,8 +563,9 @@ the single source of truth it derives from.
    The post-up follows the same shape: the entry reuses the pass model, the double-team
    reuses help defense, and the spray out of the double reuses kick-out machinery.
 6. **Staged surface is labeled.** Fields marked `STAGED` in `model/player.ts`
-   (`consistency`, `tend.pushPace`) are defined but not yet consumed — each is
-   tied to a roadmap stage. Wiring one without its stage's mechanics adds unvalidated
+   (`consistency`, `tend.pushPace`, `Tactics.pace`) are defined but not yet
+   consumed — each is tied to a roadmap stage (the pace pair belongs to the same
+   team-pace layer). Wiring one without its stage's mechanics adds unvalidated
    surface area.
 
 ## The safety net (run all of it before pushing)

@@ -54,3 +54,6 @@ for (const [name, team] of Object.entries(variants)) {
   }
 }
 console.log(fail === 0 ? 'PACK BATTERY: validator boundary holds' : `${fail} CRASHES from validator-approved packs`);
+// Exit-code discipline (b7-F6): failures must not exit 0 — script chains and
+// CI wiring would silently report success.
+if (fail > 0) process.exitCode = 1;

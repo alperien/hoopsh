@@ -103,6 +103,15 @@ function validateTeam(team: Team): void {
       throw new Error(`${team.id}: starter ${id} not on roster`);
     }
   }
+  // A repeated id isn't five starters: the lineup array double-counts the
+  // duplicated player's seconds while box.ts folds lineup slots through a
+  // Set, so ["a","a","b","c","d"] silently broke the 240-minute invariant
+  // (192-minute team sums, a phantom lineup slot) with the game otherwise
+  // "working". Mirrors data/src/schema.ts's starters check — direct-API
+  // callers never pass through roster:validate (c4-F5).
+  if (new Set(team.starters).size !== team.starters.length) {
+    throw new Error(`${team.id}: duplicate ids in starters [${team.starters.join(', ')}]`);
+  }
   const ids = new Set(team.players.map((p) => p.id));
   if (ids.size !== team.players.length) throw new Error(`${team.id}: duplicate player ids`);
 }
@@ -568,15 +577,44 @@ function assertValidRatings(team: Team, side: string, strict: boolean): void {
     if (!Number.isFinite(p.heightIn) || !Number.isFinite(p.weightLb)) {
       throw new Error(`simulateGame: non-finite body measurement on ${side}/${p.id}`);
     }
+    // wingspanIn is optional, but PRESENT-and-non-finite doesn't trigger the
+    // `?? heightIn + 2` fallback in derived.ts (?? only catches nullish) —
+    // a NaN wingspan flowed into standing reach and detonated ~20 simulated
+    // minutes in as an unattributed Rng.weighted throw, and Infinity played
+    // silently. schema.ts validates exactly this field; the mirrors were
+    // out of sync on the one field schema calls out as a NaN vector (c4-F2).
+    if (p.wingspanIn !== undefined && (typeof p.wingspanIn !== 'number' || !Number.isFinite(p.wingspanIn))) {
+      throw new Error(`simulateGame: non-finite wingspanIn on ${side}/${p.id} = ${String(p.wingspanIn)}`);
+    }
     if (strict && (p.heightIn < 60 || p.heightIn > 96)) {
       throw new Error(
         `simulateGame: heightIn out of range ${side}/${p.id} = ${String(p.heightIn)} (validate:'strict' expects 60-96)`
       );
     }
   }
+  // rotationMinutes mirrors schema.ts too: a NaN target doesn't fail — it
+  // silently disables the minutes-pace leash for that player (observed: a
+  // NaN-targeted starter rode until fouling out instead of rotating). Keys
+  // for ids not on the roster are ignored harmlessly by subs.ts, so only
+  // value shape is enforced here, exactly like the pack validator (c4-F2).
+  if (team.rotationMinutes !== undefined) {
+    for (const [rid, v] of Object.entries(team.rotationMinutes)) {
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+        throw new Error(
+          `simulateGame: rotationMinutes target ${side}/${rid} = ${String(v)} must be a finite number >= 0`
+        );
+      }
+    }
+  }
 }
 
 export function simulateGame(cfg: GameConfig): GameResult {
+  // exact-match tier names, unknown values rejected: JS callers passing
+  // 'Strict' (case typo) used to silently run the finite tier — a 500-rated
+  // player then played under a config that asked for strictness (c4-F6)
+  if (cfg.validate !== undefined && cfg.validate !== 'finite' && cfg.validate !== 'strict') {
+    throw new Error(`simulateGame: unknown validate tier "${String(cfg.validate)}" (use 'finite' or 'strict')`);
+  }
   const strict = cfg.validate === 'strict';
   assertValidRatings(cfg.home, 'home', strict);
   assertValidRatings(cfg.away, 'away', strict);
@@ -607,8 +645,14 @@ export function simulateGame(cfg: GameConfig): GameResult {
     // legitimate-looking game_end here, which let a stalled game masquerade
     // as a valid result; an external review flagged it. Fail loudly instead:
     // a result you get back from simulateGame is always a finished game.
+    // The diagnosis names BOTH suspects: with stock rules/params this is an
+    // engine bug, but a degenerate config reaches the same cap legitimately
+    // (probed: unscorable params spin up endless tied OTs; a sub-tick
+    // shotClockSec starves endPeriod) — the old "engine bug" wording sent
+    // users with a weird rulepack hunting phantom engine defects (c4-F4).
     throw new Error(
-      `simulateGame: tick-loop safety cap exhausted before game_end — engine bug, not a valid game ` +
+      `simulateGame: tick-loop safety cap exhausted before game_end — engine bug, unless the config is ` +
+      `degenerate (custom rules/params that prevent scoring or period end make this unreachable-by-design) ` +
       `(seed=${String(cfg.seed)}, period=${s.period}, clock=${s.clock.toFixed(1)}s, ` +
       `phase=${s.phase.kind}, score=${s.score[0]}-${s.score[1]}, events=${s.events.length})`
     );

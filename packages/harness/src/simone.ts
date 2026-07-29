@@ -34,7 +34,16 @@ const seed = optValue('--seed') ?? `game-${Date.now() % 100000}`;
 function teamFrom(flag: string, fallback: Team): Team {
   const file = optValue(flag);
   if (!file) return fallback;
-  const { team, issues } = loadTeamPack(readFileSync(file, 'utf8'));
+  let raw: string;
+  try {
+    raw = readFileSync(file, 'utf8');
+  } catch (err) {
+    // clean one-line diagnosis matching the designed invalid-pack path — not
+    // a raw ENOENT stack out of node:fs internals (c4-F3)
+    console.error(`cannot read ${flag.slice(2)} team pack ${file}: ${(err as NodeJS.ErrnoException).code ?? String(err)}`);
+    process.exit(1);
+  }
+  const { team, issues } = loadTeamPack(raw);
   if (!team) {
     console.error(`invalid team pack ${file}:`);
     for (const issue of issues) console.error(`  ${issue.path}: ${issue.message}`);

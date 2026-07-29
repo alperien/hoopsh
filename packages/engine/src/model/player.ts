@@ -129,7 +129,7 @@ export interface Player {
 }
 
 export interface Tactics {
-  /** 0-100: walk-it-up .. run-and-gun. Not yet read by decideBall — reserved for the team-pace layer alongside tend.pushPace (see docs/INTERNALS.md Stage 2) */
+  /** STAGED — 0-100: walk-it-up .. run-and-gun. Not yet read by any engine code — reserved for the team-pace layer alongside tend.pushPace (see docs/INTERNALS.md Stage 2; listed in its staged-surface inventory, rule 6) */
   pace: number;
   /** 0-100: global three-point appetite modifier — ai.ts decideBall tacticsThreeScale term, stacked on top of the shooter's own shotThree tendency */
   threeBias: number;

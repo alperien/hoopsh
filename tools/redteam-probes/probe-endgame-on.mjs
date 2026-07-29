@@ -38,7 +38,7 @@ for (const seed of ['rt-on-1', 'rt-on-2', 'rt-on-3']) {
   }
   if (score[0] !== r.finalScore[0] || score[1] !== r.finalScore[1]) bad(`event-sum score ${score} != finalScore ${r.finalScore}`);
 
-  // box score balances: team pts equals summed player pts? (team rebounds mean TRB may exceed player sum; that's the design)
+  // box score balances: team pts equals summed player pts? (team rebounds mean TRB may exceed player sum — that's the design)
   const box = boxScore(ev, [home, away]);
   for (const side of [0, 1]) {
     const t = box.teams[side];
@@ -52,7 +52,12 @@ for (const seed of ['rt-on-1', 'rt-on-2', 'rt-on-3']) {
   // team rebounds present? playerless, non-deadBall
   const teamRebs = ev.filter((e) => e.type === 'rebound' && e.player === undefined && !e.deadBall);
   const deadFT = ev.filter((e) => e.type === 'rebound' && e.deadBall);
-  if (teamRebs.some((e) => e.player !== undefined)) bad('team rebound with player?');
+  // The checkable contract (core/events.ts ReboundEvent): a dead-ball FT
+  // formality is a scorekeeping ritual — nobody rebounds anything — so it must
+  // never carry a player id. (The old check here filtered teamRebs to
+  // player === undefined and then asked if any had a player: vacuously false
+  // by construction — b7-F7.)
+  if (deadFT.some((e) => e.player !== undefined)) bad('dead-ball formality rebound carries a player id');
   console.log(`  team rebounds: ${teamRebs.length}, deadball FT formalities: ${deadFT.length}`);
 
   // narration: no "undefined"/"NaN"/"[object" anywhere in pbp or broadcast
@@ -71,3 +76,6 @@ for (const seed of ['rt-on-1', 'rt-on-2', 'rt-on-3']) {
   console.log(`  pbp timeout lines: ${toLines.length}${toLines[0] ? ' e.g. "' + toLines[0].text + '"' : ' <-- timeout events silently dropped from narration?'}`);
 }
 console.log(fail === 0 ? 'ALL ENDGAME-ON INVARIANTS PASS' : `${fail} FAILURES`);
+// Exit-code discipline (b7-F6): a probe that prints FAILURES must not exit 0,
+// or any script chain / CI wiring silently reports success on failure.
+if (fail > 0) process.exitCode = 1;

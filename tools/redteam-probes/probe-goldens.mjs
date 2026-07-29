@@ -22,3 +22,6 @@ for (const seed of seeds) {
   else console.log(`${seed}: matches golden (${fp.finalScore.join('-')})`);
 }
 console.log(bad === 0 ? '8/8 goldens verified against HEAD' : `${bad} golden mismatches`);
+// Exit-code discipline (b7-F6): failures must not exit 0 — script chains and
+// CI wiring would silently report success.
+if (bad > 0) process.exitCode = 1;

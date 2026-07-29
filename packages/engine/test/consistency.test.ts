@@ -22,7 +22,7 @@ describe('box score internal consistency', () => {
   });
 
   it('player lines sum to team totals (team rebounds carry the TRB difference)', () => {
-    // Team rebounds (dead caroms awarded to a side, playerless; see
+    // TEAM rebounds (dead caroms awarded to a side, playerless — see
     // core/events.ts ReboundEvent) count in team TRB but on no player line,
     // exactly like an official box score; every other total is a pure
     // player sum. Dead-ball FT formalities count nowhere.
@@ -44,12 +44,16 @@ describe('box score internal consistency', () => {
   });
 
   it('team minutes ≈ 5 × game length', () => {
-    const periods = box.periods;
-    const expected = periods >= 4 ? 5 * 48 : 5 * 40; // regulation minimum (NBA quarters vs NCAA halves)
+    // Regulation minimum comes from the RULE PACK, not from box.periods:
+    // box.periods counts periods PLAYED (overtimes included), so it cannot
+    // identify the league — an NCAA double-OT game reaches periods = 4 and
+    // would have been held to the NBA 240-minute floor (b8-F4).
+    const rules = result.rules;
+    const expected = 5 * rules.periods * rules.periodMinutes; // NBA: 5 × 48
     for (const side of [0, 1] as const) {
       const minutes = box.players.filter((p) => p.team === side).reduce((a, p) => a + p.min, 0);
       expect(minutes).toBeGreaterThanOrEqual(expected - 3);
-      expect(minutes).toBeLessThanOrEqual(expected + 5 * 6 * 3); // allow OTs
+      expect(minutes).toBeLessThanOrEqual(expected + 5 * rules.otMinutes * 3); // allow up to 3 OTs
     }
   });
 

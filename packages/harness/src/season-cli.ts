@@ -99,6 +99,13 @@ function seasonJson(result: SeasonResult): string {
 // ------------------------------------------------------------------ modes
 
 async function seasonMode(): Promise<void> {
+  // Negative/fractional values fail loudly instead of degrading silently
+  // (c4-F6, kin of batch MINOR-4): `--rounds -1` used to print a 0-game
+  // season with an empty standings table and exit 0, and `--games -3` was
+  // silently ignored (the > 0 gate below routed to the rounds default).
+  if (rounds < 1 || !Number.isInteger(rounds)) {
+    throw new Error(`season: --rounds must be a positive integer, got ${rounds}`);
+  }
   const perCycle = roundRobin(teams.map((t) => t.id), 1).length;
   const gamesFlag = flagNumber(argv, '--games', 0);
   // 0 is the not-passed default (schedule length comes from --rounds); an

@@ -28,6 +28,7 @@ import {
 import { accumulate, emptyAcc, evaluate, finalize, formatReport } from './aggregate.js';
 import { flagNumber, flagValue } from './args.js';
 import { NBA_BANDS } from './bands.js';
+import { flagNumber, flagValue } from './args.js';
 
 // args.ts's loud parsers, not a local bare argOf: `oos --games` (value
 // forgotten) used to become NaN, run ZERO games, and print an all-NaN
@@ -112,7 +113,13 @@ export interface DistReport {
 export function distributionOf(finals: GameFinal[]): DistReport {
   const margins = finals.map((f) => Math.abs(f.home - f.away));
   const mAvg = margins.reduce((a, b) => a + b, 0) / margins.length;
-  const mSd = Math.sqrt(margins.reduce((a, m) => a + (m - mAvg) ** 2, 0) / margins.length);
+  // SAMPLE stddev (n−1), matching matchup.ts statDist — this file used the
+  // population formula, a house-convention inconsistency worth <1% at the
+  // default 60 games but a wrong number to print next to the cited 9.53
+  // reference (c2-F3)
+  const mSd = margins.length > 1
+    ? Math.sqrt(margins.reduce((a, m) => a + (m - mAvg) ** 2, 0) / (margins.length - 1))
+    : 0;
   const teamScores = finals.flatMap((f) => [f.home, f.away]);
   const qn = Math.max(...finals.map((f) => Math.min(4, f.quarters.length)));
   const quarterAvg: number[] = [];
@@ -124,6 +131,10 @@ export function distributionOf(finals: GameFinal[]): DistReport {
     marginAvg: mAvg, marginSd: mSd,
     blowoutPct: margins.filter((m) => m >= 20).length / margins.length,
     closePct: margins.filter((m) => m <= 5).length / margins.length,
+    // NBA shape assumed (regulation = 4 periods): every game this runner
+    // simulates plays under stock NBA rules today; re-pointing it at a
+    // halves league needs the rule pack's period count here, not the
+    // literal 4 (c2-F3)
     otPct: finals.filter((f) => f.periods > 4).length / finals.length,
     teamMin: Math.min(...teamScores), teamMax: Math.max(...teamScores),
     quarterAvg

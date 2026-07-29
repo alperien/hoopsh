@@ -26,13 +26,13 @@ try {
   console.log('n=1 ok: winProb', d3.homeWinProb, 'ci', d3.ci95.map((x) => x.toFixed(2)).join('..'), 'sd', d3.sdMargin);
 } catch (e) { bad('n=1 crashed: ' + e.message); }
 
-// (d) schedule pathology, all cheap, no sims:
+// (d) schedule pathology — all cheap, no sims:
 try { roundRobin(['a', 'a', 'b']); bad('dup team ids accepted'); } catch (e) { console.log('dup ids loud:', e.message.slice(0, 60)); }
 try { roundRobin(['solo']); bad('1-team league accepted'); } catch (e) { console.log('1-team loud:', e.message.slice(0, 60)); }
 try { buildTasks([home, away], [{ home: home.id, away: home.id }], 's'); bad('self-matchup accepted'); } catch (e) { console.log('self-matchup loud:', e.message.slice(0, 70)); }
 try { buildTasks([home, away], [{ home: home.id, away: 'ghost' }], 's'); bad('unknown team accepted'); } catch (e) { console.log('unknown team loud:', e.message.slice(0, 70)); }
 
-// round-robin structure: 3 teams, 2 cycles (byes); pairs meet twice, once in each building
+// round-robin structure: 3 teams, 2 cycles (byes) — pairs meet twice, once in each building
 const sched3 = roundRobin(['x', 'y', 'z']);
 const counts = {};
 for (const g of sched3) { counts[`${g.home}-${g.away}`] = (counts[`${g.home}-${g.away}`] ?? 0) + 1; }
@@ -54,6 +54,11 @@ const t1 = cascadiaBreakers();
 const t2 = meridianMonarchs();
 const t3 = structuredClone(t1);
 t3.id = 'clone3'; t3.name = 'Clone Three'; t3.abbrev = 'CL3';
+// The clone's players need distinct ids: simulateGame now rejects duplicate
+// player ids ACROSS teams (the c4-F1 silent-corruption fix), and clone3 meets
+// t1 in the round-robin.
+for (const p of t3.players) p.id = `cl3-${p.id}`;
+t3.starters = t3.starters.map((id) => `cl3-${id}`);
 const season = await runSeason({ teams: [t1, t2, t3], schedule: roundRobin([t1.id, t2.id, t3.id], 1), seedBase: 'rt-season' });
 const sumDiff = season.standings.reduce((s, t) => s + t.diff, 0);
 const sumW = season.standings.reduce((s, t) => s + t.wins, 0);
@@ -63,7 +68,7 @@ if (sumDiff !== 0) bad('diff not zero-sum');
 if (sumW !== sumL) bad('wins != losses');
 if (season.standings.some((t) => t.games !== 2)) bad('bye handling broke per-team game count');
 
-// (g) duplicate fixture in an explicit schedule (same matchup twice): allowed? do seeds differ?
+// (g) duplicate fixture in an explicit schedule (same matchup twice) — allowed? do seeds differ?
 const dupTasks = buildTasks([t1, t2], [{ home: t1.id, away: t2.id }, { home: t1.id, away: t2.id }], 'rt-dup');
 console.log('duplicate fixture seeds differ:', dupTasks[0].seed !== dupTasks[1].seed, `(${dupTasks[0].seed} vs ${dupTasks[1].seed})`);
 
@@ -72,3 +77,6 @@ const empty = await runSeason({ teams: [t1, t2], schedule: [], seedBase: 'rt-emp
 console.log('empty schedule: standings rows', empty.standings.length, 'winPct', empty.standings.map((t) => t.winPct).join(','), 'sos', empty.standings.map((t) => t.sos).join(','));
 
 console.log(fail === 0 ? 'SEASON LAYER: all probes pass' : `${fail} FAILURES`);
+// Exit-code discipline (b7-F6): failures must not exit 0 — script chains and
+// CI wiring would silently report success.
+if (fail > 0) process.exitCode = 1;

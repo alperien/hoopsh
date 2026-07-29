@@ -252,7 +252,7 @@
       "properties": {
         "pace": {
           "$ref": "#/$defs/rating",
-          "description": "0-100: walk-it-up .. run-and-gun. Not yet read by decideBall — reserved for the team-pace layer alongside tend.pushPace (see docs/INTERNALS.md Stage 2)"
+          "description": "STAGED — 0-100: walk-it-up .. run-and-gun. Not yet read by any engine code — reserved for the team-pace layer alongside tend.pushPace (see docs/INTERNALS.md Stage 2; listed in its staged-surface inventory, rule 6)"
         },
         "threeBias": {
           "$ref": "#/$defs/rating",

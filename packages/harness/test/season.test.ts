@@ -177,17 +177,25 @@ describe('standings arithmetic', () => {
     // so this fixture always has a real best-vs-worst gap — the ordering
     // checks below can never go vacuous on an all-tied table
     expect(standings[0]!.winPct).toBeGreaterThan(standings[standings.length - 1]!.winPct);
+    let tieTierRuns = 0; // existence accounting for the conditional tier below (b9-F6)
     for (let i = 1; i < standings.length; i++) {
       const hi = standings[i - 1]!;
       const lo = standings[i]!;
       expect(hi.winPct).toBeGreaterThanOrEqual(lo.winPct);
       if (hi.winPct === lo.winPct) {
-        expect(hi.diff).toBeGreaterThanOrEqual(lo.diff); // fixture exercises this tier: two 2-1 teams, two 1-2 teams
+        tieTierRuns++;
+        expect(hi.diff).toBeGreaterThanOrEqual(lo.diff);
         if (hi.diff === lo.diff) {
           expect(hi.teamId < lo.teamId).toBe(true); // byte-stable total order on exact ties
         }
       }
     }
+    // The diff tiebreaker tier is NOT pigeonhole-guaranteed (a 3/2/1/0 draw
+    // has no winPct tie), so its exercise is asserted rather than claimed:
+    // this pinned draw produces two 2-1 and two 1-2 teams (measured — 2 tie
+    // pairs). A re-tune that reshuffles the draw fails here loudly instead
+    // of silently un-exercising the tier (b9-F6).
+    expect(tieTierRuns).toBeGreaterThanOrEqual(1);
   });
 
   it('is order-insensitive: shuffled outcomes fold to identical standings', () => {
@@ -306,8 +314,15 @@ describe('Monte-Carlo matchup sanity', () => {
       expect(p.p50).toBeLessThanOrEqual(p.p75);
       expect(p.p75).toBeLessThanOrEqual(p.p95);
       expect(d.medianMargin).toBe(p.p50);
-      // ties are impossible, so P(margin > 0) must equal the win rate exactly
-      expect(d.homeWins).toBe(d.n - d.awayWins);
+      // Ties are impossible (the engine plays OT until decided), so the
+      // histogram mass at margin >= 0 must be EXACTLY the home win count: a
+      // tied game would land in the lo=0 bin without counting as a home win
+      // (matchup.ts counts margin > 0) and break this equality. The previous
+      // assertion here — homeWins === n - awayWins — was tautological:
+      // matchup.ts DEFINES awayWins as n - homeWins, so a tie-swallowing
+      // engine could never have failed it (b9-F3).
+      const nonNegMass = d.histogram.filter((b) => b.lo >= 0).reduce((s, b) => s + b.count, 0);
+      expect(nonNegMass).toBe(d.homeWins);
       expect(d.players.length).toBeGreaterThan(0);
       for (const pl of d.players) {
         expect(pl.games).toBeGreaterThan(0);

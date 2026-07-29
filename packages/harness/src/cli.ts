@@ -49,17 +49,21 @@ import { resolveWorkerCount, runGames } from './parallel.js';
  *
  * This is a ratchet, not an aspiration: it is set to what main actually
  * achieves so CI fails on REGRESSION immediately, without pretending the known
- * calibration debt doesn't exist. Current honest state (stable at 48 games
- * across seed bases, see REFACTOR.md): 16 of NBA_BANDS.length pass; the one
- * persistent miss is assisted-share (~63-66% vs the 54-62% band), a structural
- * gap the review flagged and an assist-window sweep confirmed a knob can't
- * close (<2% leverage). Raise this to NBA_BANDS.length when that debt is paid
- * — never lower it to make a red run green.
+ * calibration debt doesn't exist. HISTORY: 16 was set when assisted-share
+ * was the one persistent miss; the fidelity phase closed that debt
+ * (bands.ts astdShare — "now ENFORCED") and the B2 landing recorded the
+ * first 17/17 lock, so the old "one persistent miss" claim here was stale
+ * (c2 scan). The floor still sits one below NBA_BANDS.length because
+ * raising it is an owner call tied to the pending post-integration
+ * re-baseline (this branch carries known band drift — the realism
+ * drift-tier trips): a floor of 17 set against a drifted engine gates on
+ * noise. Measure with `npm run batch -- --games 48` after the re-baseline,
+ * then raise. Never lower it to make a red run green.
  *
  * Gating needs sample size: below ~24 games band noise dominates (an 8-game
  * run loses 3-4 bands to variance alone), and even at 24 several boundary
- * bands (3P%, FTA) flicker in and out. CI runs 48 games, where the count is
- * a stable 16/17. The gate only bites at n >= GATE_MIN_GAMES; smaller runs
+ * bands (3P%, FTA) flicker in and out. CI runs 48 games, where the count
+ * stabilizes. The gate only bites at n >= GATE_MIN_GAMES; smaller runs
  * stay report-only and say so. `--min-bands N` overrides; `--min-bands 0`
  * disables.
  */

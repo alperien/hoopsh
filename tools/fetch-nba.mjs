@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// tools/fetch-nba.mjs: polite basketball-reference play-by-play fetcher (hoopsh data spine).
+// tools/fetch-nba.mjs — polite basketball-reference play-by-play fetcher (hoopsh data spine).
 //
 // Downloads raw pbp HTML into a gitignored cache (data/nba/raw/). The parser
 // (tools/parse-nba.mjs) turns that cache into the committed corpus
@@ -16,7 +16,7 @@
 //   --limit N                  stop after N game-page fetches (testing)
 //   --dry-run                  list what would be fetched, no network
 //
-// Politeness contract (do not weaken):
+// Politeness contract (courtesy-critical — do not weaken):
 //   * strictly sequential; >= 2s between ANY two requests (default 3.5s ~ 17 req/min,
 //     under basketball-reference's published 20 req/min crawl ceiling)
 //   * resumable: files already in the cache are skipped without touching the network
@@ -53,8 +53,15 @@ const flag = (name, dflt) => {
 const has = (name) => argv.includes(name);
 
 const cacheDir = flag('--cache-dir', 'data/nba/raw');
-const delayMs = Math.max(2000, Number(flag('--delay-ms', '3500'))); // hard 2s floor
-const limit = Number(flag('--limit', 'Infinity'));
+// Numeric flags are validated before use: Math.max(2000, NaN) is NaN, and a
+// NaN delay makes politeFetch's `wait > 0` false on every request — a typo'd
+// --delay-ms would hammer basketball-reference with ZERO spacing, silently
+// defeating the courtesy contract in the header. Fail loudly instead.
+const delayMsRaw = Number(flag('--delay-ms', '3500'));
+if (!Number.isFinite(delayMsRaw)) bail(`--delay-ms must be a number, got "${flag('--delay-ms', '3500')}"`);
+const delayMs = Math.max(2000, delayMsRaw); // hard 2s floor
+const limit = Number(flag('--limit', 'Infinity')); // Infinity = no cap (the default)
+if (Number.isNaN(limit)) bail(`--limit must be a number, got "${flag('--limit', 'Infinity')}"`);
 const dryRun = has('--dry-run');
 const season = flag('--season', null);
 const datesArg = flag('--dates', null);

@@ -1828,6 +1828,14 @@ function deepMerge(
     if (b && p && typeof b === 'object' && typeof p === 'object' && !Array.isArray(b) && !Array.isArray(p)) {
       deepMerge(b as Record<string, unknown>, p as Record<string, unknown>, `${path}${key}.`);
     } else if (p !== undefined) {
+      // VALUES fail loudly too, not just keys: every SimParams leaf is a
+      // finite number, and a NaN accepted here used to detonate minutes
+      // later as an unattributed "Rng.weighted: non-finite weight" naming
+      // no field — the ratings boundary names its offender; this boundary
+      // now does the same (c4-F4).
+      if (typeof b === 'number' && (typeof p !== 'number' || !Number.isFinite(p))) {
+        throw new Error(`withParams: SimParams value "${path}${key}" = ${String(p)} must be a finite number`);
+      }
       base[key] = p;
     }
   }

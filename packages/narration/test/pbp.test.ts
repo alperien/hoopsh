@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { simulateGame, type GameEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
-import { buildBroadcastScript, generatePlayByPlay, TemplateColorProvider } from '@hoopsh/narration';
+import { buildBroadcastScript, generatePlayByPlay, makeLookup, TemplateColorProvider } from '@hoopsh/narration';
 
 describe('narration', () => {
   const { home, away } = sampleMatchup();
@@ -10,9 +10,20 @@ describe('narration', () => {
   it('renders play-by-play for a full game without gaps or crashes', () => {
     const pbp = generatePlayByPlay(result.events, [home, away], { seed: 'pbp-1' });
     expect(pbp.length).toBeGreaterThan(200);
-    // every made shot event surfaces in PBP
-    const madeShots = result.events.filter((e) => e.type === 'shot' && e.made).length;
-    expect(pbp.length).toBeGreaterThan(madeShots);
+    // EVERY made shot surfaces in the full-game PBP: each made-shot register
+    // in renderShot names the shooter, so there must be a line at the shot's
+    // own timestamp carrying his last name. The old check here was
+    // `pbp.length > madeShots` — a broadcast that never mentioned a single
+    // made basket passed it (surviving mutant, b9-F5; the per-event kill
+    // lived only in shotcall.test's single-event cases).
+    const lk = makeLookup([home, away]);
+    const madeShots = result.events.filter((e) => e.type === 'shot' && e.made);
+    expect(madeShots.length).toBeGreaterThan(0); // vacuity floor
+    for (const e of madeShots) {
+      if (e.type !== 'shot') continue; // narrow for the type system
+      const named = pbp.some((l) => l.t === e.t && l.text.includes(lk.last(e.shooter)));
+      expect(named).toBe(true);
+    }
     for (const l of pbp) {
       expect(l.text.length).toBeGreaterThan(4);
       expect(l.text).not.toContain('undefined');

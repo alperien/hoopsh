@@ -91,7 +91,13 @@ describe(`game-flow gates over ${GAMES} games`, () => {
     expect(m.secondChanceShare).toBeLessThanOrEqual(0.23);
   });
 
-  it('blown 10-point Q4 leads are possible but rare (comebacks exist, chaos does not)', () => {
+  it('blown 10-point Q4 leads stay rare (chaos ceiling only — comeback EXISTENCE is documented M4 debt)', () => {
+    // Only the 0.25 ceiling enforces anything (b9-F4): comebackRate is a
+    // guarded count ratio, so the >= 0 leg cannot fail today — it stays as
+    // a NaN tripwire (NaN >= 0 is false) in case the led10.length guard in
+    // reduceFlows is ever lost. At the pinned seed the measured rate IS 0;
+    // gating "comebacks exist" waits on the endgame comeback texture (M4,
+    // header known-gaps list) — this test never enforced it.
     expect(m.comebackRate).toBeGreaterThanOrEqual(0);
     expect(m.comebackRate).toBeLessThanOrEqual(0.25);
   });

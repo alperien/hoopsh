@@ -170,9 +170,15 @@ function simWindows(count: number, winLen: number, seedBase: string, rng: Rng, s
       lines.push({ clock: fmtClock(e.period, e.clock), text, score: scored ? `${e.score[0]}-${e.score[1]}` : undefined });
       prev = [e.score[0], e.score[1]];
     }
-    // up to 3 non-overlapping windows per game
+    // up to 3 non-overlapping windows per game. The stride floors at winLen:
+    // with a short line pool (lines.length < winLen + 20) the raw stride
+    // goes NEGATIVE and windows 1-2 would start BEFORE window 0 and overlap
+    // it, breaking judge independence (c2-F2). Flooring makes them adjacent
+    // instead; the in-bounds break below still drops what doesn't fit.
+    // Normal games (hundreds of Q2-Q3 lines) are unaffected: their stride
+    // already exceeds winLen.
     for (let w = 0; w < 3 && windows.length < count; w++) {
-      const start = 10 + w * Math.floor((lines.length - winLen - 20) / 3);
+      const start = 10 + w * Math.max(winLen, Math.floor((lines.length - winLen - 20) / 3));
       if (start + winLen > lines.length) break;
       windows.push(lines.slice(start, start + winLen));
     }
@@ -220,8 +226,10 @@ function realWindows(dir: string, count: number, winLen: number, rng: Rng, strip
       });
       prev = p.a + p.h;
     }
+    // same winLen stride floor as the sim side (c2-F2): no overlapping
+    // windows out of a short real-game line pool
     for (let w = 0; w < 3 && windows.length < count; w++) {
-      const start = 5 + w * Math.floor((lines.length - winLen - 10) / 3);
+      const start = 5 + w * Math.max(winLen, Math.floor((lines.length - winLen - 10) / 3));
       if (start + winLen > lines.length) break;
       windows.push(lines.slice(start, start + winLen));
     }

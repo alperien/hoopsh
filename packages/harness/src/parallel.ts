@@ -259,8 +259,40 @@ async function runWorkerSlice(
       `got {task:"${String(envelope.task)}", start:${String(envelope.start)}, results.length:${Array.isArray(envelope.results) ? envelope.results.length : 'n/a'}}; job kept at ${jobPath}`
     );
   }
+  // Finiteness sweep (c1-F2): JSON.stringify maps NaN/Infinity to null, so a
+  // non-finite number in a per-game summary would cross this boundary as
+  // null and coerce to 0 in the parent's reduction, while --workers 1
+  // (in-process, no JSON) would propagate the NaN — a silent workers-N vs
+  // workers-1 divergence, the exact failure this file's loudness contract
+  // exists to prevent. No producer emits non-finite numbers or nulls today
+  // (box/flow ratios are zero-guarded; neither row type has a null field);
+  // this keeps that a loud fact rather than a lucky one.
+  for (let i = 0; i < envelope.results.length; i++) {
+    assertFiniteRow(envelope.results[i], `results[${slice.start + i}]`, jobPath);
+  }
   unlinkSync(jobPath); // success — clean up
   return envelope.results;
+}
+
+/** Depth-first scan of one worker result row: every number must be finite,
+ *  and null is rejected outright — a null where a number belongs is exactly
+ *  what a non-finite number looks like after JSON.stringify, and no per-game
+ *  summary field is legitimately null. */
+function assertFiniteRow(v: unknown, at: string, jobPath: string): void {
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) throw new Error(`worker result ${at} is non-finite (${v}); job kept at ${jobPath}`);
+    return;
+  }
+  if (v === null) {
+    throw new Error(`worker result ${at} is null — a non-finite number crosses the JSON boundary as null; job kept at ${jobPath}`);
+  }
+  if (Array.isArray(v)) {
+    for (let i = 0; i < v.length; i++) assertFiniteRow(v[i], `${at}[${i}]`, jobPath);
+    return;
+  }
+  if (typeof v === 'object') {
+    for (const [k, x] of Object.entries(v)) assertFiniteRow(x, `${at}.${k}`, jobPath);
+  }
 }
 
 /**

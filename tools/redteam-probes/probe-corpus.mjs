@@ -1,5 +1,5 @@
 // Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/probe-corpus.mjs
-// Probe 5: corpus integrity. Shards vs pbp-corpus.json vs distributions vs flow-reference.json.
+// Probe 5: corpus integrity — shards vs pbp-corpus.json vs distributions vs flow-reference.json.
 // Uses parse-nba.mjs's OWN pure functions (extracted verbatim) so this tests the DATA, not my re-implementation.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -86,10 +86,13 @@ console.log(`validation failures: ${valFail}; metric mismatches: ${metricFail} o
 
 // 5. distributions full recompute (mirror parse-nba's dist(): mean/stddev/p10/p50/p90/min/max)
 const per = (f) => corpus.games.map(f).filter((x) => x !== null && Number.isFinite(x)).sort((a, b) => a - b);
+// Mirrors parse-nba's dist() exactly: SAMPLE stddev (/(n-1), not /n) and
+// rounded min/max — the probe previously used the population formula and
+// reported false MISMATCHes on stddev against a corpus that was right (b7-F2).
 const dist = (vals, d = 2) => {
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-  const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
-  return { n: vals.length, mean: round(mean, d), stddev: round(sd, d), p10: round(fns.percentile(vals, 0.1), d), p50: round(fns.percentile(vals, 0.5), d), p90: round(fns.percentile(vals, 0.9), d), min: vals[0], max: vals[vals.length - 1] };
+  const sd = vals.length > 1 ? Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (vals.length - 1)) : 0;
+  return { n: vals.length, mean: round(mean, d), stddev: round(sd, d), p10: round(fns.percentile(vals, 0.1), d), p50: round(fns.percentile(vals, 0.5), d), p90: round(fns.percentile(vals, 0.9), d), min: round(vals[0], d), max: round(vals[vals.length - 1], d) };
 };
 const D = corpus.distributions.flow;
 const mineFlow = {
@@ -99,7 +102,9 @@ const mineFlow = {
   runs8PerGame: dist(per((g) => g.flow.runs8)),
   runs10PerGame: dist(per((g) => g.flow.runs10)),
   maxRunPerGame: dist(per((g) => g.flow.maxRun)),
-  maxDroughtSecPerGame: dist(per((g) => g.flow.maxDroughtSec))
+  // corpus key + d=0 rounding per parse-nba.mjs — the probe used to invent a
+  // `maxDroughtSecPerGame` key and print MISSING on every run (b7-F2)
+  maxTeamDroughtSec: dist(per((g) => g.flow.maxDroughtSec), 0)
 };
 let distBad = 0;
 for (const [k, mine] of Object.entries(mineFlow)) {
@@ -121,7 +126,8 @@ allLens.sort((a, b) => a - b);
 const P = corpus.distributions.possessions;
 const poolMine = { n: allLens.length, mean: round(allLens.reduce((a, b) => a + b, 0) / allLens.length, 2), p10: round(fns.percentile(allLens, 0.1), 1), p50: round(fns.percentile(allLens, 0.5), 1), p90: round(fns.percentile(allLens, 0.9), 1) };
 const poolTheirs = { n: P.n, mean: P.lengthSec.mean, p10: P.lengthSec.p10, p50: P.lengthSec.p50, p90: P.lengthSec.p90 };
-console.log("pooled poss:", JSON.stringify(poolMine) === JSON.stringify(poolTheirs) ? "MATCH" : `MISMATCH mine=${JSON.stringify(poolMine)} theirs=${JSON.stringify(poolTheirs)}`);
+const pooledOk = JSON.stringify(poolMine) === JSON.stringify(poolTheirs);
+console.log("pooled poss:", pooledOk ? "MATCH" : `MISMATCH mine=${JSON.stringify(poolMine)} theirs=${JSON.stringify(poolTheirs)}`);
 
 // 6. flow-reference.json `dist` blocks must equal corpus distributions
 const fr = flowRef.flow;
@@ -136,3 +142,8 @@ for (const [frk, dk] of Object.entries(map)) {
 }
 console.log(`flow-reference dist blocks vs corpus: ${frBad === 0 ? "ALL MATCH" : frBad + " mismatched"}`);
 console.log(`fr.leadChanges value=${fr.leadChangesPerGame.value} (corpus mean ${D.leadChangesPerGame.mean})`);
+
+// Exit-code discipline (b7-F6): any printed FAIL/MISMATCH/MISSING above must
+// not exit 0 — this probe is cited as re-runnable corpus evidence.
+const totalBad = valFail + metricFail + distBad + frBad + missing.length + extra.length + (pooledOk ? 0 : 1);
+if (totalBad > 0) process.exitCode = 1;

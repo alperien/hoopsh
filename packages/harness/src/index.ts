@@ -1,16 +1,21 @@
-// Package barrel. The CLI entry scripts (simone.ts, cli.ts, bench.ts,
+// Package barrel — the CLI entry scripts (simone.ts, cli.ts, bench.ts,
 // broadcast-demo.ts, export-rosters.ts, sweep.ts, season-cli.ts) are run
-// directly via `node`/npm scripts and do not go through this barrel; what's
-// exported here is the subset other packages/scripts import as a library:
-// batch running (run.ts), aggregation/scoring (aggregate.ts), the acceptance
-// bands themselves (bands.ts), and the season layer (season.ts, matchup.ts,
-// league.ts; see docs/SEASON.md). sweep-worker.ts and knobs.ts are
-// deliberately not re-exported; they're sweep.ts-internal implementation,
-// not a public API.
+// directly via `node`/npm scripts and do NOT go through this barrel.
+//
+// STAGED (honesty label, scan c3-F5): this is package.json `main` — the
+// nominal `@hoopsh/harness` entry point — and it declares the intended
+// library surface (batch running, aggregation/scoring, the acceptance
+// bands, the season layer — see docs/SEASON.md). It currently has ZERO
+// importers repo-wide: even harness's own tests import '../src/*.js'
+// directly. It stays because a package needs a declared public API for the
+// day another package (or an external consumer) wants the season layer as
+// a library; the wiring condition is exactly that first importer.
+// sweep-worker.ts and knobs.ts are deliberately NOT re-exported — they're
+// sweep.ts-internal implementation, not a public API.
 export { runBatch } from './run.js';
 export type { BatchOptions } from './run.js';
 // the parallel game-runner (run-worker.ts is its subprocess entry and, like
-// sweep-worker.ts, deliberately not re-exported)
+// sweep-worker.ts, deliberately NOT re-exported)
 export { runGames, runGamesInProcess, resolveWorkerCount, GAME_TASK_NAMES } from './parallel.js';
 export type { GameTaskName, GameTaskResults, ParallelRunOptions } from './parallel.js';
 export {
@@ -20,7 +25,7 @@ export type { Accumulator, LeagueAverages, BandResult, TeamGameSummary } from '.
 export { NBA_BANDS } from './bands.js';
 export type { Band } from './bands.js';
 // league selection: one id resolves rule pack + bands + pace basis together
-// (leagues.ts, not league.ts, which generates fictional season teams)
+// (leagues.ts — NOT league.ts, which generates fictional season teams)
 export { resolveLeague, loadNcaaBands, LEAGUE_IDS } from './leagues.js';
 export type { LeagueConfig } from './leagues.js';
 export {
