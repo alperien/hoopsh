@@ -37,6 +37,23 @@ describe('roster:validate warnings', () => {
     expect(computeWarnings(scaffold())).toEqual([]);
   });
 
+  it('body plausibility: kg-for-lb weight and inhuman wingspan both warn', () => {
+    const pack = scaffold();
+    pack.team.players[0].weightLb = 100; // a ~220 lb frame written in kilograms
+    pack.team.players[1].wingspanIn = pack.team.players[1].heightIn + 20; // beyond any measured ape index
+    const warns = computeWarnings(pack);
+    expect(warns.find((w: { code: string; why: string }) => w.code === 'weight-implausible')?.why).toContain('kilograms');
+    expect(warns.some((w: { code: string }) => w.code === 'wingspan-implausible')).toBe(true);
+
+    // negative-but-finite values pass the validator by design (it refuses to
+    // out-strict the engine) — this tool is the promised safety net
+    const neg = scaffold();
+    neg.team.players[2].weightLb = -50;
+    neg.team.players[3].wingspanIn = -10;
+    expect(codes(neg)).toContain('weight-implausible');
+    expect(codes(neg)).toContain('wingspan-implausible');
+  });
+
   it('flat-profile: 24 identical attributes', () => {
     const pack = scaffold();
     for (const k of Object.keys(pack.team.players[9].attr)) pack.team.players[9].attr[k] = 50;

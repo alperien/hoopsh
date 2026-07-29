@@ -226,6 +226,29 @@ export function computeWarnings(pack) {
   const warn = (code, where, detail, why) => warnings.push({ code, where, detail, why });
   const starters = team.starters.map((id) => team.players.find((pl) => pl.id === id));
 
+  // body plausibility: the load-time validator deliberately accepts ANY
+  // finite weight/wingspan (it refuses to out-strict the engine — see the
+  // weightLb note in packages/data/src/schema.ts), so unit mistakes are this
+  // tool's lane. Anchors are historical NBA extremes plus margin: listed
+  // playing weights run about 133 lb (Boykins/Bogues) to 375 lb (Oliver
+  // Miller at his heaviest), and draft-combine ape indexes about -2 to +11
+  // inches versus height.
+  for (const pl of team.players) {
+    if (pl.weightLb < 130 || pl.weightLb > 400) {
+      warn('weight-implausible', `${pl.name} (${pl.id})`,
+        `weightLb ${pl.weightLb}`,
+        pl.weightLb >= 60 && pl.weightLb < 130
+          ? `looks like kilograms — hoopsh wants pounds (${pl.weightLb} kg x 2.205 = ${Math.round(pl.weightLb * 2.205)} lb); matchup sorting reads this every game`
+          : 'no NBA body has played outside roughly 133-375 lb — matchup sorting and post-strength physics will describe nonsense');
+    }
+    const span = pl.wingspanIn;
+    if (span !== undefined && (span < pl.heightIn - 4 || span > pl.heightIn + 14)) {
+      warn('wingspan-implausible', `${pl.name} (${pl.id})`,
+        `wingspanIn ${span} on heightIn ${pl.heightIn} (ape index ${span - pl.heightIn >= 0 ? '+' : ''}${span - pl.heightIn})`,
+        'combine ape indexes run about -2 to +11 inches — outside that, standing-reach geometry stops describing a human; check units (inches) or delete the key (the engine assumes heightIn + 2)');
+    }
+  }
+
   // flat profile: identity comes from contrast; 24 identical dials is a
   // player the engine can only render as anonymous
   for (const pl of team.players) {

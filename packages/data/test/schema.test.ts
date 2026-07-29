@@ -20,6 +20,12 @@ describe('data pack schema', () => {
     expect(issues.some((i) => i.path.includes('starters'))).toBe(true);
   });
 
+  it('rejects a non-string team id (game_start stamps teamId into the event stream verbatim)', () => {
+    const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as { team: { id: unknown } };
+    bad.team.id = 42; // truthy, so a truthiness-only check would pass it
+    expect(validateTeamPack(bad).some((i) => i.path === '$.team.id')).toBe(true);
+  });
+
   it('rejects unknown keys inside attr/tend — the class simulateGame crashes on', () => {
     const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
       team: { players: { attr: Record<string, unknown>; tend: Record<string, unknown> }[] };

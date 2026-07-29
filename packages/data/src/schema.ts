@@ -210,7 +210,11 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
     issues.push({ path: '$.team', message: 'missing team' });
     return issues;
   }
-  if (!team.id) issues.push({ path: '$.team.id', message: 'missing id' });
+  // typeof, not just truthiness: a numeric team id loads and simulates, but
+  // game_start stamps it into the event stream verbatim, and the events
+  // contract types teamId as a string — consumers that use ids as object
+  // keys or JSON-round-trip them would compare 42 against "42".
+  if (!team.id || typeof team.id !== 'string') issues.push({ path: '$.team.id', message: 'missing id' });
   // name/abbrev are required by the Team type and displayed by every consumer
   // (box score header, play-by-play score lines, replay metadata) — a pack
   // without them doesn't crash, it produces "undefined 98, undefined 111"
