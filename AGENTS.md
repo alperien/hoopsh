@@ -1,13 +1,16 @@
 # AGENTS.md — the hoopsh contributor covenant
 
+Human contributor? Start with [CONTRIBUTING.md](./CONTRIBUTING.md) — the on-ramp
+written for you. Every rule in this file still binds you.
+
 **Audience: AI agents first, humans second.** An AI agent assigned to work on this
 codebase must read this file completely before writing anything. It exists so that
 many agents, working on different parts at different times, produce ONE consistent
 codebase. Several rules below encode incidents that corrupted stats or wasted
 calibration runs; see the DO-NOT list (§2) and prime directives (§1) for citations.
 
-Reading order for a new contributor: `README.md` → `ARCHITECTURE.md` →
-`docs/INTERNALS.md` → this file → `docs/ONBOARDING.md` (guided walkthrough).
+Reading paths by role live in the docs hub, [docs/README.md](./docs/README.md).
+Whatever path brought you here: read this file completely before your first change.
 
 **Writing NEW code?** This file is the law; **`docs/PLAYBOOK.md` is the procedure** —
 an eight-step process, per-change-shape recipes with exemplars, STOP conditions, and
@@ -76,8 +79,9 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 ## 2. The DO-NOT list
 
 1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
-   optimizer chose it against the 17 acceptance-band checks (bands.ts NBA_BANDS). Rounding it de-calibrates the
-   league. If a value looks wrong, re-run the sweep and bake its output.
+   optimizer chose it against the acceptance-band checks (`bands.ts` `NBA_BANDS` —
+   count them there, never from memory; the list grows). Rounding it de-calibrates
+   the league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
    Unvalidated depth expands the solver's search space with no offsetting benefit.
@@ -136,7 +140,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # full suite: invariants + fidelity gate — ALWAYS, every change
+npm test                        # full suite (~2 min): invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
@@ -156,21 +160,10 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   must be untouched.
 
 ### 4.4 Calibration etiquette
-- The NBA bands (`harness/src/bands.ts`) are the gate — count them there, never
-  from memory (the list grows). The noise floor is MEASURED, not guessed:
-  `npm run noisefloor` samples every gated statistic across independent seed
-  bases at the gates' sample sizes and writes `noise-floor.gen.ts`; the
-  permanent gates derive their widths from it (edge ± z·sd, z=3), so a gate
-  failure means "the sim changed", not "the seed changed". "Locked" means:
-  at 40+ games, every band's measured CENTER sits inside its band. A center
-  sitting on or outside an edge is a systematic finding for INTERNALS even
-  while the z-gate passes. Never adjudicate anything from one or two draws —
-  that is chasing noise (measure more bases instead); never hand-nudge what
-  the sweep owns; never quote a stale pass-rate in docs — state where to
-  measure it instead. Regenerate the floor after mechanics changes: its diff
-  is the drift record.
-- After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
-  precision), then re-verify with `--iters 0`.
+Moved to [docs/CALIBRATION.md](./docs/CALIBRATION.md) — noise-floor doctrine, what
+"locked" does and does not claim, sweep-vs-hand-nudge rules, band counting, baking
+sweep output. If your change touches `sim/params.ts`, mechanics that consume it, or
+`harness/src/bands.ts`, that document is law for it, same standing as this file.
 
 ### 4.5 Commits
 - Small, focused, one concern per commit. Conventional prefixes:
