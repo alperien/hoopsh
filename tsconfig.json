@@ -38,5 +38,5 @@
       "vitest/config": ["tools/shims/vitest-config.d.ts"]
     }
   },
-  "include": ["packages/*/src/**/*", "packages/*/test/**/*", "tools/**/*.ts", "vitest.config.ts"]
+  "include": ["packages/*/src/**/*", "packages/*/test/**/*", "examples/*.ts", "tools/**/*.ts", "vitest.config.ts"]
 }

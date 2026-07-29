@@ -38,7 +38,13 @@
     "roster:validate": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/roster-validate.mjs",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",
-    "docs:bible": "node tools/build-bible.mjs"
+    "docs:bible": "node tools/build-bible.mjs",
+    "example:01": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/01-simulate-a-game.ts",
+    "example:02": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/02-custom-consumer.ts",
+    "example:03": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/03-your-own-team.ts",
+    "example:04": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/04-custom-rules.ts",
+    "example:05": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/05-commentary-provider.ts",
+    "example:06": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/06-season.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
