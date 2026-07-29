@@ -1,15 +1,15 @@
-# Writing rosters
+# Writing rosters — the authoring guide
 
 How to put a real (or invented) team into hoopsh: scaffold a pack, understand
 the 38 dials, edit with live editor feedback, validate, and watch it play.
 
-This guide teaches the model: what the numbers mean in basketball terms and
+This guide teaches the *model* — what the numbers mean in basketball terms and
 how they interact. The per-dial ground truth lives in
 [`packages/engine/src/model/player.ts`](../packages/engine/src/model/player.ts)
 (every key is commented with what it drives and where), and those same comments
 are surfaced as hover text in your editor via the generated JSON Schema, so you
 rarely need to leave the file you're editing. When this guide and a fresher
-code comment disagree, the code comment wins; that's repo law
+code comment disagree, the code comment wins — that's repo law
 ([`docs/README.md`](./README.md)).
 
 ## The loop
@@ -45,16 +45,16 @@ Any JSON-Schema-aware editor (VS Code out of the box) then gives you:
 
 - autocomplete for every key, including all 24 attributes and 14 tendencies
 - inline squiggles for out-of-range ratings, wrong types, missing keys, and
-  unknown keys (typos get flagged at the typo)
+  unknown keys (typos get flagged *at the typo*)
 - hover documentation per dial, extracted from `model/player.ts`
 
-For a hand-started file, add the line yourself (path relative to your file):
+For a hand-started file, add the line yourself (path relative to *your* file):
 
 ```jsonc
 { "$schema": "../../data/schema/team-pack.schema.json", "formatVersion": 2, "kind": "team", ... }
 ```
 
-The schema is generated: `npm run schema:gen` derives it from the same
+The schema is **generated** — `npm run schema:gen` derives it from the same
 constants `validateTeamPack()` enforces (`packages/data/src/schema.ts`), so it
 cannot drift from the loader. Two rules JSON Schema cannot express are only
 checked at load time: player-id uniqueness, and starters/rotationMinutes
@@ -78,49 +78,49 @@ is sufficient.
 }
 ```
 
-Each player: `id`, `name`, `pos` (PG/SG/SF/PF/C, descriptive; matchups are
-assigned by body and skill), `heightIn` (60–96 inches: 6'7" = 79),
+Each player: `id`, `name`, `pos` (PG/SG/SF/PF/C — descriptive; matchups are
+assigned by body and skill), `heightIn` (60–96 **inches**: 6'7" = 79),
 `weightLb` (pounds), optional `wingspanIn` (engine assumes height + 2 when
 absent), then `attr` (24 keys) and `tend` (14 keys). Validation is strict and
 total: a pack either satisfies everything or is rejected with the complete
-issue list; no silent defaults (`schema.ts` header explains why).
+issue list — no silent defaults, ever (`schema.ts` header explains why).
 
 ## How the ratings work
 
-Everything is 0–100. For attributes, 50 is a literal league-average
+**Everything is 0–100.** For *attributes*, 50 is a literal league-average
 no-op: a 50 contributes exactly nothing to any probability model
 (`model/player.ts` DEFAULT_ATTR comment). You only pay for what you push away
 from 50, in either direction.
 
-Attributes are CAN, tendencies are WANT. `three` is how well he shoots
+**Attributes are CAN, tendencies are WANT.** `three` is how well he shoots
 threes; `shotThree` is how badly he wants to. Identity comes from the
-combination under spatial context: elite `three` plus heavy `shotThree`/`pullUp`
-plus high `offBallMotion` creates gravity that warps how defenses guard him.
-Gravity blends the skill and the appetite; a career 40% shooter who never
-shoots doesn't scare anyone.
+combination under spatial context: elite `three` + heavy `shotThree`/`pullUp` +
+high `offBallMotion` doesn't just score, it creates *gravity* that warps how
+defenses guard him (gravity blends the skill and the appetite — a career 40%
+shooter who never shoots doesn't scare anyone).
 
-Shot-diet tendencies are relative weights, not percentages.
+**Shot-diet tendencies are relative weights, not percentages.**
 `shotRim`/`shotMid`/`shotThree` bias the AI's shot decisions against each
 other. Calibrated rosters sum roughly 99–158 across the three; what matters is
-the ratio (a 96/5/1 center virtually never leaves the restricted area).
+the *ratio* (a 96/5/1 center virtually never leaves the restricted area).
 
-`usage` is a closed loop, mapped to real USG%: 50 ≈ 20% (league average),
+**`usage` is a closed loop, mapped to real USG%.** 50 ≈ 20% (league average),
 90 ≈ 30% (superstar), 10 ≈ 10% (screener). The engine continuously compares
 the target to the realized share: an under-fed star hunts, an over-fed one
 defers. Handy inversion when transcribing a real player:
-`usage ≈ 4 × (USG% − 7.5)`, e.g. 25% USG → 70. The mapping is approximate and
+`usage ≈ 4 × (USG% − 7.5)` — e.g. 25% USG → 70. The mapping is approximate and
 compresses above ~30% USG; 90+ is "the offense runs through him", don't
-chase decimals. Usage is deliberately orthogonal to skill: a deferential
+chase decimals. Usage is deliberately orthogonal to skill — a deferential
 genius and a low-skill chucker are both expressible, and `roster:validate`
 will not second-guess that combination.
 
-Two dials are staged. `consistency` (hot/cold variance) and
+**Two dials are staged, honestly.** `consistency` (hot/cold variance) and
 `pushPace`/team `pace` are read by staged systems documented in
 [`docs/INTERNALS.md`](./INTERNALS.md); set them plausibly anyway so packs
 don't need editing when the stages land.
 
-Rough anchors, taken from the archetype file (`packages/data/src/archetypes.ts`,
-the calibrated reference points for what numbers mean): 99 = the
+Rough anchors, taken from the archetype file (`packages/data/src/archetypes.ts`
+— the calibrated reference points for what numbers *mean*): 99 = the
 unambiguous best in any roster (eliteShooter's `three`), 90 = elite/defining
 skill, 80 = legitimate weapon, 70 = plus starter, 60 = solid, 50 = average,
 below 40 = real weakness opponents attack, teens = non-factor
@@ -133,7 +133,7 @@ Quick physical mappings: `heightIn` = feet×12+inches (6'0"=72, 6'6"=78,
 
 Eleven builders in [`packages/data/src/archetypes.ts`](../packages/data/src/archetypes.ts),
 each a coherent, test-anchored profile (the archetype suite asserts an "elite
-shooter" actually behaves like one at season scale). Numbers live there;
+shooter" actually *behaves* like one at season scale). Numbers live there —
 run `npm run roster:new -- --list` for a live view with each archetype's top
 skills derived from the current source.
 
@@ -151,36 +151,36 @@ skills derived from the current source.
 | `benchScorer` | SG 6'5" | microwave sixth man | pullUp 68, three 78, decisions 54 (the trade-off) |
 | `benchBig` | C 6'11" | energy reserve big | boxout 82, block 78, three 8 |
 
-Study the contrasts before you edit: eliteShooter vs threeAndD is
-self-created vs spot-up threes (pullUp 82 vs 12); rimRunner vs postAnchor is
-above-the-rim vs back-to-basket (midRange 28 vs 74); rimRunner vs benchBig is
-the same shape a tier apart.
+Contrasts are deliberate and worth studying before you edit: eliteShooter vs
+threeAndD is *self-created* vs *spot-up* threes (pullUp 82 vs 12); rimRunner vs
+postAnchor is *above-the-rim* vs *back-to-basket* (midRange 28 vs 74);
+rimRunner vs benchBig is the same shape a tier apart.
 
-## Worked example
+## Worked example — a real-ish player
 
-A downhill, foul-drawing star lead guard, the SGA/Harden shape: lives in the
+A downhill, foul-drawing star lead guard — the SGA/Harden shape: lives in the
 lane and at the line, good-not-elite three, high usage, real playmaking, solid
 but not lockdown defense. Closest archetype: `scoringWing` (self-creation,
 drawFoul), reshaped toward a guard.
 
 Reasoning per group, then the JSON:
 
-- Body/physical: 6'6" guard → `heightIn: 78`, `weightLb: 200`. First-step
+- **Body/physical**: 6'6" guard → `heightIn: 78`, `weightLb: 200`. First-step
   burst is the weapon: `speed 88`, `accel 92`, `lateral 74` (good, not elite,
   defensively).
-- Scoring: `finishing 92` (craft at the rim), `midRange 90` (the pull-up
+- **Scoring**: `finishing 92` (craft at the rim), `midRange 90` (the pull-up
   middy is the counter), `three 74` (respectable, not the identity),
-  `freeThrow 88` (≈ .88 shooter), `drawFoul 95`: the defining skill, lives at
+  `freeThrow 88` (≈ .88 shooter), `drawFoul 95` — the defining skill, lives at
   the line.
-- Playmaking: `ballHandle 94` (the whole game starts from the handle),
-  `passAcc 80`, `passVision 82`; a scorer who makes the right kickout, not a
+- **Playmaking**: `ballHandle 94` (the whole game starts from the handle),
+  `passAcc 80`, `passVision 82` — a scorer who makes the right kickout, not a
   floorGeneral.
-- Defense/glass: `perimeterD 72`, `steal 74` (active hands), `interiorD 40`,
+- **Defense/glass**: `perimeterD 72`, `steal 74` (active hands), `interiorD 40`,
   `block 45` (guard-sized), rebounding 30s–50s.
-- Mental: `decisions 84`, `consistency 82`; stars deliver most nights.
-- Tendencies: shot diet rim-first, mid-heavy, three-light for a star guard:
+- **Mental**: `decisions 84`, `consistency 82` — stars deliver most nights.
+- **Tendencies**: shot diet rim-first, mid-heavy, three-light for a star guard:
   `shotRim 70 / shotMid 55 / shotThree 35` (sum 160, just above the calibrated
-  band; a high-volume creator). `pullUp 72`, `drive 85` (downhill constantly),
+  band — a high-volume creator). `pullUp 72`, `drive 85` (downhill constantly),
   `iso 65`, `passOut 55`, `post 8`. Off ball he rests: `offBallMotion 40`,
   `crashOffReb 10`. `gambleSteal 55`, `foulAggr 30`. Usage: ~32% USG →
   `4 × (32 − 7.5) = 98` → clamp the ambition to `92` (the loop compresses up
@@ -207,7 +207,7 @@ Reasoning per group, then the JSON:
 }
 ```
 
-Sanity-check the interactions before moving on: high `drive` + `drawFoul 95`
+Sanity-check the *interactions* before moving on: high `drive` + `drawFoul 95`
 + `finishing 92` is the trips-to-the-line engine; `shotThree 35` + `three 74`
 still projects enough gravity that defenses can't fully duck under; `usage 92`
 with `decisions 84` is a star who carries efficiently rather than a chucker.
@@ -222,18 +222,17 @@ npm run roster:validate -- owls.team.json --json     # machine-readable report
 
 Errors show the JSONPath, your value, the legal range, and a concrete fix
 (quoted numbers, centimeter heights, and typo'd starter ids are recognized and
-answered specifically). Errors are exactly `validateTeamPack()`'s verdicts;
+answered specifically). Errors are exactly `validateTeamPack()`'s verdicts —
 the CLI never adds or hides a rejection.
 
-Warnings are advisory basketball judgment: the pack loads; the numbers
+**Warnings are advisory basketball judgment** — the pack loads; the numbers
 just don't resemble any known-good roster. Each states its reasoning so you
-can overrule it knowingly (a tanking squad may ship `no-plus-skill` on
-purpose):
+can overrule it knowingly (a tanking squad may proudly ship `no-plus-skill`):
 
 | code | fires when | the basketball reason |
 |---|---|---|
 | `flat-profile` | a player's 24 attributes are all identical | identity comes from contrast; flat = anonymous |
-| `no-plus-skill` | nobody on the roster has any attribute ≥ 70 | no one can win a matchup; scrimmage ball |
+| `no-plus-skill` | nobody on the roster has any attribute ≥ 70 | no one can win a matchup — scrimmage ball |
 | `uniform-elite` | every rating on the roster ≥ 85 | flatness in reverse; nothing differentiates styles |
 | `no-rim-protection` | no starter with interiorD or block ≥ 65 | 5-out with no deterrent = layup line |
 | `no-initiator` | no starter with ballHandle ≥ 65 | nobody can start offense; turnovers spiral |
@@ -242,29 +241,29 @@ purpose):
 | `usage-overload` / `usage-vacuum` | starting-five usage mean > 62 / < 38 | one ball; 5×50 ≈ 100% of possessions |
 | `rotation-*` | unknown id / target > 48 min / targets > 245 total | silently ignored or unsatisfiable coach targets |
 
-Then play one game:
+Then play one game and read it like a scout, not a fan:
 
 ```bash
 npm run sim -- --home owls.team.json --seed owls-1   # deterministic: same seed, same game
 ```
 
-Check that the box score matches the story you wrote: the usage-92 guard
-should lead the team in FGA and FTA; the rimRunner's line should look like
-dunks and boards (high FG%, no threes); the team's three-point volume should
-be consistent with your `threeBias` and shooters. One game is one sample;
-re-run with a few seeds before concluding a dial is wrong, and see
-`npm run batch` if you want band-graded aggregates.
+Check that the box score matches the story you wrote: does your usage-92 guard
+lead the team in FGA and FTA? Does the rimRunner's line look like dunks and
+boards (high FG%, no threes)? Is the team's three-point volume consistent with
+your `threeBias` and shooters? One game is one sample — re-run with a few seeds
+before concluding a dial is wrong, and see `npm run batch` if you want
+band-graded aggregates.
 
 ## Troubleshooting
 
 | symptom | cause / fix |
 |---|---|
 | `$.formatVersion: expected 2` + many `tend.usage` errors | v1-era pack; add `"usage": 50` per player, set formatVersion 2 (the CLI prints this migration note) |
-| `heightIn must be a finite number 60-96`, value ~180–220 | centimeters; divide by 2.54 (the CLI computes it for you) |
+| `heightIn must be a finite number 60-96`, value ~180–220 | centimeters — divide by 2.54 (the CLI computes it for you) |
 | `rating must be 0-100`, current `"88"` | quoted number; ratings are bare JSON numbers |
-| `starter X not on roster` | id typo; the CLI suggests the closest roster id |
+| `starter X not on roster` | id typo — the CLI suggests the closest roster id |
 | editor shows no autocomplete | missing/wrong `"$schema"` relative path; regenerate with `npm run schema:gen` if the file moved |
-| pack valid but plays nothing like intended | re-read CAN vs WANT above; skill without the matching tendency (or vice versa) is the usual culprit |
+| pack valid but plays nothing like intended | re-read *CAN vs WANT* above — skill without the matching tendency (or vice versa) is the usual culprit |
 
 ## How this stays honest
 
@@ -276,5 +275,5 @@ derives the JSON Schema from them, hover docs are extracted from
 match regeneration byte-for-byte, must accept the shipped rosters, must reject
 canonical breakage, and the warning heuristics must stay silent on every
 known-good roster. If you add a rating to the engine, the suite will walk you
-through every surface that needs to hear about it, including this doc's
+through every surface that needs to hear about it — including this doc's
 companion hover text, which regenerates for free.

@@ -1,7 +1,7 @@
 /**
- * Archetype acceptance: ratings profiles must produce the right shape of
- * stat line at multi-game scale. Bands are generous in v0.1; they tighten
- * as calibration matures (see harness bands for league-level).
+ * Archetype acceptance: ratings profiles must produce the right SHAPE of
+ * stat line at multi-game scale. Bands are deliberately generous in v0.1 —
+ * they tighten as calibration matures (see harness bands for league-level).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -69,12 +69,12 @@ describe(`archetype behavior over ${GAMES} games`, () => {
   // Resolved structurally (Stage 2 usage hierarchy): the calibration-session-1
   // finding was that creation flowed through swing positions and scalar knobs
   // moved touches but not terminal creation. The structural fix, in ai.ts:
-  // the playmaker pull is relative to the holder's own creation score and
+  // the playmaker pull is RELATIVE to the holder's own creation score and
   // clock-scaled (re-initiation after swings); PnR initiation is gated by the
   // holder's creation rank (ai.pnrUsageFloor); drive utility prices the
   // paint-touch-and-spray option, crowd-gated and scaled by the driver's own
   // vision; open catch-and-shoot threes convert (ai.catchShootBonus). The
-  // floor general now leads his team in assists. Historically he ran 4th.
+  // floor general now leads his team in assists — historically he ran 4th.
   it('floor general (Vance): the assist leader on his team', () => {
     const vance = per('mon-vance', 'ast');
     expect(vance).toBeGreaterThanOrEqual(4); // level floor; see ratchet below
@@ -85,8 +85,8 @@ describe(`archetype behavior over ${GAMES} games`, () => {
     }
   });
 
-  // Level ratchet, deferred to the fidelity phase: a real floor general
-  // leads at 6-10 apg, not ~5. The gap is league assisted-share. The engine
+  // LEVEL RATCHET (deferred to the fidelity phase): a real floor general
+  // leads at 6-10 apg, not ~5. The gap is league assisted-share — the engine
   // credits ~46-50% of makes as assisted vs the NBA's ~58%, and no acceptance
   // band constrains it yet. Chasing the level with style knobs oscillates
   // (Stage 2 measurement); it needs an assisted-share band in harness/bands

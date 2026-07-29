@@ -1,5 +1,5 @@
 /**
- * The public API of @hoopsh/engine.
+ * @hoopsh/engine — public API.
  *
  * The engine is pure and deterministic: no I/O, no globals, no Math.random.
  * Everything downstream (stats, narration, viewers, experiences) consumes

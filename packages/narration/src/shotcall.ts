@@ -1,10 +1,10 @@
 /**
- * Shot-call classification: which basketball name a shot attempt gets in
- * text. layup / dunk / hook shot / tip-in / jump shot.
+ * Shot-call classification: which basketball NAME a shot attempt gets in
+ * text — layup / dunk / hook shot / tip-in / jump shot.
  *
- * Derived entirely from data already on the ShotEvent (zone, distFt,
+ * Derived ENTIRELY from data already on the ShotEvent (zone, distFt,
  * moveType, made) plus the shooter's static attributes (vertical/finishing
- * decide who dunks). No new event fields, no randomness: the same event
+ * decide who dunks) — no new event fields, no randomness: the same event
  * always renders the same call, so narration stays deterministic and
  * replay-stable.
  *
@@ -20,7 +20,7 @@
  * only start mattering at 4+ ft. The rules below reproduce that grammar
  * from the sim's own shot data.
  *
- * The thresholds are presentational constants (they name shots, they do not
+ * The thresholds are PRESENTATIONAL constants (they name shots, they do not
  * change any sim outcome), so they live here with the renderer rather than
  * on the engine's SimParams sweep surface.
  */
@@ -47,10 +47,10 @@ export interface ShooterTraits {
 // -- presentational thresholds (measured against the reference corpus) ------
 /** real dunks sit at 0-2 ft (61/62 in the corpus) */
 const DUNK_MAX_FT = 2.25;
-/** 0.6·vertical + 0.4·finishing at/above this reads as a dunker;
- *  ground-bound finishers lay the same attempt in. Sized against roster
- *  attribute spreads so roughly the springiest quarter of rotations dunk
- *  their point-blank makes (real dunk share of 0-2 ft makes ≈ 27%). */
+/** 0.6·vertical + 0.4·finishing at/above this reads as a dunker — ground-bound
+ *  finishers lay the same attempt in. Sized against roster attribute spreads
+ *  so roughly the springiest quarter of rotations dunk their point-blank
+ *  makes (real dunk share of 0-2 ft makes ≈ 27%). */
 const DUNK_ATHLETE_SCORE = 74;
 /** a putback tapped straight back up from point-blank reads as a tip-in */
 const TIP_IN_MAX_FT = 1.6;
@@ -69,9 +69,9 @@ const HOOK_MIN_FT = 3;
  *
  * Order matters: tip-in and dunk claim the point-blank range first, the
  * hook claims post moves, the layup claims the rest of the close range by
- * how the shot was created (a 5-ft pull-up is a short jumper; real logs
- * are full of 4-6 ft jump shots; a 5-ft drive finish is a layup), and
- * everything else is a jump shot.
+ * how the shot was created (a 5-ft PULL-UP is a short jumper — real logs
+ * are full of 4-6 ft jump shots — while a 5-ft drive finish is a layup),
+ * and everything else is a jump shot.
  */
 export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
   if (e.three || e.moveType === 'heave') return 'jump shot';
@@ -79,12 +79,12 @@ export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
   // point-blank putback with no gather: a tip
   if (e.moveType === 'putback' && e.distFt <= TIP_IN_MAX_FT) return 'tip-in';
 
-  // dunks: point-blank makes by genuinely springy finishers. Made-gated on
-  // purpose: a failed point-blank attempt is scored/logged as a missed
+  // dunks: point-blank MAKES by genuinely springy finishers. Made-gated on
+  // purpose — a failed point-blank attempt is scored/logged as a missed
   // layup (control was never established), which also keeps the rare missed
   // dunk from over-appearing relative to the corpus. Every moveType
   // qualifies (heave is already gone): at ≤2 ft even the AI's "pull_up"
-  // label just means a gather off the dribble, and that finish is the dunk
+  // label just means a gather off the dribble, and that finish IS the dunk
   // when the finisher has the hops.
   if (
     e.made &&
@@ -100,7 +100,7 @@ export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
     return 'hook shot';
   }
 
-  // the rim zone is layup territory no matter how the shooter got there;
+  // the rim zone is layup territory no matter how the shooter got there —
   // even a "pull-up" gather at 3 ft is a layup in scorer's terms
   if (e.zone === 'rim') return 'layup';
 
@@ -118,7 +118,7 @@ export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
 
 /**
  * The basketball-reference measurement phrase for a shot: "from N ft", or
- * "at rim" for point-blank attempts. bbref never prints "from 0 ft"
+ * "at rim" for point-blank attempts — bbref never prints "from 0 ft"
  * (corpus: 50 "at rim" lines, zero "from 0 ft"). Exported for the dry
  * bbref-register renderer (harness turing.ts) and tests.
  */

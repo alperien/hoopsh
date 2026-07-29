@@ -1,5 +1,5 @@
 /**
- * CLI flag parsing: pins the fix for a real silent-corruption incident.
+ * CLI flag parsing — pins the fix for a real silent-corruption incident:
  * `npm run broadcast -- --seed` (flag present, value forgotten) used to
  * simulate a game seeded with the literal string "undefined" and write
  * out/broadcast-undefined.txt without a word of complaint. See args.ts.
