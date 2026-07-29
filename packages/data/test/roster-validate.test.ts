@@ -1,9 +1,9 @@
 /**
  * roster:validate's two promises, each with its own failure mode:
- *  - Errors restate validateTeamPack() verdicts with a usable fix, so the
+ *  - ERRORS restate validateTeamPack() verdicts with a usable fix — so the
  *    enrichment must never invent or hide a rejection (validator parity).
- *  - Warnings are calibrated heuristics, so every shipped roster and the
- *    default scaffold must come out warning-free (a heuristic that flags
+ *  - WARNINGS are calibrated heuristics — so every shipped roster and the
+ *    default scaffold MUST come out warning-free (a heuristic that flags
  *    known-good basketball is noise, and noise trains authors to ignore the
  *    tool), while each heuristic fires on the pathology it names.
  */
@@ -37,6 +37,23 @@ describe('roster:validate warnings', () => {
     expect(computeWarnings(scaffold())).toEqual([]);
   });
 
+  it('body plausibility: kg-for-lb weight and inhuman wingspan both warn', () => {
+    const pack = scaffold();
+    pack.team.players[0].weightLb = 100; // a ~220 lb frame written in kilograms
+    pack.team.players[1].wingspanIn = pack.team.players[1].heightIn + 20; // beyond any measured ape index
+    const warns = computeWarnings(pack);
+    expect(warns.find((w: { code: string; why: string }) => w.code === 'weight-implausible')?.why).toContain('kilograms');
+    expect(warns.some((w: { code: string }) => w.code === 'wingspan-implausible')).toBe(true);
+
+    // negative-but-finite values pass the validator by design (it refuses to
+    // out-strict the engine) — this tool is the promised safety net
+    const neg = scaffold();
+    neg.team.players[2].weightLb = -50;
+    neg.team.players[3].wingspanIn = -10;
+    expect(codes(neg)).toContain('weight-implausible');
+    expect(codes(neg)).toContain('wingspan-implausible');
+  });
+
   it('flat-profile: 24 identical attributes', () => {
     const pack = scaffold();
     for (const k of Object.keys(pack.team.players[9].attr)) pack.team.players[9].attr[k] = 50;
@@ -61,7 +78,7 @@ describe('roster:validate warnings', () => {
     const pack = scaffold();
     // starters: floorGeneral, scoringWing, threeAndD + two bench guards
     pack.team.starters = ['warn-lab-p01', 'warn-lab-p02', 'warn-lab-p03', 'warn-lab-p06', 'warn-lab-p07'];
-    expect(validateTeamPack(pack)).toEqual([]); // legal lineup; that's the point
+    expect(validateTeamPack(pack)).toEqual([]); // legal lineup — that's the point
     expect(codes(pack)).toContain('no-rim-protection');
   });
 
@@ -128,6 +145,22 @@ describe('roster:validate error enrichment', () => {
     expect(explained.find((e) => e.path.endsWith('heightIn'))?.fix).toContain('81'); // 206cm -> 81in
     expect(explained.find((e) => e.path.endsWith('tend.usage'))?.fix).toContain('"usage": 50');
     expect(explained.find((e) => e.path === '$.team.starters')?.fix).toContain('"warn-lab-p05"');
+  });
+
+  it('unknown attr/tend keys: typo gets a suggestion, annotation gets the no-comments explanation', () => {
+    const pack = scaffold();
+    pack.team.players[0].attr.note = 'bump after trade deadline'; // annotation — nothing like a real key
+    pack.team.players[1].tend.pullup = 60;                        // typo for pullUp
+    const issues = validateTeamPack(pack);
+    const explained = issues.map((i) => explainIssue(pack, i) as any);
+
+    const note = explained.find((e) => e.path.endsWith('attr.note'));
+    expect(note?.message).toContain('unknown attribute "note"');
+    expect(note?.current).toBe('"bump after trade deadline"');
+    expect(note?.fix).toContain('no comment syntax');
+
+    const typo = explained.find((e) => e.path.endsWith('tend.pullup'));
+    expect(typo?.fix).toContain('did you mean "pullUp"');
   });
 
   it('never hides an issue: every validator issue survives enrichment 1:1', () => {

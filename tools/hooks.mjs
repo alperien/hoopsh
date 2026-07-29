@@ -6,7 +6,7 @@
 // The npm registry is unreachable here, so there's no node_modules to
 // populate a '@hoopsh/*' workspace symlink or an installed 'vitest' package,
 // and Node's native TypeScript type-stripping (register.mjs) only strips
-// type syntax; it never rewrites specifiers. Every import in the codebase
+// type syntax — it never rewrites specifiers. Every import in the codebase
 // still says './state.js' (per the AGENTS.md §1.7 relative-import
 // convention: write the eventual-JS extension even though the file on disk
 // is .ts) or '@hoopsh/engine' (per the workspace package-naming convention),
@@ -24,11 +24,12 @@ const PKGS = path.join(ROOT, 'packages');
 export async function resolve(specifier, context, nextResolve) {
   // Branch 1: the vitest shim. Checked before the '@hoopsh/*' branch (and
   // before falling through to Node's resolver, which would otherwise throw
-  // MODULE_NOT_FOUND) because 'vitest' is a bare package name, not scoped,
-  // so it needs its own short-circuit rather than reusing the scoped-package
+  // MODULE_NOT_FOUND) because 'vitest' is a bare package name, not scoped —
+  // it needs its own short-circuit rather than reusing the scoped-package
   // regex below. Every test file does `import { describe, it, expect } from
-  // 'vitest'`; with zero packages installed, that import resolves here or
-  // nowhere. See tools/shims/vitest.ts for what the shim actually implements.
+  // 'vitest'`; this line is the only thing standing between that import and
+  // a hard crash with zero packages installed. See tools/shims/vitest.ts for
+  // what the shim actually implements.
   if (specifier === 'vitest') {
     return {
       url: pathToFileURL(path.join(ROOT, 'tools', 'shims', 'vitest.ts')).href,
@@ -38,7 +39,7 @@ export async function resolve(specifier, context, nextResolve) {
 
   // Branch 2: '@hoopsh/<pkg>' -> that package's public entry point
   // (packages/<pkg>/src/index.ts). This is the only mapping cross-package
-  // imports need: every package exports its consumer-facing surface from
+  // imports need — every package exports its consumer-facing surface from
   // src/index.ts (see e.g. packages/narration/src/index.ts), so resolving
   // the scope name straight to that file is sufficient; nothing here needs
   // to understand subpath exports or package.json "exports" maps. Guarded
@@ -57,13 +58,14 @@ export async function resolve(specifier, context, nextResolve) {
   // file actually exists on disk. Source files uniformly import with a
   // '.js' suffix (the TS convention for relative specifiers, so the same
   // source also works unmodified under a real bundler or ts-node/tsx once
-  // npm access lands; see AGENTS.md §1.7); native type-stripping resolves
+  // npm access lands — see AGENTS.md §1.7); native type-stripping resolves
   // './x.js' literally, so without this rewrite every relative import in the
-  // engine would 404. The existsSync guard matters here too: it lets a
-  // GENUINE '.js' file (there are none today, but nothing prevents one
-  // later) resolve normally via nextResolve instead of being redirected to a
-  // '.ts' file that was never there, and it keeps this hook a no-op for
-  // anything that isn't a relative specifier from a file:// parent module.
+  // engine would 404. The existsSync guard lets a GENUINE '.js' file resolve
+  // normally via nextResolve — but only when NO sibling '.ts' exists: with
+  // both x.js and x.ts on disk, the '.ts' wins and silently shadows the
+  // '.js' (b7-F8; same precedence as tsx, and no '.js' sources exist in
+  // packages/ today). The guard also keeps this hook a no-op for anything
+  // that isn't a relative specifier from a file:// parent module.
   if (
     (specifier.startsWith('./') || specifier.startsWith('../')) &&
     specifier.endsWith('.js') &&
@@ -76,7 +78,7 @@ export async function resolve(specifier, context, nextResolve) {
     }
   }
 
-  // None of the three branches matched: defer to Node's normal resolution
+  // None of the three branches matched — defer to Node's normal resolution
   // (bare Node built-ins like 'node:fs', absolute/file URLs, anything not
   // covered above).
   return nextResolve(specifier, context);
@@ -84,11 +86,11 @@ export async function resolve(specifier, context, nextResolve) {
 
 // CONSTRAINT THIS IMPOSES ON THE CODEBASE: because resolution here is a type
 // stripper, not a compiler, only ERASABLE TypeScript syntax may appear
-// anywhere hooks.mjs's mapped modules get loaded, i.e. everywhere in this
+// anywhere hooks.mjs's mapped modules get loaded — i.e. everywhere in this
 // monorepo. No enums, no namespaces with runtime code, no constructor
 // parameter properties, no `import x = require()`; type-only imports must be
 // explicitly marked `import type` because stripping erases type annotations
 // but does NOT perform import elision, so an unmarked type-only import
 // becomes a real (and usually broken) runtime import. See AGENTS.md §1.7 for
-// the full list; this file is the reason that rule exists, not just a
+// the full list — this file is the reason that rule exists, not just a
 // place that happens to repeat it.

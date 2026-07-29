@@ -1,8 +1,8 @@
 /**
  * Probabilistic resolution models: shooting, contests, passing, rebounds, fouls.
  *
- * Design rule: the same predictor that resolves outcomes is used by the AI to
- * select actions (shot quality = predicted EV), so decision-making and
+ * Design rule: the SAME predictor that resolves outcomes is used by the AI to
+ * *select* actions (shot quality = predicted EV), so decision-making and
  * resolution can never drift apart. Every constant comes from SimParams.
  */
 
@@ -25,13 +25,13 @@ export interface Contest {
 }
 
 /**
- * Shared contest model: one skill/stun/proximity definition for both the
+ * Shared contest model — one skill/stun/proximity definition for both the
  * present-time contest and the anticipated one. `projLeadSec` projects each
  * defender forward along his velocity before measuring: he closes ground
  * while the shooter gathers, but not perfectly (he must also decelerate to
  * contest rather than run past). Passing 0 degenerates the projection to the
  * defender's actual position, so both entry points below share every line of
- * this loop; these used to be two hand-kept copies that only differed in
+ * this loop — these used to be two hand-kept copies that only differed in
  * the projection step (review duplication finding).
  */
 function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number): Contest {
@@ -45,15 +45,15 @@ function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number)
       x: d.pos.x + d.vel.x * projLeadSec,
       y: d.pos.y + d.vel.y * projLeadSec
     };
-    // the defender contests from wherever is closer, his spot or his
+    // the defender contests from wherever is CLOSER — his spot or his
     // projected closeout; a lead of 0 makes both the same point
     const dd = Math.min(dist(d.pos, pos), dist(proj, pos));
     if (dd > radius) continue;
     // contest = proximity × technique × availability
-    //  closing: linear falloff; a defender on the shooter contests 1.0, one at
+    //  closing: linear falloff — a defender ON the shooter contests 1.0, one at
     //           the radius edge contests ~0. Distance is the dominant term.
     const closing = 1 - dd / radius;
-    //  skill: technique blended with role defense; interiorD when the defender
+    //  skill: technique blended with role defense — interiorD when the defender
     //         is protecting the rim area, perimeterD outside (move.contestDBlend
     //         sets the mix).
     const nearRim = dist(d.pos, rim) < s.params.move.nearRimFt;
@@ -63,7 +63,7 @@ function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number)
     const skill = s.params.ai.contestSkillFloor + s.params.ai.contestSkillRange * (defSkill / 100);
     //  stunned: caught on a screen → he's there but badly out of position. A
     //  stunned defender still bothers the shot because he is physically
-    //  present; he just can't properly contest (see pnrStunContestMult).
+    //  present — he just can't properly contest (see pnrStunContestMult).
     const stunned = s.t < d.screenStunUntil ? s.params.ai.pnrStunContestMult : 1;
     const level = closing * skill * stunned;
     if (level > best) {
@@ -73,7 +73,7 @@ function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number)
     }
   }
   // 0.5 ft uncontested height advantage: shooting over nobody is like shooting
-  // over someone slightly shorter, a mild positive that prevents the height
+  // over someone slightly shorter — a mild positive that prevents the height
   // term from swinging negative on unguarded makes (geometry, not behavioral).
   const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5;
   return { level: clamp(best, 0, 1), by, heightAdvFt };
@@ -85,10 +85,10 @@ export function contestAt(s: GameState, shooter: Agent, pos: V2): Contest {
 }
 
 /**
- * Contest the shooter should expect at release: defenders' positions are
+ * Contest the shooter should EXPECT at release: defenders' positions are
  * projected ahead by the shot windup, so a flying closeout discourages the
  * catch-and-shoot even though the defender hasn't arrived yet. Good shooters
- * account for the man sprinting at them, so the AI does too. The share keeps
+ * account for the man sprinting at them — so should the AI. The share keeps
  * anticipation honest rather than clairvoyant (see windupProjShare).
  */
 export function anticipatedContest(
@@ -106,7 +106,7 @@ export function zoneSkill(a: Agent, zone: ShotZone): number {
   switch (zone) {
     case 'rim': return a.p.attr.finishing;
     // the in-between game is touch, not power: midRange-dominant blend.
-    // This is why sagging off non-shooters works: a rim-runner's open
+    // This is WHY sagging off non-shooters works — a rim-runner's open
     // 9-foot floater is a win for the defense, not the offense.
     case 'paint': return a.p.attr.finishing * 0.35 + a.p.attr.midRange * 0.65;
     case 'mid': return a.p.attr.midRange;
@@ -114,7 +114,7 @@ export function zoneSkill(a: Agent, zone: ShotZone): number {
   }
 }
 
-/** probability the shot goes in; the engine's most calibrated formula */
+/** probability the shot goes in — the engine's most calibrated formula */
 export function shotMakeP(
   s: GameState,
   shooter: Agent,
@@ -122,7 +122,7 @@ export function shotMakeP(
   distFt: number,
   moveType: ShotMoveType,
   contest: Contest,
-  /** prospective delivery quality (n-space): decideBall passes the holder's
+  /** prospective delivery quality (n-space) — decideBall passes the HOLDER's
    *  own delivery when valuing a pass; resolution omits it and the shooter's
    *  actual catchQuality (stamped at the catch) is used */
   catchQ?: number
@@ -146,34 +146,37 @@ export function shotMakeP(
     moveType === 'putback' ? P.movePutback :
     moveType === 'heave' ? P.moveHeave : 0;
 
+  // deep threes get harder past the line; rim shots get harder away from point-blank
   // Within-zone distance penalties (the zone bases cover the typical shot;
   // these handle the tails):
   //  • threes: each foot beyond distPenaltyThreeFt costs distPenaltyThreePerFt logits
   //    ≈ 1.3 percentage points, so a 30-footer is ~9 points worse than a corner three.
   //    Matches the real falloff on deep attempts.
-  //  • rim: distPenaltyRimPerFt/ft from point-blank out to the 4 ft zone edge:
+  //  • rim: distPenaltyRimPerFt/ft from point-blank out to the 4 ft zone edge —
   //    a dunk and a 4-foot floater are genuinely different shots.
   const distAdj =
     zone === 'three' ? -P.distPenaltyThreePerFt * Math.max(0, distFt - P.distPenaltyThreeFt) :
     zone === 'rim' ? -P.distPenaltyRimPerFt * distFt : 0;
 
   // Size only matters at the rim (a 7-footer's reach is irrelevant on a
-  // jumper). Clamped to ±1.5 ft of standing-reach advantage so extreme
-  // mismatches stay believable rather than automatic.
-  const heightTerm = zone === 'rim' ? P.rimHeightCoef * clamp(contest.heightAdvFt, -1.5, 1.5) : 0;
+  // jumper). Clamped to ±rimHeightAdvClampFt of standing-reach advantage so
+  // extreme mismatches stay believable rather than automatic.
+  const heightTerm = zone === 'rim'
+    ? P.rimHeightCoef * clamp(contest.heightAdvFt, -P.rimHeightAdvClampFt, P.rimHeightAdvClampFt)
+    : 0;
 
   const fatigue = P.fatigueCoef * (1 - shooter.energy / 100);
 
-  // "on time, on target": a catch-and-shoot rides the delivery. An elite
-  // passer's ball arrives in the shooting pocket and the rise is easier;
-  // this routes assists toward passing quality (a table-setter's kicks
-  // convert, a swing hub's do not) and is why teammates measurably shoot
+  // "on time, on target": a catch-and-shoot rides the DELIVERY — an elite
+  // passer's ball arrives in the shooting pocket and the rise is easier.
+  // This is what routes assists toward passing QUALITY (a table-setter's
+  // kicks convert; a swing hub's do not) and why teammates measurably shoot
   // better next to a great passer. Self-created shots get zero by moveType.
-  // Centered on league-typical delivery: an average pass neither helps
+  // ...CENTERED on league-typical delivery: an average pass neither helps
   // nor hurts, an elite one arrives in the pocket, a sloppy one costs the
   // catch. Uncentered, the term added a positive league-wide offset (typical
   // deliverers sit at n ≈ +0.15) and heated every catch-and-shoot in the
-  // league, which forced the coefficient down and erased the passer spread
+  // league — which forced the coefficient down and erased the passer spread
   // the term exists to create (mean belongs to the bands; spread to skills).
   const passQ = moveType === 'catch_shoot'
     ? P.passQualityCoef * ((catchQ ?? shooter.catchQuality) - P.passQualityCenter)
@@ -182,7 +185,7 @@ export function shotMakeP(
   return sigmoid(base + skill + contestTerm + moveAdj + distAdj + heightTerm + fatigue + passQ);
 }
 
-/** expected points for a shot from here, including free-throw EV; used by the AI */
+/** expected points for a shot from here, including free-throw EV — used by the AI */
 export function shotEV(
   s: GameState,
   shooter: Agent,
@@ -197,10 +200,19 @@ export function shotEV(
   const pts = loc.three ? 3 : 2;
   const pFoul = shootingFoulP(s, shooter, loc.zone, contest);
   const ftP = freeThrowP(s, shooter);
-  // Foul EV: drawing a shooting foul on a miss converts the possession into
+  // Foul EV: drawing a shooting foul on a MISS converts the possession into
   // 2 (or 3) free throws. On a make it's an and-one worth only 1 FT, which is
-  // why this is weighted by (1 - p): a deliberate simplification that keeps
+  // why this is weighted by (1 - p) — a deliberate simplification that keeps
   // the foul-hunting incentive roughly right without double-counting and-ones.
+  // KNOWN SIMPLIFICATION (a6 line audit; docs/INTERNALS.md): the whistle is
+  // priced UNCONDITIONALLY, but resolution only awards a shooting foul when a
+  // contester exists (shooting.ts gates on `contest.by`) — so a wide-open
+  // look carries phantom foul EV (~0.15 at the rim), and decideBall's pass
+  // valuation (which hardcodes `by: null`) includes it on every teammate
+  // look. The miss branch's blockedFoulMult damping is likewise not priced.
+  // The bands are calibrated AROUND this bias: making shotEV
+  // realizability-aware is a mechanics change that needs the calibration
+  // ladder, not a drive-by edit here.
   const ftEV = pFoul * (loc.three ? 3 : 2) * ftP * (1 - p);
   return { ev: p * pts + ftEV, p, zone: loc.zone, three: loc.three, distFt: loc.distFt };
 }
@@ -209,7 +221,7 @@ export function freeThrowP(s: GameState, shooter: Agent): number {
   const P = s.params.shot;
   // linear base + swing, plus an elite kick above rating 80 (n > 0.6): a
   // purely linear model provably cannot express the league mean (~78%) and
-  // the elite tail (88-91%) at once; the volume-weighted league shooter is
+  // the elite tail (88-91%) at once — the volume-weighted league shooter is
   // already rating ~85+, so the tail needs its own curvature (fidelity
   // incident: a 99-rated benchmark capped at 83%).
   const nv = n(shooter.p.attr.freeThrow);
@@ -245,11 +257,13 @@ export function shootingFoulP(
     zone === 'paint' ? F.shootPaint :
     zone === 'mid' ? F.shootMid : F.shootThree;
   // Three multiplicative factors on the zone base:
-  //  contestMult: tight contests mean contact (1.0 → contestFactor)
-  //  draw:        foul-drawing craft; elite draws ~65% more whistles than
-  //               average, a passive player ~35% fewer. The biggest driver
-  //               of individual FTA differences.
-  //  aggr:        the defender's foulAggr tendency; hackers foul ~50% more
+  //  contestMult — tight contests mean contact (1.0 → contestFactor)
+  //  draw        — foul-drawing craft: the swing is symmetric in n-space
+  //                (1 + drawFoulSwing·n): an elite (rating-100) player draws
+  //                ~65% more whistles than average, a rating-0 one ~65%
+  //                fewer (multiplier 0.35). This is the single biggest
+  //                driver of individual FTA differences.
+  //  aggr        — the DEFENDER's foulAggr tendency: hackers foul ~50% more
   const contestMult = 1 + (F.contestFactor - 1) * contest.level;
   const draw = 1 + F.drawFoulSwing * n(shooter.p.attr.drawFoul);
   let aggr = 1;
@@ -276,16 +290,20 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
   let dangerScore = -1;
   const a = from.pos;
   const b = to.pos;
-  const passLen = Math.max(4, dist(a, b));
+  // (a Math.max(4, …) floor used to sit here — provably a no-op, since
+  // passLen only feeds the max(0, passLen − longPassFt)/10 length term
+  // below and any value ≤ longPassFt yields 0; deleted per DO-NOT #5)
+  const passLen = dist(a, b);
   for (const d of liveOnCourt(s, other(from.side))) {
-    // laneDangerFt is the reach-plus-step envelope around a pass lane; beyond
+    // Lane occlusion: how badly defenders clog the passing line.
+    // laneDangerFt is the reach-plus-step envelope around a pass lane — beyond
     // that a defender is irrelevant to this pass.
     const dLane = distToSegment(a, b, d.pos);
     if (dLane > P.laneDangerFt) continue;
     const along = clamp(1 - dLane / P.laneDangerFt, 0, 1);
-    // steal rating 0→0.5, 100→1.0: anyone in the lane is a hazard; ball-hawks
-    // are twice the hazard
-    const stealSkill = 0.5 + 0.5 * (d.p.attr.steal / 100);
+    // steal rating 0→laneStealFloor, 100→1.0: anyone in the lane is a
+    // hazard; a ball-hawk is twice the hazard of a rating-0 bystander
+    const stealSkill = P.laneStealFloor + (1 - P.laneStealFloor) * (d.p.attr.steal / 100);
     const contribution = along * stealSkill;
     // laneOcclusionDamp keeps multiple loose defenders from stacking into certainty
     occlusion += contribution * P.laneOcclusionDamp;
@@ -294,11 +312,12 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
       dangerId = d.p.id;
     }
   }
+  // long cross-court passes are riskier
   // Cross-court passes are riskier: beyond longPassFt, each extra 10 ft adds
-  // longPassPer10Ft logits. Long skip passes hang in the air, a real turnover source.
+  // longPassPer10Ft logits. Long skip passes hang in the air — real turnover source.
   const lengthTerm = P.longPassPer10Ft * Math.max(0, passLen - P.longPassFt) / 10;
   const skillTerm = P.skillCoef * ((n(from.p.attr.passAcc) + n(from.p.attr.passVision)) / 2);
-  const logit = P.riskBase + P.laneRiskCoef * clamp(occlusion, 0, 1.6) + lengthTerm - skillTerm;
+  const logit = P.riskBase + P.laneRiskCoef * clamp(occlusion, 0, P.laneOcclusionCap) + lengthTerm - skillTerm;
   return { turnoverP: sigmoid(logit), dangerId };
 }
 
@@ -307,7 +326,7 @@ export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
 /** sample where a missed shot lands */
 export function sampleMissLanding(s: GameState, rim: V2, shotDistFt: number): V2 {
   const R = s.params.reb;
-  // Long shots rebound long (well-documented in tracking data); that's why
+  // Long shots rebound long (well-documented in tracking data) — this is why
   // three-heavy games produce more guard rebounds and longer scrambles.
   const mean = R.missDistBase + R.missDistCoef * shotDistFt;
   // reboundSpreadFactor × mean relative spread: rebounds cluster near the mean
@@ -339,20 +358,22 @@ function reboundLottery(
       // beyond reboundCutoffFt you're not getting to this rebound
       const d = dist(a.pos, spot);
       if (d > R.reboundCutoffFt) continue;
-      // Proximity dominates (1/(1+d)^power); rebounding is mostly positioning
+      // Proximity dominates (1/(1+d)^power) — rebounding is mostly positioning
       const prox = 1 / Math.pow(1 + d, R.proximityPower);
       const attr = a.p.attr;
-      // Offense and defense reward different skills, the asymmetry of the
-      // glass: the offense needs pursuit and hops (offReb, vertical) because
-      // it's attacking from behind; the defense wins by owning the space
-      // first (defReb, boxout). Height enters both sides per inch and
-      // dominates in absolute terms, but the weights stay skill-forward:
-      // at 0.6/inch, height flattened the spread. Every 7-footer rated
-      // within ~10% regardless of craft, and an all-league rebounder read
-      // as ordinary (fidelity incident: a 97-defReb/92-boxout center pulled
-      // 7.5 boards). Rebounding is a zero-sum lottery, so re-weighting
-      // redistributes who rebounds without moving league totals.
-      // The six blend weights live in params.reb (blend*) as a coupled set;
+      // Offense vs defense reward DIFFERENT skills, which is the whole
+      // asymmetry of the glass: the offense needs pursuit and hops (offReb,
+      // vertical) because it's attacking from behind; the defense wins by
+      // owning the space first (defReb, boxout). Height enters both sides
+      // through the one shared blendHeightPerIn weight (re-weighted DOWN
+      // from the original 0.6/inch — see the coupled-set note in params.reb).
+      // skill-forward weights: height matters, but at the old 0.6/inch it
+      // flattened the spread — every 7-footer rated within ~10% regardless of craft,
+      // and an all-league rebounder read as ordinary (fidelity incident:
+      // a 97-defReb/92-boxout center pulled 7.5 boards). Rebounding is a
+      // zero-sum lottery, so re-weighting redistributes WHO rebounds without
+      // moving league totals.
+      // The six blend weights live in params.reb (blend*) as a COUPLED SET —
       // see the provenance note there before touching any one of them.
       const rebSkill = a.side === offSide
         ? attr.offReb * R.blendOffReb + attr.vertical * R.blendOffVertical + a.p.heightIn * R.blendHeightPerIn
@@ -366,8 +387,8 @@ function reboundLottery(
 }
 
 /**
- * Which side a dead carom (team rebound) is awarded to: the same
- * positioning-weighted lottery a player rebound runs, aggregated by side,
+ * Which SIDE a dead carom (team rebound) is awarded to: the same
+ * positioning-weighted lottery a player rebound runs, aggregated by side —
  * so the offensive/defensive split of team rebounds matches the split the
  * diverted player rebounds would have had, and ORB%'s expectation doesn't
  * move when params.reb.deadBallCaromChance diverts caroms. Consumes exactly
@@ -389,7 +410,7 @@ export function resolveRebound(
 ): Agent {
   const { candidates, weights } = reboundLottery(s, spot, offSide);
   if (candidates.length === 0) {
-    // nobody near (shouldn't happen): closest player gets it. Prefer players
+    // nobody near (shouldn't happen) — closest player gets it. Prefer players
     // who haven't fouled out: the main loop filters them, and this fallback
     // handing a ghost actor the ball was an audited invariant violation in
     // the bench-exhausted degenerate state.
@@ -409,11 +430,11 @@ export function openness(s: GameState, a: Agent): number {
 }
 
 /**
- * How many live defenders are back against the side attacking: inside
- * move.transBackRadiusFt of the rim they protect. The shared "is the defense
+ * How many live defenders are BACK against the side attacking — inside
+ * move.transBackRadiusFt of the rim they protect. THE shared "is the defense
  * set" measure: game.ts ends the transition phase once
  * move.transSetBackCount are back, and the decision layer reads the same
- * count to scale the transition continuation value (use-it-or-lose-it; see
+ * count to scale the transition continuation value (use-it-or-lose-it — see
  * ai/concepts.ts concept 5) and the projected drive contest floor (help can
  * only come from defenders who are actually back). One definition, so the
  * phase machinery and the EV brain can never disagree about what "set" means.
@@ -427,16 +448,17 @@ export function defendersBack(s: GameState, offSide: TeamSide): number {
   return back;
 }
 
+/** shooter gravity: how far out and how tightly a defense must respect this player */
 /**
- * Shooter gravity ∈ [0,1]: how much respect the defense must pay this player
- * beyond the arc. The spacing model's central derived quantity:
+ * Shooter gravity ∈ [0,1] — how much respect the defense must pay this player
+ * beyond the arc. The single most important derived quantity for SPACING:
  * it shrinks the on-ball gap defenders keep, reduces how far help defenders
  * sag off, and steers help rotations away from shooters.
  *
- * Weighted gravityThreeWeight ability / gravityTendWeight willingness on purpose:
+ * Weighted gravityThreeWeight ABILITY / gravityTendWeight WILLINGNESS on purpose:
  * a great shooter who never shoots eventually gets ignored, and a volume gunner
- * who can't shoot still commands some attention. Both terms are needed; this
- * is why "Curry-ness" requires elite `three` and heavy `shotThree`.
+ * who can't shoot still commands *some* attention. Both terms are needed — this
+ * is why "Curry-ness" requires elite `three` AND heavy `shotThree`.
  */
 export function gravity(s: GameState, a: Agent): number {
   const A = s.params.ai;
@@ -444,21 +466,21 @@ export function gravity(s: GameState, a: Agent): number {
 }
 
 /**
- * Position-aware mid-range respect ∈ [0,1], gravity()'s in-between sibling.
+ * Position-aware MID-RANGE respect ∈ [0,1] — gravity()'s in-between sibling.
  * gravity() is deliberately a three-point concept (it prices standing beyond
  * the arc), which left a hole the mid-range restoration exposed: a defender
- * sagging off a low-gravity big kept sagging when that big stood at the
+ * sagging off a low-gravity big kept sagging when that big stood AT the
  * elbow, so every elbow catch was free and the mid game had no counter
- * (probe: the stationed postAnchor took 7 mid shots/game at 57%, hub-level
+ * (probe: the stationed postAnchor took 7 mid shots/game at 57% — hub-level
  * volume the defense never answered). Real defenses guard the jumper within
  * its range: the same ability-weighted/willingness-weighted blend as
- * gravity() (one respect doctrine, one pair of weights; see the gravity
- * comment for why both terms are needed), applied to the mid skill pair, and
+ * gravity() (one respect doctrine, one pair of weights — see the gravity
+ * comment for why both terms are needed), applied to the MID skill pair, and
  * live only while the man actually stands inside jumper range
- * (midGreenMaxFt; beyond it the mid threat is latent and the three-point
+ * (midGreenMaxFt — beyond it the mid threat is latent and the three-point
  * model owns the question). Consumed by off-ball guard distance and helper
  * selection in ai/defense.ts; a rim-runner's blend stays low (ability 28 /
- * appetite 5 ≈ 0.2), so sagging off him in the paint is still correct.
+ * appetite 5 ≈ 0.2), so sagging off HIM in the paint is still correct.
  */
 export function midRespect(s: GameState, a: Agent): number {
   const A = s.params.ai;

@@ -1,28 +1,35 @@
 /**
- * Game-flow gates: the "arcs like basketball" tier (see harness/src/flow.ts
+ * Game-flow gates — the "arcs like basketball" tier (see harness/src/flow.ts
  * for the doctrine and data/nba/flow-reference.json for reference provenance).
  *
- * Ratchet policy (house convention): only metrics the engine currently holds
+ * Ratchet policy (house convention): only metrics the engine CURRENTLY holds
  * are enforced, at generous first-pass widths sized for this test's small n
  * (they tighten once a proper noise-floor pass measures their sampling
- * spread). Metrics with known gaps stay in flow.ts's report and are not
- * gated here; gating them would just paint the suite red on documented
+ * spread). Metrics with KNOWN gaps stay in flow.ts's report and are NOT
+ * gated here — gating them would just paint the suite red on documented
  * debt. The known gaps and where they wait:
- *   putback rate ~50% vs real ~72%     -> post-OREB patience (reference corrected
+ *   putback rate ~55% vs real ~72%     -> post-OREB patience (reference CORRECTED
  *                                         in wave2: the old "~33%" divided by all
  *                                         OREB rows incl. team-rebound bookkeeping;
- *                                         real is 0.716 of player OREBs. The sim
- *                                         is low, so only a regression floor is
- *                                         gated below, against suppression)
- *   runs >=10-0 ~1.0 vs real ~1.8      -> momentum/consistency (STAGED attr, M4)
+ *                                         real is 0.716 of PLAYER OREBs. The sim
+ *                                         side folds the same player-OREB base
+ *                                         since scan b4-1/c3-F1 — it is LOW, so
+ *                                         only a regression FLOOR is gated below,
+ *                                         against suppression)
+ *   runs >=10-0 ~1.3 vs corpus 1.4     -> AT the reference since the corpus
+ *                                         regen (the old "~1.8" here was the
+ *                                         retired n=6 anchor — flow-reference
+ *                                         .json changesVsAnchor flags it
+ *                                         material); stays report-only until
+ *                                         ratcheted per house convention
  *   clutch FT share ~20% vs real 35%+  -> endgame layer: no intentional fouling (M4)
  *   flat quarter profile               -> fatigue-arc/endgame pacing (M4)
  * steal->score-in-6s graduated from this list in wave2 (decide.stealBreakBonus):
- * ~28% vs real 29.3%, gated below.
+ * ~28% vs real 29.3% — gated below.
  *
- * What is gated below is real signal: leads that change hands, ties, 8-0
+ * What IS gated below is real signal: leads that change hands, ties, 8-0
  * runs, droughts, and-one frequency, possession-length center, second-chance
- * share. A sim whose games stop trading runs or whose possessions all take
+ * share — a sim whose games stop trading runs or whose possessions all take
  * 20 seconds fails here even while every season-average band still passes.
  */
 
@@ -70,11 +77,27 @@ describe(`game-flow gates over ${GAMES} games`, () => {
   });
 
   it('second-chance possessions occur at a plausible share', () => {
-    expect(m.secondChanceShare).toBeGreaterThanOrEqual(0.06);
-    expect(m.secondChanceShare).toBeLessThanOrEqual(0.28);
+    // Share of ALL possessions, both teams pooled — the corpus definition
+    // (flow-reference.json secondChanceShareOfPoss: pooled 0.132, per-game
+    // p10/p90 0.099/0.166). Rails = the corpus per-game range [0.058, 0.23].
+    // The old rails [0.06, 0.28] were anchored to the metric's retired 2×
+    // mis-scaled reading (per-team denominator under a both-teams numerator,
+    // scan b9-F1) — in true-share terms they gated [0.03, 0.14], let a
+    // second-chance-suppression mutant pass, and would have FAILED a sim
+    // sitting inside the real range. The sim holds ~0.08 at this seed
+    // (slightly LOW vs real 0.132 — post-OREB patience, same documented gap
+    // as the putback floor below); the floor is the enforcement edge.
+    expect(m.secondChanceShare).toBeGreaterThanOrEqual(0.058);
+    expect(m.secondChanceShare).toBeLessThanOrEqual(0.23);
   });
 
-  it('blown 10-point Q4 leads are possible but rare (comebacks exist, chaos does not)', () => {
+  it('blown 10-point Q4 leads stay rare (chaos ceiling only — comeback EXISTENCE is documented M4 debt)', () => {
+    // Only the 0.25 ceiling enforces anything (b9-F4): comebackRate is a
+    // guarded count ratio, so the >= 0 leg cannot fail today — it stays as
+    // a NaN tripwire (NaN >= 0 is false) in case the led10.length guard in
+    // reduceFlows is ever lost. At the pinned seed the measured rate IS 0;
+    // gating "comebacks exist" waits on the endgame comeback texture (M4,
+    // header known-gaps list) — this test never enforced it.
     expect(m.comebackRate).toBeGreaterThanOrEqual(0);
     expect(m.comebackRate).toBeLessThanOrEqual(0.25);
   });
@@ -82,7 +105,7 @@ describe(`game-flow gates over ${GAMES} games`, () => {
   it('steals convert into quick scores at a real rate (transition urgency lives)', () => {
     // real: 0.293 pooled, p10 0.125 / p90 0.457 per game
     // (flow-reference.json stealToScoreWithin6sShare). Pre-wave2 the sim sat
-    // at 0.12-0.17; the decision layer had no idea the defense was
+    // at 0.12-0.17 — the decision layer had no idea the defense was
     // scrambled after a steal (decide.stealBreakBonus). Generous first-pass
     // width for n=12 (per-seed probe centers 27.9/29.3%, sd ~3pp).
     expect(m.stealConvShare).toBeGreaterThanOrEqual(0.18);
@@ -90,12 +113,14 @@ describe(`game-flow gates over ${GAMES} games`, () => {
   });
 
   it('offensive rebounds go back up quickly at least at the pre-wave2 rate (no suppression)', () => {
-    // Regression floor only: the real share is 0.716 of player OREBs
-    // (corrected in wave2, flow-reference.json putbackWithin6sShareOfOreb;
+    // REGRESSION FLOOR ONLY: the real share is 0.716 of player OREBs
+    // (corrected in wave2 — flow-reference.json putbackWithin6sShareOfOreb;
     // the old 0.33 reference divided by team-rebound bookkeeping rows too).
-    // The sim holds ~0.50; the documented gap is post-OREB patience. This
-    // floor exists because the wrong reference invited suppressing
-    // putbacks. That direction must fail loudly now.
+    // The sim holds ~0.55 now that its own base is player OREBs too
+    // (dead-ball FT formalities and playerless team rebounds excluded —
+    // scan b4-1/c3-F1); the documented gap is post-OREB patience. This
+    // floor exists because the WRONG reference invited suppressing putbacks
+    // — that direction must fail loudly now.
     expect(m.putbackShare).toBeGreaterThanOrEqual(0.3);
     expect(m.putbackShare).toBeLessThanOrEqual(0.9);
   });

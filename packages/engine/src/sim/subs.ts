@@ -3,8 +3,8 @@
  * rotation checks, and fouled-out replacement.
  *
  * `checkSubs` is called only from dead-ball choke points (`deadBall`,
- * `endPeriod` in possession.ts, `enterFreeThrows` in fouls.ts), never
- * mid-live-play; real substitutions only happen at stoppages.
+ * `endPeriod` in possession.ts, `enterFreeThrows` in fouls.ts) — never
+ * mid-live-play, since real substitutions only happen at stoppages.
  * `replaceFouledOut` is called synchronously from `recordFoul` the instant a
  * sixth (or rule-pack-defined) personal foul is charged.
  */
@@ -17,7 +17,7 @@ import { agent, emit, onCourt, other, type Agent, type GameState } from './state
  * Swap one on-court player for one bench player in a team's lineup slot.
  * Inherits the outgoing player's position/defensive assignment/spacing spot
  * so the incoming player steps into the same role rather than teleporting to
- * a default spot; the replay shows a hand-off, not a jump-cut.
+ * a default spot — the replay shows a clean hand-off, not a jump-cut.
  * Resets velocity to zero (a fresh substitute walks on, doesn't inherit
  * momentum) and emits the `substitution` event that stats/box.ts uses to
  * track exact minutes played.
@@ -33,24 +33,35 @@ export function swapPlayers(s: GameState, side: TeamSide, out: Agent, into: Agen
   into.vel = { x: 0, y: 0 };
   into.manId = out.manId;
   into.spotKey = out.spotKey;
+  // The role hand-off runs in BOTH directions: opponents whose assignment
+  // pointed at the outgoing player now guard the substitute. Matchups are
+  // otherwise assigned only at startPossession, and several sub windows
+  // resume the SAME possession (continuation dead balls, FT entries) — so a
+  // defender whose manId named the benched man kept guarding a ghost's
+  // frozen spot while the fresh sub played unassigned (scan a5: ~300 stale
+  // defender-ticks/game; sim/ai audit A9-2: ~21 s of broken coverage per
+  // default game).
+  for (const d of onCourt(s, other(side))) {
+    if (d.manId === out.p.id) d.manId = into.p.id;
+  }
   emit(s, { type: 'substitution', team: side, out: [out.p.id], in: [into.p.id] });
 }
 
 /**
  * Fatigue- and situation-driven rotation pass over both lineups. Called at
- * every dead-ball opportunity (never mid-possession). Two policies:
+ * every dead-ball opportunity (never mid-possession). Two distinct policies:
  * in "crunch time" (see `crunch` below) starters get pulled back onto the
  * floor over tired bench players regardless of the normal fatigue thresholds;
  * otherwise it's a simple energy-threshold check per player, pulling in the
  * best-rested same-position bench option.
  * `protect`: a player id who must stay on the floor no matter what (e.g. the
- * free-throw shooter mid-sequence); skipped entirely by this pass.
+ * free-throw shooter mid-sequence) — skipped entirely by this pass.
  */
 /**
  * Minutes pace vs a coach's target (Team.rotationMinutes): <1 behind, >1
  * ahead, null when the player has no target or the game just started.
- * Consumed by checkSubs on both sides of the rotation (the pull leash and
- * the eager return), so a targeted star both stays out longer and comes back
+ * Consumed by checkSubs on BOTH sides of the rotation — the pull leash and
+ * the eager return — so a targeted star both stays out longer and comes back
  * sooner.
  */
 function minutesPace(s: GameState, teamIdx: TeamSide, a: Agent): number | null {
@@ -63,26 +74,26 @@ function minutesPace(s: GameState, teamIdx: TeamSide, a: Agent): number | null {
 }
 
 /**
- * Garbage-time concede hysteresis: updates the per-side "this game is
+ * Garbage-time concede hysteresis — updates the per-side "this game is
  * decided" flags (GameState.conceded) that checkSubs' concede branch reads.
  * Called once per checkSubs pass (dead balls, the only places subs can
  * happen); together with the unconditional crunch clear at the call site it
  * is the only writer of s.conceded. Final scheduled period (or OT) only,
  * matching the crunch predicate's period gate; any earlier period clears
- * both flags (belt-and-suspenders: a stale flag also cannot survive into
+ * both flags (belt-and-suspenders — a stale flag also cannot survive into
  * OT, which arrives tied and exits below the line at its first dead ball).
  *
  * The trigger is a clock-scaled margin line, not a flat threshold:
  *   line(clock) = concedeMarginBase + concedeMarginPerMin × minutes left
  * because the "safe" lead grows with remaining time (margin divergence is
  * √t diffusion; the linear line tracks the classic safe-lead heuristics
- * within a point or two across the window). The leader concedes at the
- * line; the trailing coach holds hope concedeTrailLagPts longer, so
+ * within a point or two across the window). The LEADER concedes at the
+ * line; the trailing coach holds hope concedeTrailLagPts longer — so
  * "leader first" is structural, not scheduled. Exit sits concedeExitPts
  * below entry: re-inserting starters is a deliberate act, not a flicker,
  * and because the line itself falls as the clock runs, re-entry after an
  * exit means re-stretching the lead against a falling bar. No rng, no
- * events; a game that never crosses the line is byte-identical.
+ * events — a game that never crosses the line is byte-identical.
  */
 export function updateConcede(s: GameState): void {
   if (s.period < s.rules.periods) {
@@ -106,15 +117,15 @@ export function updateConcede(s: GameState): void {
 export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
   // crunch-time definition: final scheduled period (or OT), under 5 minutes
-  // (300s) left, and a one-possession-ish game (10 points or fewer); this is
+  // (300s) left, and a one-possession-ish game (10 points or fewer) — this is
   // when coaches ride their best five regardless of the clock's fatigue read
   const crunch =
     s.period >= s.rules.periods &&
     s.clock < P.crunchClockSec &&
     Math.abs(s.score[0] - s.score[1]) <= P.crunchMarginPts;
-  // Garbage-time concede, hysteresis update (once per pass, before the
+  // GARBAGE-TIME CONCEDE, hysteresis update (once per pass, before the
   // player loop). The order is the contract: crunch clears concede
-  // unconditionally, so a blown-open game that tightens back into
+  // UNCONDITIONALLY — a blown-open game that tightens back into
   // one-possession territory inside 5:00 gets its starters back through the
   // crunch branch below no matter what the concede flags said (the 20→8
   // collapse path rides this precedence).
@@ -129,10 +140,10 @@ export function checkSubs(s: GameState, protect?: string): void {
       const a = agent(s, id);
       if (a.fouledOut) continue;
       if (crunch) {
-        // close & late: get starters back on the floor if they can stand.
-        // Energy > 35 is a much looser bar than the normal readyThreshold
+        // close & late: get starters back on the floor if they can stand —
+        // energy > 35 is a much looser bar than the normal readyThreshold
         // (88): in crunch time you play your starter gassed rather than sit
-        // him for a fresher bench piece.
+        // him for a fresher bench piece
         if (!starters.has(id)) {
           const starter = team.starters
             .map((sid) => agent(s, sid))
@@ -142,13 +153,13 @@ export function checkSubs(s: GameState, protect?: string): void {
         continue;
       }
       if (s.conceded[side]) {
-        // decided game: starters come out, and whoever's on the bench closes
-        // it. Ordering trap: this branch must sit before the fatigue/minutes
-        // rotation below. A starter benched in a conceded Q4 immediately
+        // decided game: starters come OUT, and whoever's on the bench closes
+        // it. ORDERING TRAP: this branch must sit BEFORE the fatigue/minutes
+        // rotation below — a starter benched in a conceded Q4 immediately
         // reads behind pace with rising energy, and the controller's
         // eager-return path would re-insert him at the very next dead ball
         // and fight the concede forever. The `continue` suspends the fatigue
-        // rotation and the minutes controller while the side stays conceded.
+        // rotation AND the minutes controller while the side stays conceded.
         if (starters.has(id)) {
           const bench = team.players
             .map((p) => agent(s, p.id))
@@ -166,14 +177,14 @@ export function checkSubs(s: GameState, protect?: string): void {
         }
         continue;
       }
-      // starters run longer stints; bench players yield the floor back sooner:
+      // starters run longer stints; bench players yield the floor back sooner —
       // a starter plays until tiredThreshold, a reserve is pulled 12 energy
       // points earlier (shorter leash, deeper bench rotation)
       let tiredAt = starters.has(id) ? P.tiredThreshold : P.tiredThreshold + P.benchTiredBonus;
       // minutes-aware leash: with a coach's target (Team.rotationMinutes) a
       // behind-pace player is ridden deeper into fatigue and an ahead-of-pace
       // one rests earlier. Teams without targets are byte-identical to the
-      // old behavior. This field had sat UNWIRED since the Team interface
+      // old behavior — this field had sat UNWIRED since the Team interface
       // gained it (the fidelity casts were requesting star minutes into the
       // void, and the hub benchmark ran 32 min against a 36 target).
       const pace = minutesPace(s, side, a);
@@ -181,10 +192,10 @@ export function checkSubs(s: GameState, protect?: string): void {
         tiredAt += clamp((pace - 1) * P.rotationLeashScale, -P.rotationLeashMax, P.rotationLeashMax);
       }
       if (a.energy < tiredAt) {
-        // behind-pace targeted players return eagerly (reduced ready bar and
-        // sorted first): the bench-sit, not the pull timing, is what caps a
-        // star's minutes (the leash alone moved him +0.5 a game).
-        // The eager-return gate sets the equilibrium: targets settle at
+        // behind-pace targeted players return EAGERLY (reduced ready bar and
+        // sorted first): the bench-sit, not the pull timing, is what actually
+        // caps a star's minutes — the leash alone moved him +0.5 a game
+        // the eager-return gate sets the equilibrium: targets settle at
         // ~gate x target minutes (0.92 produced 33 of 36). 0.97 with the
         // ahead-hold at 1.08 brackets the target from both sides.
         const behindPace = (b: Agent) => {
@@ -195,8 +206,8 @@ export function checkSubs(s: GameState, protect?: string): void {
           .map((p) => agent(s, p.id))
           .filter((b) => {
             if (b.onCourt || b.fouledOut) return false;
-            // the controller's other half: a target player ahead of pace is
-            // held back even when rested; without this, most-rested sorting
+            // the controller's other half: a target player AHEAD of pace is
+            // HELD BACK even when rested — without this, most-rested sorting
             // returned the star at every dead ball and targets read 44 min
             const bp = minutesPace(s, side, b);
             if (bp !== null && bp > P.aheadHoldPace) return false;
@@ -220,18 +231,18 @@ export function checkSubs(s: GameState, protect?: string): void {
 /**
  * Immediately replace a fouled-out player with the best available bench
  * option. Called synchronously from `recordFoul` the moment `fouler.fouls`
- * crosses the rule pack's foul-out limit. Unlike `checkSubs` this fires
- * mid-live-play rather than at dead-ball checkpoints: a foul-out can happen
- * at any point in the action, and the rules require the replacement immediately.
+ * crosses the rule pack's foul-out limit — unlike `checkSubs`, this fires
+ * mid-live-play (a foul-out can happen at any point in the action), not just
+ * at dead-ball checkpoints, because the rules require it immediately.
  */
 export function replaceFouledOut(s: GameState, out: Agent): void {
   const side = out.side;
   const bench = s.teams[side].players
     .map((p) => agent(s, p.id))
     .filter((a) => !a.onCourt && !a.fouledOut);
-  if (bench.length === 0) return; // nobody left; play on (edge case)
+  if (bench.length === 0) return; // nobody left — play on (edge case)
   // same-position preference first (see the identical trick in checkSubs),
-  // then most-rested; a foul-out replacement isn't fatigue-triggered, so
+  // then most-rested — a foul-out replacement isn't fatigue-triggered, so
   // energy is just a tiebreaker among equally-positioned options, not a gate
   bench.sort((a, b) =>
     Number(b.p.pos === out.p.pos) - Number(a.p.pos === out.p.pos) || b.energy - a.energy

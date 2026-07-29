@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Compile the source documents into docs/BIBLE.md: one file containing
+// Compile the source documents into docs/BIBLE.md — one file containing
 // everything, for handing to an agent in a single context window or reading
 // offline. The Bible is GENERATED: never edit it directly, never let it become
 // a second source of truth. Regenerate with `npm run docs:bible` in the same

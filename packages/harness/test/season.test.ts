@@ -4,14 +4,14 @@
  * the SimulateGames seam contract (mock seam, no sims), and Monte-Carlo
  * sanity (identical teams straddle 50%, a clearly stronger team clears it).
  *
- * Compute budget: sims are the expensive part (~0.3-0.5s/game on a shared
+ * COMPUTE BUDGET: sims are the expensive part (~0.3-0.5s/game on a shared
  * 2-core box), so this file simulates exactly 82 games total: 6+6 for the
  * determinism pair, 30+30 for the two Monte-Carlo checks, 5+5 for matchup
  * determinism. Everything else runs on fabricated outcomes or pure math.
- * All sims are seeded, so every assertion below is on a deterministic value
- * and nothing here is a statistical flake. The Monte-Carlo bounds are
- * chosen to hold for the pinned seeds and to be comfortably inside what
- * any non-broken engine draw should produce.
+ * All sims are seeded — every assertion below is on a DETERMINISTIC value,
+ * so nothing here is a statistical flake: the Monte-Carlo bounds are chosen
+ * to hold for the pinned seeds AND be comfortably inside what any
+ * non-broken engine draw should produce.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -27,12 +27,17 @@ import {
 import { cloneTeamWithIds, makeLeague, scaleTeam } from '../src/league.js';
 
 // ---------------------------------------------------------------- fixtures
-// Shared across tests so the expensive sims run once per file execution.
+// Shared across tests so the expensive sims run ONCE per file execution.
 
 const LEAGUE = makeLeague(4, 'season-test');
 const SCHEDULE = roundRobin(LEAGUE.map((t) => t.id), 1); // 6 games
-const seasonA = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 'det' });
-const seasonB = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 'det' });
+// seedBase 's2' re-anchored after the scan-wave re-center: the old 'det'
+// draw came out 3-0/2-1/1-2/0-3 at the corrected params (zero winPct ties),
+// which un-exercised the diff-tiebreak tier and tripped the ranked-order
+// test's non-vacuity guard. 's2' measured: two 2-1 and two 1-2 teams, both
+// tie pairs diff-decided (probed over 16 candidate bases, 2026-07-29).
+const seasonA = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's2' });
+const seasonB = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's2' });
 
 const BASE = cascadiaBreakers();
 const TWIN = cloneTeamWithIds(cascadiaBreakers(), 'twin');
@@ -117,7 +122,7 @@ describe('season determinism', () => {
 
   it('per-game seeds derive from base + schedule position + matchup', () => {
     expect(gameSeed('s', 3, 'h', 'a')).toBe('s:g3:a@h');
-    const tasks = buildTasks(LEAGUE, SCHEDULE, 'det');
+    const tasks = buildTasks(LEAGUE, SCHEDULE, 's2'); // matches the fixture's seedBase
     expect(new Set(tasks.map((t) => t.seed)).size).toBe(tasks.length);
     expect(tasks.map((t) => t.seed)).toEqual(seasonA.outcomes.map((o) => o.seed));
   });
@@ -167,27 +172,35 @@ describe('standings arithmetic', () => {
   });
 
   it('is RANKED best-first: winPct desc, diff desc, id asc — who is FIRST', () => {
-    // The one thing a standings table is for. Every other test in this block
-    // is order-agnostic arithmetic (sums, splits, reconciliation), so an
-    // inverted sort, worst team first, used to survive the whole suite
+    // The one thing a standings table IS. Every other test in this block is
+    // order-agnostic arithmetic (sums, splits, reconciliation), so an
+    // inverted sort — worst team first — used to survive the whole suite
     // (mutation probe, season.ts computeStandings comparator). This pins the
     // documented contract "sorted standings (win pct desc, diff desc, id)".
     expect(standings[0]!.winPct).toBe(Math.max(...standings.map((s) => s.winPct)));
     // 4 teams x 3 games each: Σwins = 6 cannot split evenly across 4 teams,
-    // so this fixture always has a real best-vs-worst gap and the ordering
+    // so this fixture always has a real best-vs-worst gap — the ordering
     // checks below can never go vacuous on an all-tied table
     expect(standings[0]!.winPct).toBeGreaterThan(standings[standings.length - 1]!.winPct);
+    let tieTierRuns = 0; // existence accounting for the conditional tier below (b9-F6)
     for (let i = 1; i < standings.length; i++) {
       const hi = standings[i - 1]!;
       const lo = standings[i]!;
       expect(hi.winPct).toBeGreaterThanOrEqual(lo.winPct);
       if (hi.winPct === lo.winPct) {
-        expect(hi.diff).toBeGreaterThanOrEqual(lo.diff); // fixture exercises this tier: two 2-1 teams, two 1-2 teams
+        tieTierRuns++;
+        expect(hi.diff).toBeGreaterThanOrEqual(lo.diff);
         if (hi.diff === lo.diff) {
           expect(hi.teamId < lo.teamId).toBe(true); // byte-stable total order on exact ties
         }
       }
     }
+    // The diff tiebreaker tier is NOT pigeonhole-guaranteed (a 3/2/1/0 draw
+    // has no winPct tie), so its exercise is asserted rather than claimed:
+    // this pinned draw produces two 2-1 and two 1-2 teams (measured — 2 tie
+    // pairs). A re-tune that reshuffles the draw fails here loudly instead
+    // of silently un-exercising the tier (b9-F6).
+    expect(tieTierRuns).toBeGreaterThanOrEqual(1);
   });
 
   it('is order-insensitive: shuffled outcomes fold to identical standings', () => {
@@ -213,7 +226,7 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
 
   it('outcomes may arrive in ANY order; runSeason re-sorts before folding', async () => {
     // a fake "worker pool" that completes games in reverse order and never
-    // touches the engine; proves the driver puts no ordering burden on the
+    // touches the engine — proves the driver puts no ordering burden on the
     // real parallel runner
     const reversedSeam: SimulateGames = (tasks) =>
       [...tasks].reverse().map((t): GameOutcome => ({
@@ -231,7 +244,7 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
       teams: LEAGUE, schedule: SCHEDULE, seedBase: 'seam', simulate: reversedSeam
     });
     expect(result.outcomes.map((o) => o.index)).toEqual([0, 1, 2, 3, 4, 5]);
-    // every home team won 100+i to 90, so all wins are home wins
+    // every home team won 100+i to 90 -> all wins are home wins
     for (const s of result.standings) expect(s.away.wins).toBe(0);
     expect(result.standings.reduce((t, s) => t + s.wins, 0)).toBe(6);
   });
@@ -251,6 +264,30 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
       threw = String(e);
     }
     expect(/5 outcomes for 6 tasks/.test(threw)).toBe(true);
+  });
+
+  it('a seam returning a duplicated index (count intact) fails loudly instead of corrupting standings (B3-3)', async () => {
+    // the overlapping-slice bug shape: game 1's outcome never arrives, game
+    // 0's arrives twice — the COUNT check alone accepted this and produced
+    // standings for a schedule whose game 1 was never played
+    const duplicatesOne: SimulateGames = (tasks) =>
+      tasks.map((t, i): GameOutcome => {
+        const src = i === 1 ? tasks[0]! : t;
+        return {
+          index: src.index, seed: src.seed, date: src.date,
+          homeId: src.home.id, awayId: src.away.id,
+          score: [100, 90],
+          totals: [mkTotals(0, src.home.id, 100), mkTotals(1, src.away.id, 90)],
+          players: []
+        };
+      });
+    let threw = '';
+    try {
+      await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's', simulate: duplicatesOne });
+    } catch (e) {
+      threw = String(e);
+    }
+    expect(/duplicate\/missing game indices/.test(threw)).toBe(true);
   });
 });
 
@@ -282,8 +319,15 @@ describe('Monte-Carlo matchup sanity', () => {
       expect(p.p50).toBeLessThanOrEqual(p.p75);
       expect(p.p75).toBeLessThanOrEqual(p.p95);
       expect(d.medianMargin).toBe(p.p50);
-      // ties are impossible, so P(margin > 0) must equal the win rate exactly
-      expect(d.homeWins).toBe(d.n - d.awayWins);
+      // Ties are impossible (the engine plays OT until decided), so the
+      // histogram mass at margin >= 0 must be EXACTLY the home win count: a
+      // tied game would land in the lo=0 bin without counting as a home win
+      // (matchup.ts counts margin > 0) and break this equality. The previous
+      // assertion here — homeWins === n - awayWins — was tautological:
+      // matchup.ts DEFINES awayWins as n - homeWins, so a tie-swallowing
+      // engine could never have failed it (b9-F3).
+      const nonNegMass = d.histogram.filter((b) => b.lo >= 0).reduce((s, b) => s + b.count, 0);
+      expect(nonNegMass).toBe(d.homeWins);
       expect(d.players.length).toBeGreaterThan(0);
       for (const pl of d.players) {
         expect(pl.games).toBeGreaterThan(0);

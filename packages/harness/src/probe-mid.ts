@@ -1,11 +1,11 @@
 /**
- * Mid-range probe: the measurement artifact for the wave2/midrange mission.
+ * Mid-range probe — the measurement artifact for the wave2/midrange mission.
  *
  *   npm run probe:mid [-- --games 8 --seed midprobe]
  *
- * Reports the league shot mix by zone, the distance distribution inside the
+ * Reports the league shot mix by zone, the DISTANCE distribution inside the
  * mid zone (the diagnosis was that the few "mid" shots were 20-ft arc-toes,
- * not real 16-footers; a share number alone cannot see that), the moveType
+ * not real 16-footers — a share number alone cannot see that), the moveType
  * breakdown of mid attempts, and per-player mid diets for the archetype
  * fixtures whose identities gate the mid-range decisiveness term.
  *
@@ -16,14 +16,12 @@
 import { simulateGame } from '@hoopsh/engine';
 import type { GameEvent, ShotEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
+import { flagNumber, flagValue } from './args.js';
 
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
-
-const games = Number(argOf('--games') ?? 8);
-const seedBase = argOf('--seed') ?? 'midprobe';
+// args.ts's loud parser — a bare argOf turned `--games abc` into NaN and
+// the probe silently measured zero games (c4-F3)
+const games = flagNumber(process.argv, '--games', 8);
+const seedBase = flagValue(process.argv, '--seed', 'midprobe');
 
 const shots: ShotEvent[] = [];
 let ptsSum = 0;
@@ -85,7 +83,10 @@ if (mids.length > 0) {
     const b = `${Math.floor(d / 2) * 2}-${Math.floor(d / 2) * 2 + 2}ft`;
     bins.set(b, (bins.get(b) ?? 0) + 1);
   }
-  console.log('mid distance histogram:', [...bins.entries()].sort().map(([k, v]) => `${k}:${v}`).join(' '));
+  // explicit numeric comparator on the bin's lower edge: a bare .sort()
+  // string-sorts the [label, count] pairs and prints "10-12ft" before
+  // "8-10ft" (c1-F3)
+  console.log('mid distance histogram:', [...bins.entries()].sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10)).map(([k, v]) => `${k}:${v}`).join(' '));
   const moves = new Map<string, number>();
   const midShots = shots.filter((sh) => sh.zone === 'mid');
   for (const sh of midShots) moves.set(sh.moveType, (moves.get(sh.moveType) ?? 0) + 1);

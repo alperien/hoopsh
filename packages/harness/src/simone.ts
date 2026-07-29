@@ -6,7 +6,7 @@
  * Prints the final, a box score, notable play-by-play, and saves the replay
  * + full PBP to out/.
  *
- * This is the "single game, human-readable" entry point; contrast with
+ * This is the "single game, human-readable" entry point — contrast with
  * cli.ts (many games, no play-by-play, just the acceptance-band report) and
  * bench.ts (many games, no output at all except a timing summary). If you
  * only remember one command in this package, this is usually the one:
@@ -19,18 +19,31 @@ import { buildReplay, simulateGame, type Team } from '@hoopsh/engine';
 import { boxScore, tsPct, type PlayerLine } from '@hoopsh/stats';
 import { loadTeamPack, sampleMatchup } from '@hoopsh/data';
 import { generatePlayByPlay } from '@hoopsh/narration';
+import { flagValue } from './args.js';
 
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
+// args.ts's loud parser, not a local bare argOf: `--seed` with a forgotten
+// value used to seed the game with the literal next flag (or undefined) —
+// the exact broadcast-demo incident args.ts's header records (scan finding
+// b4-8). Optional flags (--home/--away) stay absent-able but validate
+// loudly when present.
+const optValue = (flag: string): string | undefined =>
+  process.argv.includes(flag) ? flagValue(process.argv, flag, '') : undefined;
 
-const seed = argOf('--seed') ?? `game-${Date.now() % 100000}`;
+const seed = optValue('--seed') ?? `game-${Date.now() % 100000}`;
 
 function teamFrom(flag: string, fallback: Team): Team {
-  const file = argOf(flag);
+  const file = optValue(flag);
   if (!file) return fallback;
-  const { team, issues } = loadTeamPack(readFileSync(file, 'utf8'));
+  let raw: string;
+  try {
+    raw = readFileSync(file, 'utf8');
+  } catch (err) {
+    // clean one-line diagnosis matching the designed invalid-pack path — not
+    // a raw ENOENT stack out of node:fs internals (c4-F3)
+    console.error(`cannot read ${flag.slice(2)} team pack ${file}: ${(err as NodeJS.ErrnoException).code ?? String(err)}`);
+    process.exit(1);
+  }
+  const { team, issues } = loadTeamPack(raw);
   if (!team) {
     console.error(`invalid team pack ${file}:`);
     for (const issue of issues) console.error(`  ${issue.path}: ${issue.message}`);

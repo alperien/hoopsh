@@ -1,17 +1,17 @@
 /**
- * Noise floor: the sampling distribution of every gated statistic under the
+ * Noise floor — the sampling distribution of every gated statistic under the
  * null hypothesis (identical params, different seeds).
  *
  * The external review's sharpest process finding: "nobody has established
  * the sampling distribution of these statistics, so the thresholds are set
- * by feel and the widths are set by feel to compensate", which makes it
+ * by feel and the widths are set by feel to compensate" — which makes it
  * impossible to tell "the sim changed" from "the seed changed". This tool
  * measures that distribution directly: many same-params batches across
  * independent seed bases, per-statistic mean and standard deviation at the
  * exact sample sizes the gates use (12 / 24 / 40 games).
  *
- * The gates then derive their widths from the measured floor (band edge
- * ± z·sd) instead of feel-widened percentages; see realism.test.ts and
+ * The gates then derive their widths FROM the measured floor (band edge
+ * ± z·sd) instead of feel-widened percentages — see realism.test.ts and
  * fidelity.test.ts, which import the generated table.
  *
  * Run:
@@ -29,20 +29,28 @@ import { sampleMatchup } from '@hoopsh/data';
 import { accumulate, emptyAcc, finalize, type LeagueAverages } from './aggregate.js';
 import { NBA_BANDS } from './bands.js';
 import { BENCHMARKS, TARGETS, runBenchmark } from './fidelity.js';
+import { flagNumber, flagValue } from './args.js';
 
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
+// args.ts's loud parsers, not a local bare argOf — `--leagueBases` with a
+// forgotten value used to become NaN bases and sample NOTHING silently
+// (scan finding b4-8). A typo'd --mode is the same silent-no-op class (no
+// branch below matches, exit 0 having measured nothing), so it's validated
+// against the four real modes too.
+const MODE = flagValue(process.argv, '--mode', 'all');
+if (!['all', 'league', 'stars', 'emit'].includes(MODE)) {
+  throw new Error(`--mode must be all|league|stars|emit, got "${MODE}"`);
 }
-const MODE = argOf('--mode') ?? 'all';
-// Defaults match the checked-in artifact's sample sizes (noise-floor.gen.ts
+// Defaults MATCH the checked-in artifact's sample sizes (noise-floor.gen.ts
 // meta: 40/16/8). They had drifted to half these values, so a naive
 // `npm run noisefloor` silently regenerated the gate basis at half the
-// statistical power; halving n widens every sd·z gate. Keep these in sync
+// statistical power — halving n widens every sd·z gate. Keep these in sync
 // with the artifact's meta block; override per-run with the flags if needed.
-const LEAGUE_BASES = Number(argOf('--leagueBases') ?? 40);
-const STAR_BASES_12 = Number(argOf('--starBases12') ?? 16);
-const STAR_BASES_40 = Number(argOf('--starBases40') ?? 8);
+const LEAGUE_BASES = flagNumber(process.argv, '--leagueBases', 40);
+const STAR_BASES_12 = flagNumber(process.argv, '--starBases12', 16);
+const STAR_BASES_40 = flagNumber(process.argv, '--starBases40', 8);
+for (const [flag, v] of [['--leagueBases', LEAGUE_BASES], ['--starBases12', STAR_BASES_12], ['--starBases40', STAR_BASES_40]] as const) {
+  if (!Number.isInteger(v) || v < 1) throw new Error(`${flag} must be an integer >= 1, got ${v}`);
+}
 
 interface Moments { mean: number; sd: number; n: number }
 function moments(xs: number[]): Moments {
@@ -128,14 +136,27 @@ function starFloor(): Record<string, Record<string, Record<string, Moments>>> {
 // --------------------------------------------------------------------- emit
 
 function emit(): void {
-  const league = JSON.parse(readFileSync('out/noise-league.json', 'utf8'));
-  const stars = JSON.parse(readFileSync('out/noise-stars.json', 'utf8'));
+  const league = JSON.parse(readFileSync('out/noise-league.json', 'utf8')) as Record<string, Record<'n12' | 'n24' | 'n40', Moments>>;
+  const stars = JSON.parse(readFileSync('out/noise-stars.json', 'utf8')) as Record<string, Record<string, Record<'n12' | 'n40', Moments>>>;
+  // meta is derived from the DATA being merged, never from this invocation's
+  // flags: a staged regeneration (--mode league with non-default
+  // --leagueBases, then --mode emit later) used to stamp whatever the emit
+  // run's flags happened to be, so the gen file's meta lied about its own
+  // sample basis and calreport printed the lie as "floor sample" (scan
+  // finding b4-7). Every Moments row carries its sample count: the league's
+  // n40 window contributes exactly one sample per seed base, and each star
+  // row one sample per base at both slate sizes.
+  const leagueRow = Object.values(league)[0];
+  const starRow = Object.values(Object.values(stars)[0] ?? {})[0];
+  if (!leagueRow || !starRow) {
+    throw new Error('emit: out/noise-league.json / out/noise-stars.json carry no samples — run --mode league and --mode stars first');
+  }
   const gen = {
     meta: {
       generatedAt: new Date().toISOString().slice(0, 10),
-      leagueBases: LEAGUE_BASES,
-      starBases12: STAR_BASES_12,
-      starBases40: STAR_BASES_40,
+      leagueBases: leagueRow.n40.n,
+      starBases12: starRow.n12.n,
+      starBases40: starRow.n40.n,
       note: 'Sampling spread under the null (same params, different seeds). Regenerate after mechanics/param changes: npm run noisefloor'
     },
     league,

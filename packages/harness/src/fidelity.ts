@@ -1,17 +1,17 @@
 /**
- * Player-fidelity harness: the Phase 2R acceptance gate.
+ * Player-fidelity harness — the Phase 2R acceptance gate.
  *
- * Three benchmark superstars chosen for maximum style spread (an off-ball
- * gravity shooter, a downhill point-forward, and a post-hub center), each
+ * Three benchmark superstars chosen for maximum style spread — an off-ball
+ * gravity shooter, a downhill point-forward, and a post-hub center — each
  * embedded in a purpose-built supporting cast, each validated against his
- * real-life season-scale stat ranges. The claim under test: handcrafted
- * ratings alone, run through the engine's spatial + decision machinery,
+ * real-life season-scale stat ranges. The claim under test: HANDCRAFTED
+ * RATINGS ALONE, run through the engine's spatial + decision machinery,
  * reproduce a real player's statistical identity. No per-player code paths
  * exist (AGENTS.md §6 prohibits them); if a benchmark misses, either the
  * profile is mis-authored or the engine is missing a mechanism.
  *
  * Targets are REAL numbers: composite prime-season ranges (roughly 2015-2024)
- * a fan would recognize, deliberately generous at v1. They tighten as
+ * a fan would recognize, deliberately generous at v1 — they tighten as
  * fidelity matures, same convention as the archetype tests.
  *
  * Run: `npm run fidelity` (add `-- --games 36` to change the slate length).
@@ -19,6 +19,7 @@
 
 import { simulateGame, type Player, type Team } from '@hoopsh/engine';
 import { boxScore, type PlayerLine } from '@hoopsh/stats';
+import { flagNumber } from './args.js';
 import {
   benchBig, benchScorer, comboGuard, glueForward, rimRunner, sampleMatchup,
   scoringWing, stretchBig, threeAndD
@@ -58,11 +59,11 @@ const lebron: Player = {
   id: 'fid-lebron', name: 'L. James', pos: 'SF', heightIn: 81, weightLb: 250,
   attr: {
     speed: 90, accel: 88, lateral: 78, stamina: 92, strength: 97, vertical: 85,
-    // freeThrow 61. The engine's own curve is the citation (W7 fixture
+    // freeThrow 61 — the engine's own curve is the citation (W7 fixture
     // correction): resolve.ts#freeThrowP at 61 gives ftBasePct 0.69 +
     // ftSkillSwing 0.19 × n(61)=0.22 → 73.2% (elite kick starts at 80),
     // matching his real ~73.1%. The original hand-set 74 shot 78.1% through
-    // the same curve, 5 points hot.
+    // the same curve — 5 points hot.
     finishing: 97, midRange: 82, three: 76, freeThrow: 61, drawFoul: 88,
     ballHandle: 90, passAcc: 95, passVision: 97,
     perimeterD: 72, interiorD: 70, steal: 70, block: 62, contestSkill: 65,
@@ -79,9 +80,9 @@ const lebron: Player = {
 
 /**
  * The hub benchmark: a post-up center who is also his team's best creator
- * (creation score 89.5; the usage hierarchy must route the offense through
- * a center for this profile to work). Fidelity hinges on huge rebounding,
- * elite efficiency on touch shots, and point-guard-grade assist totals:
+ * (creation score 89.5 — the usage hierarchy must route the offense through
+ * a CENTER for this profile to work). Fidelity hinges on huge rebounding,
+ * elite efficiency on touch shots, and point-guard-grade assist totals —
  * the hardest line in the suite, gated on the assisted-share ratchet.
  */
 const jokic: Player = {
@@ -104,7 +105,7 @@ const jokic: Player = {
 
 // ------------------------------------------------------------------- casts
 
-/** shared tactics baseline: league-neutral except where a star's real team leans */
+/** shared tactics baseline — league-neutral except where a star's real team leans */
 const tactics = (pace: number, threeBias: number, helpAggr: number) => ({ pace, threeBias, helpAggr });
 
 const team = (id: string, name: string, abbrev: string, star: Player, cast: Player[], t: ReturnType<typeof tactics>): Team => ({
@@ -118,12 +119,12 @@ const team = (id: string, name: string, abbrev: string, star: Player, cast: Play
 });
 
 /** motion-and-gravity cast: a connector forward, shooting, and a rim-runner */
-// The point-forward hub is the cast mechanism that shapes the real elite
-// shooter's assist profile: the offense initiates through the forward while
+// The point-forward hub is the CAST mechanism that shapes the real elite
+// shooter's assist profile: the offense INITIATES through the forward while
 // the star plays off-ball, so the star's assists cap in the 5-7 range and
 // his own makes become assisted catch-and-shoots. Authored after the noise
 // floor measured his 40-game AST center at 9.64 vs the 4.5-8.5 identity
-// range (+2σ); the engine was giving him his hub's assists because the
+// range (+2σ) — the engine was giving him his hub's assists because the
 // cast had no second creator to route through.
 const dGreen = glueForward({ id: 'gsw-4', name: 'D. Green', pos: 'PF' });
 dGreen.attr.passVision = 90;
@@ -157,7 +158,7 @@ const lebronTeam = team('fid-cle', 'Lakeshore Kings', 'LSK', lebron, [
   glueForward({ id: 'cle-10', name: 'B. Ten', pos: 'PF' })
 ], tactics(58, 58, 50));
 
-/** cutters and shooters around the hub: the spray targets his sprays need */
+/** cutters and shooters around the hub — the spray targets his sprays need */
 const jokicTeam = team('fid-den', 'Mile High Hubs', 'MHH', jokic, [
   scoringWing({ id: 'den-2', name: 'J. Murr', pos: 'PG' }),
   threeAndD({ id: 'den-3', name: 'K. Pope', pos: 'SG' }),
@@ -177,7 +178,7 @@ export interface Target {
   lo: number;
   hi: number;
   pct?: boolean;
-  /** declared destination, not yet an enforced floor: reported by the CLI,
+  /** declared destination, not yet an enforced floor — reported by the CLI,
    *  skipped by the test gate until its mechanism lands (same convention as
    *  Band.ratchet in bands.ts) */
   ratchet?: boolean;
@@ -193,12 +194,12 @@ export interface AggLine extends PlayerLine {
 const per = (f: (l: AggLine) => number) => (l: AggLine) => f(l) / Math.max(1, l.games);
 
 /**
- * Composite prime-season ranges, REAL numbers. v2 tightened the slack edges
+ * Composite prime-season ranges — REAL numbers. v2 tightened the slack edges
  * (the sides reality never approached); the contested edges are untouched.
- * One row remains a ratchet, a real target whose mechanism is only partly
+ * One row remains a RATCHET — a real target whose mechanism is only partly
  * landed: downhill 3PA (the transition pull-up exists and doubled his
  * attempts, but reaching 3+ needs a larger transition share of his touches).
- * The hub-TRB ratchet was earned by the minutes controller + guard-crash
+ * The hub-TRB ratchet was EARNED by the minutes controller + guard-crash
  * economy and is now enforced.
  */
 export const TARGETS: Record<string, Target[]> = {
@@ -222,7 +223,7 @@ export const TARGETS: Record<string, Target[]> = {
   'fid-jokic': [
     { label: 'PTS', lo: 19.5, hi: 28.5, get: per((l) => l.pts) },
     { label: 'AST', lo: 7, hi: 11, get: per((l) => l.ast) },
-    { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) }, // ratchet earned: minutes controller + guard-crash economy
+    { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) }, // ratchet EARNED: minutes controller + guard-crash economy
     { label: 'FG%', lo: 0.52, hi: 0.64, pct: true, get: (l) => l.fgm / Math.max(1, l.fga) },
     { label: '3PA', lo: 2, hi: 5.5, get: per((l) => l.tpa) },
     { label: 'Post shots', lo: 1.8, hi: 7, get: per((l) => l.postShots) }
@@ -234,6 +235,14 @@ export const TARGETS: Record<string, Target[]> = {
 export const BENCHMARKS: Team[] = [curryTeam, lebronTeam, jokicTeam];
 
 export function runBenchmark(bench: Team, starId: string, games: number, seedBase = 'fid'): AggLine {
+  // A zero/NaN game count used to skip the loop entirely and return `agg!`
+  // — null typed as AggLine — so the caller crashed at its first property
+  // read with an opaque TypeError (scan finding B3-1). A benchmark over no
+  // games is a misconfiguration, never a measurement: same doctrine as
+  // cli.ts's --games guard (red-team MINOR-4).
+  if (!Number.isInteger(games) || games < 1) {
+    throw new Error(`runBenchmark: games must be an integer >= 1, got ${games}`);
+  }
   let agg: AggLine | null = null;
   for (let i = 0; i < games; i++) {
     const { home, away } = sampleMatchup();
@@ -254,6 +263,13 @@ export function runBenchmark(bench: Team, starId: string, games: number, seedBas
       }
     }
     if (!agg) {
+      // NOTE: `zones` and `plusMinus` ride along from game 1's PlayerLine
+      // spread and are NEVER accumulated — the loop below sums only the 16
+      // listed counting keys, so on the returned AggLine those two fields
+      // are first-game values wearing an aggregate's type. No current
+      // consumer reads them (TARGETS getters, the CLI report, and
+      // noisefloor.ts stick to the summed keys); a zone-based fidelity
+      // target must fix the accumulation first (scan finding B3-5).
       agg = { ...line, games: 1, postShots, driveShots };
     } else {
       agg.games++;
@@ -264,18 +280,25 @@ export function runBenchmark(bench: Team, starId: string, games: number, seedBas
       }
     }
   }
+  // non-null: the games >= 1 guard above means the loop ran and assigned agg
   return agg!;
 }
 
 const fmt = (v: number, pct?: boolean) => (pct ? `${(v * 100).toFixed(1)}%` : v.toFixed(1));
 
-// the CLI report: the fine-grained 40-game read (the fast, widened gate
+// the CLI report — the fine-grained 40-game read (the fast, widened GATE
 // lives in packages/harness/test/fidelity.test.ts, same two-tier pattern as
 // the band report vs the wide-band regression guard)
 if (import.meta.main) {
-  const args = process.argv.slice(2);
-  const gamesIdx = args.indexOf('--games');
-  const games = gamesIdx >= 0 ? Number(args[gamesIdx + 1]) : 40; // shorter reads swing +-3 pts
+  // args.ts's loud parser, not a bare Number(): `--games` dangling or typo'd
+  // used to become NaN, skip every benchmark loop, and crash at the report
+  // with an opaque null-property TypeError (scan finding B3-1 — the exact
+  // incident class args.ts's header documents)
+  const games = flagNumber(process.argv, '--games', 40); // shorter reads swing +-3 pts
+  if (!Number.isInteger(games) || games < 1) {
+    console.error(`--games requires an integer >= 1, got ${games} — refusing to grade a run that simulates nothing`);
+    process.exit(1);
+  }
   let failures = 0;
   console.log(`Player-fidelity report — ${games} games per benchmark\n`);
   for (const bench of BENCHMARKS) {

@@ -1,6 +1,6 @@
 // Usage (from repo root): node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/redteam-probes/dump-game.mjs <seed> <on|off|omit> <outfile.json>
 // Dump a full game's observable output as JSON for cross-tree comparison.
-// env TREE = repo root (defaults to this clone, derived from this script's location; set it only to dump from ANOTHER tree); argv[2] = seed; argv[3] = 'on'|'off'|'omit'; argv[4] = outfile
+// env TREE = repo root (defaults to this clone, derived from this script's location — set it only to dump from ANOTHER tree); argv[2] = seed; argv[3] = 'on'|'off'|'omit'; argv[4] = outfile
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

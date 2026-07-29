@@ -4,19 +4,19 @@
  * argv[2] = path to a job JSON: { task, seedBase, start, count }
  * stdout  = JSON: { task, start, count, results: [per-game summary, ...] }
  *
- * This is the other end of parallel.ts's job-file protocol, the same shape
+ * This is the OTHER end of parallel.ts's job-file protocol, the same shape
  * as the sweep's sweep-worker.ts (see that file's header for the full
  * rationale): a standalone, independently invocable script, not a module the
  * parent imports. parallel.ts spawns exactly this file via execFile; this
- * script knows nothing about worker counts, slicing policy, or reduction.
- * It turns one slice description into one ordered results array via the
+ * script knows nothing about worker counts, slicing policy, or reduction —
+ * it turns ONE slice description into ONE ordered results array via the
  * same runGamesInProcess() the single-process path uses. Debug a slice by
  * hand (parallel.ts keeps the job file on failure):
  *   node --import ./tools/register.mjs packages/harness/src/run-worker.ts /tmp/hoopsh-runner-job-<pid>-<n>.json
  *
  * Loudness contract: any malformed job or mid-slice error throws, which
- * exits nonzero with the message on stderr; the parent surfaces that and
- * fails the whole run. stdout carries only the result JSON (a stray
+ * exits nonzero with the message on stderr — the parent surfaces that and
+ * fails the whole run. stdout carries ONLY the result JSON (a stray
  * console.log here would corrupt the protocol).
  */
 

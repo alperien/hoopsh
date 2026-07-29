@@ -1,28 +1,29 @@
 /**
  * Fold a hoopsh event stream into a box score.
  *
- * Rule for this module: never estimate a number that can be derived exactly
- * from the event stream (core/events.ts; AGENTS.md §1.3, events are the only
- * contract).
- *   - Minutes come from lineup timelines: game_start plus substitution
- *     events say who was on the floor every second (see accrueMinutes).
- *   - Possessions come from possession_end events, one authoritative count
- *     per possession. sim/possession.ts guards upstream so the event can't
- *     double-fire; see PossessionEndEvent's doc comment.
- *   - Plus-minus comes from score deltas while a five-man unit is on the
+ * The folding philosophy, and why it matters: this module NEVER estimates a
+ * number it could instead derive exactly from the event stream (core/events.ts
+ * §1.3 of AGENTS.md — events are the only contract). Concretely:
+ *   - minutes come from lineup timelines (game_start + substitution events
+ *     tell us exactly who was on the floor every second — see accrueMinutes);
+ *   - possessions come from possession_end events (one authoritative count
+ *     per possession, guarded upstream by sim/possession.ts so it can never
+ *     double-fire — see PossessionEndEvent's doc comment);
+ *   - plus-minus comes from score deltas while a five-man unit is on the
  *     floor (see scorePoints), not from any lineup-level bookkeeping the
  *     engine keeps internally.
  * A box score built this way is bit-for-bit reconstructible from the event
- * stream alone, which is what the invariant suite
+ * stream alone, which is exactly what the invariant suite
  * (packages/engine/test/invariants.test.ts) checks against adversarial games.
  * If a number here can't be justified by "which events fired," it doesn't
- * belong in this file. The missing information belongs in the event stream
- * instead (AGENTS.md §1.3); this module does not guess.
+ * belong in this file — that's a sign the missing information belongs in
+ * the event stream instead (AGENTS.md §1.3), not that this module should
+ * start guessing.
  *
- * Known rough edge, documented rather than silently patched (AGENTS.md §7):
+ * Known rough edge (documented, not silently patched — see AGENTS.md §7):
  * `fastbreakPts` only accumulates from made field goals inside a possession
  * that opened in transition; free throws scored inside that same possession
- * are not added to it (see the 'free_throw' case). So a shooting foul drawn
+ * are NOT added to it (see the 'free_throw' case). So a shooting foul drawn
  * on a fast break undercounts that possession's fastbreak points by the FT
  * makes. Left as-is here rather than "fixed" during a docs-only pass.
  */
@@ -31,9 +32,10 @@ import type { GameEvent, ShotEvent, Team, TeamSide } from '@hoopsh/engine';
 
 /**
  * Made/attempted shot counts split by court zone, per player. Zones mirror
- * `geometry/court.ts`'s shot-zone classification exactly: each `shot` event
- * carries the zone the engine already assigned, and this module folds that
- * label as stamped instead of re-deriving the zone from coordinates.
+ * `geometry/court.ts`'s shot-zone classification exactly (each `shot` event
+ * carries the zone the engine already assigned) — this module doesn't
+ * re-derive "which zone was that shot in" from coordinates, it just folds
+ * the zone label the event already stamped.
  */
 export interface ZoneLine {
   rim: { m: number; a: number };
@@ -67,7 +69,7 @@ export interface PlayerLine {
   zones: ZoneLine;
 }
 
-/** One team's game totals. `poss` is the possession_end count (see boxScore). `fastbreakPts` follows the convention documented at the 'shot' case in boxScore; it does not include free throws. `timeouts` counts `timeout` events (endgame-layer games only; always 0 for a default-config stream, which never emits one). */
+/** One team's game totals. `poss` is the possession_end count (see boxScore); `fastbreakPts` follows the convention documented at the 'shot' case in boxScore — it does not include free throws. `timeouts` counts `timeout` events — emitted by the endgame layer, which is ON by default (`GameConfig.endgame ?? true`, sim/game.ts), so a default-config stream DOES carry them; only an explicit `endgame: false` legacy game folds 0 here. */
 export interface TeamTotals {
   side: TeamSide;
   teamId: string;
@@ -97,8 +99,8 @@ export interface BoxScoreOptions {
    * team per this many minutes of game clock. Defaults to 48, the NBA
    * convention every existing caller was built on. League-aware callers
    * must pass the league's own regulation length (rules.periods ×
-   * rules.periodMinutes; 40 for NCAA). Otherwise a regulation college game
-   * at a real ~68 poss/40 would report pace ≈ 81.6 and every pace band
+   * rules.periodMinutes — 40 for NCAA) or a regulation college game at a
+   * real ~68 poss/40 would REPORT pace ≈ 81.6 and every pace band
    * comparison would silently mix conventions (data/ncaa/README.md §5's
    * pace-normalization warning).
    */
@@ -109,7 +111,7 @@ export interface BoxScore {
   players: PlayerLine[];
   teams: [TeamTotals, TeamTotals];
   finalScore: [number, number];
-  /** possessions per team per `paceMinutes` (default 48) equivalent; see BoxScoreOptions */
+  /** possessions per team per `paceMinutes` (default 48) equivalent — see BoxScoreOptions */
   pace: number;
   periods: number;
   shotEvents: ShotEvent[];
@@ -127,10 +129,10 @@ function emptyZones(): ZoneLine {
 /**
  * Fold one game's event stream into a full box score.
  *
- * Single forward pass over `events`, which arrive in emission order,
- * chronological on both time axes (core/events.ts). Each event type updates
- * exactly the counters it's authoritative for; nothing here looks ahead or
- * reconstructs state the events didn't already carry.
+ * Single forward pass over `events` (they arrive in emission order, which is
+ * chronological on both time axes — see core/events.ts). Each event type
+ * updates exactly the counters it's authoritative for; nothing here looks
+ * ahead or reconstructs state the events didn't already carry.
  */
 export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScoreOptions = {}): BoxScore {
   const lines = new Map<string, PlayerLine>();
@@ -157,30 +159,30 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
   let finalScore: [number, number] = [0, 0];
   let periods = 0;
   const shotEvents: ShotEvent[] = [];
-  // Whether team `side`'s current possession started off a live turnover of
+  // Whether team `side`'s CURRENT possession started off a live turnover of
   // the ball (steal / live-ball rebound) rather than a dead-ball inbound.
   // Set once per possession_start, read on every made shot/FT inside that
-  // possession; see the fastbreakPts convention note at the shot case below.
+  // possession — see the fastbreakPts convention note at the shot case below.
   let transitionPoss: [boolean, boolean] = [false, false];
 
   /**
    * Credit every player currently on the floor with the elapsed time since
    * the last event, in-place before processing the event at `t`.
    *
-   * Keys on `t` (game-clock time), never `wt` (replay/wall-clock time); see
+   * Keys on `t` (game-clock time), never `wt` (replay/wall-clock time) — see
    * core/events.ts and AGENTS.md §1.5. `t` freezes during whistles and stops
-   * dead at the horn, which is what "minutes played" means. `wt` keeps
+   * dead at the horn, which is exactly what "minutes played" means; `wt` keeps
    * advancing through free-throw routines and dead-ball stoppages, so folding
    * on `wt` would inflate every player's minutes by the game's total stoppage
-   * time. The engine enforces the same two-time-axis discipline on its side
-   * (movement.ts#advanceClock is the only writer of `t`); mixing the axes
-   * here would reintroduce the same class of bug in stats instead of
-   * gameplay.
+   * time. This is the box score's half of the two-time-axis discipline the
+   * engine enforces on the other side (movement.ts#advanceClock is the only
+   * writer of `t`) — mixing the axes here would reintroduce the same class of
+   * bug the engine guards against, just in stats instead of gameplay.
    *
    * Called once per event, before that event's own side effects, so the floor
    * lineup used for the elapsed slice is always the one that was on the court
-   * during that slice. Processing after a substitution would double-count
-   * into the wrong players.
+   * DURING that slice (post-substitution processing would double-count into
+   * the wrong players).
    */
   const accrueMinutes = (t: number): void => {
     const dt = t - lastT;
@@ -198,7 +200,7 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
   /**
    * Attribute `pts` scored by `side` to every player of both teams currently
    * on the floor: +pts for the scoring team's five, -pts for the other five.
-   * This is the entire plus-minus model. No lineup-level running total is
+   * This is the entire plus-minus model — no lineup-level running total is
    * kept anywhere else, so a player's plusMinus is exactly "net score while
    * I personally was on the court," derived the same way a scorer's table
    * would compute it by hand. The invariant suite checks this sums to zero
@@ -229,18 +231,18 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
       case 'period_end': periods += 1; break;
       case 'possession_start': {
         // A possession counts as "transition" for fastbreak-point purposes
-        // when it began off a live turnover of the ball: a steal (opponent
+        // when it began off a live turnover of the ball — a steal (opponent
         // loses it mid-dribble/pass, we're already moving) or a live-ball
         // defensive rebound (no dead-ball reset, offense can outrun the
-        // defense getting back). A 'tip' or dead-ball 'inbound' doesn't
-        // qualify; the defense has time to set. The flag stays true for the
-        // whole possession it opens, not just the immediate transition look;
+        // defense getting back) — as opposed to a 'tip' or dead-ball 'inbound'
+        // where the defense has time to set. This flag stays true for the
+        // WHOLE possession it opens, not just the immediate transition look;
         // see the fastbreakPts convention note in the 'shot' case below.
         transitionPoss[e.team] = e.kind === 'steal' || e.kind === 'live_rebound';
         break;
       }
       case 'possession_end': {
-        // The only place poss increments: one authoritative count per
+        // The only place poss increments — one authoritative count per
         // possession, matching PossessionEndEvent's fire-exactly-once
         // guarantee (sim/possession.ts endPossession guards this upstream).
         totals[e.team].poss += 1;
@@ -249,32 +251,47 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
       case 'shot': {
         shotEvents.push(e);
         const line = lines.get(e.shooter)!;
-        line.fga += 1;
-        totals[e.team].fga += 1;
-        const zone = line.zones[e.zone];
-        zone.a += 1;
-        if (e.three) { line.tpa += 1; totals[e.team].tpa += 1; }
+        // Official scoring rule (NBA scorer's convention — the same one every
+        // real reference line this repo calibrates against is built on): a
+        // missed shot on which a shooting foul was called charges NO
+        // field-goal attempt — the trip to the line replaces the attempt in
+        // the book. An and-one (made basket plus the foul) charges FGA and
+        // FGM as normal. The engine emits the shot event either way
+        // (sim/shooting.ts — the attempt happened on the floor and shot
+        // charts/play-by-play need it, which is why shotEvents above keeps
+        // every event); only the box-score counting rule filters here. The
+        // zone attempt is skipped in lockstep so zone a/m sums stay equal to
+        // fga/fgm (the consistency suite pins that identity). blockedBy
+        // still credits the blocker below — the engine can roll a block and
+        // a foul on the same miss, and the block really happened.
+        const chargeAttempt = e.made || !e.foul;
+        if (chargeAttempt) {
+          line.fga += 1;
+          totals[e.team].fga += 1;
+          line.zones[e.zone].a += 1;
+          if (e.three) { line.tpa += 1; totals[e.team].tpa += 1; }
+        }
         if (e.made) {
           line.fgm += 1;
           totals[e.team].fgm += 1;
-          zone.m += 1;
+          line.zones[e.zone].m += 1;
           line.pts += e.points;
           if (e.three) { line.tpm += 1; totals[e.team].tpm += 1; }
           scorePoints(e.team, e.points);
-          // Convention, not a bug: fastbreakPts credits the made shot's
-          // points whenever the possession it belongs to opened in transition
+          // CONVENTION, not a bug: fastbreakPts credits the made SHOT'S points
+          // whenever the possession it belongs to opened in transition
           // (transitionPoss[team] was set true back at possession_start),
           // even if this particular shot came after the initial burst of
           // speed settled into a normal half-court look. hoopsh attributes
           // "fastbreak points" to the possession's origin (steal / live
           // rebound) rather than re-detecting transition tempo shot-by-shot.
-          // Free throws are never folded into fastbreakPts, even inside a
-          // transitionPoss possession; the free_throw case below updates
-          // pts/ftm but never touches fastbreakPts. That asymmetry (makes
-          // count, and-one/shooting-foul FTs from the same possession don't)
-          // is a real gap in this convention, not something intentionally
-          // chosen. See the file-level note for why it's called out rather
-          // than silently patched.
+          // NOTE: free throws are NOT folded into fastbreakPts even when they
+          // happen inside a transitionPoss possession — see the free_throw
+          // case below, which updates pts/ftm but never touches fastbreakPts.
+          // That asymmetry (makes count, and-one/shooting-foul FTs from the
+          // same possession don't) is a real gap in this convention, not
+          // something intentionally chosen — see the file-level note for why
+          // it's called out rather than silently patched.
           if (transitionPoss[e.team]) totals[e.team].fastbreakPts += e.points;
           if (e.assist) {
             const passer = lines.get(e.assist);
@@ -291,7 +308,7 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
         break;
       }
       case 'free_throw': {
-        // Free throws never touch fastbreakPts (see the file-header note):
+        // Free throws never touch fastbreakPts (see the file-header note) —
         // only points/ftm and plus-minus, same accounting as any other made
         // point, just without the zones/fga bookkeeping a field-goal attempt
         // carries (FTs aren't shots from a court zone).
@@ -308,12 +325,12 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
       }
       case 'rebound': {
         // Dead-ball formality rebounds (missed non-final FT) are excluded
-        // from all rebound totals, per official-scoring convention; they
-        // exist for play-by-play fidelity only (core/events.ts ReboundEvent).
+        // from ALL rebound totals — official-scoring convention; they exist
+        // for play-by-play fidelity only (core/events.ts ReboundEvent).
         if (e.deadBall) break;
         // Team totals count every real rebound; the player line exists only
-        // when an individual secured it. A playerless event is a team
-        // rebound (dead carom awarded to a side): the board happened and
+        // when an individual secured it. A playerless event is a TEAM
+        // rebound (dead carom awarded to a side) — the board happened and
         // belongs in the team's ORB/DRB/TRB, but nobody's line gets credit,
         // exactly like an official box score.
         if (e.offensive) totals[e.team].orb += 1;
@@ -347,7 +364,7 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
         break;
       }
       case 'timeout': {
-        // Team-level only; a timeout belongs to no player's line. Folding
+        // team-level only — a timeout belongs to no player's line. Folding
         // it here (rather than the default arm) keeps the event visible in
         // the box the same way a real one lists team timeouts used.
         totals[e.team].timeouts += 1;
@@ -359,27 +376,27 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
 
   // Display rounding: minutes are folded in exact seconds (`line.min` above
   // is a running seconds total) and only quantized to 0.1-minute granularity
-  // here, once, at the end, matching how a broadcast box score prints
-  // minutes. Rounding each player independently means the team's five
+  // here, once, at the end — matching how a broadcast box score prints
+  // minutes. Rounding EACH player independently means the team's five
   // players' minutes can sum to up to ±0.3 away from the true
-  // gameMinutes × 5: five independent roundings to the nearest 0.1 min can
-  // each drift up to 0.05 min, i.e. 3 seconds, before summing. That is why
+  // gameMinutes × 5 (five independent roundings to the nearest 0.1 min can
+  // each drift up to 0.05 min, i.e. 3 seconds, before summing) — this is WHY
   // the invariant test asserts minutes conservation with a 0.3-minute
   // tolerance (packages/engine/test/invariants.test.ts) instead of exact
-  // equality. A display artifact of independent per-player rounding, not a
-  // bookkeeping leak: the pre-rounding seconds always sum exactly.
+  // equality. It's a display artifact of independent per-player rounding,
+  // not a bookkeeping leak — the pre-rounding seconds always sum exactly.
   for (const line of lines.values()) line.min = Math.round((line.min / 60) * 10) / 10;
 
   const totalPoss = totals[0].poss + totals[1].poss;
   const gameMinutes = Math.max(1, lastT / 60);
   // Pace, in the standard sense: possessions per team per regulation-length
-  // equivalent game (opts.paceMinutes; default 48, the NBA convention; an
-  // NCAA caller passes 40). totalPoss/2 gives one team's raw possession
-  // count. Both teams get essentially the same number of possessions per
-  // game, off by at most 1 depending who has the ball at the horn, hence
+  // equivalent game (opts.paceMinutes — default 48, the NBA convention; an
+  // NCAA caller passes 40). totalPoss/2 gives ONE team's raw possession
+  // count (both teams get essentially the same number of possessions per
+  // game, off by at most 1 depending who has the ball at the horn — hence
   // averaging via the sum rather than picking totals[0] or totals[1]
-  // directly. That count is then scaled from actual gameMinutes up/down to
-  // the basis, so a game that went to overtime is still comparable to a
+  // directly), then scaled from actual gameMinutes up/down to that basis so
+  // a game that went to overtime is still comparable to a
   // regulation-length one. `Math.max(1, …)` guards against a division by
   // zero if this were ever called on a zero-length/empty event stream.
   const pace = (totalPoss / 2) * ((opts.paceMinutes ?? 48) / gameMinutes);
@@ -398,10 +415,10 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
 //
 // Standard basketball-analytics formulas, applied uniformly whether the
 // caller passes team totals or (for the percentage stats) a single player's
-// line; both shapes satisfy the minimal structural types below. Each guards
+// line — both shapes satisfy the minimal structural types below. Each guards
 // its own zero-attempt case so an 0-for-0 shooter/team reads as 0% rather
-// than NaN. Silent NaN propagation into a league-average report is exactly
-// the kind of bug this module exists to prevent (see the file header).
+// than NaN (silent NaN propagation into a league-average report is exactly
+// the kind of bug this module exists to prevent — see the file header).
 
 export function fgPct(t: { fgm: number; fga: number }): number {
   return t.fga === 0 ? 0 : t.fgm / t.fga;
@@ -417,7 +434,7 @@ export function ftPct(t: { ftm: number; fta: number }): number {
 
 /**
  * True shooting percentage: points per "true shot attempt," where a true
- * shot attempt weights free throws at 0.44 attempts instead of 1. REAL:
+ * shot attempt weights free throws at 0.44 attempts instead of 1. REAL —
  * 0.44 is the standard basketball-analytics constant approximating how many
  * FT trips-of-two (or and-one/three-shot fouls) correspond to a single shot
  * attempt-equivalent league-wide; it is not tuned by this codebase, just
@@ -435,25 +452,25 @@ export function tsPct(t: { pts: number; fga: number; fta: number }): number {
 /**
  * Effective field-goal percentage: FG% adjusted so a made three counts as
  * 1.5 makes instead of 1, because it's worth 1.5× the points of a two. The
- * `0.5 * t.tpm` bonus is exactly that extra half-make credit. REAL: the
+ * `0.5 * t.tpm` bonus is exactly that extra half-make credit — REAL, the
  * standard eFG% definition, not a hoopsh-specific tuning.
  */
 export function efgPct(t: { fgm: number; tpm: number; fga: number }): number {
   return t.fga === 0 ? 0 : (t.fgm + 0.5 * t.tpm) / t.fga;
 }
 
-/** Offensive rating: points scored per 100 possessions, the standard efficiency measure. Decoupled from pace, so a fast team and a slow team can be compared on "how good were they with the ball" alone. */
+/** Offensive rating: points scored per 100 possessions — the standard efficiency measure, decoupled from pace so a fast team and a slow team can be compared on "how good were they with the ball" alone. */
 export function ortg(t: TeamTotals): number {
   return t.poss === 0 ? 0 : (t.pts / t.poss) * 100;
 }
 
 /**
  * Offensive rebound percentage for a side, given both team totals: own
- * offensive boards over the total number of defensive-rebound opportunities
- * that were up for grabs, own-ORB + opp-DRB. Every missed defended shot ends
+ * offensive boards over the total number of DEFENSIVE-rebound opportunities
+ * that were up for grabs, own-ORB + opp-DRB (every missed defended shot ends
  * in exactly one of those two outcomes on the boxscore, ignoring the rarer
- * live-ball scramble outcomes tracked elsewhere in the event stream. This
- * is why the function needs both sides' totals rather than just `own`:
+ * live-ball scramble outcomes tracked elsewhere in the event stream). This
+ * is why the function needs BOTH sides' totals rather than just `own` —
  * ORB% is a share of a contested pool, not own.orb over own.fga.
  */
 export function orbPct(own: TeamTotals, opp: TeamTotals): number {

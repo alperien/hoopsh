@@ -1,6 +1,5 @@
-// Scaffold a valid starter team pack: the "don't make humans type 38 raw
-// numbers" tool.
-//
+// Scaffold a valid starter team pack — the "don't make humans type 38 raw
+// numbers" tool:
 //   npm run roster:new                      interactive wizard (TTY)
 //   npm run roster:new -- --yes             all defaults, zero questions
 //   npm run roster:new -- --name "Oak City Owls" --abbrev OWL --size 12
@@ -14,15 +13,15 @@
 // The emitted pack:
 //   - carries a "$schema" pointer at data/schema/team-pack.schema.json so
 //     JSON-aware editors give autocomplete + inline range errors immediately
-//   - is self-checked through validateTeamPack() before it hits disk; this
+//   - is self-checked through validateTeamPack() before it hits disk — this
 //     tool exiting 0 IS a validity guarantee, enforced by test
 //   - names players after their archetype ("Floor General", "Bench Big 2")
 //     so the placeholder roster is self-documenting in a box score until the
 //     author renames everyone
 //
 // ANTI-DRIFT: the archetype registry below binds slugs to the REAL builder
-// functions imported from @hoopsh/data; ratings live there, never here. A
-// registry test (packages/data/test/roster-tools.test.ts) discovers every
+// functions imported from @hoopsh/data — ratings live there, never here. A
+// registry test (packages/data/test/roster-new.test.ts) discovers every
 // archetype-shaped export in @hoopsh/data and fails if one is missing from
 // this menu, so a 12th archetype cannot land without becoming scaffoldable.
 
@@ -39,7 +38,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCHEMA_FILE = path.join(ROOT, 'data', 'schema', 'team-pack.schema.json');
 
 /**
- * The scaffold menu: slug -> builder + one-line pitch. Order matters: it's
+ * The scaffold menu: slug -> builder + one-line pitch. Order matters — it's
  * the wizard's display order, starters-first. Blurbs are editorial (what the
  * archetype is FOR); the numbers live in packages/data/src/archetypes.ts and
  * are shown to the user by deriving from the builder itself (see catalog()).
@@ -59,7 +58,7 @@ export const ARCHETYPES = {
 };
 
 /**
- * Default archetype cycle for N players: a coherent modern roster. Balanced
+ * Default archetype cycle for N players: a coherent modern roster — balanced
  * starting five (PG/SG/SF/PF/C), then a bench that covers backup creation,
  * instant offense, forward depth, and a second big. Sliced to the requested
  * size, so --size 8 keeps the five starters plus the three highest-priority
@@ -91,7 +90,7 @@ export function slugify(name) {
 }
 
 /**
- * Build a complete, validated TeamPack from scaffold options (pure, no I/O,
+ * Build a complete, validated TeamPack from scaffold options (pure — no I/O,
  * so tests exercise it directly). Throws if the result would not validate:
  * a scaffold that can emit an invalid pack is a bug in THIS file, never
  * something to hand the user.
@@ -135,7 +134,7 @@ export function packText(pack, outFile) {
   return JSON.stringify({ $schema: rel, ...pack }, null, 2) + '\n';
 }
 
-/** Derive the catalog rows from the builders themselves; top skills shown are computed, not hand-listed. */
+/** Derive the catalog rows from the builders themselves — top skills shown are computed, not hand-listed. */
 function catalog() {
   const rows = [];
   for (const [slug, { fn, blurb }] of Object.entries(ARCHETYPES)) {
@@ -183,13 +182,13 @@ then:  npm run roster:validate -- <file>     lint it
        npm run sim -- --home <file>          play it`;
 
 /**
- * Buffering line reader, NOT readline/promises.question(). With piped stdin
+ * Buffering line reader — NOT readline/promises.question(). With piped stdin
  * (tests, heredocs) every line of a chunk is emitted synchronously in one
  * data tick, so any line that arrives while no question() is pending is
  * dropped and the next question awaits forever ("unsettled top-level
  * await"). Queueing every 'line' event and letting ask() pop the queue makes
  * the wizard equally driveable by a human at a TTY and by `printf ... |`.
- * EOF resolves to '', i.e. running out of piped answers accepts the
+ * EOF resolves to '' — i.e. running out of piped answers accepts the
  * remaining defaults instead of hanging.
  */
 async function lineReader() {
@@ -281,7 +280,7 @@ async function main() {
   let pack;
   // one catch for the whole flag-parse + build path: every authoring mistake
   // (bad --size, unknown archetype, out-of-range tactic) exits 2 with the
-  // message and no stack trace; stacks are for scaffold bugs, not typos
+  // message and no stack trace — stacks are for scaffold bugs, not typos
   try {
     if (process.argv.includes('--interactive') || (!hasFlags && process.stdin.isTTY)) {
       opts = await interactive();

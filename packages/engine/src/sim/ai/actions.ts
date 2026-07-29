@@ -1,6 +1,6 @@
 /**
  * Team actions: the pick-and-roll / post-up / isolation / dribble-handoff
- * lifecycle: calling one, advancing its phases, and tearing it down.
+ * lifecycle — calling one, advancing its phases, and tearing it down.
  */
 
 import { clamp } from '../../core/rng.js';
@@ -11,16 +11,36 @@ import { gravity } from '../resolve.js';
 import { creation, assignedDefender, midGreenLight } from './shared.js';
 
 /**
- * Pick-and-roll lifecycle. The action is deliberately thin scaffolding;
+ * The pop destination: the screener's y-half side of a left/right spot pair
+ * — unless a TEAMMATE is already stationed on that key, in which case he
+ * fills the mirror spot. Picking by y-half alone regularly sent the popper
+ * to a key assignSpots had already handed out (shooters hold the wings, mid
+ * bigs the elbows — the same population), leaving two players targeting one
+ * jittered coordinate inside push-apart range for the possession's
+ * remainder, with openness/contest reads slightly distorted (a9 line audit
+ * A9-3: 461 duplicate-occupancy ticks over 6 stretch-big games). With BOTH
+ * sides held by teammates (rare), fall back to the y-half key as before —
+ * avoidRadius keeps the bodies ~2.4 ft apart, as it always did.
+ */
+function openPopKey(s: GameState, screener: Agent, keyL: string, keyR: string): string {
+  const near = screener.pos.y < s.court.centerY ? keyL : keyR;
+  const far = near === keyL ? keyR : keyL;
+  const takenByTeammate = (key: string) =>
+    liveOnCourt(s, screener.side).some((t) => t.p.id !== screener.p.id && t.spotKey === key);
+  return !takenByTeammate(near) ? near : !takenByTeammate(far) ? far : near;
+}
+
+/**
+ * Pick-and-roll lifecycle. The action is deliberately thin scaffolding —
  * everything downstream (pull-up space when the defender ducks under, the
- * pocket pass to the roller, the pop three) emerges from existing systems:
+ * pocket pass to the roller, the pop three) EMERGES from existing systems:
  * screen stun feeds the contest model, the roll reuses cut machinery (and so
  * earns the cutter pass bonus), the pop reuses spacing spots.
  *
  * Post-ups and isolations run through the same slot: the post entry reuses
  * the pass model (with an entry incentive), the double-team reuses help
- * defense, and the spray out of the double reuses kick-out machinery, so
- * the post becomes a passing hub for free. The iso is pure decision-layer: a
+ * defense, and the spray out of the double reuses kick-out machinery — the
+ * post becomes a passing hub for free. The iso is pure decision-layer: a
  * commitment window that boosts the handler's attack.
  */
 export function actionTick(s: GameState): void {
@@ -30,7 +50,7 @@ export function actionTick(s: GameState): void {
 
   if (act && act.kind === 'post') {
     const poster = agent(s, act.posterId);
-    // gave it up from the block (the spray) or lost it: the action is over;
+    // gave it up from the block (the spray) or lost it — the action is over;
     // during 'posting' a null holder is normal (the entry is in flight)
     const sprayed = act.phase === 'working' && holderId !== act.posterId;
     if (s.t > act.until || sprayed || !poster.onCourt || poster.fouledOut) {
@@ -38,7 +58,7 @@ export function actionTick(s: GameState): void {
       return;
     }
     if (act.phase === 'posting' && holderId === act.posterId) {
-      // entry caught, or, on a self-post (feederId === posterId), the
+      // entry caught — or, on a self-post (feederId === posterId), the
       // dribble-down: wait until he has actually reached the block, else
       // "working" would start 26 ft from the rim
       const selfPost = act.feederId === act.posterId;
@@ -88,7 +108,7 @@ export function actionTick(s: GameState): void {
         const under = s.rng.chance(clamp(A.pnrUnderBase - gravity(s, handler), 0.08, 0.85));
         if (under) {
           onBall.screenStunUntil = s.t + A.pnrStunUnderSec;
-          onBall.navUnderUntil = s.t + 1.2; // drops back; concedes the pull-up
+          onBall.navUnderUntil = s.t + 1.2; // drops back — concedes the pull-up
         } else {
           const fight = 0.7 + screener.p.attr.strength / 300; // strong screens hit harder
           onBall.screenStunUntil = s.t + A.pnrStunOverSec * fight;
@@ -98,27 +118,27 @@ export function actionTick(s: GameState): void {
     }
 
     if (act.phase === 'set' && s.t - act.setAt > 0.5) {
-      // screener's next job: roll to the rim, pop to the arc, or pop short
-      // to the elbow (the mid-range supply line)
+      // screener's next job: roll to the rim, pop to the arc, or — the
+      // mid-range supply line — pop SHORT to the elbow
       act.phase = 'finishing';
       if (gravity(s, screener) < A.pnrRollGravityCut) {
         // A low-gravity screener with a real in-between game (the shared
-        // midGreenLight × his midRange ability, the same green light the
-        // decisiveness term honors, so nobody is ever stationed at a spot
+        // midGreenLight × his midRange ability — the same green light the
+        // decisiveness term honors, so nobody is ever STATIONED at a spot
         // he has no license to shoot from) mixes short pops into his roll
         // diet: the classic mid-pop big. His defender sits in drop
         // coverage by construction (low gravity ⇒ sag), so the elbow
-        // catch is the shot the defense concedes, which is where real
+        // catch is the shot the defense concedes — which is where real
         // mid-range volume comes from. Rim-runners (green light exactly
         // 0) always roll, as before.
         const midPop = midGreenLight(screener) * (screener.p.attr.midRange / 100);
         if (midPop >= A.pnrMidPopScoreCut && s.rng.chance(A.pnrMidPopChance)) {
-          screener.spotKey = screener.pos.y < s.court.centerY ? 'elbow_l' : 'elbow_r';
+          screener.spotKey = openPopKey(s, screener, 'elbow_l', 'elbow_r');
         } else {
-          screener.cutUntil = s.t + A.pnrRollCutSec; // the roll is a cut; the pocket pass emerges
+          screener.cutUntil = s.t + A.pnrRollCutSec; // the roll IS a cut — pocket pass emerges
         }
       } else {
-        screener.spotKey = screener.pos.y < s.court.centerY ? 'wing_l' : 'wing_r';
+        screener.spotKey = openPopKey(s, screener, 'wing_l', 'wing_r');
       }
     }
     return;
@@ -153,7 +173,7 @@ export function actionTick(s: GameState): void {
   if (!s.rng.chance(A.pnrRatePerTick * (A.pnrUsageFloor + (1 - A.pnrUsageFloor) * rank01))) return;
 
   // pick the screener: low-gravity size (his defender sags -> good screens),
-  // discounted by how far he must travel. A screen that can't arrive in time
+  // discounted by how far he must travel — a screen that can't arrive in time
   // is worse than no screen (audit: distance-blind choice left 93% of actions inert)
   let best: Agent | null = null;
   let bestScore = -Infinity;
@@ -162,14 +182,14 @@ export function actionTick(s: GameState): void {
     const travel = dist(a.pos, h.pos);
     if (travel > A.pnrMaxScreenDistFt) continue;
     const g = gravity(s, a);
-    // the mid-pop big's seat at the table: a screener who can score off
-    // the short pop (midGreenLight × ability, the same gate the pop
-    // routing below uses) is a premier screen partner, because the
+    // the mid-pop big's seat at the table: a screener who can actually
+    // SCORE off the short pop (midGreenLight × ability — the same gate the
+    // pop routing below uses) is a premier screen partner, because the
     // defense must choose between conceding his pop (drop) and freeing the
     // roll (hedge). Gravity-gated to the roll/short-pop population: an
     // arc-popper's gravity already carries his value, and ungated the
-    // affinity handed screens to mid-happy guards, whose pop goes to the
-    // wing anyway and serves nothing.
+    // affinity handed screens to mid-happy GUARDS — whose pop goes to the
+    // wing anyway, serving nothing.
     const popAffinity = g < A.pnrRollGravityCut
       ? midGreenLight(a) * (a.p.attr.midRange / 100) * A.screenerMidPopWeight
       : 0;
@@ -182,15 +202,15 @@ export function actionTick(s: GameState): void {
     if (score > bestScore) { bestScore = score; best = a; }
   }
   // the call: screen, post entry, or a clear-out. One weighted roll across
-  // whatever this lineup actually offers: a team without a post threat never
+  // whatever this lineup actually offers — a team without a post threat never
   // posts, a low-iso handler never clears out (identity through tendencies).
   let poster: Agent | null = null;
   let posterScore = 0;
   for (const a of liveOnCourt(s, s.poss.team)) {
-    // the holder is a legal poster: a hub big who is also his team's best
+    // the HOLDER is a legal poster: a hub big who is also his team's best
     // creator (the Jokić shape) initiates his own post-up by dribbling down
-    // to the block. Before this, the usage hierarchy routed him the ball
-    // and the post action then required someone else to hold it, so the
+    // to the block — before this, the usage hierarchy routed him the ball
+    // and the post action then required someone ELSE to hold it, so the
     // profile scored 7.9 ppg with 0.6 post touches (fidelity incident)
     if (s.t < a.cutUntil) continue;
     // post appetite carries the score; strength/finishing make it credible
@@ -198,15 +218,15 @@ export function actionTick(s: GameState): void {
     if (sc > posterScore) { posterScore = sc; poster = a; }
   }
   const isoScore = Math.max(0, (h.p.tend.iso - 50) / 100);
-  // DHO receiver: the best gravity/motion mover in range. The handoff is a
-  // shooter's action (the stun buys him his rise), so gravity carries it
+  // DHO receiver: the best gravity/motion mover in range — the handoff is a
+  // SHOOTER's action (the stun buys him his rise), so gravity carries it
   let dhoRecv: Agent | null = null;
   let dhoScore = 0;
   for (const a of liveOnCourt(s, s.poss.team)) {
     if (a.p.id === holderId || s.t < a.cutUntil) continue;
     if (dist(a.pos, h.pos) > A.dhoSearchRadiusFt) continue;
     // DHO receiver score: gravity (shooter identity, 65%) + motion (movement
-    // tendency, 35%). FEEL: a handoff buys a rise; it needs a shooter who
+    // tendency, 35%). FEEL — a handoff buys a rise; it needs a shooter who
     // also sprints in. Numerically similar to the gravity() weights but a
     // distinct quantity (selecting who to run the DHO with, not how much
     // the defense respects the eventual shooter).
@@ -216,17 +236,17 @@ export function actionTick(s: GameState): void {
   const wPnr = best ? 1 : 0;
   const wPost = poster && posterScore > A.postCallCut ? posterScore * A.postCallShare : 0;
   const wIso = isoScore * A.isoCallShare;
-  // scaled by the caller's creation: the DHO is how a hub creates; a
-  // low-vision holder doesn't run elbow offense
+  // scaled by the caller's creation: the DHO is how a HUB creates — a
+  // low-vision holder doesn't orchestrate elbow offense
   const wDho = dhoRecv ? dhoScore * A.dhoCallShare * (creation(h) / 100) : 0;
   if (wPnr + wPost + wIso + wDho <= 0) return;
   const pick = s.rng.weighted([wPnr, wPost, wIso, wDho]);
 
   if (pick === 1 && poster) {
     // send the big to the near block; the entry incentive lives in decideBall.
-    // Self-post (poster === holder): he dribbles himself down instead;
+    // Self-post (poster === holder): he dribbles himself down instead —
     // feederId === posterId marks it, and the working transition waits for
-    // arrival at the block rather than a catch (see the post branch above).
+    // ARRIVAL at the block rather than a catch (see the post branch above).
     const side = poster.pos.y < s.court.centerY ? 'post_l' : 'post_r';
     // read the possession's jittered spot table (see offense.ts rollSpots);
     // the raw template is only a fallback for a degenerate hand-built state

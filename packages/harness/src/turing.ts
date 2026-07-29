@@ -1,28 +1,30 @@
 /**
- * The PBP Turing protocol: does the game read as basketball, literally.
+ * The PBP Turing protocol — does the game READ as basketball, literally?
  *
  * Renders simulated games into the same dry play-by-play register as
- * basketball-reference game logs, pseudonymizes player names on both sides,
+ * basketball-reference game logs, pseudonymizes player names on BOTH sides,
  * and emits blind excerpt packs: mid-game windows of N consecutive plays,
  * real and simulated shuffled together with an answer key. Human or LLM
- * judges then classify each excerpt real or sim with a stated tell.
+ * judges then classify each excerpt REAL or SIM with a stated tell.
  *
  * The metric is discrimination accuracy: 50% = the sim is indistinguishable
  * from real basketball at the play-by-play level; every point above 50% is
  * a measured, attributable realism gap (the judges' tells are the defect
- * list, ranked by how often they worked). Re-run after every flow milestone;
- * the score is the "reads like basketball" number.
+ * list, ranked by how often they worked). Re-run after every flow milestone
+ * — the score is the "reads like basketball" number.
  *
  * Design notes, all deliberate:
- *  - Both sides render through the same dry register (this file's renderer
+ *  - BOTH sides render through the same dry register (this file's renderer
  *    for sim events; bbref's own text for real plays) and both get
  *    pseudonymized from the same name pool, so formatting and name
- *    recognition cannot carry the verdict; only basketball structure can.
+ *    recognition cannot carry the verdict — only basketball structure can.
  *  - Windows are intra-quarter (Q2-Q3 by default) so the verdict rests on
- *    ordinary halfcourt basketball, not on the sim's known missing endgame
- *    layer; `--strip-timeouts` optionally removes real timeout lines for the
- *    conditioned variant (the raw variant keeps them and counts the
- *    timeout tell honestly; it is a real gap, see REFACTOR.md M4).
+ *    ordinary halfcourt basketball. The endgame layer (landed, default ON)
+ *    emits stop-run timeouts with no period gate, so timeouts DO occur
+ *    inside these windows on both sides now; both sides render them to the
+ *    same `Full timeout` literal, and `--strip-timeouts` removes them from
+ *    BOTH sides for the conditioned variant (the raw variant keeps them and
+ *    counts any timeout-frequency tell honestly).
  *  - Running score is appended to scoring lines on both sides (score cadence
  *    is part of how a game reads).
  *
@@ -31,8 +33,8 @@
  *   npm run turing -- --sim 15 --real /path/to/plays-dir --out out/turing
  * The real-plays dir holds JSON arrays of { q, clockSec, side, text, a, h }
  * (see tools/fetch-nba.mjs notes / REFACTOR.md for how to produce them from
- * public play-by-play pages; raw fetched HTML stays out of the repo).
- * Output: pack.json (blind, shuffled), key.json (answers; do not show the
+ * public play-by-play pages — raw fetched HTML stays out of the repo).
+ * Output: pack.json (blind, shuffled), key.json (answers — do not show the
  * judges), and a per-excerpt .txt for convenient pasting.
  */
 
@@ -81,7 +83,7 @@ export function renderEvent(
     case 'shot': {
       // bbref's shot grammar, exactly: "{2,3}-pt {call} {from N ft | at rim}"
       // with the call vocabulary (layup/dunk/hook/tip-in/jump shot) derived
-      // from event data + shooter athleticism; see narration/src/shotcall.ts
+      // from event data + shooter athleticism — see narration/src/shotcall.ts
       // and the Turing baseline's shot-type-monotony tell.
       const call = shotCall(e, traits?.(e.shooter));
       const kind = `${e.three ? '3-pt' : '2-pt'} ${call} ${distPhrase(e.distFt)}`;
@@ -98,7 +100,7 @@ export function renderEvent(
       // playerless = team rebound; "rebound by Team" is bbref's exact phrasing
       return `${e.offensive ? 'Offensive' : 'Defensive'} rebound by ${e.player ? name(e.player) : 'Team'}`;
     case 'turnover': {
-      // bbref charges shot-clock violations to the team, never a player
+      // bbref charges shot-clock violations to the TEAM, never a player
       // (10/10 in the reference corpus: "Turnover by Team (shot clock)")
       if (e.kind === 'shot_clock') return 'Turnover by Team (shot clock)';
       const kind =
@@ -117,16 +119,21 @@ export function renderEvent(
     case 'substitution':
       return `${name(e.in[0]!)} enters the game for ${name(e.out[0]!)}`;
     case 'timeout':
-      // the bbref dry register lists these as team timeouts. Endgame-flag
-      // games only; without this line the layer's signature stoppages would
-      // silently vanish from exactly the excerpts the protocol judges
-      return `Team timeout`;
+      // EXACTLY the literal the real side normalizes to (`Full timeout`,
+      // realWindows below) — the two sides of a forced-choice discrimination
+      // protocol must render one concept to one string, or the string itself
+      // is a deterministic tell (scan finding b4-5: sim said `Team timeout`,
+      // real said `Full timeout`, and with the endgame default ON these land
+      // inside the judged Q2-Q3 windows — measured 15 in 10 default games).
+      // Without this line the layer's signature stoppages would silently
+      // vanish from exactly the excerpts the protocol judges.
+      return `Full timeout`;
     default:
       return null;
   }
 }
 
-function simWindows(count: number, winLen: number, seedBase: string, rng: Rng): NormPlay[][] {
+function simWindows(count: number, winLen: number, seedBase: string, rng: Rng, stripTimeouts: boolean): NormPlay[][] {
   const windows: NormPlay[][] = [];
   let g = 0;
   while (windows.length < count) {
@@ -154,15 +161,24 @@ function simWindows(count: number, winLen: number, seedBase: string, rng: Rng): 
     let prev: [number, number] = [0, 0];
     for (const e of r.events) {
       if (e.period < 2 || e.period > 3) { prev = [e.score[0], e.score[1]]; continue; }
-      const text = renderEvent(e, name, traits);
+      // --strip-timeouts must strip BOTH sides: stripping only the real side
+      // made any surviving timeout line a guaranteed sim marker in the
+      // conditioned variant (b4-5)
+      const text = stripTimeouts && e.type === 'timeout' ? null : renderEvent(e, name, traits);
       if (!text) { prev = [e.score[0], e.score[1]]; continue; }
       const scored = e.score[0] + e.score[1] > prev[0] + prev[1];
       lines.push({ clock: fmtClock(e.period, e.clock), text, score: scored ? `${e.score[0]}-${e.score[1]}` : undefined });
       prev = [e.score[0], e.score[1]];
     }
-    // up to 3 non-overlapping windows per game
+    // up to 3 non-overlapping windows per game. The stride floors at winLen:
+    // with a short line pool (lines.length < winLen + 20) the raw stride
+    // goes NEGATIVE and windows 1-2 would start BEFORE window 0 and overlap
+    // it, breaking judge independence (c2-F2). Flooring makes them adjacent
+    // instead; the in-bounds break below still drops what doesn't fit.
+    // Normal games (hundreds of Q2-Q3 lines) are unaffected: their stride
+    // already exceeds winLen.
     for (let w = 0; w < 3 && windows.length < count; w++) {
-      const start = 10 + w * Math.floor((lines.length - winLen - 20) / 3);
+      const start = 10 + w * Math.max(winLen, Math.floor((lines.length - winLen - 20) / 3));
       if (start + winLen > lines.length) break;
       windows.push(lines.slice(start, start + winLen));
     }
@@ -186,10 +202,10 @@ function realWindows(dir: string, count: number, winLen: number, rng: Rng, strip
     const names = new Map<string, string>();
     const pseudo = (text: string): string =>
       // bbref name shape: "J. Tatum" (initial dot space capitalized surname).
-      // \p{L} (unicode letters) is required: an ASCII-only class half-replaced
+      // \p{L} (unicode letters) is REQUIRED: an ASCII-only class half-replaced
       // diacritic surnames ("N. Jokić" -> "N. Iverson-Reed" + leftover "ć"),
       // and the baseline judges correctly flagged the mangled names as
-      // generator artifacts, on real excerpts (protocol leak, now fixed).
+      // generator artifacts — on REAL excerpts (protocol leak, now fixed).
       text.replace(/\b([A-Z])\. ?(\p{Lu}[\p{L}'-]+(?: Jr\.| Sr\.| II| III| IV)?)/gu, (_, ini, last) => {
         const key = `${ini}.${last}`;
         if (!names.has(key)) names.set(key, `${ini}. ${pool[names.size % pool.length]}`);
@@ -210,8 +226,10 @@ function realWindows(dir: string, count: number, winLen: number, rng: Rng, strip
       });
       prev = p.a + p.h;
     }
+    // same winLen stride floor as the sim side (c2-F2): no overlapping
+    // windows out of a short real-game line pool
     for (let w = 0; w < 3 && windows.length < count; w++) {
-      const start = 5 + w * Math.floor((lines.length - winLen - 10) / 3);
+      const start = 5 + w * Math.max(winLen, Math.floor((lines.length - winLen - 10) / 3));
       if (start + winLen > lines.length) break;
       windows.push(lines.slice(start, start + winLen));
     }
@@ -232,7 +250,7 @@ if (isMain) {
   const stripTimeouts = process.argv.includes('--strip-timeouts');
   const rng = new Rng(`${seedBase}-pack`);
 
-  const sims = simWindows(simCount, winLen, seedBase, rng);
+  const sims = simWindows(simCount, winLen, seedBase, rng, stripTimeouts);
   const reals = realDir ? realWindows(realDir, simCount, winLen, rng, stripTimeouts) : [];
 
   const items = rng.shuffle([

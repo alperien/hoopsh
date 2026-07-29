@@ -1,6 +1,6 @@
 /**
- * Invariant suite: every guarantee the adversarial audits verified, made
- * permanent. Audits are point-in-time; these run on every change.
+ * Invariant suite — every guarantee the adversarial audits verified, made
+ * PERMANENT. Audits are point-in-time; these run on every change.
  *
  * Provenance (audit rounds 1 & 2, 2026-07-24):
  *  - possession_end double-emission (and-ones/buzzers) inflated pace ~2.8%
@@ -8,7 +8,7 @@
  *    were decided by them)
  *  - game clock ran past the horn, breaking minutes conservation
  *  - FT shooters got substituted mid-sequence and shot from the bench
- * All fixed; these tests keep them fixed.
+ * All fixed — these tests keep them fixed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -124,28 +124,42 @@ describe(`engine invariants over ${GAMES} games`, () => {
   });
 
   it('fouled-out players never act again', () => {
+    // "act" covers EVERY event field that names an on-floor participant:
+    // shooting, assisting, free throws, rebounding, passing, turning it
+    // over, stealing, fouling, and drawing a foul (b8-F5 — the original
+    // actor list stopped at pass/rebound, narrower than this title).
+    let sawFoulOuts = 0; // existence floor: a foul-out-free pool would silence the invariant
     for (const r of results) {
-      const outAt = new Map<string, number>(); // playerId -> event index of foul-out
+      const outAt = new Map<string, number>(); // playerId -> event index of FIRST foul-out
       r.events.forEach((e, idx) => {
-        if (e.type === 'foul' && e.fouledOut) outAt.set(e.on, idx);
+        // keep the FIRST index: overwriting would let a (buggy) second
+        // foul-out by the same player re-arm its own boundary and mask itself
+        if (e.type === 'foul' && e.fouledOut && !outAt.has(e.on)) outAt.set(e.on, idx);
       });
+      sawFoulOuts += outAt.size;
       r.events.forEach((e, idx) => {
         const actors: string[] = [];
         if (e.type === 'shot') actors.push(e.shooter, ...(e.assist ? [e.assist] : []));
         if (e.type === 'free_throw') actors.push(e.shooter);
         if (e.type === 'rebound' && e.player) actors.push(e.player); // team rebounds credit nobody
         if (e.type === 'pass') actors.push(e.from, e.to);
+        if (e.type === 'turnover') actors.push(e.player, ...(e.stolenBy ? [e.stolenBy] : []));
+        if (e.type === 'foul') actors.push(e.on, ...(e.drawnBy ? [e.drawnBy] : []));
         for (const a of actors) {
           const boundary = outAt.get(a);
           if (boundary !== undefined && idx > boundary) {
             // free throws by the fouled-out player immediately after his own
-            // foul-out are legal only when he was the one fouled; the engine
-            // does not produce that flow, so assert strictly
+            // foul-out are legal only when he was the one fouled — engine
+            // does not produce that flow; assert strictly
             expect(idx).toBeLessThanOrEqual(boundary);
           }
         }
       });
     }
+    // measured 10 foul-outs across this pool; an rng reshuffle that zeroed
+    // this out would reduce the invariant to an unexecuted branch — fail
+    // loudly instead so the pool gets re-seeded deliberately
+    expect(sawFoulOuts).toBeGreaterThanOrEqual(1);
   });
 
   it('offense-bearing events belong to the possessing team', () => {

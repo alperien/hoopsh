@@ -1,5 +1,5 @@
 /**
- * Type declarations for roster-new.mjs, hand-maintained (the runtime is
+ * Type declarations for roster-new.mjs — hand-maintained (the runtime is
  * type-stripped Node with no build step, so nothing generates these; see
  * tsconfig.json's paths comment for the typecheck-gate context). Declares
  * every export of the .mjs; keep the two files in sync in the same commit.
@@ -12,9 +12,9 @@ import type { TeamPack } from '@hoopsh/data';
 
 /** One scaffold-menu row: the REAL @hoopsh/data builder + an editorial pitch. */
 export interface ArchetypeEntry {
-  /** Archetype builder: seeds a full 38-dial Player from just an identity. */
+  /** Archetype builder — seeds a full 38-dial Player from just an identity. */
   fn: (who: { id: string; name: string }) => Player;
-  /** What the archetype is FOR (display text); the numbers live in @hoopsh/data. */
+  /** What the archetype is FOR — display text; the numbers live in @hoopsh/data. */
   blurb: string;
 }
 
@@ -37,7 +37,7 @@ export const ARCHETYPES: {
   benchBig: ArchetypeEntry;
 };
 
-/** A key of the scaffold menu: the only slugs buildRoster accepts at runtime. */
+/** A key of the scaffold menu — the only slugs buildRoster accepts at runtime. */
 export type ArchetypeSlug = keyof typeof ARCHETYPES;
 
 /**
@@ -61,7 +61,7 @@ export interface RosterOptions {
   /**
    * Archetype slug per player; the first STARTERS_COUNT start. Typed as
    * string[] (not ArchetypeSlug[]) because the runtime contract is "any
-   * string, unknown slugs throw with the valid menu"; tests exercise that
+   * string, unknown slugs throw with the valid menu" — tests exercise that
    * error path deliberately.
    */
   slots: string[];
@@ -70,9 +70,9 @@ export interface RosterOptions {
 }
 
 /**
- * Build a complete, validated TeamPack from scaffold options (pure, no
+ * Build a complete, validated TeamPack from scaffold options (pure — no
  * I/O). Throws on unknown archetype slugs, and throws if the generated pack
- * would not satisfy validateTeamPack(): a scaffold that can emit an invalid
+ * would not satisfy validateTeamPack() — a scaffold that can emit an invalid
  * pack is a bug in roster-new.mjs, never something handed to the user.
  */
 export function buildRoster(opts: RosterOptions): TeamPack;

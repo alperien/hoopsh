@@ -4,7 +4,7 @@
  * prove it's current (regenerate-and-compare), prove it says YES to every
  * shipped roster, and prove it says NO to each canonical way a hand-edited
  * pack goes wrong. Evaluation runs through tools/json-schema-lite.mjs, which
- * throws on any keyword it doesn't implement, so a passing suite means every
+ * throws on any keyword it doesn't implement — so a passing suite means every
  * keyword the schema uses was genuinely executed, not skipped.
  */
 import { readFileSync } from 'node:fs';
@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { cascadiaBreakers, toTeamPack, validateTeamPack, ATTR_KEYS, TEND_KEYS } from '@hoopsh/data';
-// eslint-style note: plain relative .mjs imports. These tools are the unit
+// eslint-style note: plain relative .mjs imports — these tools are the unit
 // under test, loaded the same way npm run schema:gen loads them.
 import { buildTeamPackSchema, checkSchema, extractInterfaceDocs, schemaText, SCHEMA_PATH } from '../../../tools/gen-schema.mjs';
 import { validate } from '../../../tools/json-schema-lite.mjs';
@@ -20,7 +20,7 @@ import { validate } from '../../../tools/json-schema-lite.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const rosterPath = (id: string) => path.join(ROOT, 'packages', 'data', 'rosters', `${id}.team.json`);
 
-// deep-clone a known-valid pack to mutate; every negative case starts valid
+// deep-clone a known-valid pack to mutate — every negative case starts valid
 function freshPack(): any {
   return JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers())));
 }
@@ -99,8 +99,8 @@ describe('generated team-pack JSON Schema', () => {
     typo.team.players[0].tend.sholThree = typo.team.players[0].tend.shotThree;
     delete typo.team.players[0].tend.shotThree;
     const errs = schemaErrors(typo);
-    // the schema names both the unknown key (editor lint the validator
-    // lacks) and the missing real key
+    // the schema names BOTH the unknown key (editor lint the validator lacks)
+    // and the missing real key
     expect(errs.some((e: { path: string; message: string }) => e.path.includes('sholThree') && e.message.includes('unknown'))).toBe(true);
     expect(errs.some((e: { path: string }) => e.path.includes('shotThree'))).toBe(true);
   });
@@ -136,7 +136,7 @@ describe('generated team-pack JSON Schema', () => {
     const attrDocs = extractInterfaceDocs(src, 'Attributes');
     const tendDocs = extractInterfaceDocs(src, 'Tendencies');
     // Ratchet, not decoration: adding a rating to the engine without a doc
-    // comment in player.ts fails here, because an undocumented dial is
+    // comment in player.ts fails HERE, because an undocumented dial is
     // exactly what makes hand-authoring rosters miserable.
     for (const k of ATTR_KEYS) expect(typeof attrDocs[k]).toBe('string');
     for (const k of TEND_KEYS) expect(typeof tendDocs[k]).toBe('string');

@@ -1,19 +1,19 @@
 /**
- * Out-of-sample validation: the answer to "the sweep tunes what grades it."
+ * Out-of-sample validation — the answer to "the sweep tunes what grades it."
  *
  * Every calibration number in this repo was fit on the two sample rosters.
- * This runner generates rosters the sweep has never seen (position-slotted
- * archetype teams with seeded rating jitter) and checks two things on them:
+ * This runner generates ROSTERS THE SWEEP HAS NEVER SEEN — position-slotted
+ * archetype teams with seeded rating jitter — and checks two things on them:
  *
  *   1. The NBA acceptance bands. Passing here means the calibration
- *      generalizes across the roster distribution instead of only the two
- *      teams it was fit on. (It cannot prove identification; see INTERNALS'
- *      "what locked does and does not claim". But it removes the
+ *      generalizes across the roster distribution, not just the two teams it
+ *      was fit on. (It cannot prove identification — see INTERNALS'
+ *      "what locked does and does not claim" — but it removes the
  *      fit-to-the-training-set objection.)
- *   2. Distributional realism, which league means cannot see: score-margin
+ *   2. DISTRIBUTIONAL realism, which league means cannot see: score-margin
  *      spread, blowout and close-game rates, overtime rate, single-game team
  *      scoring extremes, quarter profiles. Reported against real NBA
- *      references, report-only for now (the ratchet convention: they become
+ *      references, REPORT-ONLY for now (the ratchet convention: they become
  *      enforced once they hold).
  *
  * Run: npm run oos [-- --teams 12 --games 60 --jitter 8 --seed oos]
@@ -26,23 +26,26 @@ import {
   postAnchor, rimRunner, scoringWing, stretchBig, threeAndD
 } from '@hoopsh/data';
 import { accumulate, emptyAcc, evaluate, finalize, formatReport } from './aggregate.js';
+import { flagNumber, flagValue } from './args.js';
 import { NBA_BANDS } from './bands.js';
 
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
-const TEAMS = Number(argOf('--teams') ?? 12);
-const GAMES = Number(argOf('--games') ?? 60);
-const JITTER = Number(argOf('--jitter') ?? 8);
-const SEED = argOf('--seed') ?? 'oos';
+// args.ts's loud parsers, not a local bare argOf: `oos --games` (value
+// forgotten) used to become NaN, run ZERO games, and print an all-NaN
+// distribution report with exit 0 — the exact incident class args.ts exists
+// to prevent (scan finding b4-8)
+const TEAMS = flagNumber(process.argv, '--teams', 12);
+const GAMES = flagNumber(process.argv, '--games', 60);
+const JITTER = flagNumber(process.argv, '--jitter', 8);
+const SEED = flagValue(process.argv, '--seed', 'oos');
+if (!Number.isInteger(TEAMS) || TEAMS < 2) throw new Error(`--teams must be an integer >= 2, got ${TEAMS}`);
+if (!Number.isInteger(GAMES) || GAMES < 1) throw new Error(`--games must be an integer >= 1, got ${GAMES}`);
 
 // ------------------------------------------------------- roster generation
 
 type Named = { id: string; name: string; pos: Player['pos'] };
 type Builder = (who: Named) => Player;
 
-/** plausible archetypes per starting slot: mirrors how real rosters skew */
+/** plausible archetypes per starting slot — mirrors how real rosters skew */
 const SLOT_POOLS: Record<Player['pos'], Builder[]> = {
   PG: [floorGeneral, comboGuard, eliteShooter],
   SG: [scoringWing, threeAndD, comboGuard, eliteShooter],
@@ -109,7 +112,13 @@ export interface DistReport {
 export function distributionOf(finals: GameFinal[]): DistReport {
   const margins = finals.map((f) => Math.abs(f.home - f.away));
   const mAvg = margins.reduce((a, b) => a + b, 0) / margins.length;
-  const mSd = Math.sqrt(margins.reduce((a, m) => a + (m - mAvg) ** 2, 0) / margins.length);
+  // SAMPLE stddev (n−1), matching matchup.ts statDist — this file used the
+  // population formula, a house-convention inconsistency worth <1% at the
+  // default 60 games but a wrong number to print next to the cited 9.53
+  // reference (c2-F3)
+  const mSd = margins.length > 1
+    ? Math.sqrt(margins.reduce((a, m) => a + (m - mAvg) ** 2, 0) / (margins.length - 1))
+    : 0;
   const teamScores = finals.flatMap((f) => [f.home, f.away]);
   const qn = Math.max(...finals.map((f) => Math.min(4, f.quarters.length)));
   const quarterAvg: number[] = [];
@@ -121,6 +130,10 @@ export function distributionOf(finals: GameFinal[]): DistReport {
     marginAvg: mAvg, marginSd: mSd,
     blowoutPct: margins.filter((m) => m >= 20).length / margins.length,
     closePct: margins.filter((m) => m <= 5).length / margins.length,
+    // NBA shape assumed (regulation = 4 periods): every game this runner
+    // simulates plays under stock NBA rules today; re-pointing it at a
+    // halves league needs the rule pack's period count here, not the
+    // literal 4 (c2-F3)
     otPct: finals.filter((f) => f.periods > 4).length / finals.length,
     teamMin: Math.min(...teamScores), teamMax: Math.max(...teamScores),
     quarterAvg
@@ -128,20 +141,20 @@ export function distributionOf(finals: GameFinal[]): DistReport {
 }
 
 /**
- * REAL NBA references, cited: computed over all 1230 games of the 2023-24
+ * REAL NBA references — CITED: computed over all 1230 games of the 2023-24
  * regular season from basketball-reference.com monthly schedule pages
- * (calibration ground-truth pass, 2026-07-27; self-validating, since the
- * season filters land on exactly 1230 rows and mean total points 228.4 =
- * 2 × B-Ref 114.2 PPG). Report-only until they hold (ratchet convention).
- * Reading notes, so nobody re-derives them the hard way:
- *  - "margin std dev" is the SD of |margin| (what distributionOf computes),
- *    which is 9.53 for 2023-24. The SD of the signed home margin is 15.64;
+ * (calibration ground-truth pass, 2026-07-27; self-validating — the season
+ * filters land on exactly 1230 rows and mean total points 228.4 = 2 × B-Ref
+ * 114.2 PPG). Report-only until they hold (ratchet convention). Reading
+ * notes, so nobody re-derives them the hard way:
+ *  - "margin std dev" is the SD of |margin| — what distributionOf computes —
+ *    which is 9.53 for 2023-24. The SD of the SIGNED home margin is 15.64;
  *    comparing that one here would flag a phantom miss.
  *  - 2023-24 was a historically blowout-heavy season (record 235 games won
  *    by 20+), so its blowout share sits at the high end of any era band.
- *  - 2023-24 was a low-overtime season (4.80%); the long-run rate is ~5.9%
- *    (2000-2024, secondary source). The row keeps both.
- *  - the min/max and quarter-profile rows remain uncited recollections; the
+ *  - 2023-24 was a LOW-overtime season (4.80%); the long-run rate is ~5.9%
+ *    (2000-2024, secondary source) — the row keeps both.
+ *  - the min/max and quarter-profile rows remain UNCITED recollections; the
  *    ground-truth pass did not establish them (quarter mean ≈ 114.2/4 =
  *    28.6 follows from the cited PPG, the Q4-shape claim does not).
  */

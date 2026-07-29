@@ -1,24 +1,24 @@
 /**
  * League selection for the harness: one id ('nba' | 'ncaa') resolves to the
  * rule pack, the acceptance bands, and the pace-normalization basis that must
- * always travel together. The trap this module exists to prevent: mixing NBA
- * bands with the NCAA rule pack (a meaningless comparison; see
+ * always travel TOGETHER. The trap this module exists to prevent: mixing NBA
+ * bands with the NCAA rule pack (a meaningless comparison — see
  * data/ncaa/README.md §6.3), or reporting a 40-minute game's pace on the
  * 48-minute basis (§5's pace-normalization warning: a real ~68 poss/40 NCAA
  * game would read ≈81.6 and look absurdly fast against a poss/40 band).
  *
  * Naming note: league.ts (singular) is the deterministic fictional-league
- * generator for the season driver, unrelated. This module is league
- * configuration.
+ * GENERATOR for the season driver — unrelated. This module is league
+ * CONFIGURATION.
  *
- * NCAA bands load at resolve time from data/ncaa/acceptance-bands.json: the
+ * NCAA bands load at resolve time from data/ncaa/acceptance-bands.json — the
  * research deliverable itself (with per-band provenance), not a hand-copied
  * duplicate that could drift. Only the Band fields the report machinery
  * reads (metric/label/lo/hi/pct) are lifted; provenance stays in the JSON.
  * The pace band is used in its real-world poss/40 convention (lo 66/hi 71)
- * because the pipeline passes paceMinutes to boxScore, option (a) of the
+ * because the pipeline passes paceMinutes to boxScore — option (a) of the
  * JSON's paceNormalizationWarning; its paceOn48MinBasis alternative is for
- * pipelines that don't normalize, and using both would double-correct.
+ * pipelines that DON'T normalize, and using both would double-correct.
  */
 
 import { readFileSync } from 'node:fs';
@@ -40,7 +40,7 @@ export interface LeagueConfig {
   paceMinutes: number;
   /**
    * Whether the engine has actually been calibrated against these bands.
-   * NBA: yes, the ratchet gate applies. NCAA: no; the pack is structurally
+   * NBA: yes — the ratchet gate applies. NCAA: no — the pack is structurally
    * correct but every probability model is still NBA-fit, so batch reports
    * are measurement, not acceptance (cli.ts keeps the gate off by default).
    */
@@ -88,9 +88,9 @@ export const LEAGUE_IDS = ['nba', 'ncaa'] as const;
 
 /**
  * Resolve a --league flag value into the config triple. Throws (loudly, with
- * the valid ids) on anything else; a typo'd league must never silently run
+ * the valid ids) on anything else — a typo'd league must never silently run
  * as the NBA default. EuroLeague has a rule pack but no acceptance bands
- * yet, so it is deliberately not resolvable here until someone does the
+ * yet, so it is deliberately NOT resolvable here until someone does the
  * band research the NCAA got.
  */
 export function resolveLeague(id: string): LeagueConfig {

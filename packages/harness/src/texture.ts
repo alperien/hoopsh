@@ -1,33 +1,33 @@
 /**
- * Texture forensics: does the game read as basketball.
+ * Texture forensics — does the game READ as basketball?
  *
- * The acceptance bands grade season-scale averages; this tool grades the
+ * The acceptance bands grade season-scale AVERAGES; this tool grades the
  * moment-to-moment feel that the eye test flagged (players never standing
  * still, ping-pong passing bursts). It quantifies exactly those findings so
- * texture work has honest before/after numbers. Report-only (ratchet
+ * texture work has honest before/after numbers. REPORT-ONLY (ratchet
  * convention: numbers become enforced once they hold).
  *
  * Metrics:
- *   movement: per-player speeds between consecutive live frames (game clock
+ *   movement — per-player speeds between consecutive LIVE frames (game clock
  *     decreasing filters out dead balls/FT rituals; >30 ft/s pairs are
- *     dropped as substitution slot-swaps). NBA tracking reference cited,
+ *     dropped as substitution slot-swaps). NBA tracking reference — CITED,
  *     imported below from data/nba/tracking-references-2023-24.json: league
- *     AVG_SPEED 4.22 mph = 6.19 ft/s. Units matter: an earlier version of
+ *     AVG_SPEED 4.22 mph = 6.19 ft/s (UNITS MATTER — an earlier version of
  *     this header said "4.2 ft/s", a units-confused recollection that
  *     nearly drove a further round of engine slowing; the third review's
- *     warning that the target itself was recollection was exact.
- *     Definitions matter too: the NBA stat averages all on-court time
+ *     warning that the target itself was recollection was exact).
+ *     DEFINITIONS MATTER TOO: the NBA stat averages ALL on-court time
  *     including standing and dead balls, with an unpublished denominator
- *     (the AVG_SPEED column ≠ distance/minutes, a ~7% gap in both archived
- *     seasons), while this tool measures live-clock chord speed, a third
+ *     (the AVG_SPEED column ≠ distance/minutes — a ~7% gap in both archived
+ *     seasons), while this tool measures live-clock chord speed — a THIRD
  *     quantity. Sim-vs-NBA deltas under ~10-15% are definitional noise, not
  *     calibration signal (the data file's definitionTraps block is the full
- *     story). Standing still is a basketball behavior: spacing is held,
+ *     story). Standing still IS a basketball behavior — spacing is held,
  *     not jogged.
- *   passing: ping-pong share, an A→B pass answered by B→A within the window,
+ *   passing — ping-pong share: an A→B pass answered by B→A within the window,
  *     the signature of utility ties oscillating; plus passes per possession
  *     (NBA 2023-24, same data file: 281.3 passes made / ~99 possessions per
- *     team-game ≈ 2.84–2.86; the earlier uncited "~3.2: ~300 / ~95"
+ *     team-game ≈ 2.84–2.86 — the earlier uncited "~3.2: ~300 / ~95"
  *     overstated the numerator and understated the denominator).
  *
  * Run: npm run texture [-- --games 8 --seed texture]
@@ -36,16 +36,16 @@
 import { simulateGame } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 // The cited reference values this report compares against. Provenance, exact
-// definitions, and the definition traps live in the data file; printed
-// numbers can never drift from the citation because they are the citation.
+// definitions, and the definition traps live in the data file — printed
+// numbers can never drift from the citation because they ARE the citation.
 import ref from '../../../data/nba/tracking-references-2023-24.json' with { type: 'json' };
+import { flagNumber, flagValue } from './args.js';
 
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
-const GAMES = Number(argOf('--games') ?? 8);
-const SEED = argOf('--seed') ?? 'texture';
+// args.ts's loud parsers, not a local bare argOf — a dangling `--games`
+// used to become NaN and measure zero games silently (scan finding b4-8)
+const GAMES = flagNumber(process.argv, '--games', 8);
+const SEED = flagValue(process.argv, '--seed', 'texture');
+if (!Number.isInteger(GAMES) || GAMES < 1) throw new Error(`--games must be an integer >= 1, got ${GAMES}`);
 const PINGPONG_WINDOW_S = 3;
 
 interface MoveAgg { speedSum: number; n: number; still: number; walk: number; run: number }

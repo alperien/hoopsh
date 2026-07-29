@@ -1,21 +1,21 @@
 /**
- * Archetype builders: reusable ratings profiles for tests, fixtures, and
+ * Archetype builders — reusable ratings profiles for tests, fixtures, and
  * quick roster assembly. Each returns a full Player via engine defaults.
  *
  * These are also the acceptance fixtures: the archetype test suite asserts
  * that an "elite shooter" actually behaves like one at season scale. That
- * dual role shapes how these should be edited. A rating tweak here isn't
- * just "this fictional player got better at X"; it can silently change what
+ * dual role shapes how these should be edited: a rating tweak here isn't
+ * just "this fictional player got better at X", it can silently change what
  * a passing archetype test means. If you touch a number in this file,
  * check whether an archetype test (packages/engine/test, search for the
  * archetype's name) is asserting on the specific behavior that rating
  * drives, before assuming the change is cosmetic.
  *
- * Each archetype below is named for the real-world player type it
- * approximates — not any specific real player; these are composites, not
- * likenesses — with the 2-3 ratings that most define that type called out.
- * All ratings are 0-100 (see @hoopsh/data's schema.ts, which enforces this
- * same range for hand-edited packs).
+ * Each archetype below is named for the REAL-WORLD PLAYER TYPE it's meant
+ * to approximate (not any specific real player — these are composites/
+ * fixtures, not likenesses), with the 2-3 ratings that most define that
+ * type called out. All ratings are 0-100 (see @hoopsh/data's schema.ts,
+ * which enforces this same range for hand-edited packs).
  */
 
 import { makePlayer, type Player, type Position } from '@hoopsh/engine';
@@ -30,16 +30,16 @@ interface Named {
 
 /**
  * Off-movement three-point assassin (the "plays like Curry" fixture).
- * Defining ratings: three=99, as high as the scale allows (the archetype
- * exists to be the unambiguous best three-point shooter in any roster);
- * pullUp=82, scores off the dribble, not just catch-and-shoot; and
- * offBallMotion=90, constant relocating off screens rather than standing
- * in one spot, which is where the "gravity" this archetype creates on
- * defense comes from. Weak on the other end (interiorD=30, block=20) and
- * merely good at the rim (finishing=78). A shooting specialist, not a
- * two-way star: the archetype test suite should check that the offense
- * (efficiency, three-point volume) is elite while defense/rim scoring are
- * average.
+ * Defining ratings: three=99 (as high as the scale allows — the whole
+ * archetype exists to be the unambiguous best three-point shooter in any
+ * roster), pullUp=82 (score off the dribble, not just catch-and-shoot),
+ * offBallMotion=90 (constant relocating off screens rather than standing
+ * in one spot — what makes the "gravity" this archetype creates on defense
+ * feel earned rather than scripted). Deliberately weak on the other end
+ * (interiorD=30, block=20) and at the rim (finishing=78 is good but not
+ * elite) — this is a shooting specialist, not a two-way star, and the
+ * archetype test suite should be checking that the offense (efficiency,
+ * three-point volume) is elite while defense/rim scoring are merely average.
  */
 export function eliteShooter(who: Named): Player {
   return makePlayer({
@@ -63,14 +63,14 @@ export function eliteShooter(who: Named): Player {
 
 /**
  * Lob-catching, rim-running, rebound-eating center. Defining ratings:
- * finishing=94 + vertical=88 (scores almost exclusively above the rim:
+ * finishing=94 + vertical=88 (score almost exclusively above the rim —
  * dunks/lobs, not touch shots), offReb/defReb/boxout all 80s-90s (a
- * rebounding-first center), and three=12 with shotThree tendency=1. This
- * archetype essentially never shoots threes; by the engine's
+ * rebounding-first center), and three=12 with shotThree tendency=1 (this
+ * archetype essentially never shoots threes — by the engine's
  * gravity(a) = clamp(0.65×three/100 + 0.35×shotThree/100, 0, 1) formula
  * from sim/resolve.ts, that works out to gravity ≈ 0.65×0.12 + 0.35×0.01
  * ≈ 0.08, i.e. defenses correctly read this player as a total non-threat
- * beyond ~15 feet and don't have to guard him out there. midRange=28 and
+ * beyond ~15 feet and don't have to guard him out there). midRange=28 and
  * ballHandle=28 keep this player firmly a roll-and-finish, not a
  * face-up-and-shoot, big.
  */
@@ -96,14 +96,14 @@ export function rimRunner(who: Named): Player {
 
 /**
  * Pass-first table-setter who lives in the paint-to-kick game. Defining
- * ratings: passAcc=97 + passVision=98, both near the top of the scale
- * (the passing archetype in this file, distinct from eliteShooter's
- * passAcc=86/passVision=84, which are merely good-for-a-scorer), and
+ * ratings: passAcc=97 + passVision=98 (both near the top of the scale —
+ * this is THE passing archetype in the file, distinct from eliteShooter's
+ * passAcc=86/passVision=84, which are merely good-for-a-scorer) and
  * decisions=95 (rarely a bad shot-vs-pass read). drive=72 alongside
  * passOut=92 is the "paint-to-kick" signature: gets into the lane
- * constantly, but the tendency numbers say the resulting look is much more
- * often a kickout than a shot attempt. three=62 is good, not great; not a
- * knockdown shooter, but defenses still have to respect it.
+ * constantly but the tendency numbers say the resulting look is much more
+ * often a kickout than a shot attempt. three=62 is good-not-great — a
+ * knockdown shooter this is not, but defenses still have to respect it.
  */
 export function floorGeneral(who: Named): Player {
   return makePlayer({
@@ -126,13 +126,13 @@ export function floorGeneral(who: Named): Player {
 }
 
 /**
- * Corner-spacing, point-of-attack stopper: the archetype the "3&D" label
+ * Corner-spacing, point-of-attack stopper — the archetype the "3&D" label
  * literally names. Defining ratings: three=82 (a genuine catch-and-shoot
  * weapon) paired with pullUp=12 (almost never creates his own three off
- * the dribble: a spot-up shooter, not an isolation scorer, which
+ * the dribble — this is a spot-up shooter, not an isolation scorer, which
  * shotThree=84/drive=28/iso=6 all reinforce) and perimeterD=90 +
  * steal=78 + contestSkill=82 (a legitimate lockdown wing defender, not
- * just "plays defense" filler). offBallMotion=50 is middling. This
+ * just "plays defense" filler). offBallMotion=50 is middling — this
  * player's game is standing in the corner and defending, not the
  * ceaseless relocating of eliteShooter (offBallMotion=90).
  */
@@ -157,15 +157,15 @@ export function threeAndD(who: Named): Player {
 }
 
 /**
- * Do-everything scoring wing: the "bucket-getter" who can score from all
+ * Do-everything scoring wing — the "bucket-getter" who can score from all
  * three levels. Defining ratings: finishing=88, midRange=82, three=74 are
  * all genuinely good (no clear weak level to attack, unlike eliteShooter's
- * rim/mid falloff or threeAndD's near-absent shot creation), and drawFoul=82
- * is the highest in the file: this player draws whistles at an elite rate
- * and lives at the free-throw line as much as in the paint. iso=60 +
+ * rim/mid falloff or threeAndD's near-absent shot creation) and drawFoul=82
+ * is the highest in the file — this player draws whistles at an elite rate,
+ * living at the free-throw line as much as scoring in the paint. iso=78 +
  * pullUp=58 + drive=74 together say most of this scoring comes from
  * self-creation rather than off-ball movement (offBallMotion=58 is only
- * middling), which separates this from a pure catch-and-shoot wing.
+ * middling), distinguishing this from a pure catch-and-shoot wing.
  */
 export function scoringWing(who: Named): Player {
   return makePlayer({
@@ -188,15 +188,15 @@ export function scoringWing(who: Named): Player {
 }
 
 /**
- * Bruising post scorer with soft touch: an old-school back-to-the-basket
- * big. Defining ratings: strength=90 (highest in the file alongside
- * rimRunner), post tendency=78 (by far the highest post tendency of any
- * archetype; this player's offense routes through the low block, not just
- * "is a big who sometimes scores inside"), and midRange=74, the "soft
- * touch": a legitimate face-up/turnaround jumper, unlike rimRunner's
- * midRange=28, and the thing that separates a post scorer from a pure
- * rim-runner big. three=34 with shotThree tendency=8 says this player will
- * occasionally step out but is not a stretch four.
+ * Bruising post scorer with soft touch — an old-school back-to-the-basket
+ * big. Defining ratings: strength=90 (second in the file only to
+ * rimRunner's 92) + post tendency=78 (by far the highest post tendency of any
+ * archetype — this player's offense specifically routes through the low
+ * block, not just "is a big who sometimes scores inside") and midRange=74
+ * (the "soft touch" — a legitimate face-up/turnaround jumper, unlike
+ * rimRunner's midRange=28, which is what separates a post scorer from a
+ * pure rim-runner big). three=34 with shotThree tendency=8 says this
+ * player will occasionally step out but is not a stretch four.
  */
 export function postAnchor(who: Named): Player {
   return makePlayer({
@@ -219,12 +219,12 @@ export function postAnchor(who: Named): Player {
 }
 
 /**
- * Steady rotation guard: a solid combo (scoring/playmaking hybrid) guard
+ * Steady rotation guard — a solid combo (scoring/playmaking hybrid) guard
  * who'd start on a below-average team and come off the bench on a good
  * one. Defining ratings: everything sits in the 60s-70s range with no
  * standout elite trait (contrast with floorGeneral's 95+ passing or
- * eliteShooter's 99 three). That flatness is the archetype: a dependable,
- * no-real-weakness rotation piece rather than a specialist.
+ * eliteShooter's 99 three) — that flatness IS the archetype: a
+ * dependable, no-real-weakness rotation piece rather than a specialist.
  * three=70/shotThree=62 make this a credible enough shooter that defenses
  * can't fully ignore him, and decisions=70 keeps turnovers manageable
  * without floorGeneral-level table-setting.
@@ -250,14 +250,15 @@ export function comboGuard(who: Named): Player {
 }
 
 /**
- * Big-minutes glue forward: the "does a little of everything, nothing
+ * Big-minutes glue forward — the "does a little of everything, nothing
  * spectacular, never hurts you" role player teams build depth around.
  * Defining ratings: perimeterD=70 and interiorD=72 are both solidly good
- * (a defender who can guard multiple positions, unlike threeAndD's
- * perimeter-only 90/62 split), and three=58 is just competent enough to
+ * (versatile defender who can guard multiple positions, unlike threeAndD's
+ * perimeter-only 90/62 split) and three=58 is just competent enough to
  * space the floor without being a real weapon. No rating in this profile
- * cracks 80 on offense. The value is playing 30+ solid minutes without a
- * hole in the profile, not any single elite skill.
+ * cracks 80 on offense — deliberately unglamorous, this archetype's value
+ * is in playing 30+ solid minutes without a hole in the profile, not in
+ * any single elite skill.
  */
 export function glueForward(who: Named): Player {
   return makePlayer({
@@ -280,15 +281,16 @@ export function glueForward(who: Named): Player {
 }
 
 /**
- * Backup rim protector: a limited but useful reserve center, "bring
+ * Backup rim protector — a limited but useful reserve center, "bring
  * energy off the bench and protect the rim" rather than a featured
  * scorer. Defining ratings: block=78 + interiorD=78 + offReb/defReb/
  * boxout all 80-82 keep this a genuinely useful rebounding/rim-protection
  * piece, but finishing=78/midRange=30/three=8 with decisions=56 (the
- * lowest of any center-type archetype here) mark the offensive game as
- * bench-caliber, not starter-caliber. The contrast with rimRunner
+ * lowest of any center-type archetype here) mark this as a bench-caliber,
+ * not a starter-caliber, offensive game — rimRunner's higher ceiling
  * (finishing=94, decisions=60, vertical=88 vs. this player's 70) is the
- * point: same rough shape, paint-bound big, clearly a tier below.
+ * deliberate contrast: same rough shape (paint-bound big), clearly a tier
+ * below.
  */
 export function benchBig(who: Named): Player {
   return makePlayer({
@@ -311,15 +313,15 @@ export function benchBig(who: Named): Player {
 }
 
 /**
- * Microwave bench scorer: instant offense off the bench, the "sixth man
+ * Microwave bench scorer — instant offense off the bench, the "sixth man
  * who can heat up fast" type. Defining ratings: pullUp=68 + three=78 +
  * shotThree tendency=66 (a shot-hunting scorer who creates his own three
  * rather than waiting for a pass) and iso=52 (comfortable putting the ball
- * on the floor and going to work alone), against decisions=54 and
- * consistency=58, both the lowest offensive-decision-quality numbers of
- * any perimeter archetype here. That is the trade-off: high scoring
- * ceiling, streaky floor, which is what "microwave" implies. Can go on a
- * heater, can also go cold and keep shooting anyway.
+ * on the floor and going to work alone) contrast with decisions=54 and
+ * consistency=58 — both the lowest offensive-decision-quality numbers of
+ * any perimeter archetype here, which is the deliberate trade-off: high
+ * scoring ceiling, streaky/inconsistent floor, exactly what "microwave"
+ * implies (can go on a heater, can also go cold and keep shooting anyway).
  */
 export function benchScorer(who: Named): Player {
   return makePlayer({
@@ -342,18 +344,17 @@ export function benchScorer(who: Named): Player {
 }
 
 /**
- * Modern floor-spacing center: a big who stretches the defense beyond
+ * Modern floor-spacing center — a big who stretches the defense beyond
  * the arc instead of posting up. Defining ratings: three=76 + freeThrow=82
- * (a legitimate outside shooter, distinct from rimRunner's 12/52; this
- * archetype plays in space, not the paint) paired with shotThree=78
- * (heavily prefers the three-point line, unlike rimRunner's shotThree=1)
- * and gravity ≈ 0.77 (calculated as 0.65×76/100 + 0.35×78/100; exceeds the
- * 0.42 threshold in ai.ts#assignSpots so defenses cannot park him at the
- * dunker spot). Post tendency=8 and midRange=36 say this is not a
- * back-to-basket big; finishing=80 and strength=88 keep him a legitimate
- * rim threat when defenders sag. Interior defense stays elite (84) but
- * block=72 is lower than rimRunner's 90: shooting prioritized over rim
- * protection, the modern trade-off.
+ * (a legitimate outside shooter, distinct from rimRunner's 12/52 — this
+ * archetype plays in space, not the paint) paired with shotThree=78 (heavily
+ * prefers the three-point line, unlike rimRunner's shotThree=1) and gravity ≈
+ * 0.77 (calculated as 0.65×76/100 + 0.35×78/100; exceeds the 0.42 threshold
+ * in ai.ts#assignSpots so defenses cannot park him at the dunker spot). Post
+ * tendency=8 and midRange=36 say this is not a back-to-basket big; finishing=80
+ * and strength=88 keep him a legitimate rim threat when defenders sag. Interior
+ * defense stays elite (84) but block=72 is lower than rimRunner's 90 — this
+ * player prioritizes shooting over rim protection, the modern trade-off.
  */
 export function stretchBig(who: Named): Player {
   return makePlayer({

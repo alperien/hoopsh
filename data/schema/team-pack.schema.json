@@ -73,11 +73,11 @@
         },
         "strength": {
           "$ref": "#/$defs/rating",
-          "description": "screen-setting punch (ai.ts actionTick \"fight\" term) and rebound box-out leverage alongside boxout/offReb/defReb in resolve.ts resolveRebound"
+          "description": "physical punch — ai/actions.ts only: the screen-contact \"fight\" stun term, the screener-selection score, and post-up credibility (posterScore). NOT a rebound input: the rebound lottery reads offReb/defReb/boxout/vertical/heightIn (resolve.ts reboundLottery)"
         },
         "vertical": {
           "$ref": "#/$defs/rating",
-          "description": "jump: tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound; also the height-advantage term for shooting over a defender"
+          "description": "jump — tip-off win chance (possession.ts tipWeightedWinner) and rebound skill weight in resolveRebound (both blend sides). NOT the shot height-advantage term — that is standing reach, height + wingspan only (model/derived.ts reachFt)"
         },
         "lateral": {
           "$ref": "#/$defs/rating",
@@ -89,75 +89,75 @@
         },
         "finishing": {
           "$ref": "#/$defs/rating",
-          "description": "layups, dunks, rim pressure; feeds resolve.ts zoneSkill for 'rim' and (partially) 'paint'"
+          "description": "layups, dunks, rim pressure — resolve.ts zoneSkill for 'rim' and (partially) 'paint'"
         },
         "midRange": {
           "$ref": "#/$defs/rating",
-          "description": "touch/footwork on floaters, push shots, mid-post: resolve.ts zoneSkill for 'mid' and (partially) 'paint'"
+          "description": "touch/footwork on floaters, push shots, mid-post — resolve.ts zoneSkill for 'mid' and (partially) 'paint'"
         },
         "three": {
           "$ref": "#/$defs/rating",
-          "description": "jump-shooting range skill (resolve.ts zoneSkill for 'three'); also half of ai.ts gravity() (defenses respect this from distance)"
+          "description": "jump-shooting range skill — resolve.ts zoneSkill for 'three'; also half of ai.ts gravity() (defenses respect this from distance)"
         },
         "freeThrow": {
           "$ref": "#/$defs/rating",
-          "description": "free-throw shooting touch (resolve.ts freeThrowP base-percentage swing)"
+          "description": "free-throw shooting touch — resolve.ts freeThrowP base-percentage swing"
         },
         "drawFoul": {
           "$ref": "#/$defs/rating",
-          "description": "foul-drawing craftiness: resolve.ts shootingFoulP multiplier on the shooter's side (contact-seeking finishers get to the line more)"
+          "description": "foul-drawing craftiness — resolve.ts shootingFoulP multiplier on the shooter's side (contact-seeking finishers get to the line more)"
         },
         "ballHandle": {
           "$ref": "#/$defs/rating",
-          "description": "ball-security under pressure: resolve.ts passing.ts stripP (denominator vs a defender's steal), decideBall's drive-handling term, and half of ai.ts creation() (the usage-hierarchy score)"
+          "description": "ball-security under pressure — resolve.ts passing.ts stripP (denominator vs a defender's steal), decideBall's drive-handling term, and half of ai.ts creation() (the usage-hierarchy score)"
         },
         "passAcc": {
           "$ref": "#/$defs/rating",
-          "description": "pass accuracy; resolve.ts passRisk skillTerm (turnover risk) alongside passVision"
+          "description": "pass accuracy — resolve.ts passRisk skillTerm (turnover risk) alongside passVision"
         },
         "passVision": {
           "$ref": "#/$defs/rating",
-          "description": "court vision. resolve.ts passRisk skillTerm; ai.ts swingBonus; half of ai.ts creation() (usage hierarchy); scales the drive kick premium (drive-and-kick is a passing skill)"
+          "description": "court vision — resolve.ts passRisk skillTerm; ai.ts swingBonus; half of ai.ts creation() (usage hierarchy); scales the drive kick premium (drive-and-kick is a passing skill)"
         },
         "perimeterD": {
           "$ref": "#/$defs/rating",
-          "description": "point-of-attack craft: ai.ts on-ball containment vs drives (ai.containDBlend) and resolve.ts contest skill outside the rim area (move.contestDBlend)"
+          "description": "point-of-attack craft — ai.ts on-ball containment vs drives (ai.containDBlend) and resolve.ts contest skill outside the rim area (move.contestDBlend)"
         },
         "interiorD": {
           "$ref": "#/$defs/rating",
-          "description": "rim-area positioning/verticality: resolve.ts contest skill within 14 ft of the attacked rim (move.contestDBlend); distinct from `block`, which converts misses into blocks"
+          "description": "rim-area positioning/verticality — resolve.ts contest skill within 14 ft of the attacked rim (move.contestDBlend); distinct from `block`, which converts misses into blocks"
         },
         "steal": {
           "$ref": "#/$defs/rating",
-          "description": "on-ball strip and passing-lane instincts, read by resolve.ts passing stripP and passRisk's lane occlusion (danger-defender weighting)"
+          "description": "on-ball strip and passing-lane instincts — resolve.ts passing stripP and passRisk's lane occlusion (danger-defender weighting)"
         },
         "block": {
           "$ref": "#/$defs/rating",
-          "description": "shot-blocking timing/length, the resolve.ts blockP skill term (chance a rim/paint miss is credited as a block)"
+          "description": "shot-blocking timing/length — resolve.ts blockP skill term (chance a rim/paint miss is credited as a block)"
         },
         "contestSkill": {
           "$ref": "#/$defs/rating",
-          "description": "closeout/contest technique independent of raw speed: the resolve.ts contestAt/anticipatedContest skill multiplier, blended with perimeterD/interiorD per move.contestDBlend"
+          "description": "closeout/contest technique independent of raw speed — resolve.ts contestAt/anticipatedContest skill multiplier, blended with perimeterD/interiorD per move.contestDBlend"
         },
         "offReb": {
           "$ref": "#/$defs/rating",
-          "description": "offensive-rebound pursuit skill: resolve.ts resolveRebound weight when the crasher's side matches the shooting team"
+          "description": "offensive-rebound pursuit skill — resolve.ts resolveRebound weight when the crasher's side matches the shooting team"
         },
         "defReb": {
           "$ref": "#/$defs/rating",
-          "description": "defensive-rebound pursuit skill: resolve.ts resolveRebound weight on the non-shooting side"
+          "description": "defensive-rebound pursuit skill — resolve.ts resolveRebound weight on the non-shooting side"
         },
         "boxout": {
           "$ref": "#/$defs/rating",
-          "description": "boxing-out technique, resolve.ts resolveRebound defensive weight only (offense doesn't box out; it crashes)"
+          "description": "boxing-out technique — resolve.ts resolveRebound defensive weight only (offense doesn't box out; it crashes)"
         },
         "decisions": {
           "$ref": "#/$defs/rating",
-          "description": "shot selection & pass reads; ai.ts contestBrakeIQ (extra brake on shooting into a contest as this rises)"
+          "description": "shot selection & pass reads — ai.ts contestBrakeIQ (extra brake on shooting into a contest as this rises)"
         },
         "consistency": {
           "$ref": "#/$defs/rating",
-          "description": "STAGED: consumed by the hot/cold variance model (Stage 3); see docs/INTERNALS.md"
+          "description": "STAGED — consumed by the hot/cold variance model (Stage 3); see docs/INTERNALS.md"
         }
       },
       "additionalProperties": false
@@ -184,59 +184,59 @@
       "properties": {
         "shotRim": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for rim/paint shots: ai.ts decideBall zoneTend bias when the projected shot is at the rim or in the paint"
+          "description": "appetite for rim/paint shots — ai.ts decideBall zoneTend bias when the projected shot is at the rim or in the paint"
         },
         "shotMid": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for mid-range shots: ai.ts decideBall zoneTend bias when the projected shot is a mid-range look"
+          "description": "appetite for mid-range shots — ai.ts decideBall zoneTend bias when the projected shot is a mid-range look"
         },
         "shotThree": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for three-point shots: ai.ts decideBall zoneTend bias when the projected shot is a three, stacked with the team's threeBias tactic"
+          "description": "appetite for three-point shots — ai.ts decideBall zoneTend bias when the projected shot is a three, stacked with the team's threeBias tactic"
         },
         "pullUp": {
           "$ref": "#/$defs/rating",
-          "description": "pull-up vs catch-and-shoot inclination. ai.ts decideBall adds a pull-up-specific bias on top of the zone bias when the shot move is 'pull_up'"
+          "description": "pull-up vs catch-and-shoot inclination — ai.ts decideBall adds a pull-up-specific bias on top of the zone bias when the shot move is 'pull_up'"
         },
         "drive": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for putting the ball on the floor and attacking; ai.ts decideBall uDrive tendency term (drive utility), scaled by the team's driveAppetite tactic"
+          "description": "appetite for putting the ball on the floor and attacking — ai.ts decideBall uDrive tendency term (drive utility), scaled by the decide.driveAppetite SimParams knob (a params dial, not a team tactic)"
         },
         "passOut": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for giving the ball up rather than creating; feeds ai.ts decideBall swingBonus (intrinsic ball-movement value on top of the receiving teammate's shot EV)"
+          "description": "appetite for giving the ball up rather than creating — ai.ts decideBall swingBonus (intrinsic ball-movement value on top of the receiving teammate's shot EV)"
         },
         "iso": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for clearing out one-on-one: ai.ts actionTick iso-call weight; a live iso boosts the handler's attack (ai.isoDriveBonus)"
+          "description": "appetite for clearing out one-on-one — ai.ts actionTick iso-call weight; a live iso boosts the handler's attack (ai.isoDriveBonus)"
         },
         "post": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for backing a man down: ai.ts actionTick post-call score (with strength/finishing); a posted big draws the entry, works the block, and sprays out of the double"
+          "description": "appetite for backing a man down — ai.ts actionTick post-call score (with strength/finishing); a posted big draws the entry, works the block, and sprays out of the double"
         },
         "offBallMotion": {
           "$ref": "#/$defs/rating",
-          "description": "relocations & cuts vs static spot-up; ai.ts offenseOffBallTick per-tick cut-trigger chance"
+          "description": "relocations & cuts vs static spot-up — ai.ts offenseOffBallTick per-tick cut-trigger chance"
         },
         "crashOffReb": {
           "$ref": "#/$defs/rating",
-          "description": "willingness to crash the offensive glass instead of getting back on defense: the ai.ts onShotReleased crash-vs-getback roll when a teammate's shot goes up"
+          "description": "willingness to crash the offensive glass instead of getting back on defense — ai.ts onShotReleased crash-vs-getback roll when a teammate's shot goes up"
         },
         "gambleSteal": {
           "$ref": "#/$defs/rating",
-          "description": "appetite for gambling into passing lanes for a steal; passing.ts attemptReachIn reach-in attempt rate (more gambling = more steals AND more fouls)"
+          "description": "appetite for gambling into passing lanes for a steal — passing.ts attemptReachIn reach-in attempt rate (more gambling = more steals AND more fouls)"
         },
         "foulAggr": {
           "$ref": "#/$defs/rating",
-          "description": "physical/aggressive defensive style. resolve.ts shootingFoulP aggr multiplier (tenser closeouts and more contact foul more often)"
+          "description": "physical/aggressive defensive style — resolve.ts shootingFoulP aggr multiplier (tenser closeouts and more contact foul more often)"
         },
         "pushPace": {
           "$ref": "#/$defs/rating",
-          "description": "STAGED: consumed by the team-pace layer (Stage 2); see docs/INTERNALS.md"
+          "description": "STAGED — consumed by the team-pace layer (Stage 2); see docs/INTERNALS.md"
         },
         "usage": {
           "$ref": "#/$defs/rating",
-          "description": "share of team offense this player is wired to consume. Maps directly to real USG%: 50 ≈ 20% (league average), 90 ≈ 30% (superstar load), 10 ≈ 10% (screener/finisher). Applied as CLOSED-LOOP pressure in ai.ts decideBall: the gap between this target and the realized in-game share biases shoot/drive vs pass. An under-fed star hunts, an over-fed one defers. Orthogonal to creation by design (a deferential genius and a low-skill chucker are both expressible)."
+          "description": "share of team offense this player is wired to consume — maps directly to real USG%: 50 ≈ 20% (league average), 90 ≈ 30% (superstar load), 10 ≈ 10% (screener/finisher). Applied as CLOSED-LOOP pressure in ai.ts decideBall: the gap between this target and the realized in-game share biases shoot/drive vs pass — an under-fed star hunts, an over-fed one defers. Orthogonal to creation by design (a deferential genius and a low-skill chucker are both expressible)."
         }
       },
       "additionalProperties": false
@@ -252,15 +252,15 @@
       "properties": {
         "pace": {
           "$ref": "#/$defs/rating",
-          "description": "0-100: walk-it-up .. run-and-gun. Not yet read by decideBall; reserved for the team-pace layer alongside tend.pushPace (see docs/INTERNALS.md Stage 2)"
+          "description": "STAGED — 0-100: walk-it-up .. run-and-gun. Not yet read by any engine code — reserved for the team-pace layer alongside tend.pushPace (see docs/INTERNALS.md Stage 2; listed in its staged-surface inventory, rule 6)"
         },
         "threeBias": {
           "$ref": "#/$defs/rating",
-          "description": "0-100: global three-point appetite modifier (ai.ts decideBall tacticsThreeScale term), stacked on top of the shooter's own shotThree tendency"
+          "description": "0-100: global three-point appetite modifier — ai.ts decideBall tacticsThreeScale term, stacked on top of the shooter's own shotThree tendency"
         },
         "helpAggr": {
           "$ref": "#/$defs/rating",
-          "description": "0-100: how aggressively help defense converges (ai.ts defenseTick helper-selection score and off-ball sag depth)"
+          "description": "0-100: how aggressively help defense converges — ai.ts defenseTick helper-selection score and off-ball sag depth"
         }
       },
       "additionalProperties": false

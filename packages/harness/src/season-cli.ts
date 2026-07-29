@@ -4,26 +4,26 @@
  *   npm run season -- [--teams 6] [--rounds 2] [--games N] [--seed base] [--json]
  *   npm run season -- --matchup 0,3 [--sims 100] [--mirror] [--teams 6] [--seed base] [--json]
  *
- * Season mode (default): generates a deterministic league of --teams teams
+ * SEASON MODE (default): generates a deterministic league of --teams teams
  * (league.ts), schedules a --rounds round-robin (default double), simulates
  * every game, and prints per-game scores' summary plus a standings table.
  * --games caps the schedule (or extends it by tiling more round-robin
  * cycles when larger than one).
  *
- * Matchup mode (--matchup A,B): Monte-Carlo the A-vs-B fixture --sims times
- * (A at home) and print the distribution report: win probability with a
+ * MATCHUP MODE (--matchup A,B): Monte-Carlo the A-vs-B fixture --sims times
+ * (A at home) and print the distribution report — win probability with a
  * Wilson 95% CI, margin stats/histogram, and per-player stat lines.
  *
  * --json switches either mode to a single machine-readable JSON document on
- * stdout with no timing/progress noise; byte-identical across runs with
- * the same flags, which is how to prove determinism:
+ * stdout with NO timing/progress noise — byte-identical across runs with
+ * the same flags, which is exactly how to PROVE determinism:
  *
  *   npm run season -- --teams 4 --seed proof --json | sha256sum
  *   (run twice; the hashes match)
  *
- * Compute budget: one game is ~250-400ms on this class of box. A 6-team
+ * COMPUTE BUDGET: one game is ~250-400ms on this class of box. A 6-team
  * double round-robin (30 games) is ~10s; a 30-team NBA-sized 1230-game
- * season is ~6-8 minutes single-process. Run that deliberately, not
+ * season is ~6-8 MINUTES single-process — run that deliberately, not
  * casually. Parallel execution arrives via the wave1/runner worker pool
  * behind season.ts's SimulateGames seam, not here.
  */
@@ -44,13 +44,21 @@ const matchupSpec = flagValue(argv, '--matchup', '');
 if (!Number.isInteger(nTeams) || nTeams < 2) {
   throw new Error(`--teams must be an integer >= 2, got ${nTeams}`);
 }
+// same loud-on-malformed doctrine as --teams (and cli.ts's --games guard,
+// red-team MINOR-4): `--rounds 0` used to print a real-looking all-zero
+// standings table with 'checks: Σwins 0 = games 0' and exit 0, and a
+// fractional value silently rounded UP a whole extra round-robin cycle
+// (scan finding B3-2)
+if (!Number.isInteger(rounds) || rounds < 1) {
+  throw new Error(`--rounds must be an integer >= 1, got ${rounds} — a zero-game season is a misconfiguration, not a result`);
+}
 
 const teams = makeLeague(nTeams, `${seed}:league`);
 
 // ---------------------------------------------------------------- helpers
 
 function progress(done: number, total: number): void {
-  if (json) return; // JSON mode: stdout carries only the document
+  if (json) return; // JSON mode: stdout carries ONLY the document
   if (done % 5 === 0 || done === total) process.stdout.write(`  ${done}/${total} games\r`);
 }
 
@@ -91,8 +99,21 @@ function seasonJson(result: SeasonResult): string {
 // ------------------------------------------------------------------ modes
 
 async function seasonMode(): Promise<void> {
+  // Negative/fractional values fail loudly instead of degrading silently
+  // (c4-F6, kin of batch MINOR-4): `--rounds -1` used to print a 0-game
+  // season with an empty standings table and exit 0, and `--games -3` was
+  // silently ignored (the > 0 gate below routed to the rounds default).
+  if (rounds < 1 || !Number.isInteger(rounds)) {
+    throw new Error(`season: --rounds must be a positive integer, got ${rounds}`);
+  }
   const perCycle = roundRobin(teams.map((t) => t.id), 1).length;
   const gamesFlag = flagNumber(argv, '--games', 0);
+  // 0 is the not-passed default (schedule length comes from --rounds); an
+  // explicit negative/fractional --games was previously IGNORED silently by
+  // the `gamesFlag > 0` branches below — reject it instead (B3-2)
+  if (!Number.isInteger(gamesFlag) || gamesFlag < 0) {
+    throw new Error(`--games must be an integer >= 1 (omit it to schedule by --rounds), got ${gamesFlag}`);
+  }
   let schedule = roundRobin(
     teams.map((t) => t.id),
     gamesFlag > 0 ? Math.max(1, Math.ceil(gamesFlag / perCycle)) : rounds

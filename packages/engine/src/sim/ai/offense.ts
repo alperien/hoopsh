@@ -1,8 +1,8 @@
 /**
  * Off-ball offense: spacing-spot assignment, per-tick movement (cuts, DHO
  * sprints, screen setting, relocations), and the both-sides reaction to a
- * shot going up (crash / box out / get back; the boxout half steers the
- * defense, but the trigger is the offense's shot, so it lives here with it).
+ * shot going up (crash / box out / get back — the boxout half steers the
+ * DEFENSE, but the trigger is the offense's shot, so it lives here with it).
  */
 
 import { dist, lerp, norm, scale, sub, add } from '../../core/vec.js';
@@ -29,8 +29,8 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
     } else {
       a.intent = 'getback';
       // retreat to the rim this team defends. (This was a lerp between two
-      // expressions that are provably always the same rim, attackedRim of
-      // the other side and the opposite-end rims[] entry, i.e. dead
+      // expressions that are provably always the SAME rim — attackedRim of
+      // the other side and the opposite-end rims[] entry — i.e. dead
       // geometry; simplified to what it always computed.)
       a.target = { ...attackedRim(s, other(offSide)) };
       a.sprinting = false;
@@ -39,17 +39,17 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
   for (const d of liveOnCourt(s, other(offSide))) {
     const man = d.manId ? s.agents.get(d.manId) : null;
     if (man && dist(man.pos, rim) >= 20) {
-      // guard-crash economy: a defender guarding the perimeter mostly holds
-      // rather than sprinting into the scrum. Unconditional crashing had
+      // guard-crash economy: a defender guarding the PERIMETER mostly holds
+      // rather than sprinting into the scrum — unconditional crashing had
       // guards poaching long boards from the bigs who carved the position
       // (the hub benchmark's rebound share ran ~2 boards short). Rebounding
-      // instincts (defReb) still send some guards in: the Westbrook clause.
+      // instincts (defReb) still send some guards in — the Westbrook clause.
       const goes = s.rng.chance(
         s.params.ai.defCrashFarChance + (d.p.attr.defReb / 100) * s.params.ai.defCrashFarSkill
       );
       if (!goes) {
         d.intent = 'getback';
-        d.target = { ...man.pos }; // stay attached; deny the outlet leak
+        d.target = { ...man.pos }; // stay attached — deny the outlet leak
         d.sprinting = false;
         continue;
       }
@@ -64,27 +64,27 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
 // ------------------------------------------------------------ offense setup
 
 /**
- * Roll this possession's spot coordinates: the geometric template plus a
+ * Roll THIS possession's spot coordinates: the geometric template plus a
  * small seeded jitter (params.ai.spotJitterFt, uniform per axis), stored on
  * s.poss.spots for every downstream consumer. One roll per spot per
- * possession; the draw count is fixed (all spots, every call), so the RNG
+ * possession — the draw count is fixed (all spots, every call), so the RNG
  * stream stays deterministic regardless of personnel or spot usage.
  *
  * Why: with exact template coordinates, every trip produced bit-identical
- * shot locations, and the Turing baseline judges read the repeated "26 ft"
+ * shot locations — the Turing baseline judges read the repeated "26 ft"
  * threes and "5 ft" twos as a generator artifact (flow-reference.json
  * meta.turingBaseline). Real spots are zones re-picked each trip.
  *
- * Two guards keep jitter from changing what a spot means (both bit the
- * first time around: assisted share drifted over its band edge on the
+ * Two guards keep jitter from changing what a spot MEANS (both bit the
+ * first time around — assisted share drifted over its band edge on the
  * 24-game guard):
- *  - Corners deliberately sit inside the 22 ft corner-three line (the D3
- *    decision; behind-the-line corners are coupled to the assist economy,
+ *  - Corners deliberately sit INSIDE the 22 ft corner-three line (the D3
+ *    decision — behind-the-line corners are coupled to the assist economy,
  *    see spacingSpots). Jitter must neither un-make that call (outward)
- *    nor systematically shorten the corner into an easier junk 2 (inward),
+ *    nor systematically SHORTEN the corner into an easier junk 2 (inward),
  *    so corners jitter along the baseline only: lateral stays pinned at
  *    the template offset.
- *  - Top/wing spots are three-point spacing: a real shooter stands behind
+ *  - Top/wing spots are three-point spacing: a real shooter stands BEHIND
  *    the line on purpose. Unguarded jitter parked them on/inside the arc
  *    and minted 23-ft catch-and-shoot twos, so those spots keep
  *    params.ai.spotJitterArcMarginFt of clearance behind the arc (pushed
@@ -94,7 +94,7 @@ function rollSpots(s: GameState, rim: { x: number; y: number }): Map<string, { x
   const j = s.params.ai.spotJitterFt;
   const byKey = new Map<string, { x: number; y: number }>();
   for (const { key, pos } of spacingSpots(s.court, rim)) {
-    // two draws per spot, every spot, every possession: fixed rng
+    // two draws per spot, EVERY spot, every possession — fixed rng
     // consumption keeps the stream deterministic across code paths
     const dx = s.rng.range(-j, j);
     const dy = s.rng.range(-j, j);
@@ -111,7 +111,7 @@ function rollSpots(s: GameState, rim: { x: number; y: number }): Map<string, { x
         p.y = rim.y + (p.y - rim.y) * k;
       }
     }
-    // same court margin the relocation drift respects; nobody spaces out of bounds
+    // same court margin the relocation drift respects — nobody spaces out of bounds
     p.x = clamp(p.x, 2, s.court.length - 2);
     p.y = clamp(p.y, 2, s.court.width - 2);
     byKey.set(key, p);
@@ -125,15 +125,15 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const byKey = rollSpots(s, rim);
   s.poss.spots = byKey;
   // bench exhausted and every on-court player fouled out: play on with who's
-  // out there rather than crashing (mirrors bestHandler; NBA rule analog: a
+  // out there rather than crashing (mirrors bestHandler — NBA rule analog: a
   // fouled-out player remains when no substitute exists; custom short rosters
   // are legal input, and the adversarial audit produced this state at default
   // params with a foul-prone no-bench fixture)
   const eligible = liveOnCourt(s, side);
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
 
-  // Best handler initiates from the top; everyone else fills by gravity:
-  // shooters get the wings and corners, a low-gravity mid-range big the
+  // Best handler initiates from the top; everyone else fills by gravity —
+  // shooters get the wings and corners, a low-gravity MID-RANGE big the
   // elbow (see below), the lowest-gravity pure big the dunker.
   const sorted = [...players].sort((a, b) => b.p.attr.ballHandle - a.p.attr.ballHandle);
   const handler = sorted[0]!;
@@ -142,10 +142,10 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const map = s.poss.spotMap;
   map.clear();
   map.set(handler.p.id, 'top');
-  // Note (D3, REFACTOR.md): a best-fit assignment model (appetite-ranked
+  // NOTE (D3, REFACTOR.md): a best-fit assignment model (appetite-ranked
   // corners + interior block stationing) is built and validated per-metric
-  // in the D3 trail, but stays reverted; the D1 assist-crediting fix did
-  // not unblock it. Behind-the-line corners change the offense globally
+  // in the D3 trail, but stays reverted — the D1 assist-crediting fix did
+  // NOT unblock it. Behind-the-line corners change the offense globally
   // (catch-and-shoot share 58% -> 67%, bands 16/17 -> 7/17), so D3 needs
   // its own re-sweep, not a knob.
   const shooterKeys = ['wing_l', 'wing_r', 'corner_l', 'corner_r'];
@@ -153,14 +153,14 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   let sk = 0; // next shooter spot to hand out
   let ek = 0; // next elbow spot to hand out
   rest.forEach((a, i) => {
-    // The mid-range station: a low-gravity player (the defense will not
-    // respect him beyond the arc; same threshold that routes to the
+    // THE MID-RANGE STATION: a low-gravity player (the defense will not
+    // respect him beyond the arc — same threshold that routes to the
     // dunker) who nevertheless has a real in-between game (the same
     // green-light × ability score that gates the PnR short pop) spaces to
-    // the elbow, his actual habitat, instead of a corner. A corner catch
+    // the ELBOW, his actual habitat, instead of a corner. A corner catch
     // for him is the junkiest shot in basketball (a 21.6 ft two the
-    // defense happily concedes; pre-fix the postAnchor fixture's "mid"
-    // diet was exactly that: 1.5 att/g at a 20.5 ft average). The elbow
+    // defense happily concedes — pre-fix the postAnchor fixture's "mid"
+    // diet was exactly that: 1.5 att/g at a 20.5 ft average); the elbow
     // face-up at ~16 ft is his drilled shot, and his sagging defender
     // must now step up to the FT line to take it away, which is the
     // spacing pressure the mid game really exerts. Rim-runners and bench
@@ -195,7 +195,7 @@ export function assignSpots(s: GameState, side: TeamSide): void {
 export function offenseOffBallTick(s: GameState): void {
   const side = s.poss.team;
   const rim = attackedRim(s, side);
-  // This possession's jittered spot table (see rollSpots). The map is filled
+  // THIS possession's jittered spot table (see rollSpots). The map is filled
   // by assignSpots at possession start; the defensive fallback only covers a
   // degenerate empty map (e.g. a hand-built GameState in a test).
   const byKey = s.poss.spots.size > 0
@@ -210,8 +210,8 @@ export function offenseOffBallTick(s: GameState): void {
   for (const a of liveOnCourt(s, side)) {
     if (a.p.id === s.ball.holderId) continue;
 
-    // the DHO receiver sprints at the hub; the handoff fires on proximity
-    // (decideBall's dhoTarget check). Reuses the cut intent so his defender
+    // the DHO receiver sprints AT the hub — the handoff fires on proximity
+    // (decideBall's dhoTarget check); reuses the cut intent so his defender
     // trails him into the hub's body
     if (act?.kind === 'dho' && a.p.id === act.receiverId) {
       const hub = agent(s, act.hubId);
@@ -221,7 +221,7 @@ export function offenseOffBallTick(s: GameState): void {
       continue;
     }
 
-    // a posting big holds the block instead of cutting or relocating
+    // a posting big holds the block — no cuts, no relocations, just position
     if (act?.kind === 'post' && a.p.id === act.posterId) {
       a.intent = 'spot';
       a.sprinting = false;
@@ -232,8 +232,8 @@ export function offenseOffBallTick(s: GameState): void {
     if (act?.kind === 'pnr' && a.p.id === act.screenerId && act.phase !== 'finishing') {
       const handler = agent(s, act.handlerId);
       const onBall = assignedDefender(s, handler);
-      // set up beside the defender on the handler's side; once there, plant
-      // (a screen is a stationary pick: grinding into the defender looks
+      // set up beside the defender on the handler's side; once there, PLANT
+      // (a screen is a stationary pick — grinding into the defender looks
       // like a collision glitch and is an illegal screen anyway)
       const anchor = onBall ? onBall.pos : handler.pos;
       const toHandler = onBall ? norm(sub(handler.pos, onBall.pos)) : { x: 0, y: 1 };
@@ -253,33 +253,38 @@ export function offenseOffBallTick(s: GameState): void {
       continue;
     }
 
-    // occasionally trigger a cut for motion-heavy players when the lane is
-    // open. A denied man cuts far more: his defender is top-locked on the
-    // ball side (see defenseTick denial), which is exactly when the backdoor
-    // is there. The backdoor is the classic counter and keeps an all-time
-    // shooter's offense alive when the catch is taken away.
+    // occasionally trigger a cut for motion-heavy players. The gates are
+    // phase (halfcourt), spot (never the dunker), a tendency-scaled rng
+    // roll, and the runway below — there is deliberately NO "lane is open"
+    // read here (never has been, since introduction): the cut's value is
+    // priced honestly at the catch by the EV core, so a cut into traffic
+    // simply doesn't get fed. A DENIED man cuts far more: his defender is
+    // top-locked on the ball side (see defenseTick denial), which is
+    // exactly when the backdoor is there — the classic counter, and what
+    // keeps an all-time shooter's offense alive when the catch is taken
+    // away.
     const denyCutMult = gravity(s, a) > s.params.ai.denyGravityCut ? s.params.ai.denyBackdoorMult : 1;
     if (
       s.poss.phase === 'halfcourt' &&
       a.spotKey !== 'dunker' &&
       s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale * denyCutMult) &&
-      // only cut from outside cutRunwayFt; a cut needs runway to be worth anything
+      // only cut from outside cutRunwayFt — a cut needs runway to be worth anything
       dist(a.pos, rim) > s.params.ai.cutRunwayFt
     ) {
       a.cutUntil = s.t + s.params.ai.cutDurationSec;
       continue;
     }
 
-    // Purposeful relocation, the second half of stillness-as-default.
+    // PURPOSEFUL RELOCATION — the second half of stillness-as-default.
     // Spacing is held until the ball bends the defense; then a shooter
-    // shakes: while a drive is live he drifts away from his defender,
+    // SHAKES: while a drive is live he drifts away from his defender,
     // restoring the open catch-and-shoot that pure stillness strangled
-    // (3PA share pinned at ~24% without it; see params provenance).
+    // (3PA share pinned at ~24% without it — see params provenance).
     if (s.t < a.relocUntil) {
       // hold the relocated ground while the window lasts (the spot branch
       // below would otherwise walk him straight back and undo the shake).
       // sprinting is preserved from the trigger: a drift walks, a baseline
-      // escape runs.
+      // escape RUNS.
       a.intent = 'spot';
       continue;
     }
@@ -287,9 +292,9 @@ export function offenseOffBallTick(s: GameState): void {
       holder && s.poss.phase === 'halfcourt' &&
       a.spotKey !== 'dunker' &&
       gravity(s, a) > s.params.ai.dunkerGravityThreshold &&
-      // ordinary shooters shake when a drive bends the defense; a denied
-      // shooter (top-locked) works on his own schedule. Motion is his
-      // counter, and he is the one player whose perpetual movement is correct
+      // ordinary shooters shake when a DRIVE bends the defense; a DENIED
+      // shooter (top-locked) works on his own schedule — motion is his
+      // whole counter, the one player whose perpetual movement is correct
       (s.t < holder.driveUntil || gravity(s, a) > s.params.ai.denyGravityCut) &&
       s.rng.chance(
         gravity(s, a) > s.params.ai.denyGravityCut && s.t >= holder.driveUntil
@@ -300,13 +305,13 @@ export function offenseOffBallTick(s: GameState): void {
       const dfd = assignedDefender(s, a);
       if (dfd) {
         if (gravity(s, a) > s.params.ai.denyGravityCut) {
-          // The top-lock counter: a denied shooter doesn't drift, he runs
-          // the baseline to the corner his denier can't shade without
-          // losing the ball side. The backdoor cut (denyCutMult above) is
+          // THE TOP-LOCK COUNTER: a denied shooter doesn't drift — he RUNS
+          // THE BASELINE to the corner his denier can't shade without
+          // losing the ball side. The backdoor CUT (denyCutMult above) is
           // the rim half of the deny answer; this is the relocation half.
           // Without it, denial + stillness crowded the elite benchmark out
           // of his own three-point diet (3PA share 40% vs the 50%+
-          // identity gate; fidelity incident, texture increment).
+          // identity gate — fidelity incident, texture increment).
           const cl = byKey.get('corner_l');
           const cr = byKey.get('corner_r');
           const corner = cl && cr ? (dist(cl, dfd.pos) > dist(cr, dfd.pos) ? cl : cr) : (cl ?? cr);
@@ -327,12 +332,12 @@ export function offenseOffBallTick(s: GameState): void {
     }
 
     a.intent = 'spot';
-    // sprint belongs to transition; the advance is brought up at a jog
+    // sprint belongs to TRANSITION; the advance is brought up at a jog
     // (sprinting the advance was half of the perpetual-motion texture bug)
     a.sprinting = s.poss.phase === 'transition';
     const key = a.spotKey ?? 'corner_l';
     const spot = byKey.get(key);
-    // stillness-as-default: at the spot means at the spot. Hold the ground,
+    // stillness-as-default: at the spot means AT the spot — hold the ground,
     // don't micro-chase the pixel (the other half of perpetual motion)
     if (spot) a.target = dist(a.pos, spot) < s.params.move.arrivalDeadbandFt ? a.pos : spot;
   }

@@ -2,7 +2,7 @@
  * Team-rebound invariants: the dead-carom mechanic (possession.ts
  * tickScramble + params.reb.deadBallCaromChance) and the missed-non-final-FT
  * formality (fouls.ts tickFreeThrows) must produce the real log vocabulary
- * without corrupting box-score bookkeeping. Team totals count team
+ * WITHOUT corrupting box-score bookkeeping — team totals count team
  * rebounds (official-scoring convention), player lines never do, and the
  * dead-ball formality counts nowhere (stats/box.ts).
  */
@@ -36,7 +36,10 @@ describe(`team rebounds over ${GAMES} games`, () => {
         else def++;
       }
     }
-    // chance 0.12 over ~90 scrambles/game: double-digit counts across 4 games
+    // chance 0.08 (params.reb.deadBallCaromChance — its value since
+    // introduction; the 0.12 previously cited here was a drafting error,
+    // b8-F2) over ~90 scrambles/game ⇒ ~7 per game: double-digit counts
+    // across 4 games with wide margin (measured 37 on these seeds).
     expect(off + def).toBeGreaterThan(10);
     expect(off).toBeGreaterThan(0);
     expect(def).toBeGreaterThan(0);
@@ -89,7 +92,7 @@ describe(`team rebounds over ${GAMES} games`, () => {
       r.events.forEach((e, i) => {
         if (e.type !== 'rebound' || e.player || e.deadBall || e.offensive) return;
         // the possession flip: def_rebound outcome, then an 'inbound' start
-        // for the awarded side (never 'live_rebound'; the ball went dead)
+        // for the awarded side (never 'live_rebound' — the ball went dead)
         const rest = r.events.slice(i + 1);
         const end = rest.find((n) => n.type === 'possession_end');
         const start = rest.find((n) => n.type === 'possession_start');
