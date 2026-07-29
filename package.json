@@ -2,7 +2,7 @@
   "name": "hoopsh",
   "private": true,
   "version": "0.1.0",
-  "description": "hoopsh \u2014 a modular, deterministic 2D spatial basketball simulation core",
+  "description": "hoopsh — a modular, deterministic 2D spatial basketball simulation core",
   "license": "MIT",
   "author": "alperien <emailadrss@proton.me>",
   "repository": {
@@ -68,6 +68,6 @@
     "@types/node": "^24.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.0.0"
   }
 }

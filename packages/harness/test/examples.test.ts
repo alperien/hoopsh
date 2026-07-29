@@ -48,9 +48,11 @@ async function runExample(file: string): Promise<string> {
 
 // One concurrent burst, shared by every test below — each example runs
 // exactly once per suite execution (season.test.ts's fixture pattern).
-const outputs = new Map<string, string>(
-  await Promise.all(exampleFiles.map(async (f): Promise<[string, string]> => [f, await runExample(f)]))
-);
+// Sequential on purpose: six concurrent engine processes at module load
+// spiked memory on 2-core CI runners (the types job died mid-suite). The
+// serial cost (~30-45s) is paid once per suite run.
+const outputs = new Map<string, string>();
+for (const f of exampleFiles) outputs.set(f, await runExample(f));
 
 /** Extract the (first) numeric capture of `re`, failing loudly if absent. */
 function num(out: string, re: RegExp): number {
