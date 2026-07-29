@@ -171,7 +171,8 @@ usage: npm run roster:new [-- options]
   --slots a,b,c,...      explicit archetype per player; first ${STARTERS_COUNT} start
                          (overrides --size; min ${MIN_PLAYERS} entries)
   --pace/--three-bias/--help-aggr N   team tactics 0-100 (default: 50)
-  --out path             output file (default: <id>.team.json in cwd)
+  --out path             output file (default: out/<id>.team.json — out/ is
+                         gitignored, so the scaffold never dirties git status)
   --force                overwrite an existing output file
   --yes                  accept all defaults, no prompts
   --interactive          force the wizard even when other flags are present
@@ -261,7 +262,7 @@ async function interactive() {
       threeBias: await askRating(rl, 'tactics: threeBias 0-100', 50),
       helpAggr: await askRating(rl, 'tactics: helpAggr 0-100', 50)
     };
-    const out = await ask(rl, 'output file', `${id}.team.json`);
+    const out = await ask(rl, 'output file', `out/${id}.team.json`);
     return { name, abbrev, id, slots, tactics, out };
   } finally {
     rl.close();
@@ -310,7 +311,9 @@ async function main() {
           threeBias: rating('--three-bias'),
           helpAggr: rating('--help-aggr')
         },
-        out: argOf('--out') ?? `${id}.team.json`
+        // default under out/ (gitignored): following the quickstart used to
+        // leave an untracked file in the repo root on your first `git status`
+        out: argOf('--out') ?? `out/${id}.team.json`
       };
     }
     pack = buildRoster(opts);
@@ -328,6 +331,9 @@ async function main() {
   writeFileSync(outFile, packText(pack, outFile));
 
   console.log(`\nwrote ${opts.out} — ${pack.team.players.length} players, validated clean`);
+  if (/^out[\\/]/.test(opts.out)) {
+    console.log(`(out/ is gitignored — move the file or pass --out to keep it under version control)`);
+  }
   console.log(`starting five: ${pack.team.players.slice(0, STARTERS_COUNT).map((p) => `${p.name} (${p.pos})`).join(', ')}`);
   console.log(`\nnext:  edit the ratings (your editor autocompletes via "$schema")`);
   console.log(`       npm run roster:validate -- ${opts.out}`);

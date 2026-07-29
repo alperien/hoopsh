@@ -59,7 +59,16 @@ const teams = makeLeague(nTeams, `${seed}:league`);
 
 function progress(done: number, total: number): void {
   if (json) return; // JSON mode: stdout carries ONLY the document
-  if (done % 5 === 0 || done === total) process.stdout.write(`  ${done}/${total} games\r`);
+  if (process.stdout.isTTY) {
+    // live terminal: rewrite a single line in place
+    if (done % 5 === 0 || done === total) process.stdout.write(`  ${done}/${total} games\r`);
+    return;
+  }
+  // piped/redirected stdout never erases a \r line, so the per-5 chunks used
+  // to concatenate into one long wrapping wall (`  5/200 games  10/200 games
+  // …`) — print quarter milestones on their own lines instead
+  const chunk = Math.max(1, Math.ceil(total / 4));
+  if (done % chunk === 0 || done === total) console.log(`  ${done}/${total} games`);
 }
 
 function standingsTable(standings: TeamStanding[], byId: Map<string, Team>): string {
