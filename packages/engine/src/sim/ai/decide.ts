@@ -29,7 +29,19 @@ export type BallAction =
   | { kind: 'drive' }
   | { kind: 'hold' };
 
-/** the ball-handler's decision — evaluated every params.decide.intervalSec */
+/**
+ * The ball-handler's decision — evaluated every params.decide.intervalSec.
+ *
+ * SHAPE MAP (the blocks below, in file order):
+ *   1. continuation — the yardstick (concepts 7 then 6 reshape it), plus
+ *      the desperation-heave escape hatch
+ *   2. utility: shoot — shot taxonomy -> anticipated contest -> EV + biases
+ *   3. utility: pass  — one candidate per teammate, best survives the loop
+ *   4. utility: drive — gated; prices the finish OR the kickout spray
+ *   5. utility: hold  — keep probing (action-commitment patience)
+ *   then ONE softmax picks. Term ORDER inside each sum is the
+ *   byte-stability contract — append new terms at the end of their sum.
+ */
 export function decideBall(s: GameState): BallAction {
   const holderId = s.ball.holderId;
   if (!holderId) return { kind: 'hold' };

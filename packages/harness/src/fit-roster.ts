@@ -95,6 +95,19 @@
  * Solved profiles are CONTEXT-RELATIVE (same caveat as solve.ts): the
  * refinement embeds the player in a league-neutral cast; a profile fitted
  * here will drift on a very different roster. That is basketball, not a bug.
+ *
+ * ── MAP OF THE FILE: the 11 `── section ──` banners, in order ──────────────
+ *   input schema          SeasonLine + validateSeasonLines (the *.season.json contract)
+ *   position priors       POS table: per-position anchors the formulas lean on
+ *   derived rates         season line -> usage/shares/rates (deriveRates)
+ *   REFERENCE MODEL       engine-derived logits the inversions run backwards
+ *   forward models        re-exports for the round-trip tests
+ *   analytic inversions   the invert* family (FT%, 3P%, 2P%, FTA rate)
+ *   the analytic fit      layer 1: analyticFit — 38 dials, each with provenance
+ *   layer 2: refinement   budgets, scoreLine, hostTeam, refineFit (CRN hill-climb)
+ *   team pack assembly    assembleTeamPack: fitted players -> valid TeamPack
+ *   fixture comparison    diff a fit against the hand-built fidelity fixtures
+ *   CLI                   file I/O + flags; everything above is importable pure logic
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -592,6 +605,9 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   const rates = deriveRates(line);
   const P = POS[line.pos];
   const src: DialSource[] = [];
+  // F = record-and-clamp: EVERY dial assignment below routes through it so
+  // the provenance report (`sources`) is complete — never assign a dial
+  // directly, or the report silently loses that dial's audit trail.
   const F = (dial: string, value: number, source: DialSource['source'], detail: string): number => {
     const v = Math.round(clamp(value, 1, 99));
     src.push({ dial, value: v, source, detail });
@@ -949,6 +965,10 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
   }
 
   const rng = new Rng(`${opts.seedBase}-refine-${seedPlayer.id}`);
+  // Loop shape — a bounded hill-climb: each iteration proposes `cands`
+  // candidates of 2-4 random dial moves inside the trust region; acceptance
+  // needs a 3% CRN-fair margin (ACCEPT_MARGIN); step anneals ×0.85 per
+  // iteration, floored at 3.
   let step = 12;
   let itersRun = 0;
   for (let i = 1; i <= opts.iters; i++) {

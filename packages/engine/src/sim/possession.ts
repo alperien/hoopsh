@@ -363,6 +363,10 @@ export function tickScramble(s: GameState, dt: number): void {
   ph.resolveIn -= dt;
   if (ph.resolveIn > 0) return;
 
+  // The expired scramble resolves exactly ONE of three ways, tried in order:
+  // loose-ball foul -> team rebound -> player rebound. The first two branches
+  // return; a player rebound falls through to the putback/possession routing.
+
   // loose-ball foul (defensive side only, v0.1): the two combatants closest
   // to the landing spot are the fouler/victim proxy — we don't model the
   // actual scrum, just who was most likely to be in the pile

@@ -58,6 +58,22 @@
  *   rating curves     -> player differentiation (model/derived.ts)
  *   era packs (later) -> historical overrides on top
  * ────────────────────────────────────────────────────────────────────────────
+ * MAP OF THE FILE — ten blocks, interface first, then calibrated defaults.
+ * Each block name appears exactly TWICE: the first grep hit is its interface
+ * (docs live there), the second is its defaults (provenance lives there).
+ * `withParams`, the merge/validation boundary, closes the file.
+ *   shot     make-chance logits per zone + skill/contest/fatigue coefficients
+ *   foul     whistle rates (shooting, reach-in, charge, loose-ball) and FTs
+ *   pass     turnover-risk logit, steal/OOB split, delivery quality
+ *   reb      rebound positioning weights, putbacks, dead-ball caroms
+ *   decide   decision cadence, continuation curve, appetites, temperature
+ *   move     speeds, transition/advance definitions, dead-ball timing
+ *   fatigue  energy drain and bench recovery rates
+ *   sub      rotation thresholds, crunch/concede regimes, minutes controller
+ *   endgame  the flag-gated endgame layer's dials (GameConfig.endgame)
+ *   ai       EXPECTED-POINTS utility weights: concept master scales, shot
+ *            selection, drive, pass, screens/actions, the closed usage loop
+ * ────────────────────────────────────────────────────────────────────────────
  */
 
 export interface SimParams {

@@ -42,12 +42,18 @@ function openPopKey(s: GameState, screener: Agent, keyL: string, keyR: string): 
  * defense, and the spray out of the double reuses kick-out machinery — the
  * post becomes a passing hub for free. The iso is pure decision-layer: a
  * commitment window that boosts the handler's attack.
+ *
+ * Shape: exactly ONE action can be live (s.poss.action). Four lifecycle
+ * branches below — post, DHO, iso, pnr — each with its own phase machine,
+ * each ending in `return`; only when no action is live does the tail
+ * consider calling a new one.
  */
 export function actionTick(s: GameState): void {
   const A = s.params.ai;
   const act = s.poss.action;
   const holderId = s.ball.holderId;
 
+  // —— post lifecycle
   if (act && act.kind === 'post') {
     const poster = agent(s, act.posterId);
     // gave it up from the block (the spray) or lost it — the action is over;
@@ -69,6 +75,7 @@ export function actionTick(s: GameState): void {
     }
     return;
   }
+  // —— DHO lifecycle
   if (act && act.kind === 'dho') {
     const hub = agent(s, act.hubId);
     const recv = agent(s, act.receiverId);
@@ -80,6 +87,7 @@ export function actionTick(s: GameState): void {
     }
     return;
   }
+  // —— iso lifecycle
   if (act && act.kind === 'iso') {
     const handler = agent(s, act.handlerId);
     if (s.t > act.until || holderId !== act.handlerId || !handler.onCourt || handler.fouledOut) {
@@ -88,6 +96,7 @@ export function actionTick(s: GameState): void {
     return;
   }
 
+  // —— pnr lifecycle (the only kind left after the three returns above)
   if (act) {
     const screener = agent(s, act.screenerId);
     const handler = agent(s, act.handlerId);

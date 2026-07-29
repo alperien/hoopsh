@@ -247,10 +247,15 @@ function tick(s: GameState, dt: number): void {
   recordFrame(s);
 }
 
+/**
+ * The live-ball tick. Stage numbers below match docs/INTERNALS.md's
+ * "tickLive, in order" diagram (file and doc cross-reference each other);
+ * most stages can end the tick with an early `return`.
+ */
 function tickLive(s: GameState, dt: number): void {
-  advanceClock(s, dt);
+  advanceClock(s, dt); // 1. game clock (stops at the horn)
 
-  // ball in flight?
+  // 2. ball in flight?
   const f = s.ball.flight;
   if (f) {
     f.remaining -= dt;
@@ -270,14 +275,14 @@ function tickLive(s: GameState, dt: number): void {
     return;
   }
 
-  // period expiry with ball live — checked BEFORE the shot-clock violation:
+  // 3. period expiry with ball live — checked BEFORE the shot-clock violation:
   // when both clocks cross zero on the same tick, the horn ends the period
   // (the real rule — an expired game clock supersedes the shot clock), where
   // the old order charged a phantom shot-clock turnover at 0:00 and played a
   // post-buzzer inbound before the period could end
   if (s.clock < 1e-6) { endPeriod(s); return; }
 
-  // shot clock (frozen while a shot is airborne, running otherwise)
+  // 4. shot clock (frozen while a shot is airborne, running otherwise)
   s.poss.shotClock -= dt;
   if (s.poss.shotClock <= 0) {
     const holder = s.ball.holderId ? agent(s, s.ball.holderId) : bestHandler(s, s.poss.team);
@@ -297,7 +302,7 @@ function tickLive(s: GameState, dt: number): void {
   }
   const h = agent(s, holderId);
 
-  // shot windup in progress: defenders close out, then the ball goes up
+  // 5. shot windup in progress: defenders close out, then the ball goes up
   const pr = s.pendingRelease;
   if (pr && pr.shooterId === holderId) {
     offenseOffBallTick(s);
@@ -313,7 +318,7 @@ function tickLive(s: GameState, dt: number): void {
   }
   if (pr) s.pendingRelease = null; // stale windup (ball changed hands)
 
-  // possession phase transitions — both ARRIVAL-based, not clock-based
+  // 6. possession phase transitions — both ARRIVAL-based, not clock-based
   // (a fixed 4.5s transition window expired mid-floor once the jog economy
   // slowed the getback, and the downhill archetype lost its drive window)
   const rim = attackedRim(s, h.side);
@@ -336,7 +341,7 @@ function tickLive(s: GameState, dt: number): void {
     }
   }
 
-  // holder movement intent
+  // 7. holder movement intent
   const holderAct = s.poss.action;
   const backingDown =
     holderAct?.kind === 'post' && holderAct.posterId === h.p.id && holderAct.phase === 'working';
@@ -384,7 +389,7 @@ function tickLive(s: GameState, dt: number): void {
     h.target = h.pos;
   }
 
-  // dribble accounting (for assist windows)
+  // 8. dribble accounting (for assist windows)
   if (len(h.vel) > s.params.move.dribbleSpeedFtS) {
     h.dribbleAcc += dt;
     if (h.dribbleAcc >= s.params.move.dribbleSec) {
@@ -393,7 +398,7 @@ function tickLive(s: GameState, dt: number): void {
     }
   }
 
-  // decisions
+  // 9. decisions: decideBall -> executeAction at each decision window
   if (s.t >= s.decisionAt) {
     const action = decideBall(s);
     const scheduledBefore = s.decisionAt;
@@ -417,10 +422,11 @@ function tickLive(s: GameState, dt: number): void {
     return;
   }
 
+  // 10. reach-in steals
   attemptReachIn(s, dt);
   if (s.phase.kind !== 'live') return;
 
-  // charge check while driving — turnover first, THEN the foul: recordFoul
+  // 11. charge check while driving — turnover first, THEN the foul: recordFoul
   // may foul the driver out and emit his replacement sub, and the turnover
   // must not appear to be committed by a player already off the floor
   if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * s.params.foul.chargeTickMult)) {
@@ -433,6 +439,7 @@ function tickLive(s: GameState, dt: number): void {
     return;
   }
 
+  // 12. off-ball brains, then physics: movement integration + fatigue
   offenseOffBallTick(s);
   defenseTick(s);
   integrateMovement(s, dt);

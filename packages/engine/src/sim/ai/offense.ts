@@ -191,7 +191,12 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   }
 }
 
-/** per-tick off-ball offense behavior */
+/**
+ * Per-tick off-ball offense behavior: a priority ladder per player, where
+ * rung ORDER is the semantics and every rung ends in `continue` (first match
+ * wins): DHO receiver > posting big > screener > active cut > cut trigger >
+ * active relocation > relocation trigger > hold the spacing spot.
+ */
 export function offenseOffBallTick(s: GameState): void {
   const side = s.poss.team;
   const rim = attackedRim(s, side);
