@@ -2,7 +2,7 @@
  * Direct box-score unit tests on a hand-built event stream.
  *
  * The engine's invariant suite exercises boxScore at scale over real games,
- * but nothing pinned its arithmetic against a KNOWN-answer stream, so a
+ * but nothing pinned its arithmetic against a KNOWN-answer stream — so a
  * miscounted FGA or a flipped plus-minus sign could only be caught
  * indirectly. These tests hand-author a tiny game with exact expected
  * tallies (review gap: stats had no dedicated test/).
@@ -135,6 +135,88 @@ describe('box score arithmetic on a known stream', () => {
   });
 });
 
+describe('fouled shots follow the official FGA convention (known stream)', () => {
+  // Official scorer's rule: a MISSED shot with a shooting foul charges no
+  // field-goal attempt (the FT trip replaces it in the book); an AND-ONE
+  // (made basket plus the foul) charges FGA and FGM like any other make.
+  // The engine emits the shot event either way (sim/shooting.ts emits
+  // unconditionally; `foul.andOne` distinguishes the two) — only the
+  // counting rule differs. Every real reference line the harness compares
+  // against (bands.ts fga/fgPct, fit-roster season lines) is built on this
+  // convention, so folding fouled misses into FGA silently mixed
+  // conventions (scan finding b1/a4-F2).
+  const events: GameEvent[] = [
+    mk({ type: 'game_start', home: { teamId: 'h', lineup: home.starters }, away: { teamId: 'a', lineup: away.starters } } as Partial<GameEvent> & { type: 'game_start' }, 0, [0, 0]),
+    mk({ type: 'possession_start', team: 0, kind: 'tip' } as Partial<GameEvent> & { type: 'possession_start' }, 1, [0, 0]),
+    // h0 misses a rim two but is fouled shooting — NOT an FGA; two FTs follow
+    mk({ type: 'shot', team: 0, shooter: 'h0', x: 88, y: 25, distFt: 3, zone: 'rim', three: false, moveType: 'drive', contest: 0.8, made: false, points: 0, foul: { by: 'a4', ftAwarded: 2, andOne: false } } as Partial<GameEvent> & { type: 'shot' }, 10, [0, 0]),
+    mk({ type: 'foul', team: 1, on: 'a4', kind: 'shooting', drawnBy: 'h0', personalCount: 1, teamCountInPeriod: 1, inBonus: false, fouledOut: false } as Partial<GameEvent> & { type: 'foul' }, 10, [0, 0]),
+    mk({ type: 'free_throw', team: 0, shooter: 'h0', n: 1, of: 2, made: true } as Partial<GameEvent> & { type: 'free_throw' }, 11, [1, 0]),
+    mk({ type: 'free_throw', team: 0, shooter: 'h0', n: 2, of: 2, made: true } as Partial<GameEvent> & { type: 'free_throw' }, 12, [2, 0]),
+    mk({ type: 'possession_end', team: 0, outcome: 'made_ft' } as Partial<GameEvent> & { type: 'possession_end' }, 12, [2, 0]),
+    // a0 scores through h4's foul — the and-one DOES charge FGA + FGM
+    mk({ type: 'possession_start', team: 1, kind: 'inbound' } as Partial<GameEvent> & { type: 'possession_start' }, 14, [2, 0]),
+    mk({ type: 'shot', team: 1, shooter: 'a0', x: 6, y: 25, distFt: 2, zone: 'rim', three: false, moveType: 'cut_finish', contest: 0.6, made: true, points: 2, foul: { by: 'h4', ftAwarded: 1, andOne: true } } as Partial<GameEvent> & { type: 'shot' }, 22, [2, 2]),
+    mk({ type: 'foul', team: 0, on: 'h4', kind: 'shooting', drawnBy: 'a0', personalCount: 1, teamCountInPeriod: 1, inBonus: false, fouledOut: false } as Partial<GameEvent> & { type: 'foul' }, 22, [2, 2]),
+    mk({ type: 'free_throw', team: 1, shooter: 'a0', n: 1, of: 1, made: true } as Partial<GameEvent> & { type: 'free_throw' }, 23, [2, 3]),
+    mk({ type: 'possession_end', team: 1, outcome: 'made_ft' } as Partial<GameEvent> & { type: 'possession_end' }, 23, [2, 3]),
+    // h1 is fouled on a missed three — no FGA and no 3PA; three FTs follow
+    mk({ type: 'possession_start', team: 0, kind: 'inbound' } as Partial<GameEvent> & { type: 'possession_start' }, 25, [2, 3]),
+    mk({ type: 'shot', team: 0, shooter: 'h1', x: 25, y: 47, distFt: 24.5, zone: 'three', three: true, moveType: 'catch_shoot', contest: 0.5, made: false, points: 0, foul: { by: 'a1', ftAwarded: 3, andOne: false } } as Partial<GameEvent> & { type: 'shot' }, 34, [2, 3]),
+    mk({ type: 'foul', team: 1, on: 'a1', kind: 'shooting', drawnBy: 'h1', personalCount: 1, teamCountInPeriod: 2, inBonus: false, fouledOut: false } as Partial<GameEvent> & { type: 'foul' }, 34, [2, 3]),
+    mk({ type: 'free_throw', team: 0, shooter: 'h1', n: 1, of: 3, made: true } as Partial<GameEvent> & { type: 'free_throw' }, 35, [3, 3]),
+    mk({ type: 'free_throw', team: 0, shooter: 'h1', n: 2, of: 3, made: false } as Partial<GameEvent> & { type: 'free_throw' }, 36, [3, 3]),
+    mk({ type: 'free_throw', team: 0, shooter: 'h1', n: 3, of: 3, made: true } as Partial<GameEvent> & { type: 'free_throw' }, 37, [4, 3]),
+    mk({ type: 'possession_end', team: 0, outcome: 'made_ft' } as Partial<GameEvent> & { type: 'possession_end' }, 37, [4, 3]),
+    mk({ type: 'period_end' } as Partial<GameEvent> & { type: 'period_end' }, 38, [4, 3]),
+    mk({ type: 'game_end' } as Partial<GameEvent> & { type: 'game_end' }, 38, [4, 3])
+  ];
+  const box = boxScore(events, [home, away]);
+  const p = (id: string) => box.players.find((x) => x.id === id)!;
+
+  it('a shooting-foul miss charges no FGA and no zone attempt', () => {
+    const h0 = p('h0');
+    expect(h0.fga).toBe(0);
+    expect(h0.fgm).toBe(0);
+    expect(h0.zones.rim).toEqual({ a: 0, m: 0 });
+    expect(h0.fta).toBe(2);
+    expect(h0.ftm).toBe(2);
+    expect(h0.pts).toBe(2);
+  });
+
+  it('a shooting-foul miss on a three charges no 3PA either', () => {
+    const h1 = p('h1');
+    expect(h1.fga).toBe(0);
+    expect(h1.tpa).toBe(0);
+    expect(h1.zones.three).toEqual({ a: 0, m: 0 });
+    expect(h1.fta).toBe(3);
+    expect(h1.ftm).toBe(2);
+  });
+
+  it('an and-one still charges FGA and FGM', () => {
+    const a0 = p('a0');
+    expect(a0.fga).toBe(1);
+    expect(a0.fgm).toBe(1);
+    expect(a0.zones.rim).toEqual({ a: 1, m: 1 });
+    expect(a0.fta).toBe(1);
+    expect(a0.pts).toBe(3);
+  });
+
+  it('team totals follow the same rule and the points identity still holds', () => {
+    expect(box.teams[0].fga).toBe(0);
+    expect(box.teams[0].tpa).toBe(0);
+    expect(box.teams[1].fga).toBe(1);
+    for (const t of box.teams) {
+      expect(t.pts).toBe(2 * (t.fgm - t.tpm) + 3 * t.tpm + t.ftm);
+    }
+    expect(box.finalScore).toEqual([4, 3]);
+  });
+
+  it('the shot events themselves stay in the stream slice for shot charts', () => {
+    expect(box.shotEvents.length).toBe(3);
+  });
+});
+
 describe('team rebounds in the box score (known stream)', () => {
   // A dead carom awarded to the defense (playerless team rebound), then a
   // FT trip whose missed FIRST attempt logs the dead-ball formality, whose
@@ -145,16 +227,16 @@ describe('team rebounds in the box score (known stream)', () => {
     mk({ type: 'game_start', home: { teamId: 'h', lineup: home.starters }, away: { teamId: 'a', lineup: away.starters } } as Partial<GameEvent> & { type: 'game_start' }, 0, [0, 0]),
     mk({ type: 'possession_start', team: 0, kind: 'tip' } as Partial<GameEvent> & { type: 'possession_start' }, 1, [0, 0]),
     mk({ type: 'shot', team: 0, shooter: 'h0', x: 20, y: 25, distFt: 15, zone: 'mid', three: false, moveType: 'pull_up', contest: 0.4, made: false, points: 0 } as Partial<GameEvent> & { type: 'shot' }, 8, [0, 0]),
-    // dead carom out of bounds: DEFENSIVE team rebound, nobody credited
+    // dead carom out of bounds — DEFENSIVE team rebound, nobody credited
     mk({ type: 'rebound', team: 1, offensive: false, x: 30, y: 10 } as Partial<GameEvent> & { type: 'rebound' }, 9, [0, 0]),
     mk({ type: 'possession_end', team: 0, outcome: 'def_rebound' } as Partial<GameEvent> & { type: 'possession_end' }, 9, [0, 0]),
     mk({ type: 'possession_start', team: 1, kind: 'inbound' } as Partial<GameEvent> & { type: 'possession_start' }, 11, [0, 0]),
     mk({ type: 'foul', team: 0, on: 'h3', kind: 'shooting', drawnBy: 'a0', personalCount: 1, teamCountInPeriod: 1, inBonus: false, fouledOut: false } as Partial<GameEvent> & { type: 'foul' }, 20, [0, 0]),
     mk({ type: 'free_throw', team: 1, shooter: 'a0', n: 1, of: 2, made: false } as Partial<GameEvent> & { type: 'free_throw' }, 21, [0, 0]),
-    // the missed-non-final-FT scorekeeping formality; counts in NO totals
+    // the missed-non-final-FT scorekeeping formality — counts in NO totals
     mk({ type: 'rebound', team: 1, offensive: true, deadBall: true, x: 85, y: 25 } as Partial<GameEvent> & { type: 'rebound' }, 21, [0, 0]),
     mk({ type: 'free_throw', team: 1, shooter: 'a0', n: 2, of: 2, made: false } as Partial<GameEvent> & { type: 'free_throw' }, 22, [0, 0]),
-    // the FINAL miss is a live scramble; a player secures this one
+    // the FINAL miss is a live scramble — a player secures this one
     mk({ type: 'rebound', team: 0, player: 'h4', offensive: false, x: 80, y: 25 } as Partial<GameEvent> & { type: 'rebound' }, 23, [0, 0]),
     mk({ type: 'possession_end', team: 1, outcome: 'def_rebound' } as Partial<GameEvent> & { type: 'possession_end' }, 23, [0, 0]),
     mk({ type: 'period_end' } as Partial<GameEvent> & { type: 'period_end' }, 24, [0, 0]),
