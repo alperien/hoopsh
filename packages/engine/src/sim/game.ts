@@ -38,36 +38,36 @@ export interface GameConfig {
   params?: Parameters<typeof withParams>[0];
   collectFrames?: boolean;
   /**
-   * Diagnostics only: override the tick-loop safety cap (default: 4× the
-   * longest legal game). The cap exists to catch engine bugs (a game that
-   * hits it throws rather than returning a fake result); the override lets
-   * tests prove that behavior without simulating for hours.
+   * DIAGNOSTICS ONLY: override the tick-loop safety cap (default: 4× the
+   * longest legal game). The cap exists to catch engine bugs — a game that
+   * hits it throws rather than returning a fake result — and this override
+   * exists so tests can prove that behavior without simulating for hours.
    */
   safetyCapTicks?: number;
   /**
-   * Endgame-layer feature flag (default ON). On, late-game basketball
+   * ENDGAME LAYER feature flag (default ON). On, late-game basketball
    * behaviors activate: clock-kill with a lead, trailing hurry-up and
    * intentional fouling, hold-for-one / 2-for-1 period endings, and team
    * timeouts (which add a `timeout` event type to the stream). All of it is
-   * EV/urgency modulation inside the existing decision framework; see
+   * EV/urgency modulation inside the existing decision framework — see
    * sim/ai/concepts.ts (concept 6) and sim/endgame.ts; constants in
    * params.endgame (magnitude dials sweepable, harness/knobs.ts).
    *
    * Default flipped OFF→ON on the n=1260-games-per-arm, 3-seed-base survey
-   * (endgame-flag report). The layer closes the sim's worst clutch-realism
-   * gaps: OT share 2.06%→3.33% toward the real 4.80%, clutch FT share
+   * (endgame-flag report): the layer closes the sim's worst clutch-realism
+   * gaps — OT share 2.06%→3.33% toward the real 4.80%, clutch FT share
    * into the real 30-50% range, Q4 10+-lead comebacks 0%→5% (real ~5-10%),
-   * and the foul game and timeouts existing at all, with every invariant
-   * probe green at 20 seeds and 1,260 games. ON games shift league texture
-   * late (more FTs, longer leading-team possessions, more stoppages); that
-   * is the intended effect. Explicit `endgame: false` remains the
+   * the foul game and timeouts existing at all — with every invariant
+   * probe green at 20 seeds and 1,260 games. Expect ON games to shift
+   * league texture late (more FTs, longer leading-team possessions, more
+   * stoppages): that is the point. Explicit `endgame: false` remains the
    * byte-identical pre-layer path (the layer then runs no code and
    * consumes no rng).
    */
   endgame?: boolean;
   /**
    * Input-contract tier. 'finite' (default) rejects only non-finite ratings
-   * and measurements; out-of-range finite values are legal (custom content,
+   * and measurements — out-of-range finite values are legal (custom content,
    * stress tests; a 999 just saturates the curves). 'strict' additionally
    * enforces the @hoopsh/data pack contract: ratings 0-100, heightIn 60-96.
    * Use 'strict' when rosters come from untrusted or hand-edited sources and
@@ -170,7 +170,7 @@ function initState(cfg: GameConfig): GameState {
     score: [0, 0],
     teamFoulsPeriod: [0, 0],
     tipWinner: 0,
-    // default ON per the n=1260/arm flag-on survey (see GameConfig.endgame)
+    // default ON per the n=1260/arm flag-on survey — see GameConfig.endgame
     endgame: cfg.endgame ?? true,
     timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
     runPts: [0, 0],
@@ -201,7 +201,7 @@ function initState(cfg: GameConfig): GameState {
 // ------------------------------------------------------------------ ticker
 
 function tick(s: GameState, dt: number): void {
-  // the wall clock advances on every tick, stoppages included, so replays
+  // the wall clock advances on EVERY tick — stoppages included — so replays
   // capture free-throw rituals and dead-ball repositioning instead of
   // compressing them into teleports (game-clock t advances via advanceClock)
   s.wallT += dt;
@@ -222,6 +222,12 @@ function tickLive(s: GameState, dt: number): void {
   if (f) {
     f.remaining -= dt;
     s.ball.pos = lerp(f.to, f.from, Math.max(0, f.remaining) / f.total);
+    // the shot clock runs during PASS flights — only a released shot freezes
+    // it (the rule stated below). Freezing both flight kinds granted the
+    // offense every pass's flight time for free: whistle-free possessions
+    // measured up to ~31s under the 24s clock. An expiry mid-flight is
+    // whistled at the existing check on the first tick after arrival.
+    if (f.kind === 'pass') s.poss.shotClock -= dt;
     integrateMovement(s, dt);
     applyFatigue(s, dt);
     if (f.remaining <= 0) {
@@ -270,19 +276,19 @@ function tickLive(s: GameState, dt: number): void {
   }
   if (pr) s.pendingRelease = null; // stale windup (ball changed hands)
 
-  // possession phase transitions: both arrival-based, not clock-based
+  // possession phase transitions — both ARRIVAL-based, not clock-based
   // (a fixed 4.5s transition window expired mid-floor once the jog economy
   // slowed the getback, and the downhill archetype lost its drive window)
   const rim = attackedRim(s, h.side);
   if (s.poss.phase === 'advance' && dist(h.pos, rim) < 36) {
-    // 36 ft ~ the logo pickup: offense initiates there, not at the arc
+    // 36 ft ~ the logo pickup — offense initiates there, not at the arc
     // (32 ft left 54% of the downhill benchmark's decisions inside the
     // drive-gated advance phase after the jog economy; main had 36%)
     s.poss.phase = 'halfcourt';
   } else if (s.poss.phase === 'transition') {
-    // transition ends when the defense is set: transSetBackCount+ defenders
+    // transition ends when the DEFENSE IS SET: transSetBackCount+ defenders
     // inside transBackRadiusFt of the rim they protect (the same arrival
-    // principle as the advance flip; shared definition in resolve.ts
+    // principle as the advance flip — shared definition in resolve.ts
     // defendersBack, also read by the decision layer's transition
     // continuation cut); transitionMaxSec is the chaos-state safety cap
     if (
@@ -301,16 +307,16 @@ function tickLive(s: GameState, dt: number): void {
     holderAct?.kind === 'post' && holderAct.posterId === h.p.id &&
     holderAct.phase === 'posting' && holderAct.feederId === holderAct.posterId;
   if (walkingToBlock) {
-    // self-post: dribble down to the block at a walk. The target was set by
-    // the action call; actionTick flips to 'working' on arrival.
+    // self-post: dribble down to the block at a walk — the target was set by
+    // the action call; actionTick flips to 'working' on arrival
     h.intent = 'spot';
     h.sprinting = false;
   } else if (backingDown) {
-    // the backdown: slow power dribbles carve toward the rim and turn the
-    // ~8 ft entry catch into a ~4 ft finish (without it the post was a
-    // passing station that never scored: 0.1 post shots/game). Creep speed
-    // comes from the short target leash (~1.5 ft/s), and the advance stops
-    // at the restricted-area edge.
+    // the backdown: slow power dribbles carve toward the rim — this is what
+    // turns the ~8 ft entry catch into a ~4 ft finish (without it the post
+    // was a passing station that never scored: 0.1 post shots/game). Creep
+    // speed comes from the short target leash (~1.5 ft/s), and the advance
+    // stops at the restricted-area edge.
     const dRim = dist(h.pos, rim);
     if (dRim > 4.5) {
       const step = scale(norm(sub(rim, h.pos)), s.params.ai.backdownStepFt);
@@ -327,17 +333,17 @@ function tickLive(s: GameState, dt: number): void {
   } else if (s.poss.phase !== 'halfcourt') {
     h.intent = 'advance';
     const dir = rim.x > s.court.midX ? -1 : 1;
-    // stable target: regenerating it with jitter every tick made the
+    // stable target — regenerating it with jitter every tick made the
     // handler visibly vibrate while bringing the ball up
     h.target = { x: rim.x + dir * 26, y: s.court.centerY };
-    // endgame hurry (flag-gated): a chasing team sprints the ball up; the
+    // endgame hurry (flag-gated): a chasing team SPRINTS the ball up — the
     // dribble-jog walk-up costs seconds it no longer has (sim/endgame.ts)
     h.sprinting = s.poss.phase === 'transition' ||
       (s.endgame && hurriedness(s, h.side) >= s.params.endgame.hurrySprintMin);
   } else {
     h.intent = 'spot';
     h.sprinting = false;
-    // hold position and survey; repositioning comes from drive/pass decisions
+    // hold position and survey — repositioning comes from drive/pass decisions
     h.target = h.pos;
   }
 
@@ -369,9 +375,9 @@ function tickLive(s: GameState, dt: number): void {
   attemptReachIn(s, dt);
   if (s.phase.kind !== 'live') return;
 
-  // charge check while driving. Ordering: turnover first, then the foul.
-  // recordFoul may foul the driver out and emit his replacement sub, and the
-  // turnover must not appear to be committed by a player already off the floor.
+  // charge check while driving — turnover first, THEN the foul: recordFoul
+  // may foul the driver out and emit his replacement sub, and the turnover
+  // must not appear to be committed by a player already off the floor
   if (s.t < h.driveUntil && s.rng.chance(s.params.foul.chargePerDrive * dt * s.params.foul.chargeTickMult)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'off_foul'
@@ -395,7 +401,7 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
   switch (action.kind) {
     case 'shoot':
       // enter the windup: defenders get windupSec to close out before the
-      // contest is measured at release. This race is the shot-defense model.
+      // contest is measured at release. This race IS shot defense.
       s.pendingRelease = {
         shooterId: h.p.id,
         moveType: action.moveType,
@@ -413,23 +419,24 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
         const D = s.params.decide;
         const A = s.params.ai;
         const launchDist = dist(h.pos, attackedRim(s, h.side));
-        // The snake stop-short: a mid-range identity sometimes attacks to
-        // his spot, not the rim: the drive ends in a stop-on-a-dime
-        // pull-up at the FT-line/elbow band, the self-created middy.
-        // Gated on the shared midPullUpLight (ai/shared.ts: the same joint
-        // green light the decisiveness term honors, so the player who
-        // snakes and the player who rises are the same player) and only
-        // from outside the band; a snake attacks into it, while launches
-        // already inside it are the ordinary rim drive. The commit ends at
-        // driveMidStopFt instead of the rim; the beaten defender is still
-        // trailing when it expires, so the next decision is a pull-up in
-        // the band with real separation. If the light doesn't fire there,
-        // the kick machinery takes over, which is how real snakes end too.
+        // THE SNAKE STOP-SHORT: a mid-range identity sometimes attacks TO
+        // HIS SPOT, not the rim — the drive that ends in a stop-on-a-dime
+        // pull-up at the FT-line/elbow band (the signature self-created
+        // middy). Gated on the shared midPullUpLight (ai/shared.ts: the
+        // same joint green light the decisiveness term honors, so the
+        // player who snakes and the player who rises are the same player)
+        // and only from OUTSIDE the band — a snake attacks INTO it;
+        // launches already inside it are the ordinary rim drive. The
+        // commit simply ends at driveMidStopFt instead of the rim: the
+        // beaten defender is still trailing when it expires, so the next
+        // decision is a pull-up in the band with real separation — and if
+        // the light doesn't fire there, the kick machinery takes over,
+        // which is how real snakes end too.
         const stopShort =
           launchDist > A.midGreenMaxFt &&
           midPullUpLight(h) > 0 &&
           s.rng.chance(midPullUpLight(h) * A.driveMidStopChance);
-        // non-snake: the arrival-based commit. Penetrate until you reach
+        // non-snake: the arrival-based commit — penetrate until you REACH
         // the rim vicinity (launch distance / planning speed), clamped to
         // [floor, ceiling]; a fixed window expired mid-lane on long
         // launches and drives died as 15-ft pull-ups (drive-collapse
@@ -450,7 +457,7 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
 
 function recordFrame(s: GameState, force = false): void {
   if (!s.collectFrames) return;
-  // cadence keyed to the wall clock (relative epsilon: float accumulation
+  // cadence keyed to the WALL clock (relative epsilon: float accumulation
   // across ~29k ticks was silently dropping the final frame)
   const step = s.params.frameEvery / s.params.tickHz;
   if (s.frames.length > 0) {
@@ -491,14 +498,14 @@ function holderSlot(s: GameState): number {
  *
  * 'finite' (always on): a single NaN poisons every sigmoid downstream, the
  * softmax weights all go NaN, Rng.weighted falls through, and the game
- * stalls at 0-0 until the safety cap trips; an independent review
- * demonstrated this silent-corruption chain. Non-finite input is always a
- * caller bug and must fail loudly here, not 48 simulated minutes later.
- * Out-of-range finite values stay legal in this tier (custom content and
- * stress tests are real use cases; a 999 just saturates the curves, see
- * the adversarial extreme-roster test).
+ * stalls at 0-0 until the safety cap trips — an independent review
+ * demonstrated exactly this silent-corruption chain. Non-finite input is
+ * always a caller bug and must fail loudly here, not 48 simulated minutes
+ * later. Out-of-range FINITE values stay legal in this tier (custom
+ * content and stress tests are real use cases; a 999 just saturates the
+ * curves — see the adversarial extreme-roster test).
  *
- * 'strict' (opt-in): additionally enforces the @hoopsh/data pack contract:
+ * 'strict' (opt-in): additionally enforces the @hoopsh/data pack contract —
  * ratings 0-100, heightIn 60-96 (ranges mirror data/src/schema.ts, which
  * the engine cannot import; keep the two in sync). This formally separates
  * "valid but unusual" from "invalid" for callers feeding the engine
@@ -559,7 +566,7 @@ export function simulateGame(cfg: GameConfig): GameResult {
     tick(s, dt);
   }
   if (!s.over) {
-    // The cap tripping means the game failed to finish: an engine bug (or a
+    // The cap tripping means the game FAILED to finish — an engine bug (or a
     // deliberately tiny safetyCapTicks). An earlier version emitted a
     // legitimate-looking game_end here, which let a stalled game masquerade
     // as a valid result; an external review flagged it. Fail loudly instead:
