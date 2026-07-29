@@ -108,7 +108,7 @@ export type GameTaskName = keyof GameTaskResults;
  * `undefined` OMITS the key so the game runs whatever GameConfig.endgame
  * default the engine ships (`cfg.endgame ?? …`, sim/game.ts). Omission — not
  * an explicit value — is deliberate: the default flip was a coordinated
- * engine change (REFACTOR.md W2, landed: the default is now ON), and the
+ * engine change (docs/REGISTER.md W2, landed: the default is now ON), and the
  * default-config tasks here must keep grading the config that actually
  * ships, whichever way any future flip lands. Today that makes the `batch`/
  * `flow` tasks identical to their forced-ON `*Endgame` twins, and the

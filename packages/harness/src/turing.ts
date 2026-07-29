@@ -32,7 +32,7 @@
  *   npm run turing -- --sim 15 --out out/turing            # sim excerpts only
  *   npm run turing -- --sim 15 --real /path/to/plays-dir --out out/turing
  * The real-plays dir holds JSON arrays of { q, clockSec, side, text, a, h }
- * (see tools/fetch-nba.mjs notes / REFACTOR.md for how to produce them from
+ * (see tools/fetch-nba.mjs notes / docs/REGISTER.md for how to produce them from
  * public play-by-play pages — raw fetched HTML stays out of the repo).
  * Output: pack.json (blind, shuffled), key.json (answers — do not show the
  * judges), and a per-excerpt .txt for convenient pasting.

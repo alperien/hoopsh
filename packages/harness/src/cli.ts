@@ -9,7 +9,7 @@
  * uncalibrated league it defaults to report-only; arm a gate explicitly
  * with --min-bands. --endgame forces ON, which since the default flip
  * (sim/game.ts `endgame ?? true`, calibrated by the coordinated re-sweep —
- * REFACTOR.md W2, landed) simulates the IDENTICAL games as a default run:
+ * docs/REGISTER.md W2, landed) simulates the IDENTICAL games as a default run:
  * it stays gated like one (it used to disarm the gate, which let
  * `npm run batch -- --endgame` grade the same games as CI and exit 0
  * regardless of band regressions — scan finding, b4 adjacencies).
@@ -71,7 +71,7 @@ const RATCHET_FLOOR = 16;
 const GATE_MIN_GAMES = 24;
 
 const games = flagNumber(process.argv, '--games', 50);
-// Red-team MINOR-4 (FINDINGS-REDTEAM.md; REFACTOR.md W13): `--games 0` used
+// Red-team MINOR-4 (docs/history/redteam-wave2.md; docs/REGISTER.md W13): `--games 0` used
 // to print an all-FAIL report of zeros and exit 0 (the gate below is
 // report-only under GATE_MIN_GAMES), so a scripted caller checking exit
 // codes saw success on a run that simulated NOTHING. A batch that grades

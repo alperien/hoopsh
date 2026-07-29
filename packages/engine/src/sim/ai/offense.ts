@@ -142,7 +142,7 @@ export function assignSpots(s: GameState, side: TeamSide): void {
   const map = s.poss.spotMap;
   map.clear();
   map.set(handler.p.id, 'top');
-  // NOTE (D3, REFACTOR.md): a best-fit assignment model (appetite-ranked
+  // NOTE (D3, docs/REGISTER.md): a best-fit assignment model (appetite-ranked
   // corners + interior block stationing) is built and validated per-metric
   // in the D3 trail, but stays reverted — the D1 assist-crediting fix did
   // NOT unblock it. Behind-the-line corners change the offense globally

@@ -102,7 +102,7 @@ export function startPossession(
     a.screenStunUntil = -99;
     a.navUnderUntil = -99;
     a.relocUntil = -99; // was omitted — a relocation window leaked across
-                        // possessions (REFACTOR.md D5; landed with M1)
+                        // possessions (docs/REGISTER.md D5; landed with M1)
   }
   emit(s, { type: 'possession_start', team, kind });
   assignSpots(s, team);
