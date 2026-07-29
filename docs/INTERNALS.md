@@ -1,6 +1,8 @@
 # hoopsh internals — a guided tour
 
 Read [ARCHITECTURE.md](../ARCHITECTURE.md) first for the *why*; this is the *where*.
+The terse names the code uses (`n()`, `t`/`wt`, `sc`, the one-letter params
+aliases) are decoded once in [GLOSSARY.md](./GLOSSARY.md).
 Everything below assumes the governing rule: **`engine` imports nothing; everything
 else consumes its event stream.**
 
