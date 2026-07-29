@@ -3,6 +3,24 @@
   "private": true,
   "version": "0.1.0",
   "description": "hoopsh \u2014 a modular, deterministic 2D spatial basketball simulation core",
+  "license": "MIT",
+  "author": "alperien <emailadrss@proton.me>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alperien/hoopsh.git"
+  },
+  "homepage": "https://github.com/alperien/hoopsh#readme",
+  "bugs": {
+    "url": "https://github.com/alperien/hoopsh/issues"
+  },
+  "keywords": [
+    "basketball",
+    "simulation",
+    "deterministic",
+    "sports-simulation",
+    "game-engine",
+    "typescript"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24"
