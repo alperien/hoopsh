@@ -1,9 +1,35 @@
 {
   "name": "@hoopsh/stats",
   "version": "0.1.0",
-  "description": "Folds hoopsh engine event streams into box scores, advanced stats, and shot charts.",
+  "description": "Folds hoopsh engine event streams into box scores, advanced stats, and shot charts. TypeScript source, no build — see docs/EMBEDDING.md.",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alperien/hoopsh.git",
+    "directory": "packages/stats"
+  },
+  "keywords": [
+    "basketball",
+    "simulation",
+    "box-score",
+    "stats"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
   "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false,
   "dependencies": {
     "@hoopsh/engine": "*"
   }

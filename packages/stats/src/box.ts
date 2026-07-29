@@ -133,6 +133,22 @@ function emptyZones(): ZoneLine {
  * chronological on both time axes — see core/events.ts). Each event type
  * updates exactly the counters it's authoritative for; nothing here looks
  * ahead or reconstructs state the events didn't already carry.
+ *
+ * Case -> what it mutates (the fold's full write map; every case is also
+ * preceded by accrueMinutes, which writes minutes for the on-floor lineup):
+ *   game_start / substitution   the onCourt lineup sets
+ *   period_start                nothing
+ *   period_end                  periods
+ *   possession_start            the transitionPoss flag
+ *   possession_end              totals.poss (the ONLY poss increment)
+ *   shot                        lines+totals fga/fgm/tpa/tpm/pts/ast/blk,
+ *                               zones, fastbreakPts; plus-minus via scorePoints
+ *   free_throw                  lines+totals fta/ftm/pts; plus-minus
+ *                               (never fastbreakPts — see the shot-case note)
+ *   rebound                     lines+totals orb/drb/trb (deadBall rows: nothing)
+ *   turnover                    lines+totals tov, the thief's stl
+ *   foul                        lines+totals pf
+ *   timeout                     totals.timeouts (team-level only)
  */
 export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScoreOptions = {}): BoxScore {
   const lines = new Map<string, PlayerLine>();

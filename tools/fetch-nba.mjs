@@ -25,6 +25,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { flagNumber, flagValue } from './args.mjs';
 
 const BASE = 'https://www.basketball-reference.com';
 const UA = 'hoopsh-data-spine/1.0 (research corpus for a basketball simulator; polite sequential fetch)';
@@ -45,27 +46,29 @@ const SEASON_DATES = {
 };
 
 // ---------------------------------------------------------------- args
+// tools/args.mjs's loud parsers, not the old local silent reader: a flag
+// whose value was missing (or swallowed by the next flag) used to fall back
+// to the default with no warning — the incident class args.ts exists for.
 const argv = process.argv.slice(2);
-const flag = (name, dflt) => {
-  const i = argv.indexOf(name);
-  return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : dflt;
-};
 const has = (name) => argv.includes(name);
 
-const cacheDir = flag('--cache-dir', 'data/nba/raw');
-// Numeric flags are validated before use: Math.max(2000, NaN) is NaN, and a
-// NaN delay makes politeFetch's `wait > 0` false on every request — a typo'd
-// --delay-ms would hammer basketball-reference with ZERO spacing, silently
-// defeating the courtesy contract in the header. Fail loudly instead.
-const delayMsRaw = Number(flag('--delay-ms', '3500'));
-if (!Number.isFinite(delayMsRaw)) bail(`--delay-ms must be a number, got "${flag('--delay-ms', '3500')}"`);
-const delayMs = Math.max(2000, delayMsRaw); // hard 2s floor
-const limit = Number(flag('--limit', 'Infinity')); // Infinity = no cap (the default)
-if (Number.isNaN(limit)) bail(`--limit must be a number, got "${flag('--limit', 'Infinity')}"`);
+const cacheDir = flagValue(argv, '--cache-dir', 'data/nba/raw');
+// Numeric flags are validated before use (flagNumber throws on non-numeric):
+// Math.max(2000, NaN) is NaN, and a NaN delay makes politeFetch's `wait > 0`
+// false on every request — a typo'd --delay-ms would hammer
+// basketball-reference with ZERO spacing, silently defeating the courtesy
+// contract in the header. Fail loudly instead.
+const delayMs = Math.max(2000, flagNumber(argv, '--delay-ms', 3500)); // hard 2s floor
+// --limit keeps its Infinity default (= no cap), which flagNumber's
+// finite-only contract can't carry — parse the string form and keep the
+// NaN bail for a non-numeric explicit value
+const limitRaw = flagValue(argv, '--limit', 'Infinity');
+const limit = Number(limitRaw);
+if (Number.isNaN(limit)) bail(`--limit must be a number, got "${limitRaw}"`);
 const dryRun = has('--dry-run');
-const season = flag('--season', null);
-const datesArg = flag('--dates', null);
-const gamesArg = flag('--games', null);
+const season = flagValue(argv, '--season', null);
+const datesArg = flagValue(argv, '--dates', null);
+const gamesArg = flagValue(argv, '--games', null);
 
 const dates = [
   ...(season ? (SEASON_DATES[season] ?? bail(`unknown season "${season}" — known: ${Object.keys(SEASON_DATES).join(', ')}`)) : []),

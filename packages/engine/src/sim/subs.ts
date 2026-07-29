@@ -114,6 +114,11 @@ export function updateConcede(s: GameState): void {
   }
 }
 
+/**
+ * Dead-ball substitution pass. Per on-court player the FIRST matching regime
+ * wins — crunch > concede > fatigue/minutes rotation — and the `continue`s
+ * ARE that precedence (see the ordering-trap note on the concede branch).
+ */
 export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
   // crunch-time definition: final scheduled period (or OT), under 5 minutes

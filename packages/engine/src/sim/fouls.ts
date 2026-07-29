@@ -165,7 +165,7 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   integrateMovement(s, dt);
   // fatigue accrues here like every other phase handler — this was the sole
   // omission (energy silently froze through every trip to the line);
-  // landed with the M1 margin re-sweep (REFACTOR.md D4)
+  // landed with the M1 margin re-sweep (docs/REGISTER.md D4)
   applyFatigue(s, dt);
   ph.nextIn -= dt;
   if (ph.nextIn > 0) return;

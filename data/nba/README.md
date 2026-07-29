@@ -91,12 +91,6 @@ load-bearing ones:
   away-from-play FT retention (rare); flagrant/clear-path FT phrasings never
   match the plain `N of N` boundary and so correctly do not end possessions.
 
-`packages/harness/src/flow.ts` prints hardcoded reference strings in its
-report table; those are now stale where `changesVsAnchor` flags material
-moves (notably putback share, drought, possession p50, clutch FT share) and
-should be refreshed from `flow-reference.json` next time the harness is
-touched (sim code is out of scope for the data spine).
-
 ## Planned datasets (unchanged)
 
 | file | contents | feeds |

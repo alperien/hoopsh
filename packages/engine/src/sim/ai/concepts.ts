@@ -56,6 +56,10 @@
  *
  * Each term's incident history (what broke without it, what flooding it
  * ungated caused) stays in comments on the term that earned it.
+ *
+ * In-file order: concepts 1, 2, 3, then 6, 5, 7, 8 — the banners are
+ * numbered, not sorted. Concept 4 (usage pressure) lives in decide.ts's
+ * closed loop, not here.
  */
 
 import { clamp } from '../../core/rng.js';
@@ -401,6 +405,16 @@ export function endgameContinuation(
   const holdFade = clamp((eff - U) / U, 0, 1);
 
   const margin = s.score[side] - s.score[other(side)];
+  // Regime table for the branches below — first matching row wins:
+  //   period    condition                                      regime        mult
+  //   final     leading, clock ≤ leadHoldClockSec              CLOCK-KILL    rises
+  //   final     tied,    clock ≤ holdForOneClockSec            HOLD FOR ONE  rises
+  //   final     down ≤ lastShotDeficitMax, ≤ holdForOneClock   HOLD FOR ONE  rises
+  //   final     trailing otherwise                             HURRY         falls
+  //   non-final clock in the 2-for-1 window                    2-FOR-1       falls
+  //   non-final clock ≤ holdForOneClockSec                     HOLD FOR ONE  rises
+  // (the horn collapse above applies in every regime; holdFade kills every
+  // "rises" row inside the urgency window)
   if (s.period >= s.rules.periods) {
     if (margin > 0 && clock <= E.leadHoldClockSec) {
       const ramp = 1 - clock / E.leadHoldClockSec;

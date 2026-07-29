@@ -1,0 +1,54 @@
+name: Feature / mechanics proposal
+description: New behavior, a new stat, a new event, a rules field, a new dial.
+title: "proposal: "
+labels: ["proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mechanics changes go through an issue BEFORE a PR: calibrated defaults
+        are coupled, and recalibration is authorized per-change (AGENTS.md
+        §4.3–4.4). Consumer features (stats/narration/viewer/harness) can go
+        straight to a PR via docs/PLAYBOOK.md Recipe G — this form is still
+        useful to check the shape first.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: One concrete outcome, stated in basketball or user terms.
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer (AGENTS.md §3 ownership map)
+      options:
+        - "AI decision (sim/ai/)"
+        - "Resolution probability (sim/resolve.ts)"
+        - "Tunable constant (sim/params.ts + knobs)"
+        - "Possession/phase flow (sim/possession.ts)"
+        - "Event contract (core/events.ts) — consumer-visible"
+        - "League rules (rules/rulepack.ts)"
+        - "Stats fold (stats/)"
+        - "Harness / measurement (harness/)"
+        - "Narration / viewer"
+        - "Data packs / archetypes (data/)"
+        - "Docs"
+        - "Not sure (say so below — that is a fine answer)"
+    validations:
+      required: true
+  - type: textarea
+    id: exemplar
+    attributes:
+      label: Nearest existing thing
+      description: >
+        What is this most like? (docs/PLAYBOOK.md recipes A–G each name an
+        exemplar; naming one shows the shape fits.)
+  - type: checkboxes
+    id: gates
+    attributes:
+      label: Gates (tick what applies)
+      options:
+        - label: This changes mechanics/params — I understand it needs the verification ladder and authorized recalibration, and I am not attaching a hand-tuned params diff.
+        - label: This proposes a new attribute/tendency dial — I can name the benchmark player or archetype that is inexpressible without it (AGENTS.md §2.2; dials are not added speculatively).
+        - label: This is consumer-only — engine fingerprint will be untouched.

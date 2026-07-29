@@ -102,7 +102,7 @@ export function startPossession(
     a.screenStunUntil = -99;
     a.navUnderUntil = -99;
     a.relocUntil = -99; // was omitted — a relocation window leaked across
-                        // possessions (REFACTOR.md D5; landed with M1)
+                        // possessions (docs/REGISTER.md D5; landed with M1)
   }
   emit(s, { type: 'possession_start', team, kind });
   assignSpots(s, team);
@@ -362,6 +362,10 @@ export function tickScramble(s: GameState, dt: number): void {
 
   ph.resolveIn -= dt;
   if (ph.resolveIn > 0) return;
+
+  // The expired scramble resolves exactly ONE of three ways, tried in order:
+  // loose-ball foul -> team rebound -> player rebound. The first two branches
+  // return; a player rebound falls through to the putback/possession routing.
 
   // loose-ball foul (defensive side only, v0.1): the two combatants closest
   // to the landing spot are the fouler/victim proxy — we don't model the

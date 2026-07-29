@@ -95,6 +95,19 @@
  * Solved profiles are CONTEXT-RELATIVE (same caveat as solve.ts): the
  * refinement embeds the player in a league-neutral cast; a profile fitted
  * here will drift on a very different roster. That is basketball, not a bug.
+ *
+ * ── MAP OF THE FILE: the 11 `── section ──` banners, in order ──────────────
+ *   input schema          SeasonLine + validateSeasonLines (the *.season.json contract)
+ *   position priors       POS table: per-position anchors the formulas lean on
+ *   derived rates         season line -> usage/shares/rates (deriveRates)
+ *   REFERENCE MODEL       engine-derived logits the inversions run backwards
+ *   forward models        re-exports for the round-trip tests
+ *   analytic inversions   the invert* family (FT%, 3P%, 2P%, FTA rate)
+ *   the analytic fit      layer 1: analyticFit — 38 dials, each with provenance
+ *   layer 2: refinement   budgets, scoreLine, hostTeam, refineFit (CRN hill-climb)
+ *   team pack assembly    assembleTeamPack: fitted players -> valid TeamPack
+ *   fixture comparison    diff a fit against the hand-built fidelity fixtures
+ *   CLI                   file I/O + flags; everything above is importable pure logic
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -592,6 +605,9 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   const rates = deriveRates(line);
   const P = POS[line.pos];
   const src: DialSource[] = [];
+  // F = record-and-clamp: EVERY dial assignment below routes through it so
+  // the provenance report (`sources`) is complete — never assign a dial
+  // directly, or the report silently loses that dial's audit trail.
   const F = (dial: string, value: number, source: DialSource['source'], detail: string): number => {
     const v = Math.round(clamp(value, 1, 99));
     src.push({ dial, value: v, source, detail });
@@ -616,8 +632,11 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   a.freeThrow = F('freeThrow', invertFreeThrow(line.ftPct), 'formula',
     `exact freeThrowP inverse: FT%=${(line.ftPct * 100).toFixed(1)}`);
   const two = invertTwoPoint(rates);
+  // the estimated rim% invertTwoPoint applied internally (its pRim), redone
+  // here only so the provenance string can show it — keep in lockstep
+  const estRimPct = clamp(zoneRefs().rim.leaguePct + TWO_PT_SHRINK * (rates.twoPct - two.leagueTwoPct), 0.15, 0.9);
   a.finishing = F('finishing', two.finishing, 'formula',
-    `rim logit inverse @ est. rim%=${(clamp(zoneRefs().rim.leaguePct + TWO_PT_SHRINK * (rates.twoPct - two.leagueTwoPct), 0.15, 0.9) * 100).toFixed(1)} (2P% ${(rates.twoPct * 100).toFixed(1)} vs league ${(two.leagueTwoPct * 100).toFixed(1)})`);
+    `rim logit inverse @ est. rim%=${(estRimPct * 100).toFixed(1)} (2P% ${(rates.twoPct * 100).toFixed(1)} vs league ${(two.leagueTwoPct * 100).toFixed(1)})`);
   a.midRange = F('midRange', two.midRange, 'formula',
     'mid logit inverse at the same shrunk uniform shift');
   a.drawFoul = F('drawFoul', invertDrawFoul(rates, line.tpPct), 'formula',
@@ -805,8 +824,9 @@ function scoreLine(a: Achieved, target: Achieved): number {
 
 /**
  * League-neutral supporting cast — the fidelity-benchmark/solve.ts
- * convention (duplicated from solve.ts, which is a CLI script whose import
- * would execute its main). POSITION-AWARE starters: the star fills his own
+ * convention. Forked from solve.ts back when importing it executed its main
+ * (solve.ts is import.meta.main-guarded now); the fork has since diverged.
+ * POSITION-AWARE starters: the star fills his own
  * slot and the cast fills the other four — starting a rimRunner center next
  * to a fitted center made twin towers that ATE the fitted big's boards
  * (observed: a 12-board center fitting to 8.5), which no fidelity cast does
@@ -949,6 +969,10 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
   }
 
   const rng = new Rng(`${opts.seedBase}-refine-${seedPlayer.id}`);
+  // Loop shape — a bounded hill-climb: each iteration proposes `cands`
+  // candidates of 2-4 random dial moves inside the trust region; acceptance
+  // needs a 3% CRN-fair margin (ACCEPT_MARGIN); step anneals ×0.85 per
+  // iteration, floored at 3.
   let step = 12;
   let itersRun = 0;
   for (let i = 1; i <= opts.iters; i++) {
@@ -962,7 +986,8 @@ export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions
           ? (cand.attr as unknown as Record<string, number>)
           : (cand.tend as unknown as Record<string, number>);
         const b = bounds.get(`${d.path}.${d.key}`)!;
-        bag[d.key] = Math.round(clamp(bag[d.key]! + (rng.float() * 2 - 1) * step, b.lo, b.hi));
+        const jitter = (rng.float() * 2 - 1) * step; // uniform in ±step
+        bag[d.key] = Math.round(clamp(bag[d.key]! + jitter, b.lo, b.hi));
       }
       const ev = evaluate(cand, opts.seedBase, evalGames);
       if (ev.score < bestEval.score * (1 - ACCEPT_MARGIN)) {

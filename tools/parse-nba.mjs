@@ -34,16 +34,17 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { flagValue } from './args.mjs';
 
 // ---------------------------------------------------------------- args
+// tools/args.mjs's loud parser, not the old local silent reader: a flag
+// whose value was missing used to fall back to the default with no warning
+// (`--out-dir` alone quietly wrote into data/nba) — the incident class
+// args.ts exists for.
 const argv = process.argv.slice(2);
-const flag = (name, dflt) => {
-  const i = argv.indexOf(name);
-  return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1] : dflt;
-};
-const cacheDir = flag('--cache-dir', 'data/nba/raw');
-const outDir = flag('--out-dir', 'data/nba');
-const onlyGames = flag('--games', null)?.split(',') ?? null;
+const cacheDir = flagValue(argv, '--cache-dir', 'data/nba/raw');
+const outDir = flagValue(argv, '--out-dir', 'data/nba');
+const onlyGames = flagValue(argv, '--games', null)?.split(',') ?? null;
 const writeReference = argv.includes('--write-reference');
 
 // ---------------------------------------------------------------- html -> plays

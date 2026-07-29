@@ -1,24 +1,27 @@
 <!-- ============================================================
   GENERATED FILE — DO NOT EDIT.
-  This is the hoopsh Bible: all eight source documents compiled in canonical
+  This is the hoopsh Bible: all 11 source documents compiled in canonical
   reading order. Edit the sources, then regenerate: npm run docs:bible
-  Sources (in order): README.md · ARCHITECTURE.md · docs/INTERNALS.md · AGENTS.md · docs/PLAYBOOK.md · docs/ROSTERS.md · docs/SEASON.md · docs/ONBOARDING.md
+  Sources (in order): README.md · ARCHITECTURE.md · docs/INTERNALS.md · docs/CALIBRATION.md · AGENTS.md · docs/PLAYBOOK.md · docs/EMBEDDING.md · docs/ROSTERS.md · docs/SEASON.md · docs/GLOSSARY.md · docs/ONBOARDING.md
 ============================================================ -->
 
 # 📖 The hoopsh Bible — everything, one file
 
-> Generated from the eight source documents. If this file and a source document
+> Generated from the 11 source documents. If this file and a source document
 > disagree, the source is right and this file is stale — regenerate it.
 
 ## Contents
 1. **README.md**
 2. **ARCHITECTURE.md**
 3. **docs/INTERNALS.md**
-4. **AGENTS.md**
-5. **docs/PLAYBOOK.md**
-6. **docs/ROSTERS.md**
-7. **docs/SEASON.md**
-8. **docs/ONBOARDING.md**
+4. **docs/CALIBRATION.md**
+5. **AGENTS.md**
+6. **docs/PLAYBOOK.md**
+7. **docs/EMBEDDING.md**
+8. **docs/ROSTERS.md**
+9. **docs/SEASON.md**
+10. **docs/GLOSSARY.md**
+11. **docs/ONBOARDING.md**
 
 
 
@@ -27,51 +30,60 @@
 
 <!-- ================= SOURCE: README.md ================= -->
 
+> Part 1/11 of the generated Bible — canonical source: `README.md`. Edit there, then `npm run docs:bible`.
+
 # hoopsh
 
 *A modular, deterministic, 2D-spatial basketball simulation core.*
 
-Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
-closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **probability models fed by spatial context, calibrated against
-author-recalled NBA ranges** — honesty note: the acceptance BANDS are still
-authored from memory, not generated from sourced data (the game-flow references
-in `data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games);
-grounding the bands in citable data (and fitting to distributions, not means)
-remains the active roadmap arc. Games
-follow basketball rules and season-scale statistics fall inside those ranges. Every point
-in a box score traces back to a simulated shot at an (x, y) location — a
-2D probability model with position as an input, not a physics sim (there is
-no ball height; see docs/INTERNALS.md known simplifications for the full
-honest list).
+hoopsh simulates a basketball game as ten agents moving on a real court, ten times
+per second — spacing, drives, kick-outs, cuts, closeouts, help rotations, box-outs.
+Discrete outcomes (shots, passes, fouls, rebounds) resolve through probability
+models fed by spatial context. The same seed produces the bit-identical game every
+time, so a game is a file you can replay, diff, and share. Every point in a box
+score traces back to a simulated shot at an (x, y) location. It is a 2D probability
+model with position as an input, not a physics sim: there is no ball height, and
+[docs/INTERNALS.md](./docs/INTERNALS.md) keeps the honest list of simplifications.
 
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
-("drop Jordan into 2015"), broadcast experiences — all of these are thin apps consuming
-one core's event stream. Leagues (NBA, NCAA, EuroLeague) are swappable **rule packs**;
-rosters are human-editable **data packs**.
+("drop Jordan into 2015"), broadcast experiences — all of these are thin apps
+consuming one core's event stream. Leagues (NBA, NCAA, EuroLeague) are swappable
+**rule packs**; rosters are human-editable **data packs**.
 
 ## Quickstart — zero dependencies
 
-All you need is **Node 24+**. No `npm install` — the repo runs directly from TypeScript
-source via Node's native type stripping and a tiny loader hook.
+All you need is **Node 24+**. No `npm install` — the repo runs directly from
+TypeScript source via Node's native type stripping and a tiny loader hook.
+The demo is one command:
 
 ```bash
 git clone https://github.com/alperien/hoopsh && cd hoopsh
+npm run sim                      # one game: box score + play-by-play + saved replay
+```
 
-npm run sim                      # simulate one game: box score + play-by-play + replay
+Then:
+
+```bash
 npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
 npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
-npm run test                     # full suite via node:test (zero installs)
+npm run test                     # full suite via node:test, zero installs (~2 min)
 npm run broadcast                # two-voice broadcast script for a game
 
-npm run roster:new               # scaffold your own team from archetypes (wizard)
-npm run roster:validate -- t.json  # human-grade pack linting: fixes + plausibility warnings
-npm run sim -- --home t.json     # ...and watch your team play (docs/ROSTERS.md is the guide)
+npm run roster:new               # scaffold your own team from archetypes (wizard);
+                                 # writes out/new-team.team.json by default
+npm run roster:validate -- out/new-team.team.json  # pack linting: fixes + plausibility warnings
+npm run sim -- --home out/new-team.team.json       # ...and your team plays (docs/ROSTERS.md is the guide)
 
 npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
 npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
 ```
+
+A note on realism claims: the league-average checks the sim is tuned against
+were written down from memory, not generated from sourced data (the play-by-play
+references in `data/nba/` are the sourced part — 184 parsed real games). Making
+every target citable is an active roadmap item, so this README quotes no pass
+rates: run the checks yourself with `npm run batch`.
 
 Optional dev tooling (`typescript`, `vitest`, `tsx`, `@types/node`) is
 declared in `devDependencies` so one plain `npm install` reproduces the full
@@ -87,14 +99,19 @@ dependencies. Installing real vitest simply takes over via `test:vitest`.
 ```bash
 npm run sim -- --seed showcase           # writes out/replay-showcase.json
 npm run viewer:embed out/replay-showcase.json out/game.html
-open out/game.html                       # court, players, ball, score, clock, ticker
+open out/game.html                       # macOS; Linux: xdg-open, Windows: start
 ```
 
 Or open `packages/viewer/index.html` directly and **drag any replay JSON onto it**.
 Playback controls: space to play/pause, ←/→ to skip ±10s, speed cycling, name labels,
 made/missed shot splashes.
 
-## Packages
+The viewer needs a browser — there is no terminal renderer. On a headless box
+(SSH, CI, an agent sandbox) the game is still readable as text: every
+`npm run sim` writes the full play-by-play to `out/pbp-<seed>.txt`, and
+`npm run broadcast` renders a two-voice announcer script.
+
+## How it fits together
 
 | Package | What it does |
 |---|---|
@@ -105,21 +122,48 @@ made/missed shot splashes.
 | `@hoopsh/harness` | Batch runner, NBA acceptance bands, benchmarks, calibration tooling |
 | `packages/viewer` | Single-file 2D canvas replay viewer (embed tool + drag-and-drop) |
 
-Dependency rule: **`engine` imports nothing; everything else imports `engine`.**
-The typed event stream is the public contract — stats, narration, and viewers are pure
-consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
+One rule holds the design together: **`engine` imports nothing; everything else
+consumes what it emits.**
+
+```mermaid
+flowchart LR
+    classDef eng fill:#1a7f37,color:#ffffff,stroke:#0f5323
+    classDef ext stroke-dasharray: 5 5
+
+    ENG["engine<br/>zero dependencies, imports nothing"]:::eng
+    ST["stats"] -->|imports| ENG
+    NA["narration"] -->|imports| ENG
+    HA["harness"] -->|imports| ENG
+    DA["data"] -->|imports| ENG
+    ENG -.->|"event stream"| ST
+    ENG -.->|"event stream"| NA
+    ENG -.->|"replay file"| VI["viewer"]
+    ENG -.->|"event stream"| EX["your app<br/>(GM mode, season bot, stat site)"]:::ext
+```
+
+Solid arrows are compile-time imports: they all point INTO the engine, which
+imports nothing — no npm packages, no `node:` built-ins. Dashed arrows are runtime
+data flowing OUT: the typed event stream (`core/events.ts`, the public contract)
+and the replay file, which the viewer renders without re-simulating. The engine
+never learns who consumes it; a change that makes it aware of a consumer breaks
+the arrows, and that is the review test. Full design rationale in
+[ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Build on it
+
+The engine is a library. `simulateGame(config)` returns `{ seed, events,
+finalScore, frames, rules, params, teams }`, and the event stream is the same
+surface this repo's own box scores, narration, and viewer are built on — a
+consumer you write sits at exactly that distance. Natural fits: season bots,
+custom stat sites, alternative viewers, GM/career layers, LLM color commentary
+(the `CommentaryProvider` seam). The builder's guide is
+[docs/EMBEDDING.md](./docs/EMBEDDING.md): loader recipe, `GameConfig`, the
+supported API surface, worked examples.
+
 Input contract: `simulateGame` always rejects non-finite ratings loudly; pass
 `validate: 'strict'` to also enforce the data-pack ranges (ratings 0-100) when
 rosters come from untrusted sources — the default tier deliberately admits
 out-of-range finite values for custom content and stress tests.
-
-**All documentation → [docs/README.md](./docs/README.md)** (the library hub: every
-document, reading paths by role, which doc answers which question). The short list:
-[ARCHITECTURE.md](./ARCHITECTURE.md) (design) · [docs/INTERNALS.md](./docs/INTERNALS.md)
-(module map) · [AGENTS.md](./AGENTS.md) (**contributor covenant**) ·
-[docs/PLAYBOOK.md](./docs/PLAYBOOK.md) (build procedure) ·
-[docs/ONBOARDING.md](./docs/ONBOARDING.md) (learning path) ·
-[docs/BIBLE.md](./docs/BIBLE.md) (everything compiled into one generated file)
 
 ## The core bet: hybrid spatial–stochastic simulation
 
@@ -150,12 +194,12 @@ rate is quoted here on purpose — quoted numbers rot.** Measure the current
 state yourself: `npm run batch -- --games 40` for one seed base,
 `npm run sweep -- --iters 0 --verify 40` for three, `npm run oos` for rosters
 the sweep has never seen (plus a distributional report the means can't
-capture). Residual misses and open calibration findings are recorded in
-`docs/INTERNALS.md`, not hidden. The test suite — including a permanent
-invariant suite derived from adversarial audit rounds and an adversarial-
-input fixture — guards determinism, possession accounting, minutes
-conservation, and buzzer integrity on every change (`npm test` prints the
-live count). Archetype tests pin player differentiation
+capture). Residual misses and open calibration findings are recorded in the
+work register, [docs/REGISTER.md](./docs/REGISTER.md), not hidden. The test
+suite — including a permanent invariant suite derived from adversarial audit
+rounds and an adversarial-input fixture — guards determinism, possession
+accounting, minutes conservation, and buzzer integrity on every change
+(`npm test` prints the live count). Archetype tests pin player differentiation
 (elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
 of shots inside; non-shooting bigs do not take low-value shots).
 
@@ -163,42 +207,49 @@ Run it yourself: `npm run batch -- --games 50`.
 
 ## Roadmap
 
-**Done:** replay viewer · broadcast demo · automated parameter sweep ·
-orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
-usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
-invariant suite · full documentation campaign (contributor covenant, onboarding path) ·
-real-game corpus (184 parsed NBA games) grounding the flow references ·
-worker-pool parallel runner (determinism across worker counts tested) ·
-roster tooling (schema gen, scaffold wizard, validator, stats→ratings fitter) ·
-stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
-endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
-burn) — default ON since the calib/integration landing, decided on measured
-survey evidence (`endgame: false` = the byte-identical legacy path) ·
-game-state coupling (trailing-team defensive pressure + garbage-time concede
-rotation) — landed at the mech/game-state landing, magnitudes fitted and
-verified by measurement; the distribution record and residuals live in
-docs/INTERNALS.md ·
-NCAA rule pack behind the harness `--league` flag (partially wired — see
-REFACTOR.md's register)
+**Done:** deterministic engine with replay viewer and broadcast scripts ·
+automated parameter sweep · pick-and-roll, post-ups, dribble-handoffs,
+isolation · usage hierarchy (floor generals lead their teams in assists) ·
+invariant suite from adversarial audits · real-game corpus (184 parsed NBA
+games) grounding the flow references · worker-pool parallel runner
+(determinism across worker counts tested) · roster tooling (schema gen,
+scaffold wizard, validator, stats→ratings fitter) · stateless season driver +
+Monte-Carlo matchups (docs/SEASON.md) · late-game management (timeouts,
+intentional fouling, hold-for-last, two-for-one, clock burn) — on by default,
+a decision made on measured evidence · score pressure that couples the
+scoreboard back into play (trailing teams press up; decided games wind down
+through the benches) · an NCAA rule pack behind the harness `--league` flag
+(rule coverage partial).
 
-**Phase 2R (current — tuning, not building):** the mechanics above are implemented
-and wired. The coordinated re-sweep, the endgame-flag decision (first full 17/17
-band lock), and the B2 game-state coupling all landed on measured evidence; the
-open work is the pass-volume arc (the probe mechanism is wired but ships staged
-at zero — deferred at a measured interaction gate), fidelity residuals (hub
-post-up share), and the open items in REFACTOR.md's register.
+**Now — tuning, not building.** The mechanics above are implemented and wired;
+current work is closing measured gaps, not adding systems. The biggest: the
+sim still moves the ball less than real teams do, and the mechanism built to
+fix that is parked at zero strength because, measured together with the
+score-pressure coupling, the two interact badly. That finding and every other
+open item live with their measurements in the work register:
+[docs/REGISTER.md](./docs/REGISTER.md). Project terms ("staged", "sweep",
+"band lock"…) are defined in [docs/GLOSSARY.md](./docs/GLOSSARY.md).
 
-**Next (validation arc):**
-30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
-windows) · prediction backtest (Brier, calibration curves) via the season layer ·
-sourced NBA data in-repo with provenance, bands/targets generated not typed ·
+**Next — validation:** 30-roster league fitting off the corpus · blind
+"real or simulated?" play-by-play trials · prediction backtests (Brier score,
+calibration curves) via the season layer · sourced NBA data in-repo with
+provenance, so bands are generated from data instead of typed from memory ·
 distribution-level fitting with a held-out season the solver never sees.
 
-**Beyond:** cross-game season state (fatigue carryover, injuries — the seams are
-documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack +
-NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor UI ·
-GM & MyPlayer experiences · defensive schemes · broadcast TTS audio · WASM hot
-path if the perf budget ever demands it.
+**Beyond:** cross-game season state (fatigue carryover, injuries — the seams
+are documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack
++ NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor
+UI · GM & MyPlayer experiences · defensive schemes · broadcast TTS audio ·
+WASM hot path if the perf budget ever demands it.
+
+## Documentation
+
+Everything routes through the hub: **[docs/README.md](./docs/README.md)** —
+every document, reading paths by role, which doc answers which question.
+Contributing code? Humans start at [CONTRIBUTING.md](./CONTRIBUTING.md), AI
+agents at [AGENTS.md](./AGENTS.md) (the covenant; its rules bind everyone).
+The whole doc set compiled into one generated file:
+[docs/BIBLE.md](./docs/BIBLE.md).
 
 ## License
 
@@ -209,6 +260,8 @@ MIT — see [LICENSE](LICENSE).
 ---
 
 <!-- ================= SOURCE: ARCHITECTURE.md ================= -->
+
+> Part 2/11 of the generated Bible — canonical source: `ARCHITECTURE.md`. Edit there, then `npm run docs:bible`.
 
 # hoopsh — Architecture
 
@@ -251,6 +304,29 @@ tick (10 Hz):
   3. move       — steering integration under speed/accel limits derived from ratings
   4. resolve    — scheduled discrete events fire through probability models
   5. emit       — events append to the game's event stream; frames append to the replay
+```
+
+The same pipeline as a picture. The two dotted inputs are the only tuning
+surfaces (global constants in `SimParams`, per-player attributes and tendencies
+in data packs); everything downstream hangs off two append-only outputs and
+never reaches inside the loop:
+
+```mermaid
+flowchart LR
+    subgraph tick["one tick (10 Hz)"]
+        direction LR
+        P["perceive<br/>read court state"] --> D["decide<br/>utility policies"]
+        D --> M["move<br/>steering under rating limits"]
+        M --> R["resolve<br/>probability models"]
+        R --> E["emit"]
+    end
+    SP[("SimParams<br/>every tunable constant")] -.-> tick
+    PK[("data packs<br/>attributes + tendencies")] -.-> tick
+    E --> EV["event stream"]
+    E --> FR["replay frames"]
+    EV --> ST["stats: box score, shot charts"]
+    EV --> NA["narration: play-by-play"]
+    FR --> VW["viewer: 2D replay"]
 ```
 
 The probability models take spatial inputs (shot distance, contest level, closing speed,
@@ -304,8 +380,8 @@ geometry (arc radius, corner distance, corner break), court dimensions, clock-st
 rules. NBA ships first. An NCAA pack exists and is selectable through the
 harness `--league` flag (rule pack + bands + pace basis travel together);
 its rule coverage is partial — unwired fields are labeled in
-`rules/rulepack.ts` and registered in REFACTOR.md. EuroLeague is a
-follow-up. Custom leagues are just JSON.
+`rules/rulepack.ts` and registered in [docs/REGISTER.md](./docs/REGISTER.md).
+EuroLeague is a follow-up. Custom leagues are just JSON.
 
 ### 4.3 Player model
 
@@ -354,30 +430,25 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   set, early-offense quality bonuses apply. Fast-break points emerge.
 - Endgame management (timeouts, intentional fouling, hold-for-last, two-for-one,
   clock burn) is a layer that modulates the same EV framework rather than
-  scripting plays (`GameConfig.endgame`). It defaults ON: the decision was
-  measured, not assumed — an n=1260-games-per-arm flag-on survey showed the
-  layer moving OT share, clutch free-throw texture, and comeback rates toward
-  cited NBA rates with every invariant probe green — and `endgame: false`
+  scripting plays (`GameConfig.endgame`). Default ON; `endgame: false`
   preserves the byte-identical legacy path. Its magnitude dials sit on the
   calibration sweep surface like any other `SimParams` constants; its
-  window/threshold dials are design, not calibration, and stay off it.
+  window/threshold dials are design decisions, not calibration, and stay off it.
 - Game-state coupling: the scoreboard feeds back into play all game, not just
   in the endgame windows. The trailing team's defense presses up and the
   leader's sags off — the same containment/closeout models that price every
   contest, leaned by the margin (concept 7 in the AI layer) — so margins
-  mean-revert the way real ones do (roughly 10% of the margin per quarter at
-  the shipped magnitude) instead of diffusing without bound, and blowout
-  rates land at real levels. The channel was chosen by measurement, not
-  assumption: the design's offensive press/coast tilt on the decision
-  yardstick is wired but measured distribution-null, and ships at zero.
-  Decided games additionally trigger a garbage-time concede rotation
-  (`sim/subs.ts`): past a clock-scaled safe-lead line, both benches close
-  the game out — leader first, with hysteresis so lineups never flip-flop —
-  which rests starters about a minute per game and stops blowouts from
-  growing to the horn. The concede requires the live coupling (uncoupled,
-  bench-vs-bench endings measured margin-expanding on generated rosters);
-  the landed distribution record and its residuals are in
-  `docs/INTERNALS.md`.
+  mean-revert the way real ones do instead of diffusing without bound. The
+  defensive channel is the one that ships: an offensive press/coast tilt is
+  also wired, measured distribution-null, and stays at zero. Decided games
+  additionally trigger a garbage-time concede rotation (`sim/subs.ts`): past
+  a clock-scaled safe-lead line, both benches close the game out — leader
+  first, with hysteresis so lineups never flip-flop — resting starters and
+  stopping blowouts from growing to the horn. The concede requires the live
+  coupling (uncoupled, bench-vs-bench endings measured margin-expanding).
+  Magnitudes were fitted by measurement; the current measured state lives in
+  [docs/CALIBRATION.md](./docs/CALIBRATION.md), open residuals in
+  [docs/REGISTER.md](./docs/REGISTER.md).
 
 ### 4.7 Event stream & replay
 
@@ -397,7 +468,7 @@ seeds.
 
 1. **League acceptance bands** (harness): sim N games between balanced rosters; assert
    pace, points, FG%/3P%/FT%, 3PA rate, FTA rate, ORB%, TOV%, assists, steals, blocks,
-   fouls all inside bands taken from real league seasons.
+   fouls all inside acceptance bands (author-recalled ranges today; sourcing them from real league data is an active roadmap item — see README).
 2. **Archetype tests** (engine test suite): hand-built extreme profiles must produce the
    right *shape* of stat line — the elite shooter's 3PA share, the rim-runner's points
    at the rim, the floor general's assist rate. Direction and band, not exact values.
@@ -431,13 +502,11 @@ Consumes the event stream; never touches the engine.
 - If the budget ever breaks against a future feature: hot loops port to Rust/WASM behind
   the same TypeScript API. Nothing above the engine notices.
 
-## 8. Roadmap after v0.1
+## 8. Roadmap
 
-cross-game season state (the stateless season driver exists — docs/SEASON.md
-records the seams; fatigue carryover, injuries, home-court are the missing
-pieces) → progression/aging → EuroLeague rule pack + NCAA calibration → era
-packs → deep editor UI → GM & MyPlayer experiences → defensive schemes →
-broadcast audio → possible WASM core.
+One roadmap, kept in [README.md](./README.md#roadmap). The live work
+register — open items, with their measurements — is
+[docs/REGISTER.md](./docs/REGISTER.md).
 
 
 ---
@@ -445,9 +514,13 @@ broadcast audio → possible WASM core.
 
 <!-- ================= SOURCE: docs/INTERNALS.md ================= -->
 
+> Part 3/11 of the generated Bible — canonical source: `docs/INTERNALS.md`. Edit there, then `npm run docs:bible`.
+
 # hoopsh internals — a guided tour
 
 Read [ARCHITECTURE.md](../ARCHITECTURE.md) first for the *why*; this is the *where*.
+The terse names the code uses (`n()`, `t`/`wt`, `sc`, the one-letter params
+aliases) are decoded once in [GLOSSARY.md](./GLOSSARY.md).
 Everything below assumes the governing rule: **`engine` imports nothing; everything
 else consumes its event stream.**
 
@@ -592,624 +665,13 @@ ratings throw at the `simulateGame` boundary (tier 'finite', always on),
 game throws instead of faking a `game_end`, and extreme-but-finite rosters
 complete with invariants intact.
 
-## Calibration workflow
+## Calibration
 
-1. Change mechanics → `npm test` (invariants + wide guard must stay green).
-2. `npm run batch -- --games 24` → see which bands drifted.
-3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
-   re-center; bake the printed diff into `params.ts` defaults; verify with
-   `npm run sweep -- --iters 0 --verify 40`.
-4. The noise floor is measured, not assumed: `npm run noisefloor` writes the
-   sampling distribution of every gated statistic (noise-floor.gen.ts) and
-   the permanent gates derive widths from it (edge ± 3·sd). Judge lock state
-   by measured CENTERS at 40 games: every center inside its band = locked; a
-   center on or beyond an edge is a systematic finding — record it below.
-
-**What "locked" does and does not claim.** The bands are league-mean aggregates
-on the repo's own rosters, and the sweep tunes the same knobs the bands grade —
-so a locked state demonstrates the model CAN express modern-NBA averages, not
-that it is identified (with 100+ free parameters against ~17 loose constraints,
-many parameterizations pass). Held-out validation is the fidelity suite
-(player-level, profiles authored independently of the sweep) and the
-out-of-sample roster check in the harness; distributional realism (score
-variance, blowout rate, quarter profiles) is reported but not yet enforced.
-Treat band-locked as "necessary, not sufficient".
-
-**Measured findings** (noise-floor era — magnitudes from `npm run noisefloor`;
-positions from `npm run calreport`, which quotes n40 grand-mean centers with
-standard errors — quoting a smaller nested window's mean as "the center" was
-an error the third review caught, twice, in our own write-up. The pre-texture
-FTA-low and 3P%-high residuals PASS after the texture re-tune):
-- **CURRENT STATE (scan-fix era — measured 2026-07-29 on
-  `fix/scan-integration`; the wave is 23 parallel line audits
-  (findings/scan/\*.md, the swarm run's findings files per the branch
-  citation convention) → 140 findings, ~118 fixed at root across 3
-  high-fix + 4 med branches (18 commits; highs individual, meds
-  squashed), 25 owner-call items registered instead of fixed
-  (findings/scan-register.md → REFACTOR.md W30+). Landing point: the
-  re-center `60eda3f` (tune) / `60c71d1` (floor). Re-measure commands
-  per finding.):**
-  - **THE FGA INVERSION — the instrument over-counted; the sim was
-    never over-shooting** (scan b1-HIGH / a4-F2; fix commit `5d9671f`,
-    consumer tier — engine fingerprints untouched). `stats/box.ts`
-    charged an FGA on EVERY `shot` event, but the engine also emits one
-    for a shooting-foul miss, and official scoring — the convention
-    behind every real reference number this repo calibrates against
-    (bands.ts fga/fgPct, fit-roster season lines, tsPct's 0.44 FTA
-    weight) — charges NO attempt on a fouled miss. Measured at the fix
-    commit (2026-07-29, 24-game acceptance batch): 5.65 fouled-miss
-    shots/team-game had been counted; fga re-reads 91.69 → 86.04 and
-    fgPct 46.0% → 49.1% under official counting. Against real 2023-24
-    FGA 88.9 the sim sat BELOW real volume the whole time. **The
-    "fga hugs its ceiling" narrative (the B1 fga-residual adjudication
-    and B2's verify-flicker bullet below, REFACTOR W26) is retired as a
-    cross-convention artifact**: it compared a fouled-miss-inclusive
-    measurement to a fouled-miss-exclusive target (~6 attempts of
-    hidden slack, ~2× the band's total headroom — a4-F2). Player-level
-    effect confirmed: foul-drawing players' FG% was systematically
-    deflated (LeBron FG% n12 center 0.481 → 0.527, now inside his
-    real-anchored [0.50, 0.58] profile). Post-re-center position
-    (2026-07-29): fga n40 center 88.75 (sd 0.65) at the `60c71d1`
-    floor — mid-band, 0.15 under real; acceptance batch reads 88.7 at
-    n=48 / 88.8 at n=96 (`npm run batch -- --games 48|96`, re-run at
-    HEAD for this record). fgPct n40 center 48.2% now runs nearer its
-    0.495 ceiling — the sim's true efficiency was always ~real
-    (2023-24 ≈ 47.4%); the old instrument hid it.
-  - **The shot-clock bug: the clock froze during pass flights**
-    (a1-MED / a4-F1 HIGH; fix commit `a768dae`, mechanics tier).
-    tickLive froze the shot clock for BOTH flight kinds where the
-    documented rule freezes it only for a released shot — every pass
-    granted the offense its flight time free (~0.2-1.0 s/pass), and
-    whistle-free possessions measured up to 26.9 s at the 48-game
-    verification base (31.4 s max on the 120-game probe) under a 24 s
-    clock. Post-fix (48 games, seed base acceptance, 2026-07-29):
-    shot-clock violations 0.02 → 1.79/game, max whistle-free span
-    24.5 s (the residual is the arrival-whistle latency, ≤1 tick);
-    pace re-read 98.3 at the post-mechanics pre-sweep batch-48 (the
-    `1a36b9b` verification) from 95.9. Post-re-center: pace 98.5
-    (n=48) / 99.0 (n=96), n40 center 99.2 at the `60c71d1` floor.
-  - **The blitz was dead code — the 20 ft/15 ft contradiction** (A9-1
-    HIGH; fix commit `1a36b9b`, mechanics tier). defenseTick's blitz
-    trigger requires the holder BEYOND blitzBeyondFt (20 ft) while
-    pickHelper rejected any holder at/beyond helpTriggerFt (15 ft) —
-    mutually exclusive since the introducing commit (measured: 48,008
-    blitz-condition ticks, 0 helpers, 0 branch executions). Fix
-    exempts blitz-triggered calls from the near-rim gate per the
-    mechanism's documented intent. Post-fix instrumented probe
-    (8 games): 26,004/26,004 helpers selected; texture delta as the
-    design comment predicts (assists 47.8 → 53.5/g, 3PA 76.3 → 71.6/g,
-    steals 18.5 → 16.5/g). **Companion: subs left stale matchups**
-    (a5-F1 MED / A9-2; fixes in `99f2745` + `d73a4a4`): swapPlayers
-    fixed only the incoming player's own `manId`, so defenders kept
-    guarding a benched man through resumed possessions — 8,916 stale
-    defender-ticks over 30 games ≈ ~300/game (~30 defender-seconds of
-    misassigned defense per game at 10 Hz; episodes up to four
-    defenders on benched men). Both directions now retarget: the
-    incoming defender inherits the outgoing man's assignment, and
-    opposing defenders re-point to the replacement.
-  - **Instrument corrections (flow bases)**: gameFlow's OREB base
-    counted dead-ball FT formalities and playerless team rebounds
-    where the reference is defined on PLAYER OREBs only (b4-1 /
-    c3-F1; fix `f277765`) — putbackShare re-reads **54.3%** (was
-    42.9%) vs corpus 71.6% of player OREBs: the post-OREB-patience gap
-    is real but ~11 pp smaller than the contaminated denominator
-    suggested. secondChanceShare divided a both-teams numerator by a
-    per-team denominator, printing ~2× its reference's definition
-    (b9-F1 / b4-2; fix `56c8a81`) — 16.1% → **8.1%** vs corpus pooled
-    13.2% (per-game p10/p90 9.9%/16.6%): the sim is slightly LOW; the
-    old doubled read (~21% vs "~12-15%") had inverted the diagnosis.
-    Gate rails re-anchored to the corpus per-game range [0.058, 0.23];
-    b9's suppression mutant now fails the floor. Both measured
-    2026-07-29 at the fix commits, 24-game flow base; re-measure:
-    `npm run flow -- --games 24`.
-  - **The re-center** (tune `60eda3f`, floor `60c71d1`, pin re-anchors
-    `7ea62a6`): the wave changed the physics (shot clock during
-    passes, blitz alive, matchup retargeting) and the instruments
-    (official FGA counting, player-OREB flow bases), so the 30-knob
-    surface was re-swept on the corrected engine. Measured 2026-07-29:
-    verify 40×3 = **17/17 / 17/17 / 17/17, zero band-fails, score
-    4.115** (`npm run sweep -- --iters 0 --verify 40`, the tune-commit
-    record); acceptance batch **17/17 at n=48 AND n=96** (fga
-    88.7/88.8, pace 98.5/99.0 — `npm run batch -- --games 48|96`,
-    re-run at HEAD 2026-07-29 for this record); suite **346 tests /
-    345 pass / 0 fail / 1 todo** (`npm test`, 2026-07-29 — the three
-    catalogued mechanics drift-trips re-greened at the re-center; two
-    draw-fragile pins re-anchored to their properties in `7ea62a6`,
-    no assertion weakened). Golden corpus re-baselined in the tune
-    commit; the noise-floor diff (`60c71d1`) is the drift record
-    (§4.4). NOT yet re-taken post-re-center: `npm run oos`,
-    `npm run texture`, `npm run calreport` — the B2-era reads below
-    predate the wave; re-measure before quoting.
-- **B2 GAME-STATE STATE (historical — measured 2026-07-28 at the
-  `mech/game-state` landing `4bd7a72`; superseded where the numbers
-  overlap by the scan-fix block above — in particular, every fga/fgPct
-  figure in this block was read on the pre-`5d9671f`
-  fouled-miss-inclusive box instrument, and the engine/params were
-  re-centered at `60eda3f`. The mechanics points are the tune
-  pair `21e703d` (coupling live) / `5cd67d0` (concede live), and
-  `4bd7a72` re-baselines the 24-seed goldens + measured noise floor at
-  the landed defaults — its diff is the drift record (AGENTS §4.4).
-  Out-of-repo citations below ("b2-…" / "design-…" findings) follow the
-  branch commit-message convention: the swarm run's findings files.
-  Re-measure commands per finding.):**
-  - **What ships — game-state coupling (W17), concept 7 (SCORE
-    PRESSURE, `sim/ai/concepts.ts`), two channels under one master
-    (`ai.scorePressureScale`, sweep-registered [0.5, 1.5]).**
-    **Channel 1 (continuation press/coast tilt): measured NULL, kept
-    at 0.** The fit ladder ran `scorePressureTilt` ∈ {0.05, 0.10,
-    0.15, 0.20} at n=240/point on the standard-pair cohort
-    (b2-fit-tilt005/010/015/020 findings): θ — the per-quarter margin
-    mean-reversion the coupling exists to buy — never separated from
-    zero (tilt 0.10: slope +0.015 ± 0.027, the design's target band
-    excluded at ≈3 se; tilt 0.20: θ 0.024, implied dθ/dtilt ≈ 0.09
-    per unit ⇒ landing needs tilt ≈ 1.0+, outside the mechanism's
-    meaningful range) while its side effects arrived first (fga
-    +0.61 +1.7z, tov −0.72 −3.2z at tilt 0.10). The transition
-    counterforce the design itself named cancels the yardstick
-    channel's drift; do not revive it by magnitude escalation
-    (`params.ts` records the ruling at the constant).
-    **Channel 2 (defensive intensity): LIVE at
-    `ai.scorePressureDefGain` 0.3** — the trailing team's defense
-    presses up, the leader's sags off, through the existing on-ball
-    containment gap + closeout slack (`defense.ts`; no urgency fade —
-    defense manufactures no violations). Fitted by the gain ladder
-    g ∈ {0.10, 0.20, 0.30, 0.45} at n=240/point (b2-fit-defgain*
-    findings): dθ/dg ≈ 0.27 per unit gain; at 0.30, θ =
-    0.086–0.098/quarter — inside the design band [0.07, 0.16] — with
-    ~91% of per-pairing talent drift preserved (K = 0.910 ± 0.169,
-    favorite win% 70.8 → 70.8; b2-trial-setC findings). The 0.45 wall
-    is measured: fga +0.87 over its ceiling, tov −0.89
-    (b2-fit-defgain045 findings). Do not buy θ with gain; the master
-    scale's sweep rail is the sanctioned adjustment surface.
-  - **Garbage-time concede (W18, `sim/subs.ts`): LIVE at design
-    values** (base 15 / perMin 1.0 / trailLag 4 / exit 6 / energyMin
-    25, all FEEL — design-garbagetime findings, executed as designed).
-    Final-period-only clock-scaled margin line with hysteresis; leader
-    concedes first structurally. REQUIRES the live coupling — do not
-    detach them: uncoupled, generated pools' bench-vs-bench play is
-    margin-EXPANDING and concede regressed the OOS walk's 30+ tail
-    (5.8→8.3% fam-a, 7.9→10.4% fam-b — b2-fit-concede-oos findings;
-    no trailLag value rescued it, b2-fit-lagkeep findings). On the
-    coupled engine the regression dissolves mechanistically, not by
-    masking (walk Δ30+ −0.83pp ± 1.18 — treatment BELOW control;
-    self-play 30+ −3.5pp at 1.7se; 0 adverse close/OT flips across
-    680 byte-paired games; b2-verify-concede findings).
-  - **Concept 8 (PROBE CULTURE, the pass-volume increment W19):
-    wired, STAGED at zero magnitudes.** Standalone-positive at the
-    selected 0.15/0.08 dose: +0.13 passes/poss (≈ +12/tg), fga −1.0,
-    every gated band in position (b2-fit-probe-high/-bisect
-    findings). DEFERRED at the interaction gate: joined to the live
-    coupling it is destructive — θ 0.098 → 0.038 and fixed-pool
-    talent-drift keep 0.91 → 0.26–0.28, with cohort-contingent margin
-    distortion in BOTH directions (b2-trial-setB vs -setC findings).
-    Ships zero; the flip belongs to a successor arc with the
-    interaction priced (REFACTOR W19/W28).
-  - **The landed distribution record — W14's headline gap,
-    substantially closed** (b2-landed-record findings: 680 games at
-    the shipped defaults, zero overrides, three cohorts, definitions
-    per the owning baseline files). Standard pair (n=240): mean |m|
-    **12.41** (NBA 12.58; baseline 15.31), signed sd 14.93 (NBA
-    15.64), blowout-20+ **19.2%** (NBA 19.1%), 30+ 3.8% (NBA 6.3% —
-    overshoot BELOW, the clamp-saturation note), θ **+0.098 ± 0.028**,
-    growth 48′/12′ 1.65 (sub-diffusive). OOS pairing walk (n=240):
-    mean |m| **12.20**, blowout-20+ **19.6%**, θ +0.067 ± 0.029
-    (0.1 se under the 0.07 edge — pass-with-flag, single family).
-    Self-play (n=200, zero talent gap by construction): signed sd
-    **15.52 ± 0.78** — UNDER the ~16 independence floor the
-    margin-distribution survey adjudicated as the headline gap
-    (within-game coupling now demonstrably exists; NBA's 15.64
-    includes talent spread); mean |m| 12.52 from 14.99. corr(h,a)
-    moved uniformly right but lands PARTIAL on the fixed-environment
-    criterion: +0.05…+0.12 (std +0.053, self-play +0.099, oos
-    within-cell +0.122) from baselines ≈ −0.03…−0.12, short of the
-    ≥ +0.10 line on the fixed cohorts (NBA +0.254,
-    mixture-inclusive) — registered residual (REFACTOR W24). OT share
-    2.5/2.9/3.0% across the cohorts vs the real 4.80% — still low,
-    registered residual (W25). Distributional stats stay report-only;
-    adjudicate at n≥240 (`npm run oos` prints the 60-game indicative
-    draw; the record's cohort constructions and per-game rows are in
-    the findings).
-  - **Bands at the landing: 17/17 at n=48 AND n=96 on the acceptance
-    base** (CI-mirror `npm run batch -- --games 48` gate PASS;
-    acceptance n=96 reads fga 91.3 — the `4bd7a72` commit record) —
-    **with an fga verify-base flicker noted honestly**: the 40×3
-    verify at the tip reads ONE base over the fga ceiling (swp-beta
-    92.60; alpha/gamma 17/17), and the breach moves base between
-    adjacent runs (per-base fga se ≈ 0.5 at n=40 — b2-scale-095
-    findings), so the per-base excursion is draw-level. The
-    systematic content is the CENTER: fga n40 sits at 91.81 (sd 0.61)
-    against the 92.0 ceiling at the regenerated floor (pre-B2 91.64 —
-    the coupling adds ~+0.4 fga on the cohort measurements,
-    b2-trial-setC note 3), and the scale micro-ladder 0.85–1.0
-    measured NO fga relief (b2-scale-085/090/095 findings). The
-    headroom belongs to the next coordinated re-sweep (design-coupling
-    OQ2); the staged probe is the known fga refund when it ships
-    (standalone −1.0). Registered: REFACTOR W26. Re-measure:
-    `npm run sweep -- --iters 0 --verify 40`. **Scan-wave update
-    (2026-07-29): retired** — the ceiling-hug was the instrument
-    (fouled-miss FGA counting, fixed `5d9671f`); see THE FGA INVERSION
-    in the scan-fix block above and W26's supersession.
-  - **Fidelity watch — star centers after the flips**
-    (b2-fidelity-watch findings: 5 × 40-game bases per star plus a
-    paired-seed attribution run `21e703d` → `5cd67d0`; per the
-    pre-approved watch protocol nothing was nudged). The 12-game z=3
-    gate is GREEN 18/18 — as the design predicted, it cannot see
-    shifts of this size. Concede's own minutes effect on the star
-    fixtures: **−1.0/−1.1/−1.4 min/g** (Curry/LeBron/Jokić; design
-    predicted −0.8…−1.3 — Jokić slightly over), and the blowout-rest
-    bimodality is real (generated-roster top-5 minutes grow a
-    secondary mass at 24–28 min/g — b2-fit-concede-oos §5). Center
-    ledger at HEAD: **4 pre-existing** outside profile edges, none
-    B2-caused (Jokić TRB 9.62 vs its 10.0 EARNED floor, ≈2.9se out —
-    predates B2 at the same depth; Jokić FG% 50.3% vs 52; Jokić post
-    shots 1.00 vs 1.8 — the long-standing largest residual, slightly
-    deeper; LeBron FG% 47.8% vs 50) and **2 NEW statistically ON
-    their edges** (0.1se each): Jokić AST 6.98 vs its 7.0 floor
-    (≈ −0.3 of the slide concede-attributable on paired seeds) and
-    Curry TRB 3.52 vs 3.5 (NOT concede-attributable — coupling-era /
-    composite drift). B2 improvements for the ledger: Jokić 3PA back
-    inside, LeBron 3PA ratchet now met, Curry AST off its ceiling.
-    Owner ruling (accept garbage-rested centers per the design's
-    counterpoint vs nudge fixture `rotationMinutes`) remains open —
-    a nudge would not fix the four pre-existing misses. Registered:
-    REFACTOR W29. Re-measure: `npm run fidelity -- --games 40` (the
-    single `fid` draw prints 5 enforced FAILs — draw-level; adjudicate
-    centers on multiple bases per §4.4).
-- **B1 INTEGRATION STATE (historical — measured 2026-07-28 at the
-  `calib/integration` landing; the measurement point is the winner bake
-  `7e05c97` (commits after it are docs/comment-only, fingerprint-identical).
-  Superseded where they overlap by the B2 game-state block above — the
-  margin-distribution and pass-volume rows below record the diagnosis
-  whose mechanics B2 landed/deferred.
-  Magnitudes from the noise floor re-baselined in the winner commit;
-  positions from the landing verification runs quoted per finding —
-  `npm run calreport` n40 centers at the new floor are the one read not
-  yet taken. Re-measure: `npm run batch -- --games 24`, `npm run calreport`,
-  `npm run oos`, `npm run texture`):**
-  - **Fouls: composition corrected, band re-centered.** The
-    pre-integration pf miss (23.7 at batch-24; n40 center 22.69 ±0.08se
-    outside the 22.5 ceiling — see the pre-integration block below) was
-    diagnosed as a composition defect, not a wave-2 mechanism error:
-    offensive fouls (charges) ran 4.4-4.8/team-game — ~3× the real ~1.3
-    and ~3× the constant's own "deliberately rare" comment — because
-    `chargePerDrive` is consumed per TICK (~0.024/s of committed drive
-    time), while per-attempt shooting-foul rates matched the model's own
-    zone-base intent within 2-3% and every charge is an `off_foul`
-    turnover (~30% of all TOV vs roughly 10% real). Measured 2026-07-28
-    via an instrumented event-stream probe replicating `runBatch`
-    (3×48-game seed bases, n=288 team-games; fouls-mechanism diagnosis).
-    Fix: `chargePerDrive` 0.012 → 0.0034 (commit 2d47954) — charges
-    measured 1.16/1.31/1.28 per team-game post-fix (3×16-game bases;
-    real ~1.3) — and the knob is now on the sweep surface
-    (`foul.chargePerDrive` [0.0015, 0.008]; it was tagged SWEPT but
-    never registered, exactly the AGENTS §1.4 failure mode). At the
-    landing: pf 21.0 on the n=96 acceptance batch and 20.3 at the 40×3
-    verify means — mid-band, inside on every base.
-  - **Endgame management defaults ON** (commit 6260cae; `endgame: false`
-    remains the byte-identical legacy path, and the same commit inverted
-    the default pin in `endgame.test.ts`). Basis, measured 2026-07-28 via
-    a runBatch-mirroring flag-on/off driver at n=1260 games/arm (3 seed
-    bases × 420), corroborated by `npm run flow -- --games 100
-    [--endgame]` and a 20-seed invariant probe (endgame-flag survey; all
-    invariant probes green): the layer closes the sim's worst
-    clutch-realism gaps — OT share 2.06% → 3.33% toward the real 4.80%
-    (2023-24, N=1230; long-run ~5.9%), OT-given-clutch 4.9% → 7.8%
-    (derived real 10.4%), clutch FT share 21% → 31% (flow-tool
-    definition, n=100/arm; reference range 30-50%+), Q4 10+-lead
-    comebacks 0% → 5% (real ~5-10%), last-2:00 FTA 2.23 → 3.84 per game
-    (2.30× the game's per-2-minute average — the foul-game spike now
-    exists), intentional-foul endgames 1.4% → 33.7% of games, timeouts
-    0 → 2.08 per game (1.39 stop_run + 0.69 advance; budgets respected;
-    VOLUME ungradeable — no cited real base rate exists for timeout
-    usage, ground-truth row 34).
-    **Watch item (Q4 profile):** flag-on makes Q4 the sim's
-    HIGHEST-scoring quarter (flow n=100/arm: 55/56/56/59) where the real
-    profile is Q4-lowest (58.5/56.3/58.0/54.2) — the foul-game FTs and
-    hurry possessions outweigh the milk. Candidate levers recorded in
-    the survey (leadHold*, foulHunt* FT volume, hurry depth). The watch
-    item STANDS at the landing: no fresh flow read exists at the final
-    point — re-measure via `npm run flow -- --games 100` before
-    adjudicating; OT share on the landing's oos-60 draw reads 3.3%
-    (single draw, n=60 — indicative only). Residual: OT share remains
-    below the real 4.80% — the flag closes roughly half the gap; the
-    rest is diffusion-shaped margin spread (see the margin-distribution
-    bullet below), not an endgame defect.
-  - **Coordinated margin-objective sweep, run flag-on and baked** (commit
-    99482c8 — the re-sweep W1/W2 conditioned on: charge fix + endgame
-    default-ON + MINOR-2 integrated; `npm run sweep -- --iters 14
-    --cands 4 --games 12`, margin objective, 3 bases; a 12-iter
-    continuation run confirmed convergence). 11 knobs re-centered (odd
-    precision kept per AGENTS §2.1; canonical list is the commit diff):
-    basePaint, blockBase, midRangeBonus, contestBrakeBase,
-    driveMidStopChance, reachInPerSec, looseBallPerReb, stealShare, and
-    three of the five registered endgame magnitude dials
-    (leadHoldMaxBoost, hurryMaxCut, twoForOneCut). `chargePerDrive` held
-    at its corrected 0.0034. The bake's own verify left fga outside on
-    all three bases and the fga/ftPct centers outside at its regenerated
-    floor (92.81 / 80.67% n12 means; the commit message is the record) —
-    closed by the directed re-search below. The noise floor and the
-    24-seed golden corpus were re-baselined at the bake and AGAIN at the
-    winner bake `7e05c97` (the canonical floor) — each diff is the
-    accepted-drift record (AGENTS §4.4). Verification at the landing
-    point: 40×3 verify 17/17 / 17/17 / 17/17 (swp-alpha/beta/gamma,
-    score 4.461, zero band-fails).
-  - **fga/ftPct residuals: CLOSED by a directed re-search — the repo's
-    first full band lock.** At the post-bake floor both centers sat
-    outside (fga 92.81 vs the 92.0 ceiling, ftPct 80.67% vs 80.5%; the
-    pre-winner n=192 acceptance read was 92.61 / 80.60% at 15/17 —
-    stable at n=48/96/192, systematic, not draw noise). Two
-    adjudications preceded the fix (decision analysis, search-actuary
-    findings, 2026-07-28): (a) the ftPct residual had a located cause —
-    the optimizer converged wall-pinned on `shot.ftBasePct`, whose knob
-    floor WAS the fitted value (an explore-up-only rail authored when
-    league FT% read low; the league mix sat ~2pp above the real 78.4%,
-    data/nba/league-averages-2023-24.json). Floor freed 0.69 → 0.66
-    (commit 5e0c500; identity spread stays in ftSkillSwing/ftEliteKick,
-    star FT tripwires remain the guardrail). (b) The fga BAND was
-    adjudicated against sources before moving the sim: real 2023-24 FGA
-    is 88.9, so the 92.0 ceiling already grants ~3 attempts of headroom
-    over an actual season — widening it would certify a league LESS like
-    basketball; the fix must move the sim, never the band. The excess
-    was a possession-OUTCOME-MIX defect, not tempo: at 2.2 possessions
-    SLOWER than the sourced pace 98.5, the sim under-produced the
-    non-FGA possession endings (tov 12.05 vs sourced 13.6, fta 20.3 vs
-    21.7) — the correct direction sheds FGA into turnovers/FT trips, not
-    into pace. The re-search: 8 parallel strategies (multi-start jitter
-    ×2, arithmetic seed, a 12-cell riskBase × ftBasePct response grid, a
-    pace axis — blocked by a pace-floor break — a foul-mix axis — no
-    reliable ftPct signal — the legacy objective, plus the analyst's
-    exact n=48 pass-probability model built from the noise floor;
-    riskBase ≥ −3.70 hits an ast/astdShare wall). Winner, the grid's
-    robust cell (commit 7e05c97): `pass.riskBase` −4.1869 → −3.95 and
-    `shot.ftBasePct` 0.69 → 0.666. Measured at the landing: 40×3 verify
-    17/17 on each of swp-alpha/beta/gamma (score 4.461; means fga 91.30,
-    ftPct 77.92%, tov 13.09 — toward the sourced 13.6); n=96 acceptance
-    batch 17/17 (fga 91.6, ftPct 78.0% vs real 78.4%, tov 13.0, pf 21.0,
-    pace 96.3, ast 24.7, stl 8.6, astdShare 59.3%); the deterministic
-    CI-mirror `npm run batch -- --games 48` 17/17, gate PASS
-    (RATCHET_FLOOR 16). The analyst's joint model at the point:
-    P(17/17 at CI n=48) ≈ 0.83, P(gate ≥16) ≈ 0.99.
-    `decide.moveCutFinish` remains parked at 0 and off the sweep
-    surface — still an open re-fit item (REFACTOR register).
-    **Scan-wave update (2026-07-29):** the fga half of this
-    adjudication ("the 92.0 ceiling grants ~3 attempts of headroom
-    over the real 88.9") compared cross-convention numbers — the box
-    then charged FGA on fouled misses (~5.7/tg), which the real 88.9
-    excludes. Retired with the inversion (`5d9671f`; scan
-    b1-HIGH/a4-F2). The ftPct half and the possession-mix direction
-    stand.
-  - **Margin distribution: mechanism ADJUDICATED — not sweepable, owned
-    by B2.** Measured 2026-07-28 via a probe harness importing the
-    repo's own oos generator and band evaluator (880 flag-off games
-    across 4 cohorts incl. self-play, flag-on n=240, plus a
-    recomputation of all 1,230 games of 2023-24 from
-    Basketball-Reference schedules; margin-distribution survey).
-    Verdict: the fat tail is universal engine noise — identical-roster
-    self-play already produces mean |margin| 15.0 and 30% blowouts at
-    zero talent gap; divergence accumulates as steady diffusion
-    (|margin| grows ×2.0-2.2 from 12' to 48' ≈ √t, no late runaway and
-    no garbage-time flattening); the variance sits on the wrong axis
-    (sim corr(home, away) ≈ 0 vs NBA +0.254 — margins overdispersed
-    while totals are underdispersed). The sweep cannot fix it: the
-    objective is blind to distributional stats, every knob direction
-    that compresses margins wrecks the mean bands (measured), and pace
-    ≥95 + 3PA share ≥33% imply a ~16-pt even-pair margin-sd floor under
-    independent possessions — the NBA sits below that floor only via
-    within-game coupling. The endgame layer measured
-    distribution-NEUTRAL (its windows are downstream of a divergence
-    manufactured over 48 minutes). Distributional stats stay
-    report-only; the B2 mechanism rows own the fix (score-pressure
-    coupling + garbage-time rotation, REFACTOR register — designs
-    ready, design-coupling / design-garbagetime findings).
-    **B2 update (2026-07-28): LANDED** — channel-2 coupling live at
-    g=0.3 + concede live; the measured record is the B2 block above
-    (std mean |m| 12.41, blowout-20+ 19.2%, self-play signed sd 15.52
-    — the ~16 independence floor beaten).
-  - **Pass volume: reference corrected and cited; the gap is an open
-    mechanism item.** The cited real rate is ~2.84-2.86
-    passes/possession (2023-24: 281.3 passes made per team-game, ÷ ~99
-    possessions; `data/nba/tracking-references-2023-24.json`, generated
-    from archived stats.nba.com tracking tables and cross-validated —
-    the texture tool now imports the citation, commits f8a7c35 +
-    869bb3f, so the printed reference cannot drift; the previously
-    quoted "NBA ~3.2" was an uncited recollection and wrong on both
-    counts). Measured at the landing: 1.97 (`npm run texture`,
-    2026-07-28, 8 games, single base — indicative; pre-integration read
-    1.93, 2026-07-27). The ~30% shortfall is a mechanism item (B2): the
-    pass-back damping overshot — the pre-damping baseline was 2.95 —
-    and the winner's riskBase re-price itself costs ~0.1-0.2
-    passes/possession (risk pricing is a pass-volume lever; recorded in
-    the design). A designed increment exists (design-passvolume
-    findings: an early-shot-clock probe window coordinated with a
-    riskBase re-price, ~+25 passes/team-game as the honest first step —
-    the full gap is a multi-phase arc, not one knob).
-    **B2 update (2026-07-28):** the probe window is WIRED and STAGED
-    at zero magnitudes — standalone-positive but deferred at the
-    measured probe×coupling interaction gate (the B2 block above;
-    REFACTOR W19/W28).
-  - **Out-of-sample distributional state — adjudicate at n≥240; the
-    60-game default is ±2 draw noise on these stats.** The
-    margin-distribution survey re-measured the oos pool at n=240
-    (2026-07-28, pre-integration main, endgame flag-off): mean |margin|
-    14.48, blowout (20+) share 29.2%, close (≤5) share 20.0%, OT 1.7%
-    vs the cited 2023-24 real 12.58 / 19.1% / 23.3% / 4.80% (N=1230).
-    The previously documented oos-60 values (15.1 / 32% / 17%)
-    overstated two misses — close-share is low-normal, not collapsed —
-    and sd|m| is a minor miss. The regression direction vs the
-    pre-wave-2 state stands. The oos tool's printed references are now
-    computed-and-cited (commit 9a02fa8; note its marginSd is the SD of
-    |margin|, 9.53 comparator — not the signed-margin SD 15.64).
-    Post-winner re-run at the landing (`npm run oos`, 60 games, single
-    draw — indicative per §4.4): **17/17 bands** — the first full oos
-    pass, with the 3PA-share generalization gap (32.5% vs the 33.0
-    floor on the 2026-07-27 read) clearing on this draw; distribution
-    avg |margin| 14.5, sd|m| 9.7 (vs 9.53), blowout 30%, close 22%, OT
-    3.3% (default config is endgame-ON since the flip — quote the
-    config with the number). Consistent with the adjudicated n≥240
-    reads on the systematic misses (margin/blowout); the coupling
-    mechanism above is B2's target. One-generated-set,
-    single-seed-family caveat stays.
-- **PRE-INTEGRATION STATE (historical — measured 2026-07-27; superseded
-  at the `calib/integration` landing).** The pf miss recorded here was
-  subsequently diagnosed as the charge-composition defect (~3× documented
-  intent; fixed in commit 2d47954) and the fga/ftPct edge story continues
-  in the current block. Kept as the incident record:
-  - **Fouls band FAILS — branch-introduced.** batch-24 (single base): pf
-    23.7 vs band 16.0-22.5, +1.2 over the ceiling. Systematic, not draw
-    noise: the n40 grand-mean center is 22.69 ±0.08se — OUTSIDE the 22.5
-    ceiling (−2.4se) on the branch's own re-baselined 40-base floor
-    (generated 2026-07-26) — and oos-60 reads 23.3. `main` measures 21.7
-    (OK) on the same command/base: wave 2 traded the assisted-share miss
-    for a fouls miss. By §4.4's definition the tip is NOT locked; the fix
-    belongs to the coordinated re-sweep (REFACTOR.md register) or an
-    explicitly recorded exception.
-  - **Two more centers edge-unresolved (calreport, n40):** fga 92.07
-    ±0.11 vs the 92.0 ceiling (−0.6se, leaning outside) and ftPct 80.5%
-    ±0.1 sitting ON its 80.5% ceiling (−0.4se). The edge-set composition
-    changed vs the historical signature: fta hugs its floor; fga, tpPct,
-    ftPct, tov, and pf group at ceilings (calreport's own signature line:
-    read as one defect with a direction).
-  - **Assisted share RESOLVED** (formerly the long-standing structural
-    miss): 58.3% at batch-24, 57.7% at oos-60, n40 center 59.0% ±0.2se —
-    inside, +2.1σ from the 62% ceiling. The wave-2 shot-mix work closed
-    it; the fouls miss above took its place as the one batch-24 FAIL.
-- **RESOLVED by the arrival-based drive commit (speed-fix cluster)**: the
-  ORtg unreachability and the friction floors were ONE mechanism short —
-  drives with a fixed commit window expired mid-lane (picks equal to the
-  old engine, FINISHES collapsed 4.7→1.35/game), and with them went the
-  strips, charges, and help collisions that ARE the sim's friction. The
-  commit now scales with launch distance (penetrate until ARRIVAL — the
-  same principle as the phase boundaries, which are also arrival-based
-  now: advance flips at 36 ft, transition when 4+ defenders are back).
-  Post-fix at 40-game verify: ORtg ~116-118 mid-band (from 121-on-ceiling
-  then 124-126 during the cluster), steals and turnovers back in band.
-  Successor systematic finding at the time: ASSISTED SHARE ~0.65 vs the
-  0.62 ceiling, repeating on all three seed bases — the drive-and-kick era
-  converted collapses into assisted makes. Since RESOLVED by the wave-2
-  shot-mix work (see the CURRENT STATE block above: 59.0% ±0.2se n40
-  center, inside). The hub's post volume remains under his identity floor
-  (jokic post shots 1.18 vs the 1.8 identity floor, 10.6se out at n40 —
-  the largest fidelity residual on the board).
-- **THE FRICTION SIGNATURE (historical — resolved above; its speed reading
-  was a UNITS ARTIFACT)** (the review computed the signature from our own
-  table; the calreport now emits it): friction/volume statistics pinned
-  near band FLOORS while accuracy/efficiency statistics pinned near
-  CEILINGS — one defect with a direction, closed by the arrival-based
-  drive commit (a mechanism, not global slowing). The era's "prime
-  mechanical suspect: movement speed (6.55 ft/s vs NBA ~4.2)" compared a
-  ft/s measurement against a miles-per-hour figure: the NBA tracking
-  average is 4.22 mph = 6.19 ft/s (2023-24 team AVG_SPEED, NBA.com Speed &
-  Distance tracking — an all-movements-including-standing average), so the
-  sim's 6.55 ft/s was 4.47 mph, ~6% hot, not ~1.5× too fast (1.56 is a
-  ft/s number divided by a mph number). The speed-pin experiment
-  (2026-07-26, reviewer-designed: all speeds × 0.64, every shot/contest
-  constant held fixed → pace 95.3→86.5, FG% 48.0%→50.1%, ORtg 120.8→126.8,
-  blocks 3.8→2.5 at 24 games) pinned the sim to 4.19 ft/s = 2.86 mph —
-  walking pace for all ten players averaged over live play — and its
-  result is the over-slowing signature (defenders arrive late → cleaner
-  looks → efficiency inflates while possessions shrink). It was evidence
-  FOR the units error, misread at the time as "the shooting calibration
-  absorbed the kinematics error". The units verdict landed 2026-07-26
-  (commit `00e2cda`; `harness/src/texture.ts` header records that this
-  paragraph's uncorrected text nearly drove a further round of engine
-  slowing). The former binding directive "fix movement speed BEFORE
-  fitting shot models to real data" is DISCHARGED: post-jog-economy the
-  sim measured 6.24 ft/s = 4.25 mph (`00e2cda`), on the corrected target —
-  movement speed is NOT an open blocker for the fit-to-real-data arc.
-  Definitional caveat before any speed BAND is promoted: NBA's AVG_SPEED
-  column provably does not equal distance ÷ minutes (4.22 vs 4.52 mph, a
-  systematic ~7% gap both tracked seasons; the denominator is
-  unpublished), and the texture tool measures live-clock chord-sampled
-  speed — treat sim-vs-NBA average-speed deltas under ~10-15% as
-  definitional noise until a same-convention, cited gate lands in
-  `data/nba/`.
-- **Elite-shooter benchmark's assist center**: measured 8.49 ±0.19se at
-  the n40 floor (calreport, 2026-07-27) — inside the 4.5-8.5 identity
-  range by 0.01, i.e. sitting ON the ceiling: edge-unresolved, no longer
-  outside. The previously quoted 9.51 ±0.16se was the pre-wave-2 state.
-  (An earlier 4-draw probe read 9.13 — the sample-size lesson applied to
-  ourselves: quote the floor's larger sample, not a hand probe.) The
-  engine-level audit question — does the decision layer over-generate
-  assists for high-usage shooters regardless of cast structure? — remains
-  open in edge-unresolved form, at reduced magnitude.
-- **Position updates at 40 league bases (calreport, floor generated
-  2026-07-26; read 2026-07-27)**: pace center 98.41 ±0.14 — inside; ORtg
-  center 115.11 ±0.27 — inside, +3.0σ from the 121 ceiling. Earlier
-  quoted positions (pace 95.42; ORtg 121.08 edge-unresolved; floors
-  trb/blk/tov) describe superseded eras — the current edge set is the one
-  in the CURRENT STATE block above.
-- **Endgame management: implemented AND default-ON.** The historical
-  diagnosis (the review's sharpest cut) held that near-ties are played
-  out instead of MANAGED. All five once-missing behaviors exist in
-  `sim/endgame.ts` + concept 6 (`sim/ai/concepts.ts`): timeouts (advance
-  + stop-the-run triggers, budget from the rule pack), intentional
-  fouling, hold-for-last, two-for-one, clock burn, plus trailing-team
-  hurry. The default flipped ON at the calib/integration landing on the
-  n=1260-games-per-arm survey evidence (see the CURRENT STATE block
-  above for what it closes and the Q4-profile watch item);
-  `endgame: false` preserves the byte-identical pre-layer path (verified
-  at scale: 0 timeout events in 1,260 flag-off games). The magnitude
-  dials are registered in `harness/knobs.ts` and the coordinated sweep
-  re-centered three of them; the window/threshold dials stay off the
-  sweep surface by doctrine (identity-shape gates are design, not
-  calibration), and `timeoutRunPts` has no cited real base rate — do not
-  tune it until one lands in `data/nba/` (ground-truth row 34).
-
-**Out-of-sample status** (`npm run oos` — generated rosters the sweep never
-saw): re-run at each landing. At the `calib/integration` landing
-(2026-07-28, winner bake `7e05c97`; 60 games, 12 generated rosters, one
-generated set, single draw — indicative per §4.4): **17/17 bands — the
-first full oos pass**, including the 3PA-share generalization gap (32.5%
-vs the 33.0 floor on the 2026-07-27 read; the acceptance-roster center was
-36.8% ±0.1 at n40) clearing on this draw. Distributional report
-(REPORT-ONLY, ratchet convention) — measured vs cited 2023-24 regular
-season (computed from Basketball-Reference schedules, N=1230): avg
-|margin| 14.5 vs real 12.58; sd|m| 9.7 vs 9.53; blowout (20+) share 30% vs
-19.1%; close-game (≤5) share 22% vs 23.3%; OT 3.3% vs 4.80% (the default
-config is endgame-ON since the flip — quote the config with the number).
-Adjudicate distributional stats at n≥240 (the 60-game default is ±2 draw
-noise on them): the adjudicated basis is the margin-distribution survey
-(2026-07-28, n=240 oos pool + 880 flag-off games across 4 cohorts, on
-pre-integration main) — the margin/blowout misses are systematic and the
-mechanism is the missing score-pressure coupling (see the measured
-findings above), owned by B2, sweep-unreachable by measurement. History:
-the wave-2 landing regressed this report and did not re-run it (avg
-margin 15.1 / blowout 32% / close 17% documented 2026-07-27 — itself a
-60-game draw that overstated the close-share and mean misses; REFACTOR
-register W14 holds the record). One-generated-set caveat stands.
-**B2 game-state landing update (2026-07-28, `4bd7a72`):** the
-adjudicated-scale read now exists at the shipped defaults — the OOS
-pairing-walk cohort at n=240 (b2-landed-record findings, the oos.ts
-pool + pairing walk replicated exactly; games 0–11 byte-identical to
-`npm run oos -- --seed b2oos-a --games 12`) measures mean |m| 12.20 /
-blowout-20+ 19.6% / close 26.7% / OT 2.9% vs real 12.58 / 19.1% /
-23.3% / 4.80%, bands 16/17 with the family's own documented pool-draw
-pace miss, identical in kind to its baseline (not regressed). The
-margin/blowout misses W14 recorded are substantially closed; OT stays
-low (registered residual W25). The 60-game `npm run oos` default
-remains an indicative draw.
-
-**Texture (measured by `npm run texture`; latest read 2026-07-28 at the
-landing, 8 games, single base — indicative per §4.4):** average live speed
-6.20 ft/s vs the cited reference 4.22 mph = 6.19 ft/s (2023-24 team
-AVG_SPEED, NBA.com Speed & Distance tracking) — on target within
-definitional noise; there is NO open speed residual. History: 8.67 → 6.55
-ft/s across the texture increment, 6.24 ft/s after the jog-economy fix
-(commit `00e2cda`, 2026-07-26 — the units-verdict commit; this paragraph
-formerly compared those ft/s readings against "NBA ~4.2" WITHOUT units, a
-ft/s-vs-mph confusion whose full record is in the friction-signature
-history above), 6.40 ft/s on 2026-07-27. Stationary share 33%, ping-pong
-share of passes 11.3% (was 26.8% pre-increment — the eye-test oscillation,
-largely gone), passes/possession 1.97 vs the cited NBA ~2.84-2.86 (see the
-pass-volume finding above) — the damping overshot; the designed probe
-window is wired and STAGED at zero, deferred at the probe×coupling
-interaction gate (B2 block; the landed cohorts measured 1.81–1.95
-passes/poss, b2-landed-record findings).
-Mechanisms: pass-back damping (concept 3's negative side), stillness
-deadbands with walked spacing moves, purposeful relocation with the denied
-shooter's baseline escape. Texture now measures the shipped default
-config, which is endgame-ON since the integration landing — re-measure
-rather than compare against pre-flip reads.
+The calibration workflow, the noise-floor doctrine, what "locked" does and
+does not claim, and the CURRENT measured state all live in
+[CALIBRATION.md](./CALIBRATION.md) (split out of this file 2026-07-29 —
+it had grown a 600-line measured-state journal; superseded eras are in
+[history/calibration-eras.md](./history/calibration-eras.md)).
 
 ## Known simplifications (deliberate, documented)
 
@@ -1253,9 +715,220 @@ prototype.
 ---
 ---
 
+<!-- ================= SOURCE: docs/CALIBRATION.md ================= -->
+
+> Part 4/11 of the generated Bible — canonical source: `docs/CALIBRATION.md`. Edit there, then `npm run docs:bible`.
+
+# Calibration — workflow, doctrine, and the current measured state
+
+Split out of `docs/INTERNALS.md` (which now carries only the module map,
+design rules, and safety net) and AGENTS §4.4. This file is law for anyone
+touching `sim/params.ts` values, `harness/src/bands.ts`, or mechanics that
+consume them — read it together with AGENTS §4 (the verification ladder and
+tiers). Superseded measured-state eras live in
+[history/calibration-eras.md](./history/calibration-eras.md); only the
+current state is documented here.
+
+## The workflow
+
+1. Change mechanics → `npm test` (invariants + wide guard must stay green).
+2. `npm run batch -- --games 24` → see which bands drifted.
+3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
+   re-center; bake the printed diff into `params.ts` defaults (keep the odd
+   precision); verify with `npm run sweep -- --iters 0 --verify 40`.
+4. Regenerate the noise floor: `npm run noisefloor` writes the sampling
+   distribution of every gated statistic (`noise-floor.gen.ts`) and the
+   permanent gates derive widths from it. Its diff is the accepted-drift
+   record.
+
+## Etiquette and the noise floor
+
+- The NBA bands (`harness/src/bands.ts`) are the gate — count them there,
+  never from memory (the list grows).
+- The noise floor is MEASURED, not guessed: `npm run noisefloor` samples
+  every gated statistic across independent seed bases at the gates' sample
+  sizes and writes `noise-floor.gen.ts`; the permanent gates derive their
+  widths from it (edge ± z·sd, z=3), so a gate failure means "the sim
+  changed", not "the seed changed".
+- Never adjudicate anything from one or two draws — that is chasing noise
+  (measure more bases instead); never hand-nudge what the sweep owns; never
+  quote a stale pass-rate in docs — state where to measure it instead.
+- A center sitting on or outside a band edge is a systematic finding for
+  this file even while the z-gate passes — record it in the measured-state
+  section below.
+- After the sweep prints a diff, bake it into `params.ts` defaults (keep the
+  odd precision), then re-verify with `--iters 0`.
+
+## What "locked" does and does not claim
+
+"Locked" means: at 40+ games, every band's measured CENTER sits inside its
+band. The bands are league-mean aggregates on the repo's own rosters, and
+the sweep tunes the same knobs the bands grade — so a locked state
+demonstrates the model CAN express modern-NBA averages, not that it is
+identified (with 100+ free parameters against ~17 loose constraints, many
+parameterizations pass). Held-out validation is the fidelity suite
+(player-level, profiles authored independently of the sweep) and the
+out-of-sample roster check in the harness; distributional realism (score
+variance, blowout rate, quarter profiles) is reported but not yet enforced.
+Treat band-locked as "necessary, not sufficient".
+
+## Current measured state
+
+Magnitudes from `npm run noisefloor`; positions from `npm run calreport`,
+which quotes n40 grand-mean centers with standard errors — quoting a
+smaller nested window's mean as "the center" was an error the third review
+caught, twice, in our own write-up.
+
+**SCAN-FIX ERA — measured 2026-07-29 on `fix/scan-integration`.** The wave
+is 23 parallel line audits (findings/scan/\*.md, the swarm run's findings
+files per the branch citation convention) → 140 findings, ~118 fixed at
+root across 3 high-fix + 4 med branches (18 commits; highs individual, meds
+squashed), 25 owner-call items registered instead of fixed
+(findings/scan-register.md → docs/REGISTER.md W30+). Landing point: the
+re-center `60eda3f` (tune) / `60c71d1` (floor). Re-measure commands per
+finding.
+
+- **THE FGA INVERSION — the instrument over-counted; the sim was
+  never over-shooting** (scan b1-HIGH / a4-F2; fix commit `5d9671f`,
+  consumer tier — engine fingerprints untouched). `stats/box.ts`
+  charged an FGA on EVERY `shot` event, but the engine also emits one
+  for a shooting-foul miss, and official scoring — the convention
+  behind every real reference number this repo calibrates against
+  (bands.ts fga/fgPct, fit-roster season lines, tsPct's 0.44 FTA
+  weight) — charges NO attempt on a fouled miss. Measured at the fix
+  commit (2026-07-29, 24-game acceptance batch): 5.65 fouled-miss
+  shots/team-game had been counted; fga re-reads 91.69 → 86.04 and
+  fgPct 46.0% → 49.1% under official counting. Against real 2023-24
+  FGA 88.9 the sim sat BELOW real volume the whole time. **The
+  "fga hugs its ceiling" narrative (the B1 fga-residual adjudication
+  and B2's verify-flicker bullet — both now in
+  docs/history/calibration-eras.md; REGISTER W26) is retired as a
+  cross-convention artifact**: it compared a fouled-miss-inclusive
+  measurement to a fouled-miss-exclusive target (~6 attempts of
+  hidden slack, ~2× the band's total headroom — a4-F2). Player-level
+  effect confirmed: foul-drawing players' FG% was systematically
+  deflated (LeBron FG% n12 center 0.481 → 0.527, now inside his
+  real-anchored [0.50, 0.58] profile). Post-re-center position
+  (2026-07-29): fga n40 center 88.75 (sd 0.65) at the `60c71d1`
+  floor — mid-band, 0.15 under real; acceptance batch reads 88.7 at
+  n=48 / 88.8 at n=96 (`npm run batch -- --games 48|96`, re-run at
+  HEAD for this record). fgPct n40 center 48.2% now runs nearer its
+  0.495 ceiling — the sim's true efficiency was always ~real
+  (2023-24 ≈ 47.4%); the old instrument hid it.
+- **The shot-clock bug: the clock froze during pass flights**
+  (a1-MED / a4-F1 HIGH; fix commit `a768dae`, mechanics tier).
+  tickLive froze the shot clock for BOTH flight kinds where the
+  documented rule freezes it only for a released shot — every pass
+  granted the offense its flight time free (~0.2-1.0 s/pass), and
+  whistle-free possessions measured up to 26.9 s at the 48-game
+  verification base (31.4 s max on the 120-game probe) under a 24 s
+  clock. Post-fix (48 games, seed base acceptance, 2026-07-29):
+  shot-clock violations 0.02 → 1.79/game, max whistle-free span
+  24.5 s (the residual is the arrival-whistle latency, ≤1 tick);
+  pace re-read 98.3 at the post-mechanics pre-sweep batch-48 (the
+  `1a36b9b` verification) from 95.9. Post-re-center: pace 98.5
+  (n=48) / 99.0 (n=96), n40 center 99.2 at the `60c71d1` floor.
+- **The blitz was dead code — the 20 ft/15 ft contradiction** (A9-1
+  HIGH; fix commit `1a36b9b`, mechanics tier). defenseTick's blitz
+  trigger requires the holder BEYOND blitzBeyondFt (20 ft) while
+  pickHelper rejected any holder at/beyond helpTriggerFt (15 ft) —
+  mutually exclusive since the introducing commit (measured: 48,008
+  blitz-condition ticks, 0 helpers, 0 branch executions). Fix
+  exempts blitz-triggered calls from the near-rim gate per the
+  mechanism's documented intent. Post-fix instrumented probe
+  (8 games): 26,004/26,004 helpers selected; texture delta as the
+  design comment predicts (assists 47.8 → 53.5/g, 3PA 76.3 → 71.6/g,
+  steals 18.5 → 16.5/g). **Companion: subs left stale matchups**
+  (a5-F1 MED / A9-2; fixes in `99f2745` + `d73a4a4`): swapPlayers
+  fixed only the incoming player's own `manId`, so defenders kept
+  guarding a benched man through resumed possessions — 8,916 stale
+  defender-ticks over 30 games ≈ ~300/game (~30 defender-seconds of
+  misassigned defense per game at 10 Hz; episodes up to four
+  defenders on benched men). Both directions now retarget: the
+  incoming defender inherits the outgoing man's assignment, and
+  opposing defenders re-point to the replacement.
+- **Instrument corrections (flow bases)**: gameFlow's OREB base
+  counted dead-ball FT formalities and playerless team rebounds
+  where the reference is defined on PLAYER OREBs only (b4-1 /
+  c3-F1; fix `f277765`) — putbackShare re-reads **54.3%** (was
+  42.9%) vs corpus 71.6% of player OREBs: the post-OREB-patience gap
+  is real but ~11 pp smaller than the contaminated denominator
+  suggested. secondChanceShare divided a both-teams numerator by a
+  per-team denominator, printing ~2× its reference's definition
+  (b9-F1 / b4-2; fix `56c8a81`) — 16.1% → **8.1%** vs corpus pooled
+  13.2% (per-game p10/p90 9.9%/16.6%): the sim is slightly LOW; the
+  old doubled read (~21% vs "~12-15%") had inverted the diagnosis.
+  Gate rails re-anchored to the corpus per-game range [0.058, 0.23];
+  b9's suppression mutant now fails the floor. Both measured
+  2026-07-29 at the fix commits, 24-game flow base; re-measure:
+  `npm run flow -- --games 24`.
+- **The re-center** (tune `60eda3f`, floor `60c71d1`, pin re-anchors
+  `7ea62a6`): the wave changed the physics (shot clock during
+  passes, blitz alive, matchup retargeting) and the instruments
+  (official FGA counting, player-OREB flow bases), so the 30-knob
+  surface was re-swept on the corrected engine. Measured 2026-07-29:
+  verify 40×3 = **17/17 / 17/17 / 17/17, zero band-fails, score
+  4.115** (`npm run sweep -- --iters 0 --verify 40`, the tune-commit
+  record); acceptance batch **17/17 at n=48 AND n=96** (fga
+  88.7/88.8, pace 98.5/99.0 — `npm run batch -- --games 48|96`,
+  re-run at HEAD 2026-07-29 for this record); suite green (`npm test`
+  prints the live count; measured 2026-07-29 — the three
+  catalogued mechanics drift-trips re-greened at the re-center; two
+  draw-fragile pins re-anchored to their properties in `7ea62a6`,
+  no assertion weakened). Golden corpus re-baselined in the tune
+  commit; the noise-floor diff (`60c71d1`) is the drift record.
+  NOT yet re-taken post-re-center: `npm run oos`,
+  `npm run texture`, `npm run calreport` — the B2-era reads (moved
+  to docs/history/calibration-eras.md) predate the wave; re-measure
+  before quoting.
+
+## Endgame layer status
+
+Implemented AND default-ON. The historical diagnosis (the review's sharpest
+cut) held that near-ties are played out instead of MANAGED. All five
+once-missing behaviors exist in `sim/endgame.ts` + concept 6
+(`sim/ai/concepts.ts`): timeouts (advance + stop-the-run triggers, budget
+from the rule pack), intentional fouling, hold-for-last, two-for-one, clock
+burn, plus trailing-team hurry. The default flipped ON at the
+calib/integration landing on the n=1260-games-per-arm survey evidence (the
+survey record and the Q4-profile watch item are in
+docs/history/calibration-eras.md, B1 block); `endgame: false` preserves the
+byte-identical pre-layer path (verified at scale: 0 timeout events in 1,260
+flag-off games). The magnitude dials are registered in `harness/knobs.ts`
+and the coordinated sweep re-centered three of them; the window/threshold
+dials stay off the sweep surface by doctrine (identity-shape gates are
+design, not calibration), and `timeoutRunPts` has no cited real base rate —
+do not tune it until one lands in `data/nba/` (ground-truth row 34).
+
+## Superseded eras (full records in history)
+
+Three-line pointers only; the full blocks moved verbatim to
+[history/calibration-eras.md](./history/calibration-eras.md):
+
+- **B2 game-state landing** (2026-07-28, `4bd7a72`): coupling live at
+  g=0.3, concede live, probe staged at zero; the landed distribution record
+  (mean |m| 12.41, blowout 19.2%, self-play signed sd 15.52) — headline
+  numbers also in REGISTER W14/W17/W18; residuals W24-W29.
+- **B1 integration landing** (2026-07-28, `7e05c97`): first full band lock;
+  endgame default ON; charge-composition fix; fga/ftPct directed re-search —
+  REGISTER W1/W2/W15/W16.
+- **Pre-integration state** (2026-07-27) and older eras (arrival-based
+  drive commit, the friction signature and its speed-units artifact,
+  elite-shooter assist center, oos/texture reads at the B1/B2 landings):
+  history file; re-measure before quoting any of it.
+
+
+---
+---
+
 <!-- ================= SOURCE: AGENTS.md ================= -->
 
+> Part 5/11 of the generated Bible — canonical source: `AGENTS.md`. Edit there, then `npm run docs:bible`.
+
 # AGENTS.md — the hoopsh contributor covenant
+
+Human contributor? Start with [CONTRIBUTING.md](./CONTRIBUTING.md) — the on-ramp
+written for you. Every rule in this file still binds you.
 
 **Audience: AI agents first, humans second.** An AI agent assigned to work on this
 codebase must read this file completely before writing anything. It exists so that
@@ -1263,8 +936,8 @@ many agents, working on different parts at different times, produce ONE consiste
 codebase. Several rules below encode incidents that corrupted stats or wasted
 calibration runs; see the DO-NOT list (§2) and prime directives (§1) for citations.
 
-Reading order for a new contributor: `README.md` → `ARCHITECTURE.md` →
-`docs/INTERNALS.md` → this file → `docs/ONBOARDING.md` (guided walkthrough).
+Reading paths by role live in the docs hub, [docs/README.md](./docs/README.md).
+Whatever path brought you here: read this file completely before your first change.
 
 **Writing NEW code?** This file is the law; **`docs/PLAYBOOK.md` is the procedure** —
 an eight-step process, per-change-shape recipes with exemplars, STOP conditions, and
@@ -1333,8 +1006,9 @@ use the `.js` extension convention (`from './state.js'` for `state.ts`).
 ## 2. The DO-NOT list
 
 1. **Do not "tidy" SWEPT values.** `shootRim: 0.485` is not a rounding error — an
-   optimizer chose it against the 17 acceptance-band checks (bands.ts NBA_BANDS). Rounding it de-calibrates the
-   league. If a value looks wrong, re-run the sweep and bake its output.
+   optimizer chose it against the acceptance-band checks (`bands.ts` `NBA_BANDS` —
+   count them there, never from memory; the list grows). Rounding it de-calibrates
+   the league. If a value looks wrong, re-run the sweep and bake its output.
 2. **Do not add rating dials speculatively.** New attributes/tendencies are added ONLY
    when a benchmark player is inexpressible without them (a failing fidelity case).
    Unvalidated depth expands the solver's search space with no offsetting benefit.
@@ -1393,7 +1067,7 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 
 ### 4.2 The verification ladder
 ```
-npm test                        # full suite: invariants + fidelity gate — ALWAYS, every change
+npm test                        # full suite (~2 min): invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
 npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
 npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
@@ -1413,21 +1087,10 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
   must be untouched.
 
 ### 4.4 Calibration etiquette
-- The NBA bands (`harness/src/bands.ts`) are the gate — count them there, never
-  from memory (the list grows). The noise floor is MEASURED, not guessed:
-  `npm run noisefloor` samples every gated statistic across independent seed
-  bases at the gates' sample sizes and writes `noise-floor.gen.ts`; the
-  permanent gates derive their widths from it (edge ± z·sd, z=3), so a gate
-  failure means "the sim changed", not "the seed changed". "Locked" means:
-  at 40+ games, every band's measured CENTER sits inside its band. A center
-  sitting on or outside an edge is a systematic finding for INTERNALS even
-  while the z-gate passes. Never adjudicate anything from one or two draws —
-  that is chasing noise (measure more bases instead); never hand-nudge what
-  the sweep owns; never quote a stale pass-rate in docs — state where to
-  measure it instead. Regenerate the floor after mechanics changes: its diff
-  is the drift record.
-- After the sweep prints a diff, bake it into `params.ts` defaults (keep the odd
-  precision), then re-verify with `--iters 0`.
+Moved to [docs/CALIBRATION.md](./docs/CALIBRATION.md) — noise-floor doctrine, what
+"locked" does and does not claim, sweep-vs-hand-nudge rules, band counting, baking
+sweep output. If your change touches `sim/params.ts`, mechanics that consume it, or
+`harness/src/bands.ts`, that document is law for it, same standing as this file.
 
 ### 4.5 Commits
 - Small, focused, one concern per commit. Conventional prefixes:
@@ -1490,6 +1153,8 @@ npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 ---
 
 <!-- ================= SOURCE: docs/PLAYBOOK.md ================= -->
+
+> Part 6/11 of the generated Bible — canonical source: `docs/PLAYBOOK.md`. Edit there, then `npm run docs:bible`.
 
 # PLAYBOOK — how to write NEW code for hoopsh, step by step
 
@@ -1709,6 +1374,8 @@ and export from the package index. Validated with a minimal-capability agent
 - [ ] My diff contains zero out-of-scope "improvements"
 
 ### The completion report (exact format)
+Agents use this format verbatim. Humans: cover the same facts in your PR
+description; the fields are the checklist, not the formatting.
 ```
 TASK: <one line>
 SCOPE DECLARED: <files>   SCOPE ACTUAL: <files>   (explain any difference)
@@ -1727,6 +1394,8 @@ OUT-OF-SCOPE FINDINGS: <bugs/oddities noticed, NOT fixed>
 ---
 
 ## Part 4 — For dispatchers: the task-briefing template
+
+(Dispatchers only — skip this part as a contributor.)
 
 Brief quality is a primary determinant of multi-agent output quality: a lower-capability
 agent with a well-specified brief typically outperforms a higher-capability agent with
@@ -1760,7 +1429,289 @@ Dispatcher rules:
 ---
 ---
 
+<!-- ================= SOURCE: docs/EMBEDDING.md ================= -->
+
+> Part 7/11 of the generated Bible — canonical source: `docs/EMBEDDING.md`. Edit there, then `npm run docs:bible`.
+
+# Embedding hoopsh — building on the engine from your own project
+
+For the downstream builder: you want to consume `@hoopsh/engine` (and
+friends) from your own code, not contribute to this repo. Everything below
+was measured in a 2026-07-29 build trial (four downstream builds, all
+succeeded) and a packaging audit (every install lane tried under Node
+24.14 / npm 11.11, registry firewalled). The engine supports this use; the
+packaging has exactly one working dependency lane, documented here.
+
+What the four builds proved works, engine-side:
+
+1. **A consumer app on the event stream alone** — `simulateGame` +
+   `GameEvent`; score rides on every event; determinism holds (same seed →
+   byte-identical output, verified by hash).
+2. **A custom team pack** — the authoring loop in
+   [ROSTERS.md](./ROSTERS.md) works end to end from outside the repo, and
+   the validator caught every planted mistake with a taught fix.
+3. **A custom rule pack** — 4×10-minute periods, 30 s clock, one-and-one
+   bonus, FIBA arc: all honored via the API without touching engine source
+   (caveats below).
+4. **A custom `CommentaryProvider`** — plugged into the shipped broadcast
+   pipeline first try, interleaved with template PBP.
+
+## The packaging reality
+
+The packages ship TypeScript source. No build, no dist, no `.d.ts`;
+`main` points at `src/index.ts`, and internal imports use the `./x.js`
+extension convention for `.ts` files on disk (AGENTS §1.7). Two
+consequences:
+
+- Under plain Node you always need a resolver hook — native type-stripping
+  never rewrites specifiers, so `./state.js` finds nothing without one.
+- **Any install that materializes real `.ts` files inside `node_modules`
+  is dead on arrival**: Node refuses to type-strip anything whose realpath
+  is under `node_modules` (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`,
+  measured). No hook can fix that — the ban applies at load time.
+
+**npm git-dependencies are broken — do not try them.** Measured, three
+independent failures: (1) npm "prepares" a git dep by running a nested
+`npm install --include=dev` in a temp clone, which contacts the registry
+(fails offline, downloads dev tooling pointlessly online); (2) even on
+success you get one package named `hoopsh` — the workspaces are NOT
+linked, so `import '@hoopsh/engine'` still fails; (3) the files land under
+`node_modules`, hitting the type-stripping ban. pnpm's
+`git+…#path:packages/engine` installs cleanly but cannot run under plain
+Node for reason (3); that lane is alive only for bundler consumers
+(vite/esbuild/tsx do their own transpilation and `.js`→`.ts` resolution) —
+plausible, untested here (registry firewalled).
+
+## The paths that work (all measured)
+
+**A. Work inside a clone/fork.** The designed path. Zero install; first
+game in ~1.3 s from a bare clone.
+
+**B. No install at all — borrow the repo's loader.** From any directory:
+
+```bash
+node --import /path/to/hoopsh/tools/register.mjs app.ts
+```
+
+The hook resolves `@hoopsh/*` relative to its own file and rewrites
+`./x.js` → `.ts` globally. Your app just imports `@hoopsh/engine`. npm is
+pure ceremony in this lane.
+
+**C. `file:` install + a 12-line hook — the one real dependency lane.**
+Works because npm symlinks `file:` deps, so the realpath escapes
+`node_modules` and stripping is allowed. Two requirements, both measured:
+
+1. **Install the full closure explicitly.** `npm install
+   file:/path/to/hoopsh/packages/data` alone "succeeds" but leaves
+   `@hoopsh/engine@*` silently UNMET (runtime: `Cannot find package
+   '@hoopsh/engine'`). Install engine and data together:
+
+   ```bash
+   npm install file:/path/to/hoopsh/packages/engine \
+               file:/path/to/hoopsh/packages/data
+   ```
+
+2. **A resolver hook for the internal `./x.js` imports.** With the bare
+   specifiers resolved by node_modules, only the relative-import branch is
+   needed — 12 lines, vendorable:
+
+   ```js
+   // hoopsh-loader.mjs — register.mjs does: register(new URL('./hoopsh-loader.mjs', import.meta.url))
+   import { existsSync } from 'node:fs';
+   import path from 'node:path';
+   import { fileURLToPath, pathToFileURL } from 'node:url';
+   export async function resolve(spec, ctx, next) {
+     if ((spec.startsWith('./') || spec.startsWith('../')) && spec.endsWith('.js')
+         && ctx.parentURL?.startsWith('file:')) {
+       const ts = path.resolve(path.dirname(fileURLToPath(ctx.parentURL)), spec.slice(0, -3) + '.ts');
+       if (existsSync(ts)) return { url: pathToFileURL(ts).href, shortCircuit: true };
+     }
+     return next(spec, ctx);
+   }
+   ```
+
+**D. Vendor the sources.** Copy `packages/engine/src` (etc.) into your
+tree **outside `node_modules`** and use the hook or a bundler. The engine
+has zero `node:` imports (browser-safe); data/stats/narration also have
+zero, but additionally need `@hoopsh/engine` mapped. `@hoopsh/harness` is
+NOT relocatable, period: it reads repo-root `data/` files and spawns
+workers via the repo loader.
+
+## Typechecking a consumer
+
+Runtime is fine with stripped types; `tsc` is not, for two reasons:
+
+- Cross-package imports don't type-resolve through the symlinks — the
+  clone has no node_modules of its own, so when TS follows the symlink
+  into `packages/data`, its `@hoopsh/engine` import resolves nowhere. Fix:
+  a `paths` block in YOUR tsconfig pointing into the clone (mirror the
+  repo's own):
+
+  ```jsonc
+  {
+    "compilerOptions": {
+      "moduleResolution": "bundler",
+      "paths": {
+        "@hoopsh/engine": ["/path/to/hoopsh/packages/engine/src/index.ts"],
+        "@hoopsh/data":   ["/path/to/hoopsh/packages/data/src/index.ts"]
+      }
+    }
+  }
+  ```
+
+- Consuming raw `.ts` means the LIBRARY sources are checked under YOUR
+  compiler flags — mirror the repo's strictness (`strict`,
+  `noUncheckedIndexedAccess`, …) or cross-package types will not resolve
+  cleanly. Only shipped `.d.ts` would decouple this, and the repo is
+  deliberately source-only (zero-install identity; no dist to drift).
+
+## A complete consumer app
+
+```ts
+// app.ts — run with lane B or C above
+import { simulateGame } from '@hoopsh/engine';
+import { sampleMatchup } from '@hoopsh/data';
+
+const { home, away } = sampleMatchup();
+const result = simulateGame({ seed: 'my-first-embed', home, away });
+
+for (const e of result.events) {
+  // GameEvent is a discriminated union — `e.type === 'shot'` narrows it.
+  if (e.type === 'shot' && e.made && e.three) {
+    console.log(`3PM ${e.shooter} at t=${e.t}s — score ${e.score[0]}-${e.score[1]}`);
+  }
+}
+console.log('FINAL', result.finalScore);
+```
+
+Same seed → bit-identical `events` and `frames`, every run, promised
+within a repo version (AGENTS §1.2).
+
+## GameConfig and GameResult
+
+`simulateGame(config) → GameResult`. The interface JSDoc in
+`packages/engine/src/sim/game.ts` is the reference; the shape:
+
+| Field | Type | Notes |
+|---|---|---|
+| `seed` | `string \| number` | required; the determinism key |
+| `home`, `away` | `Team` | required; any `Team` object, not just packs |
+| `rules?` | `RulePack` | default NBA; see below |
+| `params?` | partial `SimParams` | deep-merged over defaults; unknown keys throw |
+| `collectFrames?` | `boolean` | replay position frames |
+| `endgame?` | `boolean` | default ON; `false` = byte-identical legacy path |
+| `validate?` | `'finite' \| 'strict'` | `'finite'` (default) rejects non-finite ratings; `'strict'` also enforces pack ranges (0–100). Use `'strict'` for untrusted rosters |
+| `safetyCapTicks?` | `number` | diagnostics only |
+
+`GameResult`: `{ seed, events, finalScore, frames, rules, params, teams }`.
+A `Replay` is assembled separately from a result via `buildReplay`
+(exported from the engine barrel).
+
+## Loading team packs — the envelope
+
+`loadTeamPack` takes the pack file's **contents** (a JSON string, not a
+path) and returns an envelope, not a `Team`:
+
+```ts
+import { loadTeamPack } from '@hoopsh/data';
+import { readFileSync } from 'node:fs';
+
+const { team, issues } = loadTeamPack(readFileSync('rooks.team.json', 'utf8'));
+if (!team) throw new Error(issues.map(i => `${i.path}: ${i.message}`).join('\n'));
+```
+
+`team` is `null` on ANY issue — there is no partial pack. Passing the
+envelope itself to `simulateGame` fails at runtime as `team.players is not
+iterable` (a documented build-trial wall; check `issues` first). Authoring,
+validation, and the 38 dials: [ROSTERS.md](./ROSTERS.md).
+
+## Custom rule packs
+
+`RulePack` is data, not code — build an object and pass it as
+`GameConfig.rules`. The field-level reference is the JSDoc in
+`packages/engine/src/rules/rulepack.ts`; the shape:
+
+| Field | Meaning |
+|---|---|
+| `id`, `name` | echoed into `GameResult.rules` |
+| `courtLengthFt`, `courtWidthFt` | court footprint (NBA 94×50) |
+| `rimInsetFt` | rim center distance from baseline |
+| `keyWidthFt` | lane width — **UNWIRED** (declared, read nowhere) |
+| `ftLineFt` | free-throw line distance from baseline |
+| `three` | `{ arcRadiusFt, cornerDistFt, cornerBreakFt }` |
+| `periods`, `periodMinutes` | regulation format (4×12 NBA, 2×20 NCAA) |
+| `otMinutes` | overtime period length |
+| `shotClockSec`, `shotClockOffRebSec` | shot clock + offensive-rebound reset |
+| `teamFoulBonusAt` | team fouls that start the bonus |
+| `bonusRule` | `'flat'` or `'oneAndOne'` (NCAA men, fouls 7–9) |
+| `doubleBonusAt` | team fouls at which every trip is a flat award |
+| `bonusFreeThrows` | free throws per flat bonus trip |
+| `teamFoulsCarryToOT` | whether period counts carry into OT |
+| `foulOutAt` | personals that disqualify |
+| `timeoutsPerGame` | flat per-game budget (endgame layer only) |
+
+Three honest caveats, all measured:
+
+- **Rules input is NOT boundary-validated.** A pack missing
+  `shotClockSec` or `foulOutAt` is accepted and dies mid-game as
+  `Rng.weighted: non-finite weight NaN in [NaN, NaN, NaN]` — the loud
+  input contract ("simulateGame always rejects non-finite ratings")
+  covers exactly one of the two swappable data inputs. Until a rules
+  guard lands, include every field; the safe recipe is spreading a
+  shipped pack: `{ ...NBA, id: 'my-league', shotClockSec: 30 }` (`NBA`,
+  `NCAA`, `EUROLEAGUE` are exported).
+- **No tooling parity with team packs**: no JSON schema, no
+  `rules:validate`, no loader.
+- **No single-game CLI path**: `npm run sim` has no `--rules`/`--league`
+  flag (`--league` exists only in the batch harness, hardcoded nba|ncaa),
+  and unknown flags are silently ignored.
+
+## Custom commentary
+
+The seam is `CommentaryProvider` (`packages/narration/src/provider.ts`):
+
+```ts
+interface CommentaryProvider {
+  name: string;
+  generate(window: CommentaryWindow): Promise<ColorLine[]>;
+}
+```
+
+Implementations must be stateless across calls (the window carries
+context, including the `storylines` continuity channel). Wire it through
+`buildBroadcastScript(events, teams, provider, opts?)` →
+`BroadcastCue[]`, where `opts` is
+`{ seed?: string; windowEvents?: number; periods?: number }` — pass
+`periods` for non-4-period rule sets or OT labels mis-render.
+`TemplateColorProvider` is the shipped no-LLM fallback.
+
+## The sanctioned source-reading list
+
+The docs deliberately do not restate field-level API; the JSDoc is the
+reference and the build trial rated it excellent everywhere it looked.
+These files are the API surface a consumer may rely on:
+
+| File | What it documents |
+|---|---|
+| `packages/engine/src/core/events.ts` | the event contract — every event type, emitter, invariants, consumer notes |
+| `packages/engine/src/sim/game.ts` | `GameConfig`, `GameResult`, `simulateGame` |
+| `packages/engine/src/rules/rulepack.ts` | `RulePack` + the three shipped packs |
+| `packages/engine/src/model/player.ts` | `Team`/`Player`/`Attributes`/`Tendencies` (the 38 dials) |
+| `packages/engine/src/replay/replay.ts` | `buildReplay`, the replay shape |
+| `packages/data/src/schema.ts` | `loadTeamPack`, `validateTeamPack`, the pack contract |
+| `packages/narration/src/provider.ts` + `broadcast.ts` | the commentary seam + pipeline |
+| `packages/harness/src/season.ts`, `matchup.ts` | multi-game driving ([SEASON.md](./SEASON.md)) — but the harness package is repo-welded; consume its ideas, not the package |
+
+Everything else in `packages/*/src` is internals; the package barrels
+(`src/index.ts`) define what is public.
+
+
+---
+---
+
 <!-- ================= SOURCE: docs/ROSTERS.md ================= -->
+
+> Part 8/11 of the generated Bible — canonical source: `docs/ROSTERS.md`. Edit there, then `npm run docs:bible`.
 
 # Writing rosters — the authoring guide
 
@@ -1834,7 +1785,7 @@ is sufficient.
   "kind": "team",
   "team": {
     "id": "owls", "name": "Oak City Owls", "abbrev": "OWL",
-    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — team style dials
+    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — see the dial table below
     "players": [ /* >= 8 players, each with all 38 ratings — see below */ ],
     "starters": [ "owls-p01", "owls-p02", "owls-p03", "owls-p04", "owls-p05" ],  // exactly 5 distinct ids
     "rotationMinutes": { "owls-p01": 36 }   // optional coach targets; omit to sub on fatigue alone
@@ -1879,6 +1830,14 @@ genius and a low-skill chucker are both expressible, and `roster:validate`
 will not second-guess that combination.
 
 **Two dials are staged, honestly.** `consistency` (hot/cold variance) and
+What the dials do (0-100, 50 = league-neutral):
+
+| dial | effect |
+|---|---|
+| `threeBias` | shifts the shot diet toward (above 50) or away from (below 50) three-point attempts; it scales shot-selection utilities, it does not change make probability |
+| `helpAggr` | how early and far help defenders rotate off their man; high values trade rim protection for open kick-out threes |
+| `pace` | STAGED — defined and validated but read by no live system yet; setting it changes nothing today (the roster wizard's `--pace` flag stores it for when the tempo layer lands) |
+
 `pushPace`/team `pace` are read by staged systems documented in
 [`docs/INTERNALS.md`](./INTERNALS.md); set them plausibly anyway so packs
 don't need editing when the stages land.
@@ -2048,6 +2007,8 @@ companion hover text, which regenerates for free.
 
 <!-- ================= SOURCE: docs/SEASON.md ================= -->
 
+> Part 9/11 of the generated Bible — canonical source: `docs/SEASON.md`. Edit there, then `npm run docs:bible`.
+
 # SEASON.md — the season layer
 
 The multi-game substrate on top of the single-game engine: schedules,
@@ -2158,11 +2119,14 @@ Measured sanity points (n = 30, seeds pinned in the tests):
 - identical rosters (team vs its re-id'd clone): p̂ = 0.467,
   CI [0.302, 0.639] — contains 0.5; mean margin −0.5.
 - every attribute +8 vs −8: p̂ = 0.867, CI [0.703, 0.947]; mean margin +19.8.
-- equal-team margin sd ≈ **16.4 points** — noticeably above the real NBA's
-  ~13–14 for even matchups. Consequence for prediction: the engine maps a
-  given true skill gap to a win probability closer to 50% than reality would
-  (more game-level noise ⇒ flatter prob curve). Recheck this number after any
-  calibration change.
+- equal-team margin noise: quote nothing static here. This bullet once read
+  "sd ≈ 16.4, noticeably above the real NBA's ~13–14" and then survived
+  three re-centers (B1, B2, scan-wave) unrechecked while both numbers went
+  stale — the adjudicated record at the B2 landing measured self-play
+  signed margin sd 15.52 ± 0.78 vs the real 15.64 (n=200; docs/REGISTER.md
+  W14). Measure fresh after any calibration change (`npm run oos` prints
+  the distributional report) before reasoning about how engine noise
+  flattens the skill→win-probability curve.
 
 ## Measured cost (2-core shared box, Node 24 type-stripping, single process)
 
@@ -2177,7 +2141,8 @@ Measured sanity points (n = 30, seeds pinned in the tests):
 
 ## Parallelism: a seam, deliberately not an implementation
 
-`wave1/runner` owns worker-pool parallelism. This layer *pre-shapes* the work
+`packages/harness/src/parallel.ts` owns worker-pool parallelism. This
+layer *pre-shapes* the work
 for it and does nothing else:
 
 - `runSeason`/`simulateMatchup` build the **complete task list up front**
@@ -2258,8 +2223,11 @@ same `SimulateGames` signature.
   tanking), so real win totals have FATTER tails — our season-total
   distributions will be over-confident even if per-game probabilities are
   perfect.
-- **Engine-level margin noise** (sd ≈ 16.4 vs ~13–14 real) flattens the
-  skill→win-probability curve, on top of the effects above.
+- **Engine-level margin noise** adds game-level variance on top of the
+  effects above, flattening the skill→win-probability curve; the B2
+  game-state coupling moved it materially — measure it fresh (`npm run
+  oos`) rather than trusting a typed number (see the matchup section's
+  noise bullet).
 
 ## Limitations (recap)
 
@@ -2270,13 +2238,96 @@ same `SimulateGames` signature.
 - `--games` beyond one round-robin cycle tiles additional cycles and slices,
   so a capped schedule can leave pair-counts unequal — fine for smoke runs,
   not for fairness-sensitive experiments.
-- Everything is single-process until `wave1/runner` lands behind the seam.
+- Everything here runs single-process today: the worker-pool runner
+  (`packages/harness/src/parallel.ts`) landed but is not wired behind
+  `SimulateGames` — drop it in through the seam when a consumer needs it.
+
+
+---
+---
+
+<!-- ================= SOURCE: docs/GLOSSARY.md ================= -->
+
+> Part 10/11 of the generated Bible — canonical source: `docs/GLOSSARY.md`. Edit there, then `npm run docs:bible`.
+
+# Glossary — the terms, decoded once
+
+Two tables. The first decodes the code vocabulary: terse names are house
+style, documented at their DEFINITION sites (e.g. `n()` has a 15-line doc
+block in derived.ts) but not at use sites hundreds of lines away — this
+table is the use-site key. The second decodes the process and measurement
+vocabulary the roadmap, the register, and the calibration docs use without
+re-explaining. Definition sites stay canonical; when this table and a
+fresher code comment disagree, the comment wins — flag the discrepancy.
+
+## Code vocabulary
+
+| Term | Plain meaning | Where it lives / is used |
+|---|---|---|
+| `n(rating)` | universal rating bridge: 0–100 → [−1, +1], 50 → 0 (average player contributes nothing to any logit) | defined model/derived.ts; used throughout resolve.ts, decide.ts; mirrored as `nOf` in fit-roster.ts |
+| `t` | GAME-CLOCK seconds elapsed (freezes at whistles/horn) — the stats axis | events.ts `Base.t`, `GameState.t`; AGENTS §1.5 |
+| `wt` / `wallT` | replay/wall timeline seconds (advances every tick, stoppages included) — the viewer axis | events.ts `Base.wt`, `GameState.wallT` |
+| `poss` | the CURRENT possession record (`s.poss`) or a possession COUNT (`TeamTotals.poss`) depending on context | state.ts, stats/box.ts |
+| `sc` | seconds left on the shot clock (`s.poss.shotClock`, clamped ≥ 0) | decide.ts, concepts.ts |
+| `sfc32` | the PRNG algorithm name ("Small Fast Counter", 32-bit) — a public-domain generator, not a repo invention | core/rng.ts header |
+| `cyrb128` | string-hash seeder feeding sfc32 four 32-bit seeds | core/rng.ts |
+| `logit` / `base*` | log-odds; every `base*` param is calibrated at league-average everything | params.ts header conversion table |
+| `EV` | expected points — the unit of every decision utility | params.ts §3, decide.ts header |
+| `continuation` | expected points of NOT acting yet — the yardstick every action is measured against | decide.ts, concepts.ts 6/7 |
+| `oreb`/`orb`, `drb`, `trb` | offensive / defensive / total rebounds (standard box-score codes) | stats/box.ts, harness flow-metrics.ts |
+| `astdShare` | share of made FGs that were assisted | aggregate.ts:158, bands.ts:67 |
+| `tg` | team-game (each simulated game = 2 team-games); "4.6/tg" = per team per game | comments in knobs.ts:119, docs/REGISTER.md |
+| `A.` / `D.` / `E.` / `P.` / `F.` / `M.` / `W.` / `R.` | one-letter alias for a params BLOCK, bound at function top: A=ai, D=decide, E=endgame, M=move; but P=shot (resolve.ts:130) or pass (resolve.ts:286) or sub (subs.ts); F=foul or fatigue; W=shot-windups (decide.ts:115); R=reb — or a plain number (movement.ts:91 `R = avoidRadiusFt`) | all sim files; the idiom is consistent, the letter→block mapping is not — read the binding at function top |
+| `h` / `m` / `a` / `d` / `s` | holder / teammate ("mate") / agent / defender / GameState — the per-function actor vocabulary | decide.ts, offense.ts, defense.ts, resolve.ts |
+| `ph` | the current `Phase` object narrowed to one kind | tick handlers (possession.ts, fouls.ts) |
+| `act0` | the possession's team action AS OF this decision (snapshot, may be null) | decide.ts, concepts.ts |
+| `lk` | name-lookup helper (id → display name/abbrev) | narration/pbp.ts |
+| `segmentT` | parametric position 0..1 along a segment (geometry `t`, NOT time) | core/vec.ts:79; used in decide.ts `defendersInLane` |
+| `gravity` | how much defensive attention a player commands (shooting threat pull) | resolve.ts, offense/defense.ts |
+| `DHO` / `pnr` / `iso` | dribble hand-off / pick-and-roll / isolation (basketball play types) | state.ts TeamAction, ai/actions.ts |
+| `CRN` | common random numbers — candidates re-play identical seeds so comparisons are fair | fit-roster.ts refineFit, solve.ts |
+| `SWEPT` / `REAL` / `FEEL` / `STAGED` / `UNWIRED` | provenance/honesty tags (optimizer-found / measured fact / hand-set / deliberate future / accidental debt) | params.ts header, AGENTS §2.5, §5 |
+| `simone.ts` | "sim ONE game" CLI (not a person) — the single-game human-readable entry point | harness/src/simone.ts header |
+| `oos` | out-of-sample (rosters the sweep never saw) | harness/src/oos.ts |
+
+Domain jargon that needs no rename, just a decode: putback (immediate
+re-shot off an offensive rebound), backdown (post dribbles toward the rim),
+closeout (defender sprinting at a catching shooter), 2-for-1 (shooting
+early enough to guarantee the period's last possession), one-and-one (the
+NCAA bonus free throw earned only by making the first).
+
+## Process and measurement vocabulary
+
+| Term | Plain meaning | Where it lives / is used |
+|---|---|---|
+| fingerprint | the docs-tier identity check: `npm run sim -- --seed fingerprint-1` event count + final score, plus `npm test` counts — identical before/after proves a no-behavior change | AGENTS §4.1/§4.3, PLAYBOOK step 3 |
+| golden corpus | 24 seeds' events+frames SHA-256 hashes, checked in — the refactor tripwire; regenerated only at deliberate re-baselines | packages/harness/golden/fingerprints.json, fingerprint.ts |
+| acceptance bands | the league-mean ranges (pace, FG%, 3PA share, …) a batch run is graded against | harness/src/bands.ts `NBA_BANDS`; `npm run batch` |
+| band lock / "locked" | at 40+ games, every band's measured CENTER sits inside its band — necessary, not sufficient (the sweep tunes the same knobs the bands grade) | docs/CALIBRATION.md |
+| sweep | the parameter optimizer: searches `knobs.ts` ranges over `SimParams` against the bands; its printed diff gets baked into params.ts | harness/src/sweep.ts; `npm run sweep` |
+| noise floor | the MEASURED sampling distribution of every gated statistic across seed bases; gates derive widths from it (edge ± 3·sd), so a gate failure means "the sim changed" | `npm run noisefloor` → noise-floor.gen.ts; docs/CALIBRATION.md |
+| ratchet convention | once a report-only metric passes, it becomes gated so it cannot silently regress; the batch gate's floor is `RATCHET_FLOOR` | harness/src/cli.ts; docs/REGISTER.md W47 |
+| verification tiers | docs-only / pure refactor / mechanics / consumer — each with its required evidence | AGENTS §4.3 |
+| recipes A–G | the per-change-shape build procedures (new tendency, new knob, new action, new event, new rule field, new test, new consumer) | docs/PLAYBOOK.md Part 2 |
+| rule pack vs data pack | league rules as JSON (`RulePack` — periods, clocks, bonus, geometry) vs roster content as JSON (team packs) | rules/rulepack.ts; docs/ROSTERS.md |
+| the Bible | docs/BIBLE.md — a GENERATED concatenation of the source docs for one-context-window handoff; never edited directly | tools/build-bible.mjs; `npm run docs:bible` |
+| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W50 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
+| Phase 2R | the current roadmap phase: tuning and validating the implemented mechanics, not building new ones | README.md Roadmap |
+| B2 / game-state coupling | the score-pressure mechanic: trailing team's defense presses up, leader's sags (concept 7 channel 2), plus the garbage-time concede rotation | REGISTER W17/W18; concepts.ts, subs.ts |
+| concepts 6/7/8 | numbered bounded-rationality concepts: 6 = game-state urgency (clock kill, hold-for-last, 2-for-1), 7 = score pressure, 8 = probe culture; concept 4 (usage pressure) lives in decide.ts | sim/ai/concepts.ts (in-file order 1–3, 6, 5, 7, 8) |
+| "staged at zero" | a mechanism wired into the engine with all magnitudes 0 — provably inert until a fit flips it (e.g. concept 8) | params.ts labels; REGISTER W19/W28 |
+| fidelity / texture / flow gates | star-fixture identity checks (`npm run fidelity`) / frame-level feel forensics (`npm run texture`) / game-arc + event-grammar forensics (`npm run flow`) | harness/src/{fidelity,texture,flow}.ts |
+| Turing round | the blind sim-vs-real play-by-play discrimination protocol (round 1: 50% judge accuracy — coin-flip) | harness/src/turing.ts; docs/history/refactor-log.md |
+| Brier | mean squared error of probability forecasts — the planned prediction-backtest metric | REGISTER W5; docs/SEASON.md |
+| seed base | a family of related seeds used for one measurement run; adjudicate across independent bases, never one draw | docs/CALIBRATION.md etiquette |
 
 
 ---
 ---
 
 <!-- ================= SOURCE: docs/ONBOARDING.md ================= -->
+
+> Part 11/11 of the generated Bible — canonical source: `docs/ONBOARDING.md`. Edit there, then `npm run docs:bible`.
 
 # Onboarding — a two-evening path
 
@@ -2373,15 +2424,9 @@ sag, help selection) → `ai/actions.ts#actionTick` (screens as thin scaffolding
 
 ---
 
-## The map when you're lost
+## When you're lost
 
-| Question | Answer lives in |
-|---|---|
-| "Which document do I even need?" | `docs/README.md` (the library hub) |
-| "What is this project?" | `README.md`, `ARCHITECTURE.md` |
-| "Where is X / where do I change Y?" | `docs/INTERNALS.md` |
-| "Am I allowed to do this?" | `AGENTS.md` |
-| "HOW do I build this new thing?" | `docs/PLAYBOOK.md` (recipes + step-by-step process) |
-| "What does this number mean?" | The comment next to it (if missing: that's a docs bug — fix it) |
-| "What can consumers rely on?" | `core/events.ts` |
-| "Why is the league average what it is?" | `sim/params.ts` header + `harness/src/bands.ts` |
+[`docs/README.md`](./README.md) is the hub: every document, reading paths
+by role, and which document answers which question. (This file used to
+carry its own copy of that table; it drifted — the hub is the only copy
+now.)

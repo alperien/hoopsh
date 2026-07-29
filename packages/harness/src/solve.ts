@@ -216,37 +216,43 @@ const fmtA = (a: Achieved) =>
   `pts ${a.pts.toFixed(1)}  ast ${a.ast.toFixed(1)}  trb ${a.trb.toFixed(1)}  ` +
   `3PA ${a.tpa.toFixed(1)}  3P% ${(a.tpPct * 100).toFixed(1)}  FT% ${(a.ftPct * 100).toFixed(1)}`;
 
-// an empty objective is a no-op, not a solve: without this, a bare
-// `npm run solve` reported err 0.00 "convergence" on nothing and printed an
-// unoptimized profile as a success (independent-review finding)
-if (Object.values(targets).every((v) => v === undefined)) {
-  console.error('solve: no targets given — pass at least one of --pts --ast --trb --tpa --tppct --ftpct');
-  console.error('example: npm run solve -- --pos PG --pts 27 --ast 7 --trb 5 --tpa 9 --tppct 0.39');
-  process.exit(1);
-}
-
-const rng = new Rng('inverse-solver');
-let best = analyticSeed();
-let bestEval = evaluate(best, GAMES);
-console.log(`analytic seed        err ${bestEval.score.toFixed(2)}   ${fmtA(bestEval.line)}`);
-
-let step = 14;
-for (let i = 1; i <= ITERS; i++) {
-  for (let c = 0; c < CANDS; c++) {
-    const cand = perturb(rng, best, step);
-    const ev = evaluate(cand, GAMES);
-    if (ev.score < bestEval.score) {
-      best = cand;
-      bestEval = ev;
-    }
+// Main-guarded (the fit-roster.ts/fidelity.ts/oos.ts convention) so the
+// helpers above are importable without running a solve: fit-roster.ts had to
+// FORK hostTeam precisely because importing this file used to execute its
+// script body. Running `npm run solve` is unchanged.
+if (import.meta.main) {
+  // an empty objective is a no-op, not a solve: without this, a bare
+  // `npm run solve` reported err 0.00 "convergence" on nothing and printed an
+  // unoptimized profile as a success (independent-review finding)
+  if (Object.values(targets).every((v) => v === undefined)) {
+    console.error('solve: no targets given — pass at least one of --pts --ast --trb --tpa --tppct --ftpct');
+    console.error('example: npm run solve -- --pos PG --pts 27 --ast 7 --trb 5 --tpa 9 --tppct 0.39');
+    process.exit(1);
   }
-  console.log(`iter ${String(i).padStart(2)}  step ${step.toFixed(1).padStart(4)}  err ${bestEval.score.toFixed(2)}   ${fmtA(bestEval.line)}`);
-  step = Math.max(4, step * 0.85);
-}
 
-const final = evaluate(best, Math.max(20, GAMES * 2));
-console.log(`\nverify (${Math.max(20, GAMES * 2)} games)  err ${final.score.toFixed(2)}   ${fmtA(final.line)}`);
-console.log('targets              ' + Object.entries(targets).filter(([, v]) => v !== undefined)
-  .map(([k, v]) => `${k} ${v}`).join('  '));
-console.log('\n— solved profile (roster-ready JSON) —');
-console.log(JSON.stringify(best, null, 2));
+  const rng = new Rng('inverse-solver');
+  let best = analyticSeed();
+  let bestEval = evaluate(best, GAMES);
+  console.log(`analytic seed        err ${bestEval.score.toFixed(2)}   ${fmtA(bestEval.line)}`);
+
+  let step = 14;
+  for (let i = 1; i <= ITERS; i++) {
+    for (let c = 0; c < CANDS; c++) {
+      const cand = perturb(rng, best, step);
+      const ev = evaluate(cand, GAMES);
+      if (ev.score < bestEval.score) {
+        best = cand;
+        bestEval = ev;
+      }
+    }
+    console.log(`iter ${String(i).padStart(2)}  step ${step.toFixed(1).padStart(4)}  err ${bestEval.score.toFixed(2)}   ${fmtA(bestEval.line)}`);
+    step = Math.max(4, step * 0.85);
+  }
+
+  const final = evaluate(best, Math.max(20, GAMES * 2));
+  console.log(`\nverify (${Math.max(20, GAMES * 2)} games)  err ${final.score.toFixed(2)}   ${fmtA(final.line)}`);
+  console.log('targets              ' + Object.entries(targets).filter(([, v]) => v !== undefined)
+    .map(([k, v]) => `${k} ${v}`).join('  '));
+  console.log('\n— solved profile (roster-ready JSON) —');
+  console.log(JSON.stringify(best, null, 2));
+}

@@ -161,10 +161,10 @@ export function spacingSpots(court: Court, rim: V2): { key: string; pos: V2 }[] 
     { key: 'wing_l', pos: spot(21, cy - 15.5) },
     { key: 'wing_r', pos: spot(21, cy + 15.5) },
     // Corner spot at 21.5 ft lateral — just inside the 22 ft corner line,
-    // producing a small junk-corner-2 rate (REFACTOR.md D3). Moving corners
+    // producing a small junk-corner-2 rate (docs/REGISTER.md D3). Moving corners
     // genuinely behind the line was attempted THREE ways during M1 (naive,
     // gravity-gated, appetite-ranked + block stationing — full trail in
-    // REFACTOR.md): each iteration fixed its target metric, and the final
+    // docs/REGISTER.md): each iteration fixed its target metric, and the final
     // best-fit model restored Jokic's 3PA/TRB/post trajectory — but real
     // behind-the-line corners raise kick EV enough that the primary
     // creator's assists inflate to 12-14/game, amplifying the PRE-EXISTING

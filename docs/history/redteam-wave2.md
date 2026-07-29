@@ -1,5 +1,9 @@
 # Wave-2 Red Team — final findings
 
+> **STATUS (2026-07-29): historical record.** MINOR-2 and MINOR-4 are since
+> resolved ([../REGISTER.md](../REGISTER.md) W11/W13, commits ce64b1d /
+> d6d6157); MINOR-1 and MINOR-3 remain open as W10/W12.
+
 Target: merge state 554c7bb (wave-1 integration). Baseline `npm test` at that state: 246 pass / 0 fail / 1 todo.
 Probe scripts are committed at `tools/redteam-probes/` (probe-parallel, probe-kill, dump-game,
 probe-endgame-on, probe-eg-det, probe-corpus, probe-season, probe-packs, probe-goldens,

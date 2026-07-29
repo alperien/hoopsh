@@ -79,7 +79,7 @@ for (const [flag, v, min] of [
   }
 }
 // --endgame FORCES GameConfig.endgame ON for every candidate evaluation.
-// It existed for the pre-flip flag-on re-sweep (REFACTOR.md W2); the flip
+// It existed for the pre-flip flag-on re-sweep (docs/REGISTER.md W2); the flip
 // LANDED (sim/game.ts `endgame ?? true`), so forced-ON now evaluates the
 // identical games as a flagless run — kept so scripted callers stay
 // meaningful. Without the flag, games run the engine's shipped default
@@ -190,7 +190,7 @@ async function evaluateCandidate(cand: Candidate, games: number): Promise<{ scor
  *     band. That pressure existed but was ~67x weaker than one band-width of
  *     violation, so in practice the search treated everything inside a band
  *     as equally good and parked metrics on edges. The measured consequence
- *     (knob-sensitivity probe, REFACTOR.md): a calibration where rounding
+ *     (knob-sensitivity probe, docs/REGISTER.md): a calibration where rounding
  *     SWEPT values to 2 decimals tips bands, and every correct mechanics fix
  *     regresses the report — a robustness radius smaller than a bug fix.
  *

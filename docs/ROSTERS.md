@@ -70,7 +70,7 @@ is sufficient.
   "kind": "team",
   "team": {
     "id": "owls", "name": "Oak City Owls", "abbrev": "OWL",
-    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — team style dials
+    "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — see the dial table below
     "players": [ /* >= 8 players, each with all 38 ratings — see below */ ],
     "starters": [ "owls-p01", "owls-p02", "owls-p03", "owls-p04", "owls-p05" ],  // exactly 5 distinct ids
     "rotationMinutes": { "owls-p01": 36 }   // optional coach targets; omit to sub on fatigue alone
@@ -115,6 +115,14 @@ genius and a low-skill chucker are both expressible, and `roster:validate`
 will not second-guess that combination.
 
 **Two dials are staged, honestly.** `consistency` (hot/cold variance) and
+What the dials do (0-100, 50 = league-neutral):
+
+| dial | effect |
+|---|---|
+| `threeBias` | shifts the shot diet toward (above 50) or away from (below 50) three-point attempts; it scales shot-selection utilities, it does not change make probability |
+| `helpAggr` | how early and far help defenders rotate off their man; high values trade rim protection for open kick-out threes |
+| `pace` | STAGED — defined and validated but read by no live system yet; setting it changes nothing today (the roster wizard's `--pace` flag stores it for when the tempo layer lands) |
+
 `pushPace`/team `pace` are read by staged systems documented in
 [`docs/INTERNALS.md`](./INTERNALS.md); set them plausibly anyway so packs
 don't need editing when the stages land.

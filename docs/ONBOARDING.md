@@ -93,15 +93,9 @@ sag, help selection) → `ai/actions.ts#actionTick` (screens as thin scaffolding
 
 ---
 
-## The map when you're lost
+## When you're lost
 
-| Question | Answer lives in |
-|---|---|
-| "Which document do I even need?" | `docs/README.md` (the library hub) |
-| "What is this project?" | `README.md`, `ARCHITECTURE.md` |
-| "Where is X / where do I change Y?" | `docs/INTERNALS.md` |
-| "Am I allowed to do this?" | `AGENTS.md` |
-| "HOW do I build this new thing?" | `docs/PLAYBOOK.md` (recipes + step-by-step process) |
-| "What does this number mean?" | The comment next to it (if missing: that's a docs bug — fix it) |
-| "What can consumers rely on?" | `core/events.ts` |
-| "Why is the league average what it is?" | `sim/params.ts` header + `harness/src/bands.ts` |
+[`docs/README.md`](./README.md) is the hub: every document, reading paths
+by role, and which document answers which question. (This file used to
+carry its own copy of that table; it drifted — the hub is the only copy
+now.)

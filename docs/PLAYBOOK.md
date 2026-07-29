@@ -216,6 +216,8 @@ and export from the package index. Validated with a minimal-capability agent
 - [ ] My diff contains zero out-of-scope "improvements"
 
 ### The completion report (exact format)
+Agents use this format verbatim. Humans: cover the same facts in your PR
+description; the fields are the checklist, not the formatting.
 ```
 TASK: <one line>
 SCOPE DECLARED: <files>   SCOPE ACTUAL: <files>   (explain any difference)
@@ -234,6 +236,8 @@ OUT-OF-SCOPE FINDINGS: <bugs/oddities noticed, NOT fixed>
 ---
 
 ## Part 4 — For dispatchers: the task-briefing template
+
+(Dispatchers only — skip this part as a contributor.)
 
 Brief quality is a primary determinant of multi-agent output quality: a lower-capability
 agent with a well-specified brief typically outperforms a higher-capability agent with

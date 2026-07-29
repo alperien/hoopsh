@@ -33,7 +33,7 @@ export interface BatchOptions {
    * Force GameConfig.endgame ON (or OFF) for every game in the batch;
    * omitted = the key is not passed at all, so games run whatever default
    * the engine ships (`cfg.endgame ?? …`, sim/game.ts). Forcing ON is the
-   * flag-on acceptance measurement (REFACTOR.md W2's re-sweep); omission
+   * flag-on acceptance measurement (docs/REGISTER.md W2's re-sweep); omission
    * keeps a default batch grading the config that actually ships, whichever
    * way the coordinated default flip lands.
    */

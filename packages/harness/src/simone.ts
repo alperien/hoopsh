@@ -86,7 +86,10 @@ for (const side of [0, 1] as const) {
   console.log();
 }
 
-console.log(`pace ${box.pace} | possessions ${box.teams[0].poss}/${box.teams[1].poss} | fastbreak pts ${box.teams[0].fastbreakPts}/${box.teams[1].fastbreakPts}\n`);
+// team-split footer values carry the abbrev labels — a bare `41/46` left
+// first-time readers guessing home/away vs made/attempted (cold-fork friction)
+console.log(`pace ${box.pace} | possessions ${home.abbrev} ${box.teams[0].poss} / ${away.abbrev} ${box.teams[1].poss} | ` +
+  `fastbreak pts ${home.abbrev} ${box.teams[0].fastbreakPts} / ${away.abbrev} ${box.teams[1].fastbreakPts}\n`);
 
 console.log('— play-by-play (final 2 minutes) —');
 const lastPeriod = Math.max(...pbp.map((l) => l.period));

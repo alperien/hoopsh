@@ -12,7 +12,7 @@
  *
  * REPORT-ONLY by default (house ratchet convention: a metric becomes an
  * enforced test in test/flow.test.ts once it holds). The endgame layer
- * (timeouts, intentional fouling, clock kill — REFACTOR.md M4) landed and
+ * (timeouts, intentional fouling, clock kill — docs/REGISTER.md M4) landed and
  * defaults ON (sim/game.ts `endgame ?? true`), so a default run measures it
  * live; this tool holds the acceptance criteria its target metrics (clutch
  * FT share, Q4 comeback texture) are judged by, and `--no-endgame` measures

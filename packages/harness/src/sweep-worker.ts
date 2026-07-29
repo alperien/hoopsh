@@ -31,7 +31,7 @@ interface Job {
   seedBases: string[];
   /**
    * true FORCES GameConfig.endgame ON for every game (the flag-on re-sweep,
-   * REFACTOR.md W2); absent or false, the key is omitted from the game
+   * docs/REGISTER.md W2); absent or false, the key is omitted from the game
    * config entirely, so games run whatever default the engine ships
    * (`cfg.endgame ?? …`, sim/game.ts) — absent keeps old hand-written debug
    * jobs meaning what they meant.
