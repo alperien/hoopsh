@@ -1,17 +1,25 @@
-// Package barrel — the CLI entry scripts (simone.ts, cli.ts, bench.ts,
-// broadcast-demo.ts, export-rosters.ts, sweep.ts, season-cli.ts) are run
-// directly via `node`/npm scripts and do NOT go through this barrel.
+// @hoopsh/harness — the batch & calibration tooling entry point: parallel
+// batch running, box-score aggregation scored against realism acceptance
+// bands, league selection (rules + bands + pace basis under one id), and
+// the round-robin season / matchup-distribution layer (docs/SEASON.md).
 //
-// STAGED (honesty label, scan c3-F5): this is package.json `main` — the
-// nominal `@hoopsh/harness` entry point — and it declares the intended
-// library surface (batch running, aggregation/scoring, the acceptance
-// bands, the season layer — see docs/SEASON.md). It currently has ZERO
-// importers repo-wide: even harness's own tests import '../src/*.js'
-// directly. It stays because a package needs a declared public API for the
-// day another package (or an external consumer) wants the season layer as
-// a library; the wiring condition is exactly that first importer.
-// sweep-worker.ts and knobs.ts are deliberately NOT re-exported — they're
-// sweep.ts-internal implementation, not a public API.
+// Start here: `runGames(opts)` for parallel batches, or `runSeason(opts)`
+// for a full round-robin schedule with standings.
+//
+// Honesty notes, so this barrel doesn't oversell:
+// - Repo-internal by construction: leagues.ts reads repo-root
+//   data/ncaa/acceptance-bands.json and parallel.ts spawns workers via the
+//   repo's own loader (tools/register.mjs). This package cannot be consumed
+//   outside the monorepo (package.json says so: private).
+// - Zero importers today: the CLI entry scripts (simone.ts, cli.ts,
+//   bench.ts, broadcast-demo.ts, export-rosters.ts, sweep.ts, season-cli.ts)
+//   are run directly via npm scripts and do NOT go through this barrel, and
+//   even harness's own tests import '../src/*.js' directly. This file is
+//   the declared library surface for the first in-repo (or post-decoupling
+//   external) importer who wants the batch/season layer as a library.
+// - sweep-worker.ts, knobs.ts, and run-worker.ts are deliberately NOT
+//   re-exported — they're sweep.ts/parallel.ts-internal implementation
+//   (worker subprocess entries and knob tables), not a public API.
 export { runBatch } from './run.js';
 export type { BatchOptions } from './run.js';
 // the parallel game-runner (run-worker.ts is its subprocess entry and, like
