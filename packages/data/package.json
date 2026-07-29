@@ -1,36 +1,9 @@
 {
   "name": "@hoopsh/data",
   "version": "0.1.0",
-  "description": "Player/team schemas, validation, and sample fictional data packs for hoopsh. TypeScript source, no build — see docs/EMBEDDING.md.",
+  "description": "Player/team schemas, validation, and sample fictional data packs for hoopsh.",
   "type": "module",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/alperien/hoopsh.git",
-    "directory": "packages/data"
-  },
-  "keywords": [
-    "basketball",
-    "simulation",
-    "rosters",
-    "validation",
-    "data-packs"
-  ],
-  "engines": {
-    "node": ">=24"
-  },
   "main": "src/index.ts",
-  "types": "src/index.ts",
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    }
-  },
-  "files": [
-    "src"
-  ],
-  "sideEffects": false,
   "dependencies": {
     "@hoopsh/engine": "*"
   }

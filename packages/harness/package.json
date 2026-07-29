@@ -1,13 +1,8 @@
 {
   "name": "@hoopsh/harness",
   "version": "0.1.0",
-  "description": "Batch simulation runner, realism acceptance checks, benchmarks, and calibration tooling for hoopsh. Repo-internal: reads repo-root data/ and spawns workers via the repo loader — not consumable outside the monorepo.",
+  "description": "Batch simulation runner, realism acceptance checks, benchmarks, and calibration tooling for hoopsh.",
   "type": "module",
-  "private": true,
-  "license": "MIT",
-  "engines": {
-    "node": ">=24"
-  },
   "main": "src/index.ts",
   "dependencies": {
     "@hoopsh/engine": "*",

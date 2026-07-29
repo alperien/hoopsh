@@ -3,24 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "description": "hoopsh \u2014 a modular, deterministic 2D spatial basketball simulation core",
-  "license": "MIT",
-  "author": "alperien <emailadrss@proton.me>",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/alperien/hoopsh.git"
-  },
-  "homepage": "https://github.com/alperien/hoopsh#readme",
-  "bugs": {
-    "url": "https://github.com/alperien/hoopsh/issues"
-  },
-  "keywords": [
-    "basketball",
-    "simulation",
-    "deterministic",
-    "sports-simulation",
-    "game-engine",
-    "typescript"
-  ],
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -56,13 +38,7 @@
     "roster:validate": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/roster-validate.mjs",
     "typecheck": "tsc --noEmit",
     "test:vitest": "vitest run",
-    "docs:bible": "node tools/build-bible.mjs",
-    "example:01": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/01-simulate-a-game.ts",
-    "example:02": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/02-custom-consumer.ts",
-    "example:03": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/03-your-own-team.ts",
-    "example:04": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/04-custom-rules.ts",
-    "example:05": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/05-commentary-provider.ts",
-    "example:06": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/06-season.ts"
+    "docs:bible": "node tools/build-bible.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
