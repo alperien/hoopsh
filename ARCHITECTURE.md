@@ -41,6 +41,29 @@ tick (10 Hz):
   5. emit       — events append to the game's event stream; frames append to the replay
 ```
 
+The same pipeline as a picture. The two dotted inputs are the only tuning
+surfaces (global constants in `SimParams`, per-player attributes and tendencies
+in data packs); everything downstream hangs off two append-only outputs and
+never reaches inside the loop:
+
+```mermaid
+flowchart LR
+    subgraph tick["one tick (10 Hz)"]
+        direction LR
+        P["perceive<br/>read court state"] --> D["decide<br/>utility policies"]
+        D --> M["move<br/>steering under rating limits"]
+        M --> R["resolve<br/>probability models"]
+        R --> E["emit"]
+    end
+    SP[("SimParams<br/>every tunable constant")] -.-> tick
+    PK[("data packs<br/>attributes + tendencies")] -.-> tick
+    E --> EV["event stream"]
+    E --> FR["replay frames"]
+    EV --> ST["stats: box score, shot charts"]
+    EV --> NA["narration: play-by-play"]
+    FR --> VW["viewer: 2D replay"]
+```
+
 The probability models take spatial inputs (shot distance, contest level, closing speed,
 passing-lane geometry) and player ratings, and **every constant lives in `SimParams`** —
 a single tunable parameter object. That is the calibration surface. Realism becomes a
@@ -92,8 +115,8 @@ geometry (arc radius, corner distance, corner break), court dimensions, clock-st
 rules. NBA ships first. An NCAA pack exists and is selectable through the
 harness `--league` flag (rule pack + bands + pace basis travel together);
 its rule coverage is partial — unwired fields are labeled in
-`rules/rulepack.ts` and registered in REFACTOR.md. EuroLeague is a
-follow-up. Custom leagues are just JSON.
+`rules/rulepack.ts` and registered in [docs/REGISTER.md](./docs/REGISTER.md).
+EuroLeague is a follow-up. Custom leagues are just JSON.
 
 ### 4.3 Player model
 
@@ -142,30 +165,25 @@ Schemes (drop vs switch PnR coverage, zones) are later modules behind the same i
   set, early-offense quality bonuses apply. Fast-break points emerge.
 - Endgame management (timeouts, intentional fouling, hold-for-last, two-for-one,
   clock burn) is a layer that modulates the same EV framework rather than
-  scripting plays (`GameConfig.endgame`). It defaults ON: the decision was
-  measured, not assumed — an n=1260-games-per-arm flag-on survey showed the
-  layer moving OT share, clutch free-throw texture, and comeback rates toward
-  cited NBA rates with every invariant probe green — and `endgame: false`
+  scripting plays (`GameConfig.endgame`). Default ON; `endgame: false`
   preserves the byte-identical legacy path. Its magnitude dials sit on the
   calibration sweep surface like any other `SimParams` constants; its
-  window/threshold dials are design, not calibration, and stay off it.
+  window/threshold dials are design decisions, not calibration, and stay off it.
 - Game-state coupling: the scoreboard feeds back into play all game, not just
   in the endgame windows. The trailing team's defense presses up and the
   leader's sags off — the same containment/closeout models that price every
   contest, leaned by the margin (concept 7 in the AI layer) — so margins
-  mean-revert the way real ones do (roughly 10% of the margin per quarter at
-  the shipped magnitude) instead of diffusing without bound, and blowout
-  rates land at real levels. The channel was chosen by measurement, not
-  assumption: the design's offensive press/coast tilt on the decision
-  yardstick is wired but measured distribution-null, and ships at zero.
-  Decided games additionally trigger a garbage-time concede rotation
-  (`sim/subs.ts`): past a clock-scaled safe-lead line, both benches close
-  the game out — leader first, with hysteresis so lineups never flip-flop —
-  which rests starters about a minute per game and stops blowouts from
-  growing to the horn. The concede requires the live coupling (uncoupled,
-  bench-vs-bench endings measured margin-expanding on generated rosters);
-  the landed distribution record and its residuals are in
-  `docs/INTERNALS.md`.
+  mean-revert the way real ones do instead of diffusing without bound. The
+  defensive channel is the one that ships: an offensive press/coast tilt is
+  also wired, measured distribution-null, and stays at zero. Decided games
+  additionally trigger a garbage-time concede rotation (`sim/subs.ts`): past
+  a clock-scaled safe-lead line, both benches close the game out — leader
+  first, with hysteresis so lineups never flip-flop — resting starters and
+  stopping blowouts from growing to the horn. The concede requires the live
+  coupling (uncoupled, bench-vs-bench endings measured margin-expanding).
+  Magnitudes were fitted by measurement; the current measured state lives in
+  [docs/CALIBRATION.md](./docs/CALIBRATION.md), open residuals in
+  [docs/REGISTER.md](./docs/REGISTER.md).
 
 ### 4.7 Event stream & replay
 
@@ -219,10 +237,8 @@ Consumes the event stream; never touches the engine.
 - If the budget ever breaks against a future feature: hot loops port to Rust/WASM behind
   the same TypeScript API. Nothing above the engine notices.
 
-## 8. Roadmap after v0.1
+## 8. Roadmap
 
-cross-game season state (the stateless season driver exists — docs/SEASON.md
-records the seams; fatigue carryover, injuries, home-court are the missing
-pieces) → progression/aging → EuroLeague rule pack + NCAA calibration → era
-packs → deep editor UI → GM & MyPlayer experiences → defensive schemes →
-broadcast audio → possible WASM core.
+One roadmap, kept in [README.md](./README.md#roadmap). The live work
+register — open items, with their measurements — is
+[docs/REGISTER.md](./docs/REGISTER.md).
