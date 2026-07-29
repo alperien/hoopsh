@@ -1,19 +1,19 @@
 /**
- * Per-game flow measurement + order-preserving reduction: the pure library
+ * Per-game flow measurement + order-preserving reduction — the pure library
  * half of flow.ts (which keeps the CLI/report and the doctrine header; the
- * operational definitions of every metric below live there, next to the
+ * operational definitions of every metric below live THERE, next to the
  * reference-data provenance notes, and must stay in sync with
  * data/nba/flow-reference.json).
  *
  * Split out of flow.ts so the parallel game-runner (parallel.ts /
  * run-worker.ts) can import gameFlow() without importing flow.ts's CLI
- * module; flow.ts itself imports the runner, and this split keeps that
+ * module — flow.ts itself imports the runner, and this split keeps that
  * dependency a straight line instead of a cycle.
  *
- * Determinism note on reduceFlows: it folds per-game GameFlow rows in array
- * order (game 0, 1, 2, …). Parallel runs concatenate worker slices back into
+ * DETERMINISM NOTE on reduceFlows: it folds per-game GameFlow rows in ARRAY
+ * ORDER (game 0, 1, 2, …). Parallel runs concatenate worker slices back into
  * global game order before calling it, so the floating-point operation
- * sequence (and therefore every reported digit) is identical no matter how
+ * sequence — and therefore every reported digit — is identical no matter how
  * many workers produced the rows. Keep it that way: any change that reduces
  * out-of-order (or inside the workers) breaks worker-count invariance.
  */
@@ -46,13 +46,13 @@ export interface GameFlow {
 }
 
 /**
- * `reg` describes the regulation shape (defaults: NBA 4×12). The "Q4"
+ * `reg` describes the REGULATION shape (defaults: NBA 4×12). The "Q4"
  * metrics (clutch window, 10+-lead comebacks) actually mean "the final
- * regulation period"; under an NCAA pack (2×20) that's the second half,
+ * regulation period" — under an NCAA pack (2×20) that's the second half,
  * which is exactly how college clutch is defined. qPts keeps 4 slots for the
  * report's quarter profile; a halves league fills only the first two.
  * Passing a RulePack works directly (it has both fields). Reference values
- * in flow.ts's report remain NBA-only; league-specific flow references are
+ * in flow.ts's report remain NBA-only — league-specific flow references are
  * calibration-milestone work.
  */
 export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinutes: number } = { periods: 4, periodMinutes: 12 }): GameFlow {
@@ -133,7 +133,21 @@ export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinu
         possStart = -1;
         break;
       case 'rebound':
-        if (e.offensive) {
+        // The OREB base is PLAYER offensive rebounds only — the corpus
+        // definition these metrics are compared against
+        // (data/nba/flow-reference.json meta.definitions.ambiguitiesResolved:
+        // team-rebound bookkeeping rows are "excluded from the putback
+        // denominator and from second-chance marking"). The sim emits two
+        // non-player flavors the reference excludes on its own side:
+        // dead-ball FT formalities (`deadBall`, sim/fouls.ts — playerless,
+        // always offensive) and playerless team rebounds (dead caroms,
+        // reb.deadBallCaromChance). Folding those inflated the denominator
+        // ~30% and marked FT-trip possessions as second-chance with no live
+        // OREB (scan finding b4-1/c3-F1). Same filter box.ts applies to
+        // player rebound lines. NOTE: the putback/steal forward scans still
+        // STOP on EVERY rebound row (here and in the turnover case) — the
+        // corpus scan stops on all rebound rows too.
+        if (e.offensive && e.player && !e.deadBall) {
           f.oreb++;
           possHadOreb = true;
           // putback within 6s of game clock by the rebounding team
@@ -190,7 +204,7 @@ export interface FlowAverages {
 }
 
 /**
- * Fold per-game GameFlow rows (in game order; see the header's determinism
+ * Fold per-game GameFlow rows (in game order — see the header's determinism
  * note) into the report averages. Extracted verbatim from the old
  * measureFlow() tail so single-process and parallel runs share one reduction.
  */
