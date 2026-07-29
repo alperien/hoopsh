@@ -20,9 +20,28 @@ describe('data pack schema', () => {
     expect(issues.some((i) => i.path.includes('starters'))).toBe(true);
   });
 
+  it('rejects unknown keys inside attr/tend — the class simulateGame crashes on', () => {
+    const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
+      team: { players: { attr: Record<string, unknown>; tend: Record<string, unknown> }[] };
+    };
+    // the natural hand-edit: JSON has no comments, so authors annotate a
+    // rating bag with a string note — the engine throws on it at tip-off
+    bad.team.players[0]!.attr.note = 'bump after trade deadline';
+    // a typo'd-but-numeric key: engine-ignored, i.e. a rating that silently
+    // does nothing — rejected for the same honest-description reason
+    bad.team.players[1]!.tend.pullup = 60;
+    const issues = validateTeamPack(bad);
+    expect(issues.some((i) =>
+      i.path === '$.team.players[0].attr.note' && i.message.includes('unknown attribute "note"'))).toBe(true);
+    expect(issues.some((i) =>
+      i.path === '$.team.players[1].tend.pullup' && i.message.includes('unknown tendency "pullup"'))).toBe(true);
+    // and the loader refuses the pack outright, not just flags it
+    expect(loadTeamPack(JSON.stringify(bad)).team).toBe(null);
+  });
+
   it('rejects a repeated starter id (5 entries, 4 unique players)', () => {
     const bad = toTeamPack(cascadiaBreakers());
-    // duplicate the first starter over the second: length stays 5 and every
+    // duplicate the first starter over the second — length stays 5 and every
     // entry is a real roster id, so only the uniqueness check can catch it
     bad.team.starters = [
       bad.team.starters[0]!, bad.team.starters[0]!,
