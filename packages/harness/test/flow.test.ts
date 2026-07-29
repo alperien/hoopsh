@@ -72,8 +72,18 @@ describe(`game-flow gates over ${GAMES} games`, () => {
   });
 
   it('second-chance possessions occur at a plausible share', () => {
-    expect(m.secondChanceShare).toBeGreaterThanOrEqual(0.06);
-    expect(m.secondChanceShare).toBeLessThanOrEqual(0.28);
+    // Share of ALL possessions, both teams pooled — the corpus definition
+    // (flow-reference.json secondChanceShareOfPoss: pooled 0.132, per-game
+    // p10/p90 0.099/0.166). Rails = the corpus per-game range [0.058, 0.23].
+    // The old rails [0.06, 0.28] were anchored to the metric's retired 2×
+    // mis-scaled reading (per-team denominator under a both-teams numerator,
+    // scan b9-F1) — in true-share terms they gated [0.03, 0.14], let a
+    // second-chance-suppression mutant pass, and would have FAILED a sim
+    // sitting inside the real range. The sim holds ~0.08 at this seed
+    // (slightly LOW vs real 0.132 — post-OREB patience, same documented gap
+    // as the putback floor below); the floor is the enforcement edge.
+    expect(m.secondChanceShare).toBeGreaterThanOrEqual(0.058);
+    expect(m.secondChanceShare).toBeLessThanOrEqual(0.23);
   });
 
   it('blown 10-point Q4 leads are possible but rare (comebacks exist, chaos does not)', () => {

@@ -233,6 +233,14 @@ export function reduceFlows(flows: GameFlow[]): FlowAverages {
     putbackShare: avg((f) => f.oreb) > 0 ? avg((f) => f.putback6) / avg((f) => f.oreb) : 0,
     stealConvShare: avg((f) => f.steals) > 0 ? avg((f) => f.stealScore6) / avg((f) => f.steals) : 0,
     andOnes: avg((f) => f.andOnes),
-    secondChanceShare: avg((f) => f.poss) > 0 ? avg((f) => f.secondChancePoss) / (avg((f) => f.poss) / 2) : 0
+    // Share of ALL possessions, both teams pooled — numerator and denominator
+    // on the same basis. f.secondChancePoss counts BOTH teams' second-chance
+    // possessions and f.poss counts BOTH teams' possession_end events, so the
+    // ratio is poss-for-poss. The retired version divided by poss/2 (a
+    // per-team denominator under a both-teams numerator) and printed ~2× the
+    // reference definition — the exact mismatch flow-reference.json's
+    // secondChanceShareOfPoss basis warned to reconcile before gating
+    // (scan finding b9-F1).
+    secondChanceShare: avg((f) => f.poss) > 0 ? avg((f) => f.secondChancePoss) / avg((f) => f.poss) : 0
   };
 }
