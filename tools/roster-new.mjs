@@ -28,6 +28,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { flagNumber, flagValue } from './args.mjs';
 import {
   eliteShooter, rimRunner, floorGeneral, threeAndD, scoringWing,
   postAnchor, comboGuard, glueForward, benchBig, benchScorer, stretchBig,
@@ -156,11 +157,6 @@ function printCatalog() {
   console.log(`\npick per-slot with --slots a,b,c,... (first ${STARTERS_COUNT} are the starters)`);
 }
 
-function argOf(flag) {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
-
 const HELP = `roster:new — scaffold a valid hoopsh team pack from archetypes
 
 usage: npm run roster:new [-- options]
@@ -280,30 +276,35 @@ async function main() {
   let opts;
   let pack;
   // one catch for the whole flag-parse + build path: every authoring mistake
-  // (bad --size, unknown archetype, out-of-range tactic) exits 2 with the
-  // message and no stack trace — stacks are for scaffold bugs, not typos
+  // (bad --size, a dangling flag with no value, unknown archetype,
+  // out-of-range tactic) exits 2 with the message and no stack trace —
+  // stacks are for scaffold bugs, not typos
   try {
     if (process.argv.includes('--interactive') || (!hasFlags && process.stdin.isTTY)) {
       opts = await interactive();
     } else {
-      const name = argOf('--name') ?? 'New Team';
-      const id = argOf('--id') ?? slugify(name);
-      const slots = argOf('--slots')
-        ? argOf('--slots').split(',').map((s) => s.trim()).filter(Boolean)
-        : defaultSlots(Number(argOf('--size') ?? 10));
+      // tools/args.mjs's loud parsers, not the old local bare argOf: a flag
+      // whose value was forgotten used to fall back silently (`--name --size
+      // 12` scaffolded a team literally named "New Team" with no warning)
+      const argv = process.argv;
+      const name = flagValue(argv, '--name', 'New Team');
+      const id = flagValue(argv, '--id', slugify(name));
+      const slots = argv.includes('--slots')
+        ? flagValue(argv, '--slots', '').split(',').map((s) => s.trim()).filter(Boolean)
+        : defaultSlots(flagNumber(argv, '--size', 10));
       if (slots.length < MIN_PLAYERS) {
         throw new Error(`need at least ${MIN_PLAYERS} slots (got ${slots.length})`);
       }
       const rating = (flag) => {
-        const n = Number(argOf(flag) ?? 50);
-        if (!Number.isFinite(n) || n < 0 || n > 100) {
-          throw new Error(`${flag} must be 0-100 (got ${argOf(flag)})`);
+        const n = flagNumber(argv, flag, 50);
+        if (n < 0 || n > 100) {
+          throw new Error(`${flag} must be 0-100 (got ${n})`);
         }
         return n;
       };
       opts = {
         name,
-        abbrev: (argOf('--abbrev') ?? name.slice(0, 3)).toUpperCase(),
+        abbrev: flagValue(argv, '--abbrev', name.slice(0, 3)).toUpperCase(),
         id,
         slots,
         tactics: {
@@ -313,7 +314,7 @@ async function main() {
         },
         // default under out/ (gitignored): following the quickstart used to
         // leave an untracked file in the repo root on your first `git status`
-        out: argOf('--out') ?? `out/${id}.team.json`
+        out: flagValue(argv, '--out', `out/${id}.team.json`)
       };
     }
     pack = buildRoster(opts);
