@@ -1,0 +1,12 @@
+# LF everywhere. Determinism-adjacent: source ships as executed (native type
+# stripping), so a CRLF checkout would put \r inside template-literal output.
+* text=auto eol=lf
+
+# Generated files — collapse them in PR diffs (never hand-edited; each has a
+# generating command documented next to it in the tree).
+docs/BIBLE.md linguist-generated=true
+packages/harness/golden/fingerprints.json linguist-generated=true
+packages/harness/src/noise-floor.gen.ts linguist-generated=true
+data/schema/team-pack.schema.json linguist-generated=true
+data/nba/pbp-corpus.json linguist-generated=true
+data/nba/pbp-plays/** linguist-generated=true

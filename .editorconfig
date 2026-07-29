@@ -1,0 +1,12 @@
+# Matches the measured house style (2-space indent, LF, final newline, no
+# trailing whitespace — including .md files, which carry no two-space line
+# breaks). This file describes the existing style; it does not change it.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
