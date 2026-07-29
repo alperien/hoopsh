@@ -1,0 +1,72 @@
+name: Calibration finding
+description: A simulated statistic sits outside (or hugs) its NBA band, or drifts.
+title: "calib: "
+labels: ["calibration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ground rule (AGENTS.md §4.4): **never adjudicate anything from one or
+        two draws** — a gate failure must mean "the sim changed", not "the seed
+        changed". This form will not accept a single-run report. The bands and
+        their measured noise floor live in `packages/harness/src/bands.ts` and
+        `noise-floor.gen.ts`; count bands there, not from memory.
+  - type: input
+    id: stat
+    attributes:
+      label: Statistic / band
+      description: As named in the report output (e.g. "Assisted share of FGM").
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Exact command used
+      placeholder: npm run batch -- --games 48 --seed base-a
+    validations:
+      required: true
+  - type: input
+    id: n
+    attributes:
+      label: Games per measurement (n)
+      description: 24 minimum; band centers are adjudicated at 40+.
+    validations:
+      required: true
+  - type: textarea
+    id: bases
+    attributes:
+      label: Seed bases and the value measured on each
+      description: >
+        At least TWO independent seed bases (three is the house standard —
+        `npm run sweep -- --iters 0 --verify 40` measures three for you).
+        One line per base.
+      placeholder: |
+        acceptance-0: 63.7%
+        base-b: 63.9%
+        base-c: 64.1%   (band 54–62%)
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit measured
+      placeholder: git rev-parse --short HEAD
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: >
+        Optional — recent mechanics changes you suspect, whether the center
+        merely hugs an edge (a systematic finding even while the z-gate
+        passes), related rows in docs/REGISTER.md / docs/INTERNALS.md.
+  - type: checkboxes
+    id: discipline
+    attributes:
+      label: Measurement discipline
+      options:
+        - label: This is a measurement report — I did not hand-nudge params, tests, or bands.
+          required: true
+        - label: I measured across independent seed bases, not repeated draws of one base.
+          required: true

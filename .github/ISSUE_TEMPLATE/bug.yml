@@ -1,0 +1,53 @@
+name: Bug report
+description: The sim, a tool, or a doc does something wrong.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Same seed = bit-identical game, so the seed is the whole reproduction.
+        A statistic that looks unrealistic is usually NOT a bug — use the
+        calibration-finding template for those.
+  - type: input
+    id: command
+    attributes:
+      label: Exact command
+      description: Verbatim, including the seed and all flags.
+      placeholder: npm run sim -- --seed my-seed
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected vs actual
+      description: What should have happened; what happened instead. Paste output.
+    validations:
+      required: true
+  - type: dropdown
+    id: repro
+    attributes:
+      label: Does the same seed reproduce it every run?
+      description: >
+        "No" with the same seed and same commit is a determinism break —
+        say so, that is the highest-severity kind of bug here.
+      options:
+        - "Yes — same seed, same result every time"
+        - "No — same seed gives different results (determinism break)"
+        - "Not seed-based (tooling/docs/viewer)"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: node -v and the commit (git rev-parse --short HEAD).
+      placeholder: v24.14.1, edb9e3d
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I ran `npm test` at the same commit and noted whether it is green.
