@@ -1,4 +1,7 @@
-node_modules/
+# no trailing slash: also matches a node_modules SYMLINK (a dev convenience
+# when sharing one install across worktrees); `node_modules/` only matches
+# a real directory and leaves the symlink untracked-and-visible.
+node_modules
 dist/
 out/
 *.log
