@@ -13,18 +13,26 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// canonical reading order: what → why → where → law → procedure →
-// content-authoring → consumer-layer reference → curriculum
+// canonical reading order: what → why → where → how-it's-measured → law →
+// procedure → builder → content-authoring → multi-game → vocabulary →
+// curriculum
 const SOURCES = [
   'README.md',
   'ARCHITECTURE.md',
   'docs/INTERNALS.md',
+  'docs/CALIBRATION.md',
   'AGENTS.md',
   'docs/PLAYBOOK.md',
+  'docs/EMBEDDING.md',
   'docs/ROSTERS.md',
   'docs/SEASON.md',
+  'docs/GLOSSARY.md',
   'docs/ONBOARDING.md'
 ];
+// docs/REGISTER.md and docs/history/* are excluded BY DESIGN — do not add
+// them: the Bible is the agent context-pack; agents reach the register via
+// row citations, and history would re-bloat the one file whose size is the
+// point (docs/README.md maintenance rule 4).
 
 const COUNT = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
   'eight', 'nine', 'ten'][SOURCES.length] ?? String(SOURCES.length);
@@ -46,21 +54,25 @@ ${SOURCES.map((s, i) => `${i + 1}. **${s}**`).join('\n')}
 
 `;
 
-const divider = (name) => `
+// The divider renders (blockquote), not just an HTML comment: a searcher
+// landing mid-file sees whose copy they're reading and where to edit.
+const divider = (name, i) => `
 
 ---
 ---
 
 <!-- ================= SOURCE: ${name} ================= -->
 
+> Part ${i + 1}/${SOURCES.length} of the generated Bible — canonical source: \`${name}\`. Edit there, then \`npm run docs:bible\`.
+
 `;
 
 let out = header;
-for (const src of SOURCES) {
-  out += divider(src);
+SOURCES.forEach((src, i) => {
+  out += divider(src, i);
   out += readFileSync(path.join(ROOT, src), 'utf8').trim();
   out += '\n';
-}
+});
 
 writeFileSync(path.join(ROOT, 'docs/BIBLE.md'), out);
 const lines = out.split('\n').length;

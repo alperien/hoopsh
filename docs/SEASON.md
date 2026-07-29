@@ -108,11 +108,14 @@ Measured sanity points (n = 30, seeds pinned in the tests):
 - identical rosters (team vs its re-id'd clone): p̂ = 0.467,
   CI [0.302, 0.639] — contains 0.5; mean margin −0.5.
 - every attribute +8 vs −8: p̂ = 0.867, CI [0.703, 0.947]; mean margin +19.8.
-- equal-team margin sd ≈ **16.4 points** — noticeably above the real NBA's
-  ~13–14 for even matchups. Consequence for prediction: the engine maps a
-  given true skill gap to a win probability closer to 50% than reality would
-  (more game-level noise ⇒ flatter prob curve). Recheck this number after any
-  calibration change.
+- equal-team margin noise: quote nothing static here. This bullet once read
+  "sd ≈ 16.4, noticeably above the real NBA's ~13–14" and then survived
+  three re-centers (B1, B2, scan-wave) unrechecked while both numbers went
+  stale — the adjudicated record at the B2 landing measured self-play
+  signed margin sd 15.52 ± 0.78 vs the real 15.64 (n=200; docs/REGISTER.md
+  W14). Measure fresh after any calibration change (`npm run oos` prints
+  the distributional report) before reasoning about how engine noise
+  flattens the skill→win-probability curve.
 
 ## Measured cost (2-core shared box, Node 24 type-stripping, single process)
 
@@ -127,7 +130,8 @@ Measured sanity points (n = 30, seeds pinned in the tests):
 
 ## Parallelism: a seam, deliberately not an implementation
 
-`wave1/runner` owns worker-pool parallelism. This layer *pre-shapes* the work
+`packages/harness/src/parallel.ts` owns worker-pool parallelism. This
+layer *pre-shapes* the work
 for it and does nothing else:
 
 - `runSeason`/`simulateMatchup` build the **complete task list up front**
@@ -208,8 +212,11 @@ same `SimulateGames` signature.
   tanking), so real win totals have FATTER tails — our season-total
   distributions will be over-confident even if per-game probabilities are
   perfect.
-- **Engine-level margin noise** (sd ≈ 16.4 vs ~13–14 real) flattens the
-  skill→win-probability curve, on top of the effects above.
+- **Engine-level margin noise** adds game-level variance on top of the
+  effects above, flattening the skill→win-probability curve; the B2
+  game-state coupling moved it materially — measure it fresh (`npm run
+  oos`) rather than trusting a typed number (see the matchup section's
+  noise bullet).
 
 ## Limitations (recap)
 
@@ -220,4 +227,6 @@ same `SimulateGames` signature.
 - `--games` beyond one round-robin cycle tiles additional cycles and slices,
   so a capped schedule can leave pair-counts unequal — fine for smoke runs,
   not for fairness-sensitive experiments.
-- Everything is single-process until `wave1/runner` lands behind the seam.
+- Everything here runs single-process today: the worker-pool runner
+  (`packages/harness/src/parallel.ts`) landed but is not wired behind
+  `SimulateGames` — drop it in through the seam when a consumer needs it.

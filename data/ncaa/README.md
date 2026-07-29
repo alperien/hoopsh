@@ -2,8 +2,12 @@
 
 Research document for calibrating hoopsh to NCAA men's Division I basketball.
 Same provenance-first contract as `data/nba/README.md`: every number carries a
-source and a grade. Nothing here is wired into the engine — these are
-proposals for the orchestrator (see `acceptance-bands.json` and §6).
+source and a grade. The bands proposed here
+are now loaded by the harness `--league ncaa` flag
+(`packages/harness/src/leagues.ts` reads `acceptance-bands.json`), and the
+R1/R4 rulepack fixes shipped; the remaining engine-side items (R2
+`keyWidthFt` UNWIRED, R3, the R5 inventory) are registered in
+`docs/REGISTER.md` (W8, W36).
 
 Access date for all sources: **2026-07-27**. Season notation: "2025" = the
 2024-25 season (KenPom convention) unless written as "2024-25".
