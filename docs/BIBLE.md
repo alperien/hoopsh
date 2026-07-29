@@ -506,7 +506,8 @@ event `wt` key on it). Do not mix them.
 | `model/derived.ts` | rating → physical-unit curves | what "90 speed" means |
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
 
-Consumers: `stats/box.ts` (events → box score, exact minutes/±), `data/` (schemas,
+Consumers: `stats/box.ts` (events → box score, exact minutes/±; official-convention
+FGA — no attempt charged on a shooting-foul miss, `5d9671f`), `data/` (schemas,
 validation, archetypes, sample packs), `narration/` (template PBP + broadcast
 scripts; `shotcall.ts` classifies which basketball NAME an attempt gets —
 layup/dunk/hook/tip-in/jump shot — from ShotEvent data alone),
@@ -619,8 +620,112 @@ positions from `npm run calreport`, which quotes n40 grand-mean centers with
 standard errors — quoting a smaller nested window's mean as "the center" was
 an error the third review caught, twice, in our own write-up. The pre-texture
 FTA-low and 3P%-high residuals PASS after the texture re-tune):
-- **CURRENT STATE (B2 game-state era — measured 2026-07-28 at the
-  `mech/game-state` landing `4bd7a72`; the mechanics points are the tune
+- **CURRENT STATE (scan-fix era — measured 2026-07-29 on
+  `fix/scan-integration`; the wave is 23 parallel line audits
+  (findings/scan/\*.md, the swarm run's findings files per the branch
+  citation convention) → 140 findings, ~118 fixed at root across 3
+  high-fix + 4 med branches (18 commits; highs individual, meds
+  squashed), 25 owner-call items registered instead of fixed
+  (findings/scan-register.md → REFACTOR.md W30+). Landing point: the
+  re-center `60eda3f` (tune) / `60c71d1` (floor). Re-measure commands
+  per finding.):**
+  - **THE FGA INVERSION — the instrument over-counted; the sim was
+    never over-shooting** (scan b1-HIGH / a4-F2; fix commit `5d9671f`,
+    consumer tier — engine fingerprints untouched). `stats/box.ts`
+    charged an FGA on EVERY `shot` event, but the engine also emits one
+    for a shooting-foul miss, and official scoring — the convention
+    behind every real reference number this repo calibrates against
+    (bands.ts fga/fgPct, fit-roster season lines, tsPct's 0.44 FTA
+    weight) — charges NO attempt on a fouled miss. Measured at the fix
+    commit (2026-07-29, 24-game acceptance batch): 5.65 fouled-miss
+    shots/team-game had been counted; fga re-reads 91.69 → 86.04 and
+    fgPct 46.0% → 49.1% under official counting. Against real 2023-24
+    FGA 88.9 the sim sat BELOW real volume the whole time. **The
+    "fga hugs its ceiling" narrative (the B1 fga-residual adjudication
+    and B2's verify-flicker bullet below, REFACTOR W26) is retired as a
+    cross-convention artifact**: it compared a fouled-miss-inclusive
+    measurement to a fouled-miss-exclusive target (~6 attempts of
+    hidden slack, ~2× the band's total headroom — a4-F2). Player-level
+    effect confirmed: foul-drawing players' FG% was systematically
+    deflated (LeBron FG% n12 center 0.481 → 0.527, now inside his
+    real-anchored [0.50, 0.58] profile). Post-re-center position
+    (2026-07-29): fga n40 center 88.75 (sd 0.65) at the `60c71d1`
+    floor — mid-band, 0.15 under real; acceptance batch reads 88.7 at
+    n=48 / 88.8 at n=96 (`npm run batch -- --games 48|96`, re-run at
+    HEAD for this record). fgPct n40 center 48.2% now runs nearer its
+    0.495 ceiling — the sim's true efficiency was always ~real
+    (2023-24 ≈ 47.4%); the old instrument hid it.
+  - **The shot-clock bug: the clock froze during pass flights**
+    (a1-MED / a4-F1 HIGH; fix commit `a768dae`, mechanics tier).
+    tickLive froze the shot clock for BOTH flight kinds where the
+    documented rule freezes it only for a released shot — every pass
+    granted the offense its flight time free (~0.2-1.0 s/pass), and
+    whistle-free possessions measured up to 26.9 s at the 48-game
+    verification base (31.4 s max on the 120-game probe) under a 24 s
+    clock. Post-fix (48 games, seed base acceptance, 2026-07-29):
+    shot-clock violations 0.02 → 1.79/game, max whistle-free span
+    24.5 s (the residual is the arrival-whistle latency, ≤1 tick);
+    pace re-read 98.3 at the post-mechanics pre-sweep batch-48 (the
+    `1a36b9b` verification) from 95.9. Post-re-center: pace 98.5
+    (n=48) / 99.0 (n=96), n40 center 99.2 at the `60c71d1` floor.
+  - **The blitz was dead code — the 20 ft/15 ft contradiction** (A9-1
+    HIGH; fix commit `1a36b9b`, mechanics tier). defenseTick's blitz
+    trigger requires the holder BEYOND blitzBeyondFt (20 ft) while
+    pickHelper rejected any holder at/beyond helpTriggerFt (15 ft) —
+    mutually exclusive since the introducing commit (measured: 48,008
+    blitz-condition ticks, 0 helpers, 0 branch executions). Fix
+    exempts blitz-triggered calls from the near-rim gate per the
+    mechanism's documented intent. Post-fix instrumented probe
+    (8 games): 26,004/26,004 helpers selected; texture delta as the
+    design comment predicts (assists 47.8 → 53.5/g, 3PA 76.3 → 71.6/g,
+    steals 18.5 → 16.5/g). **Companion: subs left stale matchups**
+    (a5-F1 MED / A9-2; fixes in `99f2745` + `d73a4a4`): swapPlayers
+    fixed only the incoming player's own `manId`, so defenders kept
+    guarding a benched man through resumed possessions — 8,916 stale
+    defender-ticks over 30 games ≈ ~300/game (~30 defender-seconds of
+    misassigned defense per game at 10 Hz; episodes up to four
+    defenders on benched men). Both directions now retarget: the
+    incoming defender inherits the outgoing man's assignment, and
+    opposing defenders re-point to the replacement.
+  - **Instrument corrections (flow bases)**: gameFlow's OREB base
+    counted dead-ball FT formalities and playerless team rebounds
+    where the reference is defined on PLAYER OREBs only (b4-1 /
+    c3-F1; fix `f277765`) — putbackShare re-reads **54.3%** (was
+    42.9%) vs corpus 71.6% of player OREBs: the post-OREB-patience gap
+    is real but ~11 pp smaller than the contaminated denominator
+    suggested. secondChanceShare divided a both-teams numerator by a
+    per-team denominator, printing ~2× its reference's definition
+    (b9-F1 / b4-2; fix `56c8a81`) — 16.1% → **8.1%** vs corpus pooled
+    13.2% (per-game p10/p90 9.9%/16.6%): the sim is slightly LOW; the
+    old doubled read (~21% vs "~12-15%") had inverted the diagnosis.
+    Gate rails re-anchored to the corpus per-game range [0.058, 0.23];
+    b9's suppression mutant now fails the floor. Both measured
+    2026-07-29 at the fix commits, 24-game flow base; re-measure:
+    `npm run flow -- --games 24`.
+  - **The re-center** (tune `60eda3f`, floor `60c71d1`, pin re-anchors
+    `7ea62a6`): the wave changed the physics (shot clock during
+    passes, blitz alive, matchup retargeting) and the instruments
+    (official FGA counting, player-OREB flow bases), so the 30-knob
+    surface was re-swept on the corrected engine. Measured 2026-07-29:
+    verify 40×3 = **17/17 / 17/17 / 17/17, zero band-fails, score
+    4.115** (`npm run sweep -- --iters 0 --verify 40`, the tune-commit
+    record); acceptance batch **17/17 at n=48 AND n=96** (fga
+    88.7/88.8, pace 98.5/99.0 — `npm run batch -- --games 48|96`,
+    re-run at HEAD 2026-07-29 for this record); suite **346 tests /
+    345 pass / 0 fail / 1 todo** (`npm test`, 2026-07-29 — the three
+    catalogued mechanics drift-trips re-greened at the re-center; two
+    draw-fragile pins re-anchored to their properties in `7ea62a6`,
+    no assertion weakened). Golden corpus re-baselined in the tune
+    commit; the noise-floor diff (`60c71d1`) is the drift record
+    (§4.4). NOT yet re-taken post-re-center: `npm run oos`,
+    `npm run texture`, `npm run calreport` — the B2-era reads below
+    predate the wave; re-measure before quoting.
+- **B2 GAME-STATE STATE (historical — measured 2026-07-28 at the
+  `mech/game-state` landing `4bd7a72`; superseded where the numbers
+  overlap by the scan-fix block above — in particular, every fga/fgPct
+  figure in this block was read on the pre-`5d9671f`
+  fouled-miss-inclusive box instrument, and the engine/params were
+  re-centered at `60eda3f`. The mechanics points are the tune
   pair `21e703d` (coupling live) / `5cd67d0` (concede live), and
   `4bd7a72` re-baselines the 24-seed goldens + measured noise floor at
   the landed defaults — its diff is the drift record (AGENTS §4.4).
@@ -720,7 +825,10 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
     headroom belongs to the next coordinated re-sweep (design-coupling
     OQ2); the staged probe is the known fga refund when it ships
     (standalone −1.0). Registered: REFACTOR W26. Re-measure:
-    `npm run sweep -- --iters 0 --verify 40`.
+    `npm run sweep -- --iters 0 --verify 40`. **Scan-wave update
+    (2026-07-29): retired** — the ceiling-hug was the instrument
+    (fouled-miss FGA counting, fixed `5d9671f`); see THE FGA INVERSION
+    in the scan-fix block above and W26's supersession.
   - **Fidelity watch — star centers after the flips**
     (b2-fidelity-watch findings: 5 × 40-game bases per star plus a
     paired-seed attribution run `21e703d` → `5cd67d0`; per the
@@ -863,6 +971,13 @@ FTA-low and 3P%-high residuals PASS after the texture re-tune):
     P(17/17 at CI n=48) ≈ 0.83, P(gate ≥16) ≈ 0.99.
     `decide.moveCutFinish` remains parked at 0 and off the sweep
     surface — still an open re-fit item (REFACTOR register).
+    **Scan-wave update (2026-07-29):** the fga half of this
+    adjudication ("the 92.0 ceiling grants ~3 attempts of headroom
+    over the real 88.9") compared cross-convention numbers — the box
+    then charged FGA on fouled misses (~5.7/tg), which the real 88.9
+    excludes. Retired with the inversion (`5d9671f`; scan
+    b1-HIGH/a4-F2). The ftPct half and the possession-mix direction
+    stand.
   - **Margin distribution: mechanism ADJUDICATED — not sweepable, owned
     by B2.** Measured 2026-07-28 via a probe harness importing the
     repo's own oos generator and band evaluator (880 flag-off games
