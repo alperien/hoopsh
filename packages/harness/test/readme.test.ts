@@ -16,11 +16,25 @@
  */
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
+// The commands run in a disposable copy of the repo, not the real tree:
+// the examples gate and this one both spawn CLIs that write out/, and the
+// two files run concurrently under both test runners (a measured race —
+// each gate passed solo and failed together). The copy also means a bad
+// README line can never dirty the checkout. node_modules is symlinked
+// (only the optional typecheck would need it; nothing here does).
+const ROOT = mkdtempSync(join(tmpdir(), 'readme-gate-'));
+for (const entry of ['packages', 'tools', 'data', 'docs', 'examples',
+  'package.json', 'tsconfig.json', 'vitest.config.ts', 'README.md', 'LICENSE']) {
+  cpSync(join(REPO, entry), join(ROOT, entry), { recursive: true });
+}
+try { symlinkSync(join(REPO, 'node_modules'), join(ROOT, 'node_modules')); } catch {}
 
 const SKIP: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /^git clone /, reason: 'network; the reader already has the tree' },
@@ -29,7 +43,7 @@ const SKIP: Array<{ pattern: RegExp; reason: string }> = [
 ];
 
 function runnableLines(): { line: string; block: number }[] {
-  const src = readFileSync(join(ROOT, 'README.md'), 'utf8');
+  const src = readFileSync(join(REPO, 'README.md'), 'utf8');
   const blocks = [...src.matchAll(/```bash\n([\s\S]*?)```/g)].map((m) => m[1]!);
   expect(blocks.length).toBeGreaterThanOrEqual(2); // the quickstart exists
   const out: { line: string; block: number }[] = [];

@@ -1,7 +1,34 @@
 {
   "name": "@hoopsh/engine",
   "version": "0.1.0",
-  "description": "Deterministic 2D spatial basketball simulation engine. Pure, zero-dependency, runs in Node and browsers.",
+  "description": "Deterministic 2D spatial basketball simulation engine. Pure, zero-dependency, runs in Node and browsers. Ships TypeScript source (no build): consume inside the monorepo, via file:-symlink install + loader hook, or through a bundler — see docs/EMBEDDING.md.",
   "type": "module",
-  "main": "src/index.ts"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alperien/hoopsh.git",
+    "directory": "packages/engine"
+  },
+  "keywords": [
+    "basketball",
+    "simulation",
+    "deterministic",
+    "seeded-rng",
+    "sports-simulation"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false
 }
