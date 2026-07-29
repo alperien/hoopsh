@@ -881,7 +881,7 @@ export const defaultParams: SimParams = {
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.03587196175507723
+    looseBallPerReb: 0.0382566165233726
   },
 
   pass: {
@@ -939,7 +939,7 @@ export const defaultParams: SimParams = {
     // Chance an offensive rebound caught at the rim goes straight back up
     // rather than resetting the offense. FEEL, and it produces the putback
     // shot type. SWEPT-adjacent.
-    putbackChance: 0.4532,
+    putbackChance: 0.4454454268146934,
     // Rebound scramble geometry:
     //   reboundCutoffFt: beyond this nobody realistically gets there. FEEL —
     //     24 ft is approximately the three-point arc; a player who let the shot
@@ -1261,7 +1261,7 @@ export const defaultParams: SimParams = {
     // (iters 14 × cands 4, verify 40×3: 16/17 on all bases, fga the
     // residual). Keep the odd precision. The basketball meaning of each is
     // on its interface doc above.
-    scale: 1,
+    scale: 0.9850271257403264,
     // a leading team starts protecting the ball inside ~2:30; the ramp means
     // the full milk only shows in the final minute
     leadHoldClockSec: 150,
@@ -1269,7 +1269,7 @@ export const defaultParams: SimParams = {
     // — above any shot the engine generates, so the holder waits for the
     // urgency window (the boost itself fades inside urgencySec, see
     // concepts.ts, so late-clock offense still fires and violations don't spike)
-    leadHoldMaxBoost: 0.4080228074971693,
+    leadHoldMaxBoost: 0.4179006153562141,
     // full clock-kill up ~8, none by up ~16 — a 3-possession Q4 lead is
     // managed, a 16-point one is garbage time
     leadHoldMarginRef: 8,
@@ -1277,7 +1277,7 @@ export const defaultParams: SimParams = {
     hurryClockSec: 180,
     // -45% continuation at full desperation drops the bar to ~0.8 expected
     // points — any decent look fires immediately (possessions of 4-8 s)
-    hurryMaxCut: 0.37439372745962823,
+    hurryMaxCut: 0.40396512533655854,
     // down two scores (6) is the fully-urgent chase
     hurryDeficitRef: 6,
     // a one-point deficit still carries 40% of full chase depth
@@ -1310,7 +1310,7 @@ export const defaultParams: SimParams = {
     foulMinShotClock: 5,
     // 0.0165/s base × 55 ≈ 0.9/s within grab range — the foul lands ~1-1.5 s
     // after the defender reaches the holder (real fouls-to-give cadence)
-    foulHuntRateMult: 55,
+    foulHuntRateMult: 50.62253679213248,
     foulHuntStripShare: 0.12,
     foulHuntReachDistFt: 6,
     foulHuntGapFt: 1.5,
@@ -1674,7 +1674,7 @@ export const defaultParams: SimParams = {
     // under 1.0 on purpose: the rim drive must stay the default or the
     // player stops pressuring the basket and the defense stops dropping —
     // which is the very coverage that makes the middy available.
-    driveMidStopChance: 0.450324718369197,
+    driveMidStopChance: 0.5670019316938034,
     // REAL — 16 ft: the canonical pull-up spot, a step behind the
     // free-throw line's 13.75 ft rim distance and the center of the
     // 14-19.5 ft real-mid band. Matches the elbow spot's radial distance
@@ -1777,7 +1777,7 @@ export const defaultParams: SimParams = {
     // arc (what actually caps an elite shooter's pull-up volume)
     blitzBeyondFt: 20,
     // FEEL — the trailer three: worth ~a quarter point of bias to a shooter
-    transitionPullUpBonus: 0.42,
+    transitionPullUpBonus: 0.2602843311131,
     // FEEL — perimeter defenders mostly hold on the shot; rebounding
     // instincts send ~30-50% of them in (defReb-scaled)
     defCrashFarChance: 0.22,
