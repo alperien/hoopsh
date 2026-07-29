@@ -2,43 +2,50 @@
 
 *A modular, deterministic, 2D-spatial basketball simulation core.*
 
-Ten agents move on a real court at 10 ticks per second — spacing, drives, kick-outs, cuts,
-closeouts, help rotations, box-outs. Discrete outcomes (shots, passes, fouls, rebounds)
-resolve through **probability models fed by spatial context, calibrated against
-author-recalled NBA ranges** — honesty note: the acceptance BANDS are still
-authored from memory, not generated from sourced data (the game-flow references
-in `data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games);
-grounding the bands in citable data (and fitting to distributions, not means)
-remains the active roadmap arc. Games
-follow basketball rules and season-scale statistics fall inside those ranges. Every point
-in a box score traces back to a simulated shot at an (x, y) location — a
-2D probability model with position as an input, not a physics sim (there is
-no ball height; see docs/INTERNALS.md known simplifications for the full
-honest list).
+hoopsh simulates a basketball game as ten agents moving on a real court, ten times
+per second — spacing, drives, kick-outs, cuts, closeouts, help rotations, box-outs.
+Discrete outcomes (shots, passes, fouls, rebounds) resolve through probability
+models fed by spatial context. The same seed produces the bit-identical game every
+time, so a game is a file you can replay, diff, and share. Every point in a box
+score traces back to a simulated shot at an (x, y) location. It is a 2D probability
+model with position as an input, not a physics sim: there is no ball height, and
+[docs/INTERNALS.md](./docs/INTERNALS.md) keeps the honest list of simplifications.
+
+Honesty note: league realism is graded against NBA acceptance bands that are
+authored from memory, not generated from sourced data (the game-flow references in
+`data/nba/flow-reference.json` ARE corpus-derived — 184 parsed real games).
+Grounding the bands in citable data, and fitting to distributions rather than
+means, remains the active roadmap arc.
 
 hoopsh is engine-first: MyPlayer careers, GM/franchise modes, historical what-ifs
-("drop Jordan into 2015"), broadcast experiences — all of these are thin apps consuming
-one core's event stream. Leagues (NBA, NCAA, EuroLeague) are swappable **rule packs**;
-rosters are human-editable **data packs**.
+("drop Jordan into 2015"), broadcast experiences — all of these are thin apps
+consuming one core's event stream. Leagues (NBA, NCAA, EuroLeague) are swappable
+**rule packs**; rosters are human-editable **data packs**.
 
 ## Quickstart — zero dependencies
 
-All you need is **Node 24+**. No `npm install` — the repo runs directly from TypeScript
-source via Node's native type stripping and a tiny loader hook.
+All you need is **Node 24+**. No `npm install` — the repo runs directly from
+TypeScript source via Node's native type stripping and a tiny loader hook.
+The demo is one command:
 
 ```bash
 git clone https://github.com/alperien/hoopsh && cd hoopsh
+npm run sim                      # one game: box score + play-by-play + saved replay
+```
 
-npm run sim                      # simulate one game: box score + play-by-play + replay
+Then:
+
+```bash
 npm run sim -- --seed my-seed    # deterministic: same seed = bit-identical game
 npm run batch -- --games 50      # sim N games, grade vs NBA realism acceptance bands
 npm run bench                    # games/sec benchmark (budget: ≥1; hardware-dependent, ~3-6 typical)
-npm run test                     # full suite via node:test (zero installs)
+npm run test                     # full suite via node:test, zero installs (~2 min)
 npm run broadcast                # two-voice broadcast script for a game
 
-npm run roster:new               # scaffold your own team from archetypes (wizard)
-npm run roster:validate -- t.json  # human-grade pack linting: fixes + plausibility warnings
-npm run sim -- --home t.json     # ...and watch your team play (docs/ROSTERS.md is the guide)
+npm run roster:new               # scaffold your own team from archetypes (wizard);
+                                 # writes new-team.team.json by default
+npm run roster:validate -- new-team.team.json  # pack linting: fixes + plausibility warnings
+npm run sim -- --home new-team.team.json       # ...and your team plays (docs/ROSTERS.md is the guide)
 
 npm run season -- --teams 8      # deterministic round-robin season + standings (docs/SEASON.md)
 npm run season -- --matchup 0,3 --sims 200   # Monte-Carlo one fixture: win prob + CI
@@ -65,7 +72,12 @@ Or open `packages/viewer/index.html` directly and **drag any replay JSON onto it
 Playback controls: space to play/pause, ←/→ to skip ±10s, speed cycling, name labels,
 made/missed shot splashes.
 
-## Packages
+The viewer needs a browser — there is no terminal renderer. On a headless box
+(SSH, CI, an agent sandbox) the game is still readable as text: every
+`npm run sim` writes the full play-by-play to `out/pbp-<seed>.txt`, and
+`npm run broadcast` renders a two-voice announcer script.
+
+## How it fits together
 
 | Package | What it does |
 |---|---|
@@ -76,21 +88,48 @@ made/missed shot splashes.
 | `@hoopsh/harness` | Batch runner, NBA acceptance bands, benchmarks, calibration tooling |
 | `packages/viewer` | Single-file 2D canvas replay viewer (embed tool + drag-and-drop) |
 
-Dependency rule: **`engine` imports nothing; everything else imports `engine`.**
-The typed event stream is the public contract — stats, narration, and viewers are pure
-consumers. Full design rationale in [ARCHITECTURE.md](./ARCHITECTURE.md).
+One rule holds the design together: **`engine` imports nothing; everything else
+consumes what it emits.**
+
+```mermaid
+flowchart LR
+    classDef eng fill:#1a7f37,color:#ffffff,stroke:#0f5323
+    classDef ext stroke-dasharray: 5 5
+
+    ENG["engine<br/>zero dependencies, imports nothing"]:::eng
+    ST["stats"] -->|imports| ENG
+    NA["narration"] -->|imports| ENG
+    HA["harness"] -->|imports| ENG
+    DA["data"] -->|imports| ENG
+    ENG -.->|"event stream"| ST
+    ENG -.->|"event stream"| NA
+    ENG -.->|"replay file"| VI["viewer"]
+    ENG -.->|"event stream"| EX["your app<br/>(GM mode, season bot, stat site)"]:::ext
+```
+
+Solid arrows are compile-time imports: they all point INTO the engine, which
+imports nothing — no npm packages, no `node:` built-ins. Dashed arrows are runtime
+data flowing OUT: the typed event stream (`core/events.ts`, the public contract)
+and the replay file, which the viewer renders without re-simulating. The engine
+never learns who consumes it; a change that makes it aware of a consumer breaks
+the arrows, and that is the review test. Full design rationale in
+[ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Build on it
+
+The engine is a library. `simulateGame(config)` returns `{ seed, events,
+finalScore, frames, rules, params, teams }`, and the event stream is the same
+surface this repo's own box scores, narration, and viewer are built on — a
+consumer you write sits at exactly that distance. Natural fits: season bots,
+custom stat sites, alternative viewers, GM/career layers, LLM color commentary
+(the `CommentaryProvider` seam). The builder's guide is
+[docs/EMBEDDING.md](./docs/EMBEDDING.md): loader recipe, `GameConfig`, the
+supported API surface, worked examples.
+
 Input contract: `simulateGame` always rejects non-finite ratings loudly; pass
 `validate: 'strict'` to also enforce the data-pack ranges (ratings 0-100) when
 rosters come from untrusted sources — the default tier deliberately admits
 out-of-range finite values for custom content and stress tests.
-
-**All documentation → [docs/README.md](./docs/README.md)** (the library hub: every
-document, reading paths by role, which doc answers which question). The short list:
-[ARCHITECTURE.md](./ARCHITECTURE.md) (design) · [docs/INTERNALS.md](./docs/INTERNALS.md)
-(module map) · [AGENTS.md](./AGENTS.md) (**contributor covenant**) ·
-[docs/PLAYBOOK.md](./docs/PLAYBOOK.md) (build procedure) ·
-[docs/ONBOARDING.md](./docs/ONBOARDING.md) (learning path) ·
-[docs/BIBLE.md](./docs/BIBLE.md) (everything compiled into one generated file)
 
 ## The core bet: hybrid spatial–stochastic simulation
 
@@ -121,12 +160,12 @@ rate is quoted here on purpose — quoted numbers rot.** Measure the current
 state yourself: `npm run batch -- --games 40` for one seed base,
 `npm run sweep -- --iters 0 --verify 40` for three, `npm run oos` for rosters
 the sweep has never seen (plus a distributional report the means can't
-capture). Residual misses and open calibration findings are recorded in
-`docs/INTERNALS.md`, not hidden. The test suite — including a permanent
-invariant suite derived from adversarial audit rounds and an adversarial-
-input fixture — guards determinism, possession accounting, minutes
-conservation, and buzzer integrity on every change (`npm test` prints the
-live count). Archetype tests pin player differentiation
+capture). Residual misses and open calibration findings are recorded in the
+work register, [docs/REGISTER.md](./docs/REGISTER.md), not hidden. The test
+suite — including a permanent invariant suite derived from adversarial audit
+rounds and an adversarial-input fixture — guards determinism, possession
+accounting, minutes conservation, and buzzer integrity on every change
+(`npm test` prints the live count). Archetype tests pin player differentiation
 (elite shooter ≈ 25 pts on ~20 FGA with a deep-three diet; rim-runner takes 90%+
 of shots inside; non-shooting bigs do not take low-value shots).
 
@@ -134,42 +173,49 @@ Run it yourself: `npm run batch -- --games 50`.
 
 ## Roadmap
 
-**Done:** replay viewer · broadcast demo · automated parameter sweep ·
-orchestrator refactor · pick-and-roll · post-up game · dribble-handoff · isolation ·
-usage hierarchy & re-initiation (floor generals lead their teams in assists) ·
-invariant suite · full documentation campaign (contributor covenant, onboarding path) ·
-real-game corpus (184 parsed NBA games) grounding the flow references ·
-worker-pool parallel runner (determinism across worker counts tested) ·
-roster tooling (schema gen, scaffold wizard, validator, stats→ratings fitter) ·
-stateless season driver + Monte-Carlo matchups (docs/SEASON.md) ·
-endgame layer (timeouts, intentional fouling, hold-for-last, two-for-one, clock
-burn) — default ON since the calib/integration landing, decided on measured
-survey evidence (`endgame: false` = the byte-identical legacy path) ·
-game-state coupling (trailing-team defensive pressure + garbage-time concede
-rotation) — landed at the mech/game-state landing, magnitudes fitted and
-verified by measurement; the distribution record and residuals live in
-docs/INTERNALS.md ·
-NCAA rule pack behind the harness `--league` flag (partially wired — see
-REFACTOR.md's register)
+**Done:** deterministic engine with replay viewer and broadcast scripts ·
+automated parameter sweep · pick-and-roll, post-ups, dribble-handoffs,
+isolation · usage hierarchy (floor generals lead their teams in assists) ·
+invariant suite from adversarial audits · real-game corpus (184 parsed NBA
+games) grounding the flow references · worker-pool parallel runner
+(determinism across worker counts tested) · roster tooling (schema gen,
+scaffold wizard, validator, stats→ratings fitter) · stateless season driver +
+Monte-Carlo matchups (docs/SEASON.md) · late-game management (timeouts,
+intentional fouling, hold-for-last, two-for-one, clock burn) — on by default,
+a decision made on measured evidence · score pressure that couples the
+scoreboard back into play (trailing teams press up; decided games wind down
+through the benches) · an NCAA rule pack behind the harness `--league` flag
+(rule coverage partial).
 
-**Phase 2R (current — tuning, not building):** the mechanics above are implemented
-and wired. The coordinated re-sweep, the endgame-flag decision (first full 17/17
-band lock), and the B2 game-state coupling all landed on measured evidence; the
-open work is the pass-volume arc (the probe mechanism is wired but ships staged
-at zero — deferred at a measured interaction gate), fidelity residuals (hub
-post-up share), and the open items in REFACTOR.md's register.
+**Now — tuning, not building.** The mechanics above are implemented and wired;
+current work is closing measured gaps, not adding systems. The biggest: the
+sim still moves the ball less than real teams do, and the mechanism built to
+fix that is parked at zero strength because, measured together with the
+score-pressure coupling, the two interact badly. That finding and every other
+open item live with their measurements in the work register:
+[docs/REGISTER.md](./docs/REGISTER.md). Project terms ("staged", "sweep",
+"band lock"…) are defined in [docs/GLOSSARY.md](./docs/GLOSSARY.md).
 
-**Next (validation arc):**
-30-roster league fitting off the corpus · Turing round 2 (n≥60, late-game
-windows) · prediction backtest (Brier, calibration curves) via the season layer ·
-sourced NBA data in-repo with provenance, bands/targets generated not typed ·
+**Next — validation:** 30-roster league fitting off the corpus · blind
+"real or simulated?" play-by-play trials · prediction backtests (Brier score,
+calibration curves) via the season layer · sourced NBA data in-repo with
+provenance, so bands are generated from data instead of typed from memory ·
 distribution-level fitting with a held-out season the solver never sees.
 
-**Beyond:** cross-game season state (fatigue carryover, injuries — the seams are
-documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack +
-NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor UI ·
-GM & MyPlayer experiences · defensive schemes · broadcast TTS audio · WASM hot
-path if the perf budget ever demands it.
+**Beyond:** cross-game season state (fatigue carryover, injuries — the seams
+are documented in docs/SEASON.md) · progression & aging · EuroLeague rule pack
++ NCAA calibration · era packs (1995 vs 2015 shot diets) · deep player editor
+UI · GM & MyPlayer experiences · defensive schemes · broadcast TTS audio ·
+WASM hot path if the perf budget ever demands it.
+
+## Documentation
+
+Everything routes through the hub: **[docs/README.md](./docs/README.md)** —
+every document, reading paths by role, which doc answers which question.
+Contributing code? Humans start at [CONTRIBUTING.md](./CONTRIBUTING.md), AI
+agents at [AGENTS.md](./AGENTS.md) (the covenant; its rules bind everyone).
+The whole doc set compiled into one generated file:
+[docs/BIBLE.md](./docs/BIBLE.md).
 
 ## License
 
