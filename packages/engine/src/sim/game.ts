@@ -90,6 +90,14 @@ export interface GameResult {
 
 function validateTeam(team: Team): void {
   if (team.starters.length !== 5) throw new Error(`${team.id}: needs exactly 5 starters`);
+  // duplicate STARTER ids pass every other check here yet put the same body
+  // in two lineup slots: the game runs 4-on-5 to a normal-looking result
+  // (same silent-corruption class as the NaN incident — see
+  // assertValidRatings). data/src/schema.ts already rejects this at the pack
+  // layer, but the engine boundary accepts raw Team objects from any caller.
+  if (new Set(team.starters).size !== team.starters.length) {
+    throw new Error(`${team.id}: duplicate starter ids`);
+  }
   for (const id of team.starters) {
     if (!team.players.some((p) => p.id === id)) {
       throw new Error(`${team.id}: starter ${id} not on roster`);
@@ -253,6 +261,13 @@ function tickLive(s: GameState, dt: number): void {
     return;
   }
 
+  // period expiry with ball live — checked BEFORE the shot-clock violation:
+  // when both clocks cross zero on the same tick, the horn ends the period
+  // (the real rule — an expired game clock supersedes the shot clock), where
+  // the old order charged a phantom shot-clock turnover at 0:00 and played a
+  // post-buzzer inbound before the period could end
+  if (s.clock < 1e-6) { endPeriod(s); return; }
+
   // shot clock (frozen while a shot is airborne, running otherwise)
   s.poss.shotClock -= dt;
   if (s.poss.shotClock <= 0) {
@@ -264,9 +279,6 @@ function tickLive(s: GameState, dt: number): void {
     deadBall(s, other(s.poss.team), { clockRuns: false });
     return;
   }
-
-  // period expiry with ball live
-  if (s.clock < 1e-6) { endPeriod(s); return; }
 
   const holderId = s.ball.holderId;
   if (!holderId) {
@@ -375,10 +387,18 @@ function tickLive(s: GameState, dt: number): void {
   // decisions
   if (s.t >= s.decisionAt) {
     const action = decideBall(s);
+    const scheduledBefore = s.decisionAt;
     executeAction(s, h, action);
     if (s.phase.kind !== 'live') return; // action may have changed phase
-    const D = s.params.decide;
-    s.decisionAt = s.t + D.intervalSec * s.rng.range(0.75, 1.3);
+    // executeAction may schedule its own re-decision window (a drive's quick
+    // finish-or-kick check). Only apply the generic cadence when it didn't:
+    // the unconditional overwrite made the drive window a dead store for the
+    // code's whole history — every drive re-decided on the 0.49-0.85s
+    // default instead of the designed 0.5s (scan a1).
+    if (s.decisionAt === scheduledBefore) {
+      const D = s.params.decide;
+      s.decisionAt = s.t + D.intervalSec * s.rng.range(0.75, 1.3);
+    }
   }
 
   // a shot/pass just went airborne: keep crash/box-out intents, skip brains

@@ -7,7 +7,7 @@
  * switch, and `startPossession`/`endPossession`/`deadBall` are the choke points
  * every other module (fouls, passing, shooting) routes through to change what
  * phase the game is in. Possession-level bookkeeping (shot clock, pace, ORtg)
- * all keys off the invariants enforced here; read this file first when a
+ * all keys off the invariants enforced here — read this file first when a
  * pace/possession-count stat looks wrong.
  */
 
@@ -28,12 +28,12 @@ import { maybeTimeout } from './endgame.js';
 /**
  * Decide who wins a jump ball (opening tip, each overtime period).
  * Called once per game at tip-off and once per OT period in `endPeriod`.
- * A coin-flip weighted by height + hops. No possession/clock side effects
- * here; the caller (`endPeriod`) does the actual phase transition.
+ * Purely a coin-flip weighted by height + hops — no possession/clock side
+ * effects here, the caller (`endPeriod`) does the actual phase transition.
  */
 export function tipWeightedWinner(s: GameState): TeamSide {
   // pick each side's best jumper first (a small proxy score: height dominates,
-  // vertical breaks near-ties; 0.12 is just enough weight that an elite leaper
+  // vertical breaks near-ties — 0.12 is just enough weight that an elite leaper
   // can edge out someone an inch taller, not enough to flip a real size gap),
   // then weight the two jumpers against each other for the actual coin flip.
   const jumper = (side: TeamSide): number => {
@@ -42,7 +42,7 @@ export function tipWeightedWinner(s: GameState): TeamSide {
       a.p.heightIn + a.p.attr.vertical * 0.12 > m.p.heightIn + m.p.attr.vertical * 0.12 ? a : m
     );
     // final tip-win weight: mostly standing reach (height), a real but smaller
-    // share of leaping ability: a jump ball is won more by who's taller than
+    // share of leaping ability — a jump ball is won more by who's taller than
     // who jumps higher, but hops still matter (70/30 split)
     return best.p.heightIn * 0.7 + best.p.attr.vertical * 0.3;
   };
@@ -55,7 +55,7 @@ export function tipWeightedWinner(s: GameState): TeamSide {
 export function bestHandler(s: GameState, side: TeamSide): Agent {
   const eligible = liveOnCourt(s, side);
   // bench exhausted (every replacement used): play on with whoever is out there
-  // rather than crashing; custom short rosters are legal input
+  // rather than crashing — custom short rosters are legal input
   const players = eligible.length > 0 ? eligible : onCourt(s, side);
   return players.reduce((m, x) => (x.p.attr.ballHandle > m.p.attr.ballHandle ? x : m));
 }
@@ -71,10 +71,10 @@ export function bestHandler(s: GameState, side: TeamSide): Agent {
  * ball-handler if none given).
  *
  * Side effect to be aware of: clears stale per-agent commitment timers
- * (`driveUntil`, `cutUntil`, `screenStunUntil`, `navUnderUntil`) on every
- * agent in the game, both teams: a defender still "fighting through a
- * screen" from three seconds ago must not carry that state into a
- * brand-new possession.
+ * (`driveUntil`, `cutUntil`, `screenStunUntil`, `navUnderUntil`) on EVERY
+ * agent in the game, not just the new possession's team — a defender still
+ * "fighting through a screen" from three seconds ago must not carry that
+ * state into a brand-new possession.
  */
 export function startPossession(
   s: GameState,
@@ -101,7 +101,7 @@ export function startPossession(
     a.cutUntil = -99;
     a.screenStunUntil = -99;
     a.navUnderUntil = -99;
-    a.relocUntil = -99; // was omitted: a relocation window leaked across
+    a.relocUntil = -99; // was omitted — a relocation window leaked across
                         // possessions (REFACTOR.md D5; landed with M1)
   }
   emit(s, { type: 'possession_start', team, kind });
@@ -110,11 +110,11 @@ export function startPossession(
   const h = holder ?? bestHandler(s, team);
   // acquisition taxonomy: the thief's touch is a steal, a live-rebound
   // possession starts with the rebounder's grab, and inbound/tip possessions
-  // hand the ball over at a dead ball (an inbound catch is not a live pass;
+  // hand the ball over at a dead ball (an inbound catch is not a live PASS —
   // the sim doesn't fly an inbound pass, it grants the touch)
   giveBall(s, h, kind === 'steal' ? 'steal' : kind === 'live_rebound' ? 'rebound' : 'deadball');
   // 0.25s: the new holder needs at least one tick of "look around" before the
-  // AI is allowed to shoot/pass/drive off the inbound; prevents an
+  // AI is allowed to shoot/pass/drive off the inbound — prevents an
   // instant no-look heave the moment the ball touches his hands
   s.decisionAt = s.t + 0.25;
 }
@@ -123,17 +123,17 @@ export function startPossession(
  * Transfer ball possession to `a` (a catch, not a shot going up). Resets the
  * dribble-count bookkeeping used for the "one-dribble-and-shoot" assist
  * window and hand-check/strip mechanics. Called on every inbound, rebound,
- * steal, and completed pass, not on a shot release (that clears the holder
+ * steal, and completed pass — NOT on a shot release (that clears the holder
  * without assigning a new one; see `startShot`/`resolvePassArrival`).
  *
- * `acquisition` stamps how the touch arrived (see state.ts BallAcquisition):
+ * `acquisition` stamps HOW the touch arrived (see state.ts BallAcquisition):
  * it gates the quick-shot taxonomy in decide.ts (catch_shoot / cut_finish /
- * putback) and assist eligibility in shooting.ts. On any non-pass acquisition
+ * putback) and assist eligibility in shooting.ts. On any NON-pass acquisition
  * the delivery-quality memory is reset to league-typical: catchQuality is a
  * property of the pass that was caught, and a rebound/steal/dead-ball touch
- * has no pass. Before this, the passQ term in shotMakeP read a stale
+ * has no pass — before this, the passQ term in shotMakeP read a stale
  * delivery from a pass caught possessions earlier (wave2 diagnostic).
- * resolvePassArrival stamps the real delivery quality just before calling
+ * resolvePassArrival stamps the REAL delivery quality just before calling
  * this with 'pass', so the order (stamp, then giveBall) preserves it.
  */
 export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy']): void {
@@ -148,23 +148,25 @@ export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy'
 
 /**
  * Close out the current possession's bookkeeping (emits `possession_end`).
- * Call this from wherever a possession's fate is decided (a make, a
- * defensive rebound, a turnover, or the period horn), right before handing
+ * Call this from wherever a possession's fate is decided — a make, a
+ * defensive rebound, a turnover, or the period horn — right before handing
  * the ball to the other phase. Idempotent via `s.poss.ended`: and-one free
  * throws, buzzer-beater flows, and FT-miss scrambles can all legitimately
  * call this more than once for the same dead possession, and only the first
- * call may count. Pace and offensive-rating stats depend on possessions
+ * call may count — pace and offensive-rating stats depend on possessions
  * being counted exactly once.
  */
 export function endPossession(
   s: GameState,
   outcome: 'made_fg' | 'made_ft' | 'def_rebound' | 'turnover' | 'period_end'
 ): void {
-  // exactly-once guard (see JSDoc): pace/ORtg depend on it
+  // a possession ends exactly once — and-ones, buzzer flows, and FT-miss
+  // scrambles all route here, so guard against double counting (pace/ORtg
+  // depend on this invariant)
   if (s.poss.ended) return;
   s.poss.ended = true;
   // usage bookkeeping: every offensive player on court consumed a share of
-  // this possession's opportunity, the denominator of realized usage share
+  // this possession's opportunity — the denominator of realized usage share
   // (rides the exactly-once guard above, so it can't double-count)
   for (const a of onCourt(s, s.poss.team)) a.teamPossOnCourt++;
   emit(s, { type: 'possession_end', team: s.poss.team, outcome });
@@ -172,8 +174,8 @@ export function endPossession(
 
 /**
  * Enter a dead-ball phase; possession (re)starts (or resumes, if
- * `continuation`) once `resumeIn` elapses. This is the choke point for
- * out-of-bounds, non-shooting fouls, and made-basket dead time. Callers
+ * `continuation`) once `resumeIn` elapses. This is THE choke point for
+ * out-of-bounds, non-shooting fouls, and made-basket dead time — callers
  * pick `nextTeam` (who gets the ball when play resumes) and whether the
  * game clock keeps running under the delay (`clockRuns`, e.g. a make with
  * the clock still live vs. a violation that stops it).
@@ -187,7 +189,7 @@ export function deadBall(
 ): void {
   s.ball.flight = null;
   s.ball.holderId = null;
-  s.pendingRelease = null; // abandon any windup; the play is dead
+  s.pendingRelease = null; // abandon any windup — the play is dead
   s.phase = {
     kind: 'dead',
     // 1.8s default dead-ball delay: long enough to read the whistle/basket on
@@ -199,8 +201,8 @@ export function deadBall(
     continuation: opts.continuation
   };
   // endgame layer (GameConfig.endgame only): the inbounding team may call a
-  // timeout here, at the one choke point every stoppage routes through
-  // (where real timeouts happen). May freeze the clock, stretch the
+  // timeout HERE — the one choke point every stoppage routes through, which
+  // is exactly where real timeouts live. May freeze the clock, stretch the
   // dead-ball delay, and flag a frontcourt inbound (see sim/endgame.ts);
   // flag off, it returns immediately.
   maybeTimeout(s);
@@ -210,9 +212,9 @@ export function deadBall(
 
 /**
  * Cosmetic positioning for the dead-ball freeze: everyone stops driving/
- * cutting AI and walks to an inbound-ready spot. Visual/spacing setup for
- * the replay only; no probability model reads these positions, so the
- * arithmetic below needs to look plausible, nothing more.
+ * cutting AI and walks to an inbound-ready spot. Purely visual/spacing setup
+ * for the replay — no probability model reads these positions, so the exact
+ * arithmetic below is "looks plausible," not "matters for outcomes."
  * Called from `deadBall` and (indirectly, via `tickDead`) whenever a fresh
  * inbound is coming up.
  */
@@ -221,10 +223,10 @@ export function setupDeadTargets(s: GameState, offSide: TeamSide): void {
   const own = attackedRim(s, other(offSide)); // offense inbounds under its own defended basket
   const dir = rim.x > s.court.midX ? 1 : -1;
   const handler = bestHandler(s, offSide);
-  // an 'advance' timeout moves the whole inbound to the frontcourt (endgame
-  // layer): the handler sets up timeoutAdvanceSpotFt from the attacked rim.
-  // The advance-the-ball payoff is delivered as positioning that the normal
-  // possession machinery then plays out (no scripted inbound play).
+  // an 'advance' timeout moves the whole inbound to the FRONTcourt (endgame
+  // layer): the handler sets up timeoutAdvanceSpotFt from the attacked rim —
+  // the real advance-the-ball payoff, delivered as positioning that the
+  // normal possession machinery then plays out (no scripted inbound play)
   const advanced =
     s.phase.kind === 'dead' && s.phase.advanceInbound === true && s.phase.nextTeam === offSide;
   for (const a of onCourt(s, offSide)) {
@@ -233,16 +235,16 @@ export function setupDeadTargets(s: GameState, offSide: TeamSide): void {
     if (a.p.id === handler.p.id) {
       a.target = advanced
         // frontcourt hashmark, a step inside the sideline (6 ft keeps the
-        // walk-to spot clear of the boundary clamp, a cosmetic offset; the
-        // behavioral distance-from-rim is params.endgame.timeoutAdvanceSpotFt)
+        // walk-to spot clear of the boundary clamp — cosmetic offset; the
+        // BEHAVIORAL distance-from-rim is params.endgame.timeoutAdvanceSpotFt)
         ? { x: rim.x - dir * s.params.endgame.timeoutAdvanceSpotFt, y: 6 }
         // inbounder stands ~4ft in front of the baseline he's inbounding from,
-        // a few feet off the centerline (own.x is the defended rim; the
+        // a few feet off the centerline (own.x is the DEFENDED rim — the
         // offense always takes the ball out under its own basket after a
         // score/dead ball on this end)
         : { x: own.x + dir * 4, y: s.court.centerY - 6 };
     } else if (advanced) {
-      // the other four space the frontcourt arc: the same fan the halfcourt
+      // the other four space the frontcourt arc — the same fan the halfcourt
       // spot machinery will refine once the possession starts (cosmetic)
       const i = s.lineup[offSide].indexOf(a.p.id);
       a.target = {
@@ -278,7 +280,7 @@ export function setupDeadTargets(s: GameState, offSide: TeamSide): void {
  * floor and nearby players converge on it. Called after any missed shot
  * (field goal or free throw) whose rebound isn't an automatic putback.
  * `resolveIn` is how long the scramble plays out before `tickScramble` picks
- * a winner; callers pass a randomized window so scrambles don't all resolve
+ * a winner — callers pass a randomized window so scrambles don't all resolve
  * on the same beat.
  */
 export function enterScramble(
@@ -295,10 +297,10 @@ export function enterScramble(
  * switch every tick while `s.phase.kind === 'dead'`. Advances the game clock
  * only if `clockRuns` (a made basket keeps it running until the delay ends;
  * a whistle stops it), still integrates movement/fatigue so the freeze-target
- * walk from `setupDeadTargets` actually plays out. Once `resumeIn` counts
- * down to zero it either resumes the same possession (`continuation`,
- * e.g. after a non-shooting foul with no change of team) or starts a new
- * one via `startPossession`.
+ * walk from `setupDeadTargets` actually plays out, and — once `resumeIn`
+ * counts down to zero — either resumes the SAME possession (`continuation`,
+ * e.g. after a non-shooting foul with no change of team) or starts a brand
+ * new one via `startPossession`.
  */
 export function tickDead(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'dead' }>;
@@ -312,13 +314,13 @@ export function tickDead(s: GameState, dt: number): void {
   if (ph.resumeIn > 0) return;
 
   if (ph.continuation) {
-    // same possession resumes (non-shooting foul etc.). A dead-ball touch,
-    // not a pass: the whistle broke whatever play the last pass created.
+    // same possession resumes (non-shooting foul etc.) — a dead-ball touch,
+    // not a pass: the whistle broke whatever play the last pass created
     s.phase = { kind: 'live' };
     giveBall(s, bestHandler(s, ph.nextTeam), 'deadball');
-    // 0.3s: slightly longer than startPossession's 0.25s "look around" beat.
-    // The possession was already flowing before the whistle, so the offense
-    // gets a beat longer to re-set rather than snapping back to speed.
+    // 0.3s: slightly longer than startPossession's 0.25s "look around" beat —
+    // this is a possession that was already flowing before the whistle, so
+    // give the offense a beat longer to re-set rather than snap back to speed
     s.decisionAt = s.t + 0.3;
     return;
   }
@@ -340,11 +342,11 @@ export function tickScramble(s: GameState, dt: number): void {
   advanceClock(s, dt);
   if (s.clock < 1e-6) { endPeriod(s); return; }
   // ease the ball 25% of the remaining distance toward its landing spot each
-  // tick (a decaying-lerp "falling" visual, not a real physics trajectory;
+  // tick (a decaying-lerp "falling" visual, not a real physics trajectory —
   // at 10Hz this reaches the spot in well under a second)
   s.ball.pos = lerp(s.ball.pos, ph.landAt, 0.25);
 
-  // nearby players converge on the ball: 18ft is roughly "anyone who could
+  // nearby players converge on the ball — 18ft is roughly "anyone who could
   // plausibly be a rebounder on this carom" without pulling in players still
   // way out on the perimeter
   for (const side of [0, 1] as TeamSide[]) {
@@ -362,14 +364,14 @@ export function tickScramble(s: GameState, dt: number): void {
   if (ph.resolveIn > 0) return;
 
   // loose-ball foul (defensive side only, v0.1): the two combatants closest
-  // to the landing spot are the fouler/victim proxy; we don't model the
+  // to the landing spot are the fouler/victim proxy — we don't model the
   // actual scrum, just who was most likely to be in the pile
   const defSide = other(ph.offSide);
   if (s.rng.chance(s.params.foul.looseBallPerReb)) {
     const fouler = liveOnCourt(s, defSide)
       .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0];
     if (fouler) {
-      // prefer a victim who hasn't fouled out: a ghost free-throw shooter in
+      // prefer a victim who hasn't fouled out — a ghost free-throw shooter in
       // the bench-exhausted state would violate the no-fouled-out-actors rule
       const victims = onCourt(s, ph.offSide);
       const liveVictims = liveOnCourt(s, ph.offSide);
@@ -379,29 +381,29 @@ export function tickScramble(s: GameState, dt: number): void {
       if (bonus) {
         victim.usedPoss++; // bonus trip = possession used (usage bookkeeping)
         // award from FoulOutcome.bonus (NCAA 7-9 is a one-and-one), not a
-        // flat rules.bonusFreeThrows read (see fouls.ts FoulOutcome)
+        // flat rules.bonusFreeThrows read — see fouls.ts FoulOutcome
         enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne);
       } else {
         // side out, offense keeps it: shot clock is floored at the rule
-        // pack's short-clock reset (NBA 14s) off a loose-ball whistle;
+        // pack's short-clock reset (NBA 14s) off a loose-ball whistle —
         // mirrors the real shot-clock-reset rule for a defensive foul with
         // the offense retaining the ball
         s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
-        // 1.2s: shorter than the standard 1.8s dead-ball delay. This is a
-        // continuation of the same possession (no team change), so the pause
-        // just needs to cover the whistle, not a full re-set.
+        // 1.2s: shorter than the standard 1.8s dead-ball delay — this is a
+        // continuation of the SAME possession (no team change), so the pause
+        // just needs to cover the whistle, not a full re-set
         deadBall(s, ph.offSide, { clockRuns: false, continuation: true, resumeIn: 1.2 });
       }
       return;
     }
   }
 
-  // Team rebound: some caroms die without any individual securing them
-  // (tipped out of bounds, long skips off the scrum) and the officials
+  // TEAM rebound: some caroms die without any individual securing them —
+  // tipped out of bounds, long skips off the scrum — and the officials
   // award a side the ball at a dead-ball inbound. Real logs read
   // "Defensive rebound by Team" (the Turing baseline judges used the sim's
   // total lack of these as a definitely-real marker). The winning side runs
-  // the same positioning-weighted lottery a player rebound would, so this
+  // the SAME positioning-weighted lottery a player rebound would, so this
   // diverts individual credit without moving the ORB/DRB split; rate lives
   // at params.reb.deadBallCaromChance (0 disables the mechanic entirely).
   if (s.rng.chance(s.params.reb.deadBallCaromChance)) {
@@ -416,14 +418,14 @@ export function tickScramble(s: GameState, dt: number): void {
     });
     if (offensive) {
       // offense retains at a side out: shot clock floors at the rule pack's
-      // short-clock reset and the same possession continues; mirrors the
+      // short-clock reset and the SAME possession continues — mirrors the
       // loose-ball-foul side-out branch above
       s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
       deadBall(s, ph.offSide, { clockRuns: false, continuation: true, resumeIn: 1.2 });
     } else {
       // defense is awarded the ball out of bounds: the possession ended in a
-      // defensive rebound, but the next one starts from a dead-ball inbound
-      // (not a live_rebound); no transition burst off a whistle
+      // defensive rebound, but the next one starts from a dead-ball INBOUND
+      // (not a live_rebound) — no transition burst off a whistle
       endPossession(s, 'def_rebound');
       deadBall(s, side, { clockRuns: false });
     }
@@ -444,20 +446,20 @@ export function tickScramble(s: GameState, dt: number): void {
   s.phase = { kind: 'live' };
   if (offensive) {
     // offensive board: shot clock gets the rule pack's short-clock reset
-    // (NBA 14s), never less than whatever was already on it (a board with
+    // (NBA 14s), never LESS than whatever was already on it (a board with
     // 20s left shouldn't get punished down to 14)
     s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
     s.poss.phase = 'halfcourt';
     giveBall(s, winner, 'rebound');
     const rim = attackedRim(s, winner.side);
     // putback eligibility: within 6ft of the rim (still right under the
-    // basket) and the clock has more than a hundredth of a second left;
+    // basket) and the clock has more than two hundredths of a second left —
     // putbacks must be released before the buzzer (clock guard)
     if (s.clock > 0.02 && dist(winner.pos, rim) < 6 && s.rng.chance(s.params.reb.putbackChance)) {
       startShot(s, winner, 'putback');
       return;
     }
-    // 0.35s: a beat longer than a normal possession's 0.25s decision delay;
+    // 0.35s: a beat longer than a normal possession's 0.25s decision delay —
     // an offensive rebounder just fought for the ball and needs a moment to
     // survey before the AI can act on it
     s.decisionAt = s.t + 0.35;
@@ -472,11 +474,11 @@ export function tickScramble(s: GameState, dt: number): void {
 /**
  * Close out the current period (or the whole game). Called whenever the
  * game clock hits zero from any phase (`tickLive`, `tickDead`,
- * `tickScramble`, `tickFreeThrows` all check for it and route here); the
+ * `tickScramble`, `tickFreeThrows` all check for it and route here) — the
  * single point where "the horn sounds" is handled. Ends the possession, and
  * if this was the last scheduled period with a clear winner, ends the game;
  * otherwise advances to the next period/overtime, resets team fouls (unless
- * the rule pack carries them into OT: teamFoulsCarryToOT), and
+ * the rule pack carries them into OT — teamFoulsCarryToOT), and
  * queues the next period's opening dead ball.
  */
 export function endPeriod(s: GameState): void {
@@ -485,8 +487,8 @@ export function endPeriod(s: GameState): void {
   s.pendingRelease = null; // a windup at the horn never gets released
   emit(s, { type: 'period_end' });
 
-  // a tied score at the end of the last scheduled period forces overtime;
-  // otherwise this period's end is the game's end
+  // a tied score at the end of the last scheduled period forces overtime —
+  // otherwise this period's end IS the game's end
   const isFinalScheduled = s.period >= s.rules.periods;
   const tied = s.score[0] === s.score[1];
   if (isFinalScheduled && !tied) {
@@ -499,7 +501,7 @@ export function endPeriod(s: GameState): void {
   const isOT = s.period > s.rules.periods;
   s.clock = (isOT ? s.rules.otMinutes : s.rules.periodMinutes) * 60;
   // Team-foul bonus counts reset each regulation period (personals never
-  // do), but a league with teamFoulsCarryToOT keeps the count through every
+  // do) — but a league with teamFoulsCarryToOT keeps the count through EVERY
   // overtime: NCAA men reset only at the end of the first half, so OT
   // continues the second half's count (and a 2nd OT continues the 1st's);
   // FIBA/EuroLeague treat extra periods as an extension of the 4th. The NBA
@@ -509,7 +511,7 @@ export function endPeriod(s: GameState): void {
 
   let team: TeamSide;
   if (isOT) {
-    // no "tip winner" carries into OT; it's re-flipped, height/vertical only
+    // no "tip winner" carries into OT — it's re-flipped, height/vertical only
     team = tipWeightedWinner(s);
     emit(s, { type: 'tip_off', winner: team });
   } else {
@@ -518,8 +520,15 @@ export function endPeriod(s: GameState): void {
   }
   // 1.6s period-opening delay: a touch shorter than the general 1.8s dead-ball
   // default since there's no preceding whistle/basket to read, just a
-  // quarter-break cut back to game action
-  s.phase = { kind: 'dead', resumeIn: 1.6, clockRuns: false, nextTeam: team, possKind: 'inbound' };
+  // quarter-break cut back to game action. An OT opener is a fresh jump ball
+  // (tip_off emitted above), so its possession is kind 'tip' per the event
+  // contract (events.ts PossessionStartEvent: 'tip' = the opening possession
+  // of a period off a jump ball) — it was stamped 'inbound', undercounting
+  // jump-ball possessions for any consumer reading the documented kind.
+  s.phase = {
+    kind: 'dead', resumeIn: 1.6, clockRuns: false, nextTeam: team,
+    possKind: isOT ? 'tip' : 'inbound'
+  };
   checkSubs(s);
   // matchup/spot targets refresh when the possession starts
 }

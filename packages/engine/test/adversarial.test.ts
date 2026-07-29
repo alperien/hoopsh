@@ -55,6 +55,19 @@ describe('adversarial input', () => {
       .toThrow(/duplicate player id across teams/);
   });
 
+  it('a duplicate STARTER id throws at the boundary instead of playing 4-on-5', () => {
+    // ['A','A','B','C','D'] passed every pre-existing check (5 starters, all
+    // on roster, roster ids unique) and initState built a lineup with the
+    // same body in two slots: the game ran to a normal-looking completion
+    // with one team fielding four distinct players — the same silent-
+    // corruption class the NaN boundary check exists for (scan a1).
+    const { home, away } = sampleMatchup();
+    const dup = structuredClone(home);
+    dup.starters[1] = dup.starters[0]!;
+    expect(() => simulateGame({ seed: 'adv-dup-starter', home: dup, away, collectFrames: false }))
+      .toThrow(/duplicate starter ids/);
+  });
+
   it('a game that cannot finish throws instead of returning a fake result', () => {
     // The tick-loop safety cap is a bug tripwire. An earlier version emitted
     // a legitimate-looking game_end when it tripped — a stalled game could
