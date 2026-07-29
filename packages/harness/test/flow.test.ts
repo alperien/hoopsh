@@ -16,7 +16,12 @@
  *                                         since scan b4-1/c3-F1 — it is LOW, so
  *                                         only a regression FLOOR is gated below,
  *                                         against suppression)
- *   runs >=10-0 ~1.0 vs real ~1.8      -> momentum/consistency (STAGED attr, M4)
+ *   runs >=10-0 ~1.3 vs corpus 1.4     -> AT the reference since the corpus
+ *                                         regen (the old "~1.8" here was the
+ *                                         retired n=6 anchor — flow-reference
+ *                                         .json changesVsAnchor flags it
+ *                                         material); stays report-only until
+ *                                         ratcheted per house convention
  *   clutch FT share ~20% vs real 35%+  -> endgame layer: no intentional fouling (M4)
  *   flat quarter profile               -> fatigue-arc/endgame pacing (M4)
  * steal->score-in-6s graduated from this list in wave2 (decide.stealBreakBonus):
