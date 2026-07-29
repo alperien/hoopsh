@@ -11,11 +11,12 @@
  * values, their sources, and provenance grades).
  *
  * REPORT-ONLY by default (house ratchet convention: a metric becomes an
- * enforced test in test/flow.test.ts once it holds). Known gaps are
- * expected and documented — most notably everything downstream of the
- * missing endgame layer (no timeouts, no intentional fouling, no clock
- * kill: REFACTOR.md roadmap M4), which this tool exists to hold honest
- * acceptance criteria for.
+ * enforced test in test/flow.test.ts once it holds). The endgame layer
+ * (timeouts, intentional fouling, clock kill — REFACTOR.md M4) landed and
+ * defaults ON (sim/game.ts `endgame ?? true`), so a default run measures it
+ * live; this tool holds the acceptance criteria its target metrics (clutch
+ * FT share, Q4 comeback texture) are judged by, and `--no-endgame` measures
+ * the legacy path for the off/on comparison.
  *
  * Operational definitions (keep in sync with the reference file — a metric
  * is only comparable if both sides count the same way):
@@ -39,9 +40,12 @@
  * are distributed across worker subprocesses by parallel.ts — bit-identical
  * results for any --workers value, --workers 1 = plain single process.
  *
- * Run: npm run flow [-- --games 48 --seed flow --workers N --endgame --league nba|ncaa]
- * (--endgame simulates with GameConfig.endgame ON — the off/on comparison
- *  for the endgame layer's target metrics: clutch FT share, Q4 shape.)
+ * Run: npm run flow [-- --games 48 --seed flow --workers N --no-endgame --league nba|ncaa]
+ * (--no-endgame simulates with GameConfig.endgame OFF — the legacy path,
+ *  i.e. the off/on comparison for the endgame layer's target metrics:
+ *  clutch FT share, Q4 shape. A default run measures the shipped default,
+ *  which is ON; --endgame forces ON explicitly and today equals the
+ *  default — it stopped being a comparison when the default flipped.)
  * (--league swaps the rule pack and re-anchors the period-structure metrics
  *  to that league's regulation shape — under 'ncaa' the clutch window and
  *  comeback tracking read the SECOND HALF as the final period and droughts
@@ -89,9 +93,15 @@ async function main(): Promise<void> {
   const league = resolveLeague(flagValue(process.argv, '--league', 'nba'));
   const workers = resolveWorkerCount(flagValue(process.argv, '--workers', 'auto'));
   const endgame = process.argv.includes('--endgame');
-  console.log(`Measuring game flow over ${games} ${league.name} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'}${endgame ? ', endgame ON' : ''})...\n`);
+  const noEndgame = process.argv.includes('--no-endgame');
+  if (endgame && noEndgame) throw new Error('flow: --endgame and --no-endgame contradict each other — pass at most one');
+  // default runs the engine's shipped default (endgame ON since the flip);
+  // --no-endgame is the legacy side of the off/on comparison, --endgame
+  // forces ON explicitly (identical games to the default today)
+  const task = noEndgame ? 'flowNoEndgame' as const : endgame ? 'flowEndgame' as const : 'flow' as const;
+  console.log(`Measuring game flow over ${games} ${league.name} games (seed base "${seedBase}", ${workers} worker${workers === 1 ? '' : 's'}${noEndgame ? ', endgame OFF (legacy)' : endgame ? ', endgame ON (the shipped default)' : ''})...\n`);
   const t0 = performance.now();
-  const flows = await runGames({ task: endgame ? 'flowEndgame' : 'flow', games, seedBase, league: league.id, workers });
+  const flows = await runGames({ task, games, seedBase, league: league.id, workers });
   const m = reduceFlows(flows);
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)}s)\n`);
 
@@ -134,8 +144,17 @@ async function main(): Promise<void> {
   for (const [name, sim, ref, grade] of rows) {
     console.log(`  ${name.padEnd(26)} sim ${sim.padEnd(18)} real ${ref.padEnd(34)} [${grade}]`);
   }
-  console.log('\nKnown gaps expected until the endgame layer lands (REFACTOR.md M4): clutch FT share,');
-  console.log('comeback texture, and anything downstream of timeouts/intentional fouling.');
+  // footer states which config these games actually ran — the previous text
+  // claimed the endgame layer was still missing after it landed and turned
+  // ON by default (scan finding b4-4: the stale footer printed on the very
+  // games that had just measured the layer live)
+  if (noEndgame) {
+    console.log('\nThis run measured the LEGACY path (endgame OFF): clutch FT share, comeback texture,');
+    console.log('and anything downstream of timeouts/intentional fouling reflect the pre-endgame engine.');
+  } else {
+    console.log('\nThe endgame layer (timeouts, intentional fouling, clock kill) was ON for these games');
+    console.log('(the shipped default); run with --no-endgame for the legacy side of the comparison.');
+  }
   if (league.id !== 'nba') {
     console.log(`\nNOTE: the reference column above is NBA data — this was a ${league.name} run, so read the sim`);
     console.log('column as raw measurement; league-specific flow references are calibration-milestone work.');

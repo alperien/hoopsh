@@ -240,12 +240,32 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
       if (!isRating(tactics[k])) issues.push({ path: `$.team.tactics.${k}`, message: 'must be 0-100' });
     }
   }
-  if (!Array.isArray(team.players) || team.players.length < MIN_PLAYERS) {
+  if (!Array.isArray(team.players)) {
     issues.push({ path: '$.team.players', message: `need at least ${MIN_PLAYERS} players` });
   } else {
+    // A short roster is ONE issue, not a reason to skip the rest: the old
+    // early-out reported nothing but "need at least 8 players" for a
+    // 7-player pack whose players carried their own problems — breaking the
+    // header's one-error-dump promise for exactly the hand-editor mid-way
+    // through authoring a roster (scan finding B5-6). Every player present
+    // still gets validated, and the starter checks below run on whatever
+    // ids exist.
+    if (team.players.length < MIN_PLAYERS) {
+      issues.push({ path: '$.team.players', message: `need at least ${MIN_PLAYERS} players` });
+    }
     team.players.forEach((p, i) => validatePlayer(p, `$.team.players[${i}]`, issues));
-    const ids = new Set(team.players.map((p) => p.id));
-    if (ids.size !== team.players.length) {
+    // Duplicate-id check over VALID string ids only: a `null`/non-object
+    // player entry was already reported by validatePlayer above, and
+    // dereferencing `.id` on it here would turn the promised one-pass error
+    // report into a TypeError — a validator reports, it never throws (scan
+    // finding: the b5 register's null-player crash). Restricting to string
+    // ids also keeps two invalid entries (two shared `undefined` ids) from
+    // fabricating a false "duplicate player ids" issue.
+    const idList = team.players
+      .map((p) => (typeof p === 'object' && p !== null ? (p as Partial<Player>).id : undefined))
+      .filter((id): id is string => typeof id === 'string');
+    const ids = new Set(idList);
+    if (ids.size !== idList.length) {
       issues.push({ path: '$.team.players', message: 'duplicate player ids' });
     }
     // Exactly 5, not "at least 5" — the engine's on-court model assumes

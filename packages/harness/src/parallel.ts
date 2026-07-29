@@ -1,40 +1,40 @@
 /**
- * Reusable parallel game-runner: spread N deterministic games across W
+ * Reusable parallel game-runner — spread N deterministic games across W
  * worker subprocesses.
  *
  * This generalizes the sweep's proven worker pattern (sweep.ts +
  * sweep-worker.ts): a job description goes to a temp JSON file, a standalone
  * worker script (run-worker.ts) is spawned via execFile with the job path as
- * argv[2], and the worker answers with one JSON blob on stdout. Same
- * rationale as there: fresh process/module state per worker, an
+ * argv[2], and the worker answers with ONE JSON blob on stdout. Same
+ * rationale as there — fresh process/module state per worker, an
  * independently runnable script for debugging, and free process-level
  * parallelism without hand-rolling IPC framing.
  *
- * What crosses the process boundary: per-game aggregates only (a slim
- * team-totals summary for 'batch', a GameFlow row for 'flow'), never raw
+ * WHAT CROSSES THE PROCESS BOUNDARY: per-game AGGREGATES only (a slim
+ * team-totals summary for 'batch', a GameFlow row for 'flow') — never raw
  * event streams or frames. A game is a few thousand events; its summary is a
- * few hundred bytes. Aggregation to per-game granularity happens inside the
+ * few hundred bytes. Aggregation to per-game granularity happens INSIDE the
  * worker; the cross-game reduction happens in the parent.
  *
- * Determinism contract (this repo's verification culture rests on
- * byte-identical reproducibility):
+ * DETERMINISM CONTRACT (the whole point — this repo's verification culture
+ * rests on byte-identical reproducibility):
  *   1. Game i's inputs depend only on (seedBase, league, i): seed
- *      `${seedBase}-${i}`, the league's rule pack (leagues.ts, 'nba'
- *      default), home/away mirrored on odd global index i, rosters
- *      constructed fresh per game. A worker owns a contiguous slice of
+ *      `${seedBase}-${i}`, the league's rule pack (leagues.ts — 'nba'
+ *      default), home/away mirrored on odd GLOBAL index i, rosters
+ *      constructed fresh per game. A worker owns a CONTIGUOUS slice of
  *      global indices, so every game is simulated with exactly the inputs
  *      the single-process path would use.
- *   2. Workers return per-game summaries in slice order; the parent
+ *   2. Workers return per-game summaries IN SLICE ORDER; the parent
  *      concatenates slices in slice order, reconstructing global game order.
  *   3. The cross-game reduction (accumulate/finalize, reduceFlows) runs in
- *      the parent over that ordered array: the same floating-point
+ *      the PARENT over that ordered array — the same floating-point
  *      operations in the same order as a single-process run. JSON number
  *      round-trips are exact for finite doubles, so worker-count N and
  *      worker-count 1 produce bit-identical reports.
  *   Enforced by test/parallel.test.ts (worker-count invariance).
  *
- * Failure policy: any worker failing (nonzero exit, unparsable stdout, or a
- * result envelope that doesn't match the job) aborts the sibling workers
+ * FAILURE POLICY: any worker failing — nonzero exit, unparsable stdout, or a
+ * result envelope that doesn't match the job — aborts the sibling workers
  * and rejects the whole run with the worker's stderr attached. There is no
  * partial-result path: you get all N games or a loud error.
  */
@@ -61,24 +61,33 @@ const WORKER = path.join(HERE, 'run-worker.ts');
 
 /**
  * Per-task result row types. Adding a workflow to the parallel runner means
- * adding a key here plus its per-game function in GAME_TASKS below; the
+ * adding a key here plus its per-game function in GAME_TASKS below — the
  * generic machinery (slicing, spawning, validation, ordering) is shared.
  */
 export interface GameTaskResults {
-  /** slim box summary: exactly the fields aggregate.ts's accumulate() reads */
+  /** slim box summary — exactly the fields aggregate.ts's accumulate() reads */
   batch: TeamGameSummary;
-  /** same as `batch`, but simulated with the endgame layer forced on: the
-   *  flag-on acceptance-band measurement the coordinated re-sweep needs
-   *  (REFACTOR.md W2; the flag-on survey had to hand-roll this exact loop).
-   *  A separate task for the same reason as flowEndgame below. */
+  /** same as `batch`, but simulated with the endgame layer FORCED ON. Since
+   *  the default flip (sim/game.ts `endgame ?? true`) this simulates the
+   *  identical games as `batch` — kept so scripted callers that pinned the
+   *  explicit flag-on config keep meaning what they meant.
+   *  A separate TASK for the same reason as flowNoEndgame below. */
   batchEndgame: TeamGameSummary;
-  /** per-game flow metrics; reduce with flow-metrics.ts's reduceFlows() */
+  /** `batch` with the endgame layer FORCED OFF — the legacy pre-endgame
+   *  path (AGENTS.md ownership map: `endgame: false`), i.e. the non-default
+   *  side of the off/on comparison now that ON is the shipped default. */
+  batchNoEndgame: TeamGameSummary;
+  /** per-game flow metrics — reduce with flow-metrics.ts's reduceFlows() */
   flow: GameFlow;
-  /** same as `flow`, but simulated with the endgame layer on: the off/on
-   *  comparison for its target metrics (clutch FT share, Q4 shape, tails).
-   *  A separate task rather than an option so worker payloads stay a plain
+  /** same as `flow`, but with the endgame layer FORCED ON — identical to
+   *  `flow` since the default flip; see batchEndgame above.
+   *  A separate TASK rather than an option so worker payloads stay a plain
    *  (task, seedBase, slice) triple and slice invariance is unaffected. */
   flowEndgame: GameFlow;
+  /** `flow` with the endgame layer FORCED OFF — the off/on comparison for
+   *  its target metrics (clutch FT share, Q4 shape, tails) runs default
+   *  (ON) against this legacy path. */
+  flowNoEndgame: GameFlow;
 }
 export type GameTaskName = keyof GameTaskResults;
 
@@ -87,21 +96,23 @@ export type GameTaskName = keyof GameTaskResults;
  * by every batch-shaped workflow (run.ts's runBatch, sweep-worker.ts, the
  * old flow.ts loop): seed `${seedBase}-${i}`, and odd indices swap home/away
  * so any home-side bias cancels out of batch averages (see runBatch's
- * `mirror` doc comment). Rosters are constructed fresh per game, required
- * for slice invariance: a worker starting at game 12 has no way to
+ * `mirror` doc comment). Rosters are constructed FRESH per game — required
+ * for slice invariance, since a worker starting at game 12 has no way to
  * share object state with games 0-11 (and must not need to). The league
  * config supplies the rule pack; rosters stay the two NBA-fit calibration
- * teams for every league until an NCAA roster generator exists (see
- * data/ncaa/README.md §6.4; deliberate, and why NCAA reports read as
+ * teams for EVERY league until an NCAA roster generator exists (see
+ * data/ncaa/README.md §6.4 — deliberate, and why NCAA reports read as
  * "NBA players under college rules").
  *
- * `endgame` semantics: `true` forces the endgame layer on; `undefined` omits
- * the key so the game runs whatever GameConfig.endgame default the engine
- * ships (`cfg.endgame ?? …`, sim/game.ts). Omission, not an explicit false,
- * is deliberate: the default flip is a coordinated engine change (REFACTOR.md
- * W2), and the default-config tasks here must keep grading the config that
- * actually ships, whichever way that flip lands. Identical behavior today
- * (the shipped default is off).
+ * `endgame` semantics: `true`/`false` FORCE the endgame layer on/off;
+ * `undefined` OMITS the key so the game runs whatever GameConfig.endgame
+ * default the engine ships (`cfg.endgame ?? …`, sim/game.ts). Omission — not
+ * an explicit value — is deliberate: the default flip was a coordinated
+ * engine change (REFACTOR.md W2, landed: the default is now ON), and the
+ * default-config tasks here must keep grading the config that actually
+ * ships, whichever way any future flip lands. Today that makes the `batch`/
+ * `flow` tasks identical to their forced-ON `*Endgame` twins, and the
+ * `*NoEndgame` tasks the legacy path.
  */
 function playGame(seed: string, flip: boolean, league: LeagueConfig, endgame?: boolean): { events: ReturnType<typeof simulateGame>['events']; teams: [Team, Team] } {
   const def = sampleMatchup();
@@ -114,14 +125,14 @@ function playGame(seed: string, flip: boolean, league: LeagueConfig, endgame?: b
   return { events: result.events, teams: [home, away] };
 }
 
-/** shared body of the batch / batchEndgame tasks: one code path so the
+/** shared body of the batch / batchEndgame tasks — one code path so the
  *  flag-on measurement can never drift from the default-config gate */
 function batchSummary(seed: string, flip: boolean, league: LeagueConfig, endgame?: boolean): TeamGameSummary {
   const { events, teams } = playGame(seed, flip, league, endgame);
   // pace normalizes to the league's own regulation minutes (poss/48 NBA,
   // poss/40 NCAA) so it lands in the same convention its band is stated in
   const box = boxScore(events, teams, { paceMinutes: league.paceMinutes });
-  // ship only what accumulate() reads: drops per-player lines and shot
+  // ship ONLY what accumulate() reads — drops per-player lines and shot
   // events from the IPC payload (a full BoxScore would still be correct,
   // just needlessly large)
   return { teams: box.teams, pace: box.pace };
@@ -132,8 +143,10 @@ type GameTaskFns = { [K in GameTaskName]: (seed: string, flip: boolean, league: 
 const GAME_TASKS: GameTaskFns = {
   batch: (seed, flip, league) => batchSummary(seed, flip, league),
   batchEndgame: (seed, flip, league) => batchSummary(seed, flip, league, true),
+  batchNoEndgame: (seed, flip, league) => batchSummary(seed, flip, league, false),
   flow: (seed, flip, league) => gameFlow(playGame(seed, flip, league).events, league.rules),
-  flowEndgame: (seed, flip, league) => gameFlow(playGame(seed, flip, league, true).events, league.rules)
+  flowEndgame: (seed, flip, league) => gameFlow(playGame(seed, flip, league, true).events, league.rules),
+  flowNoEndgame: (seed, flip, league) => gameFlow(playGame(seed, flip, league, false).events, league.rules)
 };
 
 export const GAME_TASK_NAMES = Object.keys(GAME_TASKS) as GameTaskName[];
@@ -142,7 +155,7 @@ export const GAME_TASK_NAMES = Object.keys(GAME_TASKS) as GameTaskName[];
  * Simulate games [start, start+count) of a batch in THIS process, returning
  * per-game summaries in game order. This is both the workers' inner loop
  * (run-worker.ts calls it with a slice) and the single-process path
- * (runGames with workers=1 calls it with the whole range): one code path,
+ * (runGames with workers=1 calls it with the whole range) — one code path,
  * so the two can't drift apart.
  */
 export function runGamesInProcess<K extends GameTaskName>(
@@ -168,7 +181,7 @@ export function runGamesInProcess<K extends GameTaskName>(
 
 /**
  * Parse a --workers flag value: 'auto' (the default) leaves one core for the
- * parent/rest of the box: max(1, availableParallelism() - 1); anything else
+ * parent/rest of the box — max(1, availableParallelism() - 1); anything else
  * must be an integer >= 1. Loud on malformed input, per args.ts's
  * silent-corruption doctrine (a NaN worker count must never quietly become
  * "some default").
@@ -186,7 +199,7 @@ export interface ParallelRunOptions<K extends GameTaskName> {
   task: K;
   games: number;
   seedBase: string;
-  /** league id (leagues.ts resolveLeague): swaps the rule pack and the pace basis. Default 'nba', the exact pre-league-flag behavior. */
+  /** league id (leagues.ts resolveLeague): swaps the rule pack and the pace basis. Default 'nba' — the exact pre-league-flag behavior. */
   league?: string;
   /** subprocess count; default max(1, availableParallelism() - 1). 1 = run in-process (no subprocess). */
   workers?: number;
@@ -218,7 +231,7 @@ async function runWorkerSlice(
       { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024, signal }
     ));
   } catch (err) {
-    // job file is deliberately kept on failure so the slice can be re-run by
+    // job file is deliberately KEPT on failure so the slice can be re-run by
     // hand:  node --import ./tools/register.mjs packages/harness/src/run-worker.ts <jobPath>
     const e = err as Error & { stderr?: string; code?: unknown; signal?: unknown };
     const stderrTail = typeof e.stderr === 'string' && e.stderr.length > 0
@@ -246,25 +259,25 @@ async function runWorkerSlice(
       `got {task:"${String(envelope.task)}", start:${String(envelope.start)}, results.length:${Array.isArray(envelope.results) ? envelope.results.length : 'n/a'}}; job kept at ${jobPath}`
     );
   }
-  unlinkSync(jobPath); // success; clean up
+  unlinkSync(jobPath); // success — clean up
   return envelope.results;
 }
 
 /**
  * Run `games` games of `task`, split contiguously across `workers`
- * subprocesses, and return the per-game summaries in global game order
+ * subprocesses, and return the per-game summaries in GLOBAL GAME ORDER
  * (index 0..games-1). The caller owns the reduction (accumulate/finalize for
- * batch, reduceFlows for flow); see the header's determinism contract for
+ * batch, reduceFlows for flow) — see the header's determinism contract for
  * why reduction must stay in the parent, in this order.
  *
- * workers=1 runs entirely in-process (no subprocess at all): the escape
+ * workers=1 runs entirely in-process (no subprocess at all) — the escape
  * hatch that keeps the old single-process behavior directly reachable via
  * `--workers 1`.
  */
 export async function runGames<K extends GameTaskName>(opts: ParallelRunOptions<K>): Promise<GameTaskResults[K][]> {
   const { task, games, seedBase, onProgress } = opts;
   const league = opts.league ?? 'nba';
-  resolveLeague(league); // validate up front; better a loud parent error than W identical worker failures
+  resolveLeague(league); // validate up front — better a loud parent error than W identical worker failures
   if (!Number.isInteger(games) || games < 0) {
     throw new Error(`runGames: games must be a non-negative integer, got ${String(games)}`);
   }
@@ -291,8 +304,8 @@ export async function runGames<K extends GameTaskName>(opts: ParallelRunOptions<
   }
 
   // First failure aborts the siblings (no point simulating games we'll
-  // discard), then the whole run rejects listing every real failure.
-  // Abort-collateral rejections are noise, not signal, and are only
+  // discard), then the whole run rejects listing every REAL failure —
+  // abort-collateral rejections are noise, not signal, and are only
   // reported if somehow nothing else is.
   const controller = new AbortController();
   let done = 0;

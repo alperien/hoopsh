@@ -1,19 +1,19 @@
 /**
- * Player-fidelity regression gate: the permanent Phase 2R guard.
+ * Player-fidelity regression GATE — the permanent Phase 2R guard.
  *
  * Fast tripwire version of `npm run fidelity`: a reduced slate per benchmark
- * with each target range extended by z·sd of the measured 12-game sampling
- * distribution (noise-floor.gen.ts; regenerate with `npm run noisefloor`).
+ * with each target range extended by z·sd of the MEASURED 12-game sampling
+ * distribution (noise-floor.gen.ts — regenerate with `npm run noisefloor`).
  * At z=3, a failure means an engine change broke a benchmark superstar's
  * statistical identity (the gravity shooter stopped shooting, the hub
- * stopped hubbing), not that the seed rolled badly. Fine-grained
+ * stopped hubbing) — not that the seed rolled badly. Fine-grained
  * validation stays in the CLI report at 40 games, and identity misses whose
- * measured 40-game center sits outside the profile range are calibration
- * findings even when this tripwire passes. That distinction is the whole
- * point of measuring the floor (third external review).
+ * measured 40-game CENTER sits outside the profile range are calibration
+ * findings even when this tripwire passes (that distinction is the whole
+ * point of measuring the floor — third external review).
  *
  * Ratchet rows (Target.ratchet) are declared destinations whose mechanisms
- * haven't landed: reported by the CLI, skipped here until they flip.
+ * haven't landed — reported by the CLI, skipped here until they flip.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -22,6 +22,16 @@ import { NOISE_FLOOR } from '../src/noise-floor.gen.js';
 
 const GAMES = 12; // the gate's speed tier; the CLI owns precision
 const Z = 3;      // tripwire z under the measured null
+
+describe('runBenchmark input contract', () => {
+  it('throws loudly on a zero/NaN/fractional game count instead of returning null-as-AggLine (B3-1)', () => {
+    const bench = BENCHMARKS[0]!;
+    const star = bench.players[0]!;
+    for (const bad of [0, -3, 1.5, NaN]) {
+      expect(() => runBenchmark(bench, star.id, bad)).toThrow(/integer >= 1/);
+    }
+  });
+});
 
 describe(`player-fidelity gate (measured-noise widths, ${GAMES} games per benchmark)`, () => {
   for (const bench of BENCHMARKS) {

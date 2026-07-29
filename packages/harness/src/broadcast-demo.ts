@@ -4,12 +4,14 @@
  * Sims a game (deterministic by seed), merges template play-by-play with the
  * color-commentary provider into a two-voice broadcast script, and saves it.
  * Swap TemplateColorProvider for an LLM-backed CommentaryProvider to upgrade
- * the color voice; the interface is identical (see packages/narration).
+ * the color voice — the interface is identical (see packages/narration).
  *
- * Note the default seed here ("showcase-v2") differs from simone.ts's usual
- * demo seed ("showcase-v3", the one AGENTS.md's docs-only fingerprint check
- * pins). They're independent demo scripts with their own default seeds, not
- * meant to reproduce each other's output.
+ * Note the default seed here ("showcase-v2") is this script's own: simone.ts
+ * defaults to a time-derived seed (`game-<Date.now()%100000>`) unless --seed
+ * is passed, and the seed AGENTS.md §4.1's docs-only fingerprint check pins
+ * is `fingerprint-1` via `npm run sim`. They're independent demo scripts,
+ * not meant to reproduce each other's output. (A prior version of this note
+ * cited a "showcase-v3" seed that exists nowhere in the repo — corrected.)
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -18,7 +20,7 @@ import { sampleMatchup } from '@hoopsh/data';
 import { buildBroadcastScript, formatScript, TemplateColorProvider } from '@hoopsh/narration';
 import { flagValue } from './args.js';
 
-// flagValue fails loudly on a bare `--seed`; the old inline read here used a
+// flagValue fails loudly on a bare `--seed` — the old inline read here used a
 // non-null assertion and silently seeded the sim with the string "undefined"
 // (see args.ts's header for the incident)
 const seed = flagValue(process.argv, '--seed', 'showcase-v2');

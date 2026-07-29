@@ -6,7 +6,7 @@
  * Prints the final, a box score, notable play-by-play, and saves the replay
  * + full PBP to out/.
  *
- * This is the "single game, human-readable" entry point; contrast with
+ * This is the "single game, human-readable" entry point — contrast with
  * cli.ts (many games, no play-by-play, just the acceptance-band report) and
  * bench.ts (many games, no output at all except a timing summary). If you
  * only remember one command in this package, this is usually the one:
@@ -19,16 +19,20 @@ import { buildReplay, simulateGame, type Team } from '@hoopsh/engine';
 import { boxScore, tsPct, type PlayerLine } from '@hoopsh/stats';
 import { loadTeamPack, sampleMatchup } from '@hoopsh/data';
 import { generatePlayByPlay } from '@hoopsh/narration';
+import { flagValue } from './args.js';
 
-function argOf(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i !== -1 ? process.argv[i + 1] : undefined;
-}
+// args.ts's loud parser, not a local bare argOf: `--seed` with a forgotten
+// value used to seed the game with the literal next flag (or undefined) —
+// the exact broadcast-demo incident args.ts's header records (scan finding
+// b4-8). Optional flags (--home/--away) stay absent-able but validate
+// loudly when present.
+const optValue = (flag: string): string | undefined =>
+  process.argv.includes(flag) ? flagValue(process.argv, flag, '') : undefined;
 
-const seed = argOf('--seed') ?? `game-${Date.now() % 100000}`;
+const seed = optValue('--seed') ?? `game-${Date.now() % 100000}`;
 
 function teamFrom(flag: string, fallback: Team): Team {
-  const file = argOf(flag);
+  const file = optValue(flag);
   if (!file) return fallback;
   const { team, issues } = loadTeamPack(readFileSync(file, 'utf8'));
   if (!team) {

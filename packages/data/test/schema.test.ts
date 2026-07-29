@@ -57,6 +57,35 @@ describe('data pack schema', () => {
     expect(issues.some((i) => i.message.includes('duplicate starter'))).toBe(true);
   });
 
+  it('reports (never throws) on null/non-object player entries — the duplicate-id pass dereferenced them', () => {
+    const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
+      team: { players: unknown[] };
+    };
+    // a hand-edit slip leaves a null or a bare string in the players array;
+    // the validator's whole promise is one complete error dump, not a TypeError
+    bad.team.players[2] = null;
+    bad.team.players[5] = 'benched';
+    const issues = validateTeamPack(bad); // must not throw
+    expect(issues.some((i) => i.path === '$.team.players[2]' && i.message.includes('object'))).toBe(true);
+    expect(issues.some((i) => i.path === '$.team.players[5]')).toBe(true);
+    // and two invalid entries (both ids undefined) must not fabricate a
+    // false duplicate-player-ids issue
+    expect(issues.some((i) => i.message === 'duplicate player ids')).toBe(false);
+  });
+
+  it('a short roster still gets its players and starters validated — one complete dump (B5-6)', () => {
+    const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
+      team: { players: { attr: Record<string, unknown> }[]; starters: string[] };
+    };
+    bad.team.players = bad.team.players.slice(0, 7); // under MIN_PLAYERS
+    bad.team.players[0]!.attr.three = 400;           // a concrete per-player problem
+    bad.team.starters = ['ghost', ...bad.team.starters.slice(1)];
+    const issues = validateTeamPack(bad);
+    expect(issues.some((i) => i.message.includes('at least'))).toBe(true);      // the roster-size issue
+    expect(issues.some((i) => i.path.includes('attr.three'))).toBe(true);       // AND the player issue
+    expect(issues.some((i) => i.message.includes('ghost'))).toBe(true);         // AND the starter issue
+  });
+
   it('rejects packs that would crash or garble the sim despite valid ratings', () => {
     const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
       team: {

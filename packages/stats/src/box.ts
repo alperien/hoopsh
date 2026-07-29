@@ -69,7 +69,7 @@ export interface PlayerLine {
   zones: ZoneLine;
 }
 
-/** One team's game totals. `poss` is the possession_end count (see boxScore); `fastbreakPts` follows the convention documented at the 'shot' case in boxScore — it does not include free throws. `timeouts` counts `timeout` events (endgame-layer games only; always 0 for a default-config stream, which never emits one). */
+/** One team's game totals. `poss` is the possession_end count (see boxScore); `fastbreakPts` follows the convention documented at the 'shot' case in boxScore — it does not include free throws. `timeouts` counts `timeout` events — emitted by the endgame layer, which is ON by default (`GameConfig.endgame ?? true`, sim/game.ts), so a default-config stream DOES carry them; only an explicit `endgame: false` legacy game folds 0 here. */
 export interface TeamTotals {
   side: TeamSide;
   teamId: string;

@@ -4,14 +4,14 @@
  * the SimulateGames seam contract (mock seam, no sims), and Monte-Carlo
  * sanity (identical teams straddle 50%, a clearly stronger team clears it).
  *
- * Compute budget: sims are the expensive part (~0.3-0.5s/game on a shared
+ * COMPUTE BUDGET: sims are the expensive part (~0.3-0.5s/game on a shared
  * 2-core box), so this file simulates exactly 82 games total: 6+6 for the
  * determinism pair, 30+30 for the two Monte-Carlo checks, 5+5 for matchup
  * determinism. Everything else runs on fabricated outcomes or pure math.
- * All sims are seeded, so every assertion below is on a deterministic value
- * and nothing here is a statistical flake. The Monte-Carlo bounds are
- * chosen to hold for the pinned seeds and to be comfortably inside what
- * any non-broken engine draw should produce.
+ * All sims are seeded — every assertion below is on a DETERMINISTIC value,
+ * so nothing here is a statistical flake: the Monte-Carlo bounds are chosen
+ * to hold for the pinned seeds AND be comfortably inside what any
+ * non-broken engine draw should produce.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -27,7 +27,7 @@ import {
 import { cloneTeamWithIds, makeLeague, scaleTeam } from '../src/league.js';
 
 // ---------------------------------------------------------------- fixtures
-// Shared across tests so the expensive sims run once per file execution.
+// Shared across tests so the expensive sims run ONCE per file execution.
 
 const LEAGUE = makeLeague(4, 'season-test');
 const SCHEDULE = roundRobin(LEAGUE.map((t) => t.id), 1); // 6 games
@@ -167,14 +167,14 @@ describe('standings arithmetic', () => {
   });
 
   it('is RANKED best-first: winPct desc, diff desc, id asc — who is FIRST', () => {
-    // The one thing a standings table is for. Every other test in this block
-    // is order-agnostic arithmetic (sums, splits, reconciliation), so an
-    // inverted sort, worst team first, used to survive the whole suite
+    // The one thing a standings table IS. Every other test in this block is
+    // order-agnostic arithmetic (sums, splits, reconciliation), so an
+    // inverted sort — worst team first — used to survive the whole suite
     // (mutation probe, season.ts computeStandings comparator). This pins the
     // documented contract "sorted standings (win pct desc, diff desc, id)".
     expect(standings[0]!.winPct).toBe(Math.max(...standings.map((s) => s.winPct)));
     // 4 teams x 3 games each: Σwins = 6 cannot split evenly across 4 teams,
-    // so this fixture always has a real best-vs-worst gap and the ordering
+    // so this fixture always has a real best-vs-worst gap — the ordering
     // checks below can never go vacuous on an all-tied table
     expect(standings[0]!.winPct).toBeGreaterThan(standings[standings.length - 1]!.winPct);
     for (let i = 1; i < standings.length; i++) {
@@ -213,7 +213,7 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
 
   it('outcomes may arrive in ANY order; runSeason re-sorts before folding', async () => {
     // a fake "worker pool" that completes games in reverse order and never
-    // touches the engine; proves the driver puts no ordering burden on the
+    // touches the engine — proves the driver puts no ordering burden on the
     // real parallel runner
     const reversedSeam: SimulateGames = (tasks) =>
       [...tasks].reverse().map((t): GameOutcome => ({
@@ -231,7 +231,7 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
       teams: LEAGUE, schedule: SCHEDULE, seedBase: 'seam', simulate: reversedSeam
     });
     expect(result.outcomes.map((o) => o.index)).toEqual([0, 1, 2, 3, 4, 5]);
-    // every home team won 100+i to 90, so all wins are home wins
+    // every home team won 100+i to 90 -> all wins are home wins
     for (const s of result.standings) expect(s.away.wins).toBe(0);
     expect(result.standings.reduce((t, s) => t + s.wins, 0)).toBe(6);
   });
@@ -251,6 +251,30 @@ describe('SimulateGames seam contract (what wave1/runner drops into)', () => {
       threw = String(e);
     }
     expect(/5 outcomes for 6 tasks/.test(threw)).toBe(true);
+  });
+
+  it('a seam returning a duplicated index (count intact) fails loudly instead of corrupting standings (B3-3)', async () => {
+    // the overlapping-slice bug shape: game 1's outcome never arrives, game
+    // 0's arrives twice — the COUNT check alone accepted this and produced
+    // standings for a schedule whose game 1 was never played
+    const duplicatesOne: SimulateGames = (tasks) =>
+      tasks.map((t, i): GameOutcome => {
+        const src = i === 1 ? tasks[0]! : t;
+        return {
+          index: src.index, seed: src.seed, date: src.date,
+          homeId: src.home.id, awayId: src.away.id,
+          score: [100, 90],
+          totals: [mkTotals(0, src.home.id, 100), mkTotals(1, src.away.id, 90)],
+          players: []
+        };
+      });
+    let threw = '';
+    try {
+      await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's', simulate: duplicatesOne });
+    } catch (e) {
+      threw = String(e);
+    }
+    expect(/duplicate\/missing game indices/.test(threw)).toBe(true);
   });
 });
 

@@ -1,26 +1,26 @@
 /**
- * The inverse solver: ratings authoring from a stat line.
+ * The inverse solver — ratings authoring from a stat line.
  *
  * Input: a target season line (pts / ast / trb / 3PA / 3P% / FT%) plus
  * position and body. Output: a full 38-dial profile whose season-scale sim
  * averages reproduce it, printed as roster-ready JSON.
  *
  * Two phases:
- *   1. Analytic seed: the engine's forward models are known algebra, so
+ *   1. ANALYTIC SEED — the engine's forward models are known algebra, so
  *      they invert: FT% inverts the freeThrowP curve (base + swing + elite
  *      kick), 3P% inverts the three-point make logit at a typical
  *      catch-and-shoot contest, scoring volume maps onto the usage dial's
  *      USG% scale, and the remaining dials come from a position archetype.
  *      This lands the search in the right basin for free.
- *   2. Local refinement: perturbation search over the ~17 stat-relevant
+ *   2. LOCAL REFINEMENT — perturbation search over the ~17 stat-relevant
  *      dials, scored by weighted normalized error against the targets,
  *      evaluated on the fidelity harness with common random numbers
  *      (identical game seeds per iteration) so candidates compare fairly.
  *
- * Solved profiles are context-relative: the evaluation embeds the player in
- * a league-neutral cast against the sample teams, the same convention as
+ * Solved profiles are CONTEXT-RELATIVE: the evaluation embeds the player in
+ * a league-neutral cast against the sample teams — the same convention as
  * the fidelity benchmarks. A profile tuned here will drift on a very
- * different roster.
+ * different roster (that is basketball, not a bug).
  *
  * Run: npm run solve -- --pos PG --pts 27 --ast 7 --trb 5 --tpa 9
  *        [--tppct 0.39] [--ftpct 0.88] [--height 76] [--weight 200]
@@ -35,18 +35,19 @@ import {
   scoringWing, threeAndD
 } from '@hoopsh/data';
 import { runBenchmark, type AggLine } from './fidelity.js';
+import { flagNumber, flagValue } from './args.js';
 
 // -------------------------------------------------------------------- args
 
-const args = process.argv.slice(2);
-const flag = (name: string): string | undefined => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 ? args[i + 1] : undefined;
-};
-const num = (name: string): number | undefined => {
-  const v = flag(name);
-  return v === undefined ? undefined : Number(v);
-};
+// Optional flags (absent = undefined), but a PRESENT flag parses through
+// args.ts's loud validators — a dangling `--pts` or `--pts abc` used to
+// become NaN and silently corrupt the target vector (scan finding b4-8).
+// The fallback argument is never consulted on the present-flag path.
+const has = (name: string): boolean => process.argv.includes(`--${name}`);
+const flag = (name: string): string | undefined =>
+  has(name) ? flagValue(process.argv, `--${name}`, '') : undefined;
+const num = (name: string): number | undefined =>
+  has(name) ? flagNumber(process.argv, `--${name}`, 0) : undefined;
 
 const pos = (flag('pos') ?? 'SG') as Player['pos'];
 const targets = {
@@ -83,7 +84,7 @@ function analyticSeed(): Player {
     if (targets.ftPct <= kneeFt) {
       n = (targets.ftPct - S.ftBasePct) / S.ftSkillSwing;
     } else {
-      // above the knee both terms are linear in n; solve jointly
+      // above the knee both terms are linear in n — solve jointly
       n = (targets.ftPct - S.ftBasePct + (S.ftEliteKick * 0.6) / 0.4) /
           (S.ftSkillSwing + S.ftEliteKick / 0.4);
     }
@@ -99,7 +100,7 @@ function analyticSeed(): Player {
     p.attr.three = Math.round(clamp(50 * (1 + n), 1, 99));
   }
 
-  // scoring volume → usage (the dial is a USG% scale: 50 = 20%, +10 = +2.4%)
+  // scoring volume → usage (the dial IS a USG% scale: 50 = 20%, +10 = +2.4%)
   if (targets.pts !== undefined) {
     p.tend.usage = Math.round(clamp(50 + (targets.pts - 13) * 2.1, 15, 99));
   }
@@ -136,7 +137,7 @@ function lineOf(agg: AggLine): Achieved {
   };
 }
 
-/** weighted normalized squared error; scales are "one noticeable unit" */
+/** weighted normalized squared error — scales are "one noticeable unit" */
 const SCALES: Record<keyof Achieved, number> = {
   pts: 2.5, ast: 1.1, trb: 1.1, tpa: 1.2, tpPct: 0.02, ftPct: 0.025
 };
@@ -199,7 +200,7 @@ const SEARCH_DIALS: { path: 'attr' | 'tend'; key: string }[] = [
 
 function perturb(rng: Rng, base: Player, step: number): Player {
   const p: Player = structuredClone(base);
-  // move 2-4 random dials per candidate; small, local moves
+  // move 2-4 random dials per candidate — small, local moves
   const moves = 2 + Math.floor(rng.float() * 3);
   for (let m = 0; m < moves; m++) {
     const d = SEARCH_DIALS[Math.floor(rng.float() * SEARCH_DIALS.length)]!;
