@@ -15,6 +15,12 @@ import {
   agent, attackedRim, liveOnCourt, onCourt, other,
   type Agent, type GameState
 } from './state.js';
+// Resolution-side energy (energy minus cumulative load, fdesign-rhythm M1;
+// wired per ffit-rhythm §8). The module cycle resolve -> movement -> ai ->
+// resolve is safe: hoisted function declaration, called at runtime only.
+// At the shipped fatigue.loadPerSec 0 load stays 0 and this equals raw
+// energy exactly, so the consumers below are byte-identical until the flip.
+import { effectiveEnergy } from './movement.js';
 
 // ---------- contests ----------
 
@@ -185,7 +191,10 @@ export function shotMakeP(
           P.rimHeightUncontestedFt) * contest.level)
     : 0;
 
-  const fatigue = P.fatigueCoef * (1 - shooter.energy / 100);
+  // The shot-fatigue term reads resolution-side energy (rhythm wiring):
+  // heavy legs cost the jumper the way an empty tank does, and the trend
+  // across the game is what the load pool carries.
+  const fatigue = P.fatigueCoef * (1 - effectiveEnergy(shooter) / 100);
 
   // "on time, on target": a catch-and-shoot rides the DELIVERY — an elite
   // passer's ball arrives in the shooting pocket and the rise is easier.
@@ -288,11 +297,17 @@ export function shootingFoulP(
   const contestMult = 1 + (F.contestFactor - 1) * contest.level;
   const draw = 1 + F.drawFoulSwing * n(shooter.p.attr.drawFoul);
   let aggr = 1;
+  // heavy legs on the contesting defender (rhythm wiring): a late closeout
+  // arrives in the shooter's body. Exactly ×1 while the load pool is
+  // staged at 0; no defender in the picture means no legs to blame.
+  let legs = 1;
   if (contest.by) {
-    aggr = 1 + F.foulAggrSwing * n(agent(s, contest.by).p.tend.foulAggr);
+    const d = agent(s, contest.by);
+    aggr = 1 + F.foulAggrSwing * n(d.p.tend.foulAggr);
+    legs = 1 + F.loadShootSwing * (d.load / 100);
   }
   // hard cap (shootFoulCap): even a hack-a-Shaq scenario leaves some chance of a clean play
-  return clamp(base * contestMult * draw * aggr, 0, F.shootFoulCap);
+  return clamp(base * contestMult * draw * aggr * legs, 0, F.shootFoulCap);
 }
 
 // ---------- passing ----------
@@ -565,9 +580,11 @@ export function midRespect(s: GameState, a: Agent): number {
   return clamp((a.p.attr.midRange / 100) * A.gravityThreeWeight + (a.p.tend.shotMid / 100) * A.gravityTendWeight, 0, 1);
 }
 
-/** rough top speed available right now, accounting for fatigue */
+/** rough top speed available right now, accounting for fatigue (raw energy
+ *  minus cumulative load: heavy legs move slower; rhythm wiring, identical
+ *  to raw energy while the pool is staged at 0) */
 export function currentMaxSpeed(s: GameState, a: Agent): number {
   const f = s.params.fatigue;
-  const energyMult = f.minSpeedMult + (1 - f.minSpeedMult) * (a.energy / 100);
+  const energyMult = f.minSpeedMult + (1 - f.minSpeedMult) * (effectiveEnergy(a) / 100);
   return sprintSpeed(a.p.attr) * energyMult;
 }

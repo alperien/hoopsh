@@ -196,6 +196,20 @@ export interface SimParams {
     chargeTickMult: number;
     /** loose-ball foul chance per contested rebound */
     looseBallPerReb: number;
+    // --- cumulative-load foul couplings (fdesign-rhythm §3.2 sites 5-6,
+    // wired per ffit-rhythm §8). Heavy legs foul more: slower recovery
+    // means more reaching, late contests arrive in the body. Both are
+    // multipliers of the form 1 + swing × load/100 and are exactly ×1
+    // while fatigue.loadPerSec is 0 (load provably stays 0, the M1 stage
+    // switch), so the wiring ships inert.
+    /** organic reach-in rate swing per full load (passing.ts
+     *  attemptReachIn; hunt/take grabs are coach orders, unscaled).
+     *  REAL-fit seed; knobs range 0.6-2.0 at the flip bake */
+    loadReachSwing: number;
+    /** shooting-foul swing per full load of the contesting defender
+     *  (resolve.ts shootingFoulP, inside the shootFoulCap clamp).
+     *  REAL-fit seed; knobs range 0.2-0.9 at the flip bake */
+    loadShootSwing: number;
   };
 
   pass: {
@@ -462,8 +476,10 @@ export interface SimParams {
     minSpeedMult: number;
     // --- cumulative load ("legs", fdesign-rhythm M1, STAGED wiring). A
     // second pool that trends across the game where energy sawtooths per
-    // stint; consumed by resolution only (movement.ts effectiveEnergy; the
-    // resolve.ts couplings land with the rhythm wave). loadPerSec is the
+    // stint; consumed by resolution only (movement.ts effectiveEnergy into
+    // the resolve.ts shot-fatigue/speed terms, the foul.load*Swing
+    // couplings, and concepts.ts deadGameBoost, all wired per ffit-rhythm
+    // §8). loadPerSec is the
     // stage switch: at 0 the pool provably stays 0 and the engine is
     // byte-identical.
     /** on-court load accrual per second (same effort/stamina chain as
@@ -639,14 +655,15 @@ export interface SimParams {
      *  SPRINTS the ball up instead of the normal dribble-jog — the visible
      *  push of a chasing team */
     hurrySprintMin: number;
-    /** garbage-time wind-down (fdesign-rhythm M3, STAGED 0, defined but
-     *  deliberately unconsumed here): once the final period is decided
-     *  (trailing side's chaseAliveness 0), both teams get a mild
-     *  continuation raise (× 1 + scale × deadGameBoost × holdFade) in
-     *  ai/concepts.ts endgameContinuation, so dribble-outs emerge from the
-     *  same yardstick every other concept-6 behavior reshapes. The concepts
-     *  consumer + knobs range (0.1-0.5) land with the rhythm wave; complements
-     *  concede (personnel), does not duplicate it (intent). FEEL seed 0.25 */
+    /** garbage-time wind-down (fdesign-rhythm M3, STAGED 0): once the final
+     *  period is decided (trailing side's chaseAliveness 0), both teams get
+     *  a mild continuation raise (× 1 + scale × deadGameBoost × holdFade)
+     *  in ai/concepts.ts endgameContinuation, so dribble-outs emerge from
+     *  the same yardstick every other concept-6 behavior reshapes. Consumer
+     *  wired (ffit-rhythm §8), gated `> 0` so the staged default keeps the
+     *  legacy branch order; knobs range (0.1-0.5) lands at the flip bake.
+     *  Complements concede (personnel), does not duplicate it (intent).
+     *  FEEL seed 0.25 */
     deadGameBoost: number;
     // --- chase arithmetic shared by hurry / fouling (possessions-left math)
     /** assumed seconds per remaining CHASE possession (hurried offense + a
@@ -1385,7 +1402,12 @@ export const defaultParams: SimParams = {
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0382566165233726
+    looseBallPerReb: 0.0382566165233726,
+    // Load foul couplings (ffit-rhythm §2 REAL-fit seeds): live values,
+    // provably ×1 while fatigue.loadPerSec is 0. The rhythm flip arms them
+    // by flipping the pool switch alone.
+    loadReachSwing: 1.3,
+    loadShootSwing: 0.5
   },
 
   pass: {

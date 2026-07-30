@@ -56,10 +56,11 @@ export interface Agent {
    * same speed/stamina chain as energy drain, recovers far slower on the
    * bench, takes one lump off at halftime (possession.ts endPeriod), so it
    * trends across the game where energy is a stint-local sawtooth.
-   * Consumed by resolution only via movement.ts effectiveEnergy (the
-   * resolve.ts couplings land with the rhythm wave); subs/rotation cadence
-   * deliberately keep reading raw energy (M1 contract: the load pool must
-   * not silently shorten stints).
+   * Consumed by resolution only: movement.ts effectiveEnergy into the
+   * resolve.ts shot-fatigue and speed terms, plus the foul.load*Swing and
+   * endgame.deadGameBoost couplings (wired per ffit-rhythm §8, inert while
+   * loadPerSec is 0); subs/rotation cadence deliberately keep reading raw
+   * energy (M1 contract: the load pool must not silently shorten stints).
    */
   load: number;
   secondsPlayed: number;

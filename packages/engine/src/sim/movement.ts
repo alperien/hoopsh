@@ -163,11 +163,11 @@ export function applyFatigue(s: GameState, dt: number): void {
 
 /**
  * Resolution-side energy: raw energy minus cumulative load ("a tired body
- * with heavy legs"). STAGED (fdesign-rhythm M1): the consumers are the
- * resolution models (resolve.ts's shot-fatigue term and moveSpeed's energy
- * multiplier) and land with the rhythm wave; at the shipped loadPerSec 0
- * this equals raw energy exactly. Subs/rotation never read this (M1
- * contract: rotation cadence belongs to raw energy).
+ * with heavy legs"). The consumers are the resolution models (resolve.ts's
+ * shot-fatigue term and currentMaxSpeed), wired per ffit-rhythm §8 and
+ * STAGED behind fatigue.loadPerSec 0: load stays 0 there, so this equals
+ * raw energy exactly. Subs/rotation never read this (M1 contract: rotation
+ * cadence belongs to raw energy).
  */
 export function effectiveEnergy(a: Agent): number {
   return clamp(a.energy - a.load, 0, 100);

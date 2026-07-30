@@ -5,13 +5,15 @@
  * The pool ships with fatigue.loadPerSec 0: load is provably 0 forever
  * (accrual is 0, bench recovery clamps at the floor), effectiveEnergy
  * equals raw energy, and the engine is byte-identical (the golden
- * fingerprint corpus is the authority). Beyond the units below, the
- * strongest wiring proof here is structural: even at a forced-live
- * loadPerSec the event stream is identical, because this commit wires only
- * the pool's bookkeeping; its consumers (resolve.ts shot-fatigue/speed,
- * the foul-swing couplings, concepts.ts deadGameBoost) land with the
- * rhythm wave. That also pins the M1 contract directly: subs cadence reads
- * RAW energy and cannot move with load.
+ * fingerprint corpus is the authority). The pool's consumers are wired
+ * (ffit-rhythm §8): the resolve.ts shot-fatigue and speed terms read
+ * effectiveEnergy, shooting fouls and organic reach-ins scale with the
+ * defender's load (foul.loadReachSwing/loadShootSwing, live multipliers
+ * that are exactly ×1 at load 0), and concepts.ts endgameContinuation
+ * carries the deadGameBoost branch behind its own `> 0` gate. So the
+ * staging proof is now split: shape dials alone stay byte-identical, and a
+ * forced-live pool DIVERGES. The M1 contract still holds: subs cadence
+ * reads RAW energy and cannot move with load.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -21,6 +23,8 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { applyFatigue, effectiveEnergy } from '../src/sim/movement.js';
+import { shootingFoulP } from '../src/sim/resolve.js';
+import { endgameContinuation } from '../src/sim/ai/concepts.js';
 import { endPeriod } from '../src/sim/possession.js';
 import type { Agent, GameState } from '../src/sim/state.js';
 
@@ -198,33 +202,106 @@ describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
   });
 });
 
+// ------------------------------------------- consumers (ffit-rhythm §8)
+
+describe('load consumers (forced live)', () => {
+  /** two-body state for the foul models: shooter + contesting defender */
+  function foulState(params: SimParams): { s: GameState; shooter: Agent; def: Agent } {
+    const { home, away } = sampleMatchup();
+    const shooter = mkAgent(home.players[0]!, 0, true);
+    const def = mkAgent(away.players[0]!, 1, true);
+    const s = {
+      params,
+      agents: new Map([[shooter.p.id, shooter], [def.p.id, def]])
+    } as unknown as GameState;
+    return { s, shooter, def };
+  }
+
+  it('a loaded contest whistles more: shooting-foul legs ratio 1 + swing × load/100', () => {
+    const { s, shooter, def } = foulState(withParams());
+    const contest = { level: 0.5, by: def.p.id, heightAdvFt: 0 };
+    const fresh = shootingFoulP(s, shooter, 'mid', contest);
+    def.load = 60;
+    const heavy = shootingFoulP(s, shooter, 'mid', contest);
+    // mid zone sits far under shootFoulCap, so the ratio is exact:
+    // 1 + 0.5 (shipped loadShootSwing) × 0.6
+    expect(Math.abs(heavy / fresh - 1.3)).toBeLessThan(1e-9);
+    // no defender in the picture: no legs to blame, load never read
+    const open = { level: 0.5, by: null, heightAdvFt: 0 };
+    const openHeavy = shootingFoulP(s, shooter, 'mid', open); // def.load 60
+    def.load = 0;
+    expect(shootingFoulP(s, shooter, 'mid', open)).toBe(openHeavy);
+  });
+
+  it('deadGameBoost raises the continuation of a decided final period, both chairs', () => {
+    const mk = (boost: number): GameState => ({
+      params: withParams({ endgame: { deadGameBoost: boost } }),
+      rules: { periods: 4, periodMinutes: 12, otMinutes: 5, shotClockSec: 24 },
+      period: 4,
+      clock: 30,
+      score: [100, 70],
+      poss: { shotClock: 20 },
+      endgame: true
+    }) as unknown as GameState;
+    // margin 30 with 0:30 left: the chase is dead (chaseAliveness 0)
+    const staged = mk(0);
+    const boosted = mk(0.25);
+    const base = endgameContinuation(staged, 0, 1);
+    const up = endgameContinuation(boosted, 0, 1);
+    const E = staged.params.endgame;
+    // staged 0 keeps the legacy branch order (leadHold fires for the leader)
+    const legacyLead = 1 + E.scale * E.leadHoldMaxBoost
+      * (1 - 30 / E.leadHoldClockSec)
+      * Math.max(0, Math.min(1, 2 - 30 / E.leadHoldMarginRef));
+    expect(Math.abs(base - legacyLead)).toBeLessThan(1e-9);
+    // forced 0.25 preempts it: 1 + scale × boost × holdFade (holdFade 1 here)
+    expect(Math.abs(up - (1 + E.scale * 0.25))).toBeLessThan(1e-9);
+    // the trailing chair gets the same wind-down instead of the hurry cut
+    expect(Math.abs(endgameContinuation(boosted, 1, 1) - (1 + E.scale * 0.25))).toBeLessThan(1e-9);
+  });
+});
+
 // ------------------------------------------------- inertness (structural)
 
-describe('STAGED dormancy (retire at the rhythm-wave flip)', () => {
-  it('the shipped stage switches are zero', () => {
+describe('STAGED dormancy (the loadPerSec 0 stage switch)', () => {
+  it('the shipped stage switch is zero; couplings ship live but ×1 at load 0', () => {
     expect(defaultParams.fatigue.loadPerSec).toBe(0);
     expect(defaultParams.endgame.deadGameBoost).toBe(0);
     // shape dials ship at design values (unread while load is 0)
     expect(defaultParams.fatigue.loadRecoverPerSecBench).toBe(0.02);
     expect(defaultParams.fatigue.loadHalftimeRecover).toBe(12);
+    // the foul couplings ship at the REAL-fit seeds; their inertness is the
+    // pool's zero, not their own (1 + swing × 0 = 1 exactly)
+    expect(defaultParams.foul.loadReachSwing).toBe(1.3);
+    expect(defaultParams.foul.loadShootSwing).toBe(0.5);
   });
 
-  it('even a FORCED-LIVE pool changes nothing yet: bookkeeping only, rng-free, subs on raw energy', () => {
-    // the pool's consumers (resolve.ts couplings, concepts.ts deadGameBoost)
-    // land with the rhythm wave, so a live pool must produce a
-    // byte-identical stream today. This simultaneously pins the M1
-    // contract: substitution cadence (in the events) cannot move with load.
+  it('shape dials alone are byte-identical: swings moved, pool still 0', () => {
     for (const i of [0, 1]) {
       const { home, away } = sampleMatchup();
-      // frames ON: movement must be untouched too (no consumer reads load
-      // or effectiveEnergy until the rhythm wave wires resolve.ts)
       const base = simulateGame({ seed: `load-inert-${i}`, home, away, collectFrames: true });
-      const live = simulateGame({
+      const moved = simulateGame({
         seed: `load-inert-${i}`, home, away, collectFrames: true,
-        params: { fatigue: { loadPerSec: 0.011 }, endgame: { deadGameBoost: 0.25 } }
+        params: {
+          foul: { loadReachSwing: 2.0, loadShootSwing: 0.9 },
+          fatigue: { loadRecoverPerSecBench: 0.5, loadHalftimeRecover: 99 }
+        }
       });
-      expect(JSON.stringify(live.events)).toBe(JSON.stringify(base.events));
-      expect(JSON.stringify(live.frames)).toBe(JSON.stringify(base.frames));
+      expect(JSON.stringify(moved.events)).toBe(JSON.stringify(base.events));
+      expect(JSON.stringify(moved.frames)).toBe(JSON.stringify(base.frames));
     }
+  });
+
+  it('a FORCED-LIVE pool now diverges: the consumers are wired', () => {
+    // pre-wiring this exact comparison was pinned byte-identical (the
+    // pre-scheduled dormancy retirement); with the resolve/foul/speed
+    // consumers wired, a live pool must move outcomes
+    const { home, away } = sampleMatchup();
+    const base = simulateGame({ seed: 'load-live-0', home, away, collectFrames: false });
+    const live = simulateGame({
+      seed: 'load-live-0', home, away, collectFrames: false,
+      params: { fatigue: { loadPerSec: 0.011 } }
+    });
+    expect(JSON.stringify(live.events)).not.toBe(JSON.stringify(base.events));
   });
 });

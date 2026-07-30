@@ -81,7 +81,7 @@ import { dist } from '../../core/vec.js';
 import { other, type Agent, type GameState } from '../state.js';
 import type { SimParams } from '../params.js';
 import type { ShotMoveType, TeamSide } from '../../core/events.js';
-import { hurriedness } from '../endgame.js';
+import { chaseAliveness, hurriedness } from '../endgame.js';
 import { creation, midGreenLight, midPullUpLight } from './shared.js';
 
 type Action = GameState['poss']['action'];
@@ -506,7 +506,17 @@ export function endgameContinuation(
   // (the horn collapse above applies in every regime; holdFade kills every
   // "rises" row inside the urgency window)
   if (s.period >= s.rules.periods) {
-    if (margin > 0 && clock <= E.leadHoldClockSec) {
+    if (E.deadGameBoost > 0 && margin !== 0 && chaseAliveness(s, Math.abs(margin)) === 0) {
+      // Garbage-time wind-down (fdesign-rhythm M3, wired per ffit-rhythm
+      // §8; STAGED at deadGameBoost 0): once the trailing side's chase is
+      // dead, both teams stop hunting. A mild continuation raise makes
+      // dribble-outs and walk-up possessions emerge from the same yardstick
+      // every other concept-6 behavior reshapes; complements the concede
+      // branch (personnel) without duplicating it (intent). First in the
+      // chain on purpose: a decided game outranks leadHold/hurry, and the
+      // `> 0` gate keeps the staged default on the legacy branches below.
+      mult *= 1 + E.scale * E.deadGameBoost * holdFade;
+    } else if (margin > 0 && clock <= E.leadHoldClockSec) {
       const ramp = 1 - clock / E.leadHoldClockSec;
       // full effect while the lead is worth protecting, gone by 2× the ref
       // (a 16+ point Q4 lead is garbage time, nobody is milking with intent)

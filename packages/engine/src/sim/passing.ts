@@ -289,11 +289,16 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // (a hunted/take grab replaces the gamble swing with the coach's order:
   // the deliberate foulHuntRateMult / takeHuntRateMult)
   const exposure = attacking ? F.attackReachInMult : 1;
+  // heavy legs reach (rhythm wiring): a loaded defender stops moving his
+  // feet and starts using his hands, so the ORGANIC rate scales with his
+  // cumulative load. Hunted/take grabs are coach orders and stay unscaled.
+  // Exactly ×1 while the load pool is staged at 0.
+  const legs = 1 + F.loadReachSwing * (d.load / 100);
   const p = hunting
     ? F.reachInPerSec * dt * E.foulHuntRateMult
     : takeHunting
       ? F.reachInPerSec * dt * s.params.officiating.takeHuntRateMult
-      : F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
+      : F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal)) * legs;
   if (!s.rng.chance(p)) return;
 
   // Held ball → mid-game jump (officiating wave, fdesign-officiating §1.1
