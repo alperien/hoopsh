@@ -258,13 +258,17 @@ function boot(R) {
   // independently here rather than shared, since the viewer has no access to
   // that package's Lookup type — this is a frozen prototype consuming plain
   // JSON, not an importer of @hoopsh/narration).
+  // trim + whitespace-run split, same normalization as pbp.ts makeLookup():
+  // a padded name in the replay JSON otherwise splits into empty fragments
+  // ("undefined. Vance" from the collision prefix, or an empty label from a
+  // trailing space) — audit M-38's viewer-side twin.
   const lastNames = new Map(), lastCount = new Map();
   for (const side of [0, 1]) for (const p of R.teams[side].players) {
-    const last = p.name.split(' ').pop();
+    const last = p.name.trim().split(/\s+/).pop();
     lastCount.set(last, (lastCount.get(last) || 0) + 1);
   }
   for (const side of [0, 1]) for (const p of R.teams[side].players) {
-    const parts = p.name.split(' ');
+    const parts = p.name.trim().split(/\s+/);
     const last = parts[parts.length - 1];
     // only add the first-initial prefix when the last name collides AND
     // there's a first name to take an initial from — a mononym never gets

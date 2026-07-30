@@ -2,10 +2,12 @@
  * Template play-by-play: every event rendered to broadcast-ready text with
  * seeded variety pools and repeat-avoidance. Deterministic per game seed.
  *
- * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
- * §6): kept as the reference consumer of the event stream, not a production
- * broadcast product. The engine never depends on this file or anything it
- * produces — it's a one-way consumer of `GameEvent`s (AGENTS.md §1.3/§6).
+ * Maintained template layer (docs/INTERNALS.md "Consumers" note,
+ * ARCHITECTURE.md §6; the FROZEN PROTOTYPE label an earlier header carried
+ * belongs to the viewer, not narration — audit L-33): the reference
+ * consumer of the event stream, not a production broadcast product. The
+ * engine never depends on this file or anything it produces — it's a
+ * one-way consumer of `GameEvent`s (AGENTS.md §1.3/§6).
  *
  * Template pools philosophy: every rendered line for a repeatable situation
  * (a made two, a missed free throw, a steal, ...) has 2-4 hand-written text
@@ -32,7 +34,7 @@ export interface NarrationLine {
   // it — the broadcast pipeline carries color commentary on its own
   // BroadcastCue.speaker instead. It stays in the union as the slot a
   // future single-stream consumer (one merged NarrationLine feed instead of
-  // BroadcastCue) would use; narration is frozen, so it waits with it.
+  // BroadcastCue) would use; it waits until that consumer is written.
   kind: 'pbp' | 'color' | 'moment';
   text: string;
 }
@@ -60,13 +62,19 @@ export function makeLookup(teams: [Team, Team]): Lookup {
   // a last name across OPPOSING rosters are just as ambiguous in a line of
   // play-by-play text as two teammates would be — "Vance drives" is unclear
   // regardless of which side either Vance plays for.
+  // trim + whitespace-run split throughout: a padded roster name
+  // ("  Eli Vance ") otherwise splits into empty fragments — the collision
+  // prefix rendered "undefined. Vance" (parts[0] was '') and a trailing
+  // space made the "last name" the empty string, an empty actor in every
+  // line (audit M-38). Names are display data from packs; normalize here
+  // rather than trusting pack hygiene.
   const lastCount = new Map<string, number>();
   for (const nm of names.values()) {
-    const last = nm.split(' ').pop() ?? nm;
+    const last = nm.trim().split(/\s+/).pop() ?? nm;
     lastCount.set(last, (lastCount.get(last) ?? 0) + 1);
   }
   return {
-    name: (id) => names.get(id) ?? id,
+    name: (id) => (names.get(id) ?? id).trim(),
     // `last()` is what nearly every rendered line calls (see renderEvent/
     // renderShot below) — full names read as too formal for broadcast-style
     // PBP ("Marcus Vance drives" vs. the "Vance drives" a real broadcast
@@ -78,8 +86,8 @@ export function makeLookup(teams: [Team, Team]): Lookup {
     // packages/viewer/index.html's boot().
     last: (id) => {
       const nm = names.get(id) ?? id;
-      const parts = nm.split(' ');
-      const last = parts[parts.length - 1] ?? nm;
+      const parts = nm.trim().split(/\s+/);
+      const last = parts[parts.length - 1] || nm;
       if ((lastCount.get(last) ?? 0) > 1 && parts.length > 1) {
         return `${parts[0]![0]}. ${last}`;
       }
@@ -91,14 +99,12 @@ export function makeLookup(teams: [Team, Team]): Lookup {
   };
 }
 
-function fmtClock(clock: number): string {
-  const m = Math.floor(clock / 60);
-  const s = Math.floor(clock % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 function periodName(period: number, totalPeriods: number): string {
   if (period > totalPeriods) return `OT${period - totalPeriods > 1 ? period - totalPeriods : ''}`;
+  // a 2-period ruleset plays halves, not quarters (NCAA men, halves packs):
+  // "Q2" was the wrong label for the 2nd half — the OT arm above landed in
+  // the same class of fix but regulation halves were missed (audit M-39)
+  if (totalPeriods === 2) return period === 1 ? '1st half' : '2nd half';
   return `Q${period}`;
 }
 
@@ -171,7 +177,7 @@ export function generatePlayByPlay(
     if (text) line(e, 'pbp', text);
     if (opts?.includeMoments !== false) {
       for (const m of moments) {
-        const mt = renderMoment(m, lk);
+        const mt = renderMoment(m, lk, tracker, e.score);
         if (mt) line(e, 'moment', mt);
       }
     }
@@ -179,19 +185,46 @@ export function generatePlayByPlay(
   return out;
 }
 
-function renderMoment(m: NarrativeMoment, lk: Lookup): string | null {
+function renderMoment(
+  m: NarrativeMoment,
+  lk: Lookup,
+  tracker: ContextTracker,
+  score: [number, number]
+): string | null {
   switch (m.kind) {
-    case 'run':
-      // "an 8-0 run" but "a 12-0 / a 16-0 run" — the run bars are 8/12/16
-      return `${lk.teamName(m.team!)} are on ${m.detail.startsWith('8') ? 'an' : 'a'} ${m.detail}.`;
+    case 'run': {
+      // spoken article for the leading numeral: "an 8-0 / an 18-0 run" but
+      // "a 9-0 / a 12-0 / a 16-0 run". Crossing detection (context.ts,
+      // audit M-36) reports the TRUE run total, so values between the
+      // 8/12/16 bars occur (a three jumping 6 -> 9 announces "a 9-0 run");
+      // 8/11/18 are the leading numerals that take "an".
+      const an = /^(8|11|18)-/.test(m.detail);
+      return `${lk.teamName(m.team!)} are on ${an ? 'an' : 'a'} ${m.detail}.`;
+    }
     case 'lead_change':
       return `${lk.teamName(m.team!)} take the lead.`;
     case 'tie':
       return `We're ${m.detail}.`;
     case 'milestone':
-      return `${lk.name(m.playerId!)} is up to ${m.detail.replace('+', '')} tonight.`;
-    case 'clutch_start':
-      return `Under three minutes now, one-possession territory — winning time.`;
+      // Say the player's TRUE running total, not the bar from `detail`: the
+      // crossing basket usually overshoots the threshold ("20+ points"
+      // stripped to "up to 20" while the player sat on 21 or 22 — a wrong
+      // number on ~half of all milestone lines, audit H-08). The tracker
+      // already folded the crossing basket by the time this moment reached
+      // us (update() mutates before returning), so pointsFor() IS the total
+      // at this instant — exactly the number a broadcaster reads off.
+      return `${lk.name(m.playerId!)} is up to ${tracker.pointsFor(m.playerId!)} points tonight.`;
+    case 'clutch_start': {
+      // clutch fires at any margin within 6 (context.ts) — but "one
+      // possession" is basketball arithmetic for a margin of 3 or less; at
+      // 4-6 the old line claimed one-possession territory for what is a
+      // two-possession game (audit M-40). The phrasing follows the margin
+      // at the firing event; the tracker's clutch definition is unchanged.
+      const margin = Math.abs(score[0] - score[1]);
+      return margin <= 3
+        ? `Under three minutes now, one-possession territory — winning time.`
+        : `Under three minutes now, a two-possession game — winning time.`;
+    }
     default:
       return null;
   }
@@ -213,7 +246,9 @@ function renderEvent(
     case 'period_end': {
       const [h, a] = e.score;
       const label = periodName(e.period, totalPeriods);
-      return `That's the end of ${label}: ${lk.abbrev(0)} ${h}, ${lk.abbrev(1)} ${a}.`;
+      // halves take an article ("the end of the 1st half"); Q/OT labels don't
+      const named = label.endsWith('half') ? `the ${label}` : label;
+      return `That's the end of ${named}: ${lk.abbrev(0)} ${h}, ${lk.abbrev(1)} ${a}.`;
     }
     case 'game_end': {
       const [h, a] = e.score;
@@ -402,20 +437,26 @@ function renderShot(
 
   if (e.made) {
     const assistTag = e.assist ? ` (${lk.last(e.assist)} with the dime)` : '';
+    // The and-one call is APPENDED to whichever template the pool picks,
+    // never baked into individual variants: two of the seven made-shot
+    // templates used to omit it, so "AND the foul!" silently vanished on
+    // ~38% of and-one makes depending on the draw (audit L-30). A made shot
+    // carrying e.foul.andOne must always say so — the bonus free throw that
+    // follows is otherwise unexplained on the broadcast.
     const andOne = e.foul?.andOne ? ` AND the foul!` : '';
-    if (e.three) {
-      return pool.pick('made3', [
-        `${who} lets it fly... BANG! ${open}triple${andOne}${assistTag}`,
-        `${who} from deep... got it!${andOne}${assistTag}`,
-        `Splash! ${who} buries the ${open}three.${assistTag}`,
-        `${who} rises from beyond the arc — pure!${andOne}${assistTag}`
-      ]);
-    }
-    return pool.pick('made2', [
-      `${who} finishes the ${shotDesc}${andOne ? ' — and one!' : '.'}${assistTag}`,
-      `${who} with the ${shotDesc} — good!${andOne}${assistTag}`,
-      `Bucket. ${who} converts the ${open}${shotDesc}.${assistTag}`
-    ]);
+    const body = e.three
+      ? pool.pick('made3', [
+          `${who} lets it fly... BANG! ${open}triple`,
+          `${who} from deep... got it!`,
+          `Splash! ${who} buries the ${open}three.`,
+          `${who} rises from beyond the arc — pure!`
+        ])
+      : pool.pick('made2', [
+          `${who} finishes the ${shotDesc}.`,
+          `${who} with the ${shotDesc} — good!`,
+          `Bucket. ${who} converts the ${open}${shotDesc}.`
+        ]);
+    return `${body}${andOne}${assistTag}`;
   }
 
   return pool.pick('miss', [

@@ -26,7 +26,40 @@ if (!replayPath || !outPath) {
 
 const templatePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html');
 const template = readFileSync(templatePath, 'utf8');
-const replay = readFileSync(replayPath, 'utf8').trim();
+
+// The replay is USER input (the template above is repo-internal): fail loud
+// and one-line on every bad-input shape instead of splicing garbage into a
+// blank page with exit 0 (audit M-41) or dying on a raw ENOENT stack for a
+// typo'd path (audit L-35).
+let replay;
+try {
+  replay = readFileSync(replayPath, 'utf8').trim();
+} catch (err) {
+  console.error(`embed: cannot read replay '${replayPath}': ${err.message}`);
+  process.exit(1);
+}
+// Parse-validate before splicing — validation only: the ORIGINAL text is
+// what gets embedded (no re-serialization, so byte layout/key order of the
+// artifact stay exactly as the engine wrote them). The key check mirrors
+// what the viewer's boot() dereferences unconditionally (rules/teams/
+// events/frames); `null`/scalars also matter because the template boots via
+// `if (EMBEDDED)` — a spliced `null` silently shows the drop zone instead.
+let parsed;
+try {
+  parsed = JSON.parse(replay);
+} catch (err) {
+  console.error(`embed: '${replayPath}' is not valid JSON: ${err.message}`);
+  process.exit(1);
+}
+if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+  console.error(`embed: '${replayPath}' is valid JSON but not a replay object`);
+  process.exit(1);
+}
+const missing = ['rules', 'teams', 'events', 'frames'].filter((k) => !(k in parsed));
+if (missing.length > 0) {
+  console.error(`embed: '${replayPath}' is not a replay artifact (missing: ${missing.join(', ')})`);
+  process.exit(1);
+}
 
 const MARK = '/*HOOPSH_REPLAY*/null';
 const markAt = template.indexOf(MARK);
