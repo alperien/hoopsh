@@ -14,11 +14,14 @@
  * invariants.test.ts and are NOT duplicated here.
  *
  * Budget: exactly ONE game sim, and it is the expensive kind — frames ON
- * (buildReplay requires them). Seed 'replay-fmt-1' scouted 2026-07-30:
- * regulation game, 1188 events, 64 substitutions, 15120 frames, 15 multi-FT
- * trips (every one of them spanning >= 2 frames), ball excursions to
- * x -1.9..95.5 (out-of-bounds caroms are real, so coordinate asserts use an
- * envelope, not strict in-bounds).
+ * (buildReplay requires them). Seed 'replay-fmt-1' re-scouted 2026-07-30
+ * after the flow re-fits reshuffled the rng streams (same seed still
+ * qualifies): regulation game, 1143 events, 60 substitutions, 15685 frames,
+ * 14 multi-FT trips (every one of them spanning >= 2 frames), ball
+ * excursions to x -1.9..95.6 (out-of-bounds caroms are real, so coordinate
+ * asserts use an envelope, not strict in-bounds). The flow officiating trio
+ * all appear (1 jump_ball, 1 violation, 3 replay_reviews), so the embedded
+ * stream exercises the v3 vocabulary the id-resolution net below walks.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -35,15 +38,20 @@ const result = simulateGame({ seed: 'replay-fmt-1', home, away });
 const replay = buildReplay(result);
 
 describe('replay artifact identity (version discipline)', () => {
-  // replay.ts:82-107 — version history: 2 is the current shape (optional
-  // ReboundEvent.player + deadBall?, TimeoutEvent in the union,
-  // FreeThrowEvent.oneAndOne?). AGENTS DO-NOT §8: a shape change without a
-  // bump here is the incident class this field exists to prevent.
-  it('stamps version 2, the current shape', () => {
-    expect(replay.version).toBe(2);
+  // replay.ts:83-119 version history, literal at :120 — 3 is the current
+  // shape, bumped in lockstep with the flow officiating vocabulary:
+  // jump_ball / violation / replay_review joined the GameEvent union,
+  // TurnoverKind += travel / off_goaltend, FoulKind += take / technical,
+  // FreeThrowEvent.technical?, PossessionOutcome += held_ball,
+  // TimeoutEvent.reason += mandatory / regroup; frame row layout unchanged.
+  // AGENTS DO-NOT §8: a shape change without a bump here is the incident
+  // class this field exists to prevent — this pin is meant to go red the
+  // moment the shape moves again, so it stays an exact equality.
+  it('stamps version 3, the current shape', () => {
+    expect(replay.version).toBe(3);
   });
 
-  // Replay interface (replay.ts:82-123) — seed, finalScore, events and
+  // Replay interface (replay.ts:81-136) — seed, finalScore, events and
   // frames are carried verbatim so the artifact replays the exact game.
   it('echoes the seed, final score, event stream and frames of its GameResult', () => {
     expect(replay.seed).toBe(result.seed);
@@ -52,7 +60,7 @@ describe('replay artifact identity (version discipline)', () => {
     expect(replay.frames).toEqual(result.frames);
   });
 
-  // Replay.rules (replay.ts:109-117) — exactly the seven viewer-facing rule
+  // Replay.rules (replay.ts:122-130) — exactly the seven viewer-facing rule
   // fields, values matching the pack the game ran under. "Exactly" matters
   // both ways: a missing field starves the viewer, an extra one silently
   // widens the shippable surface without a version bump.
@@ -87,7 +95,7 @@ describe('team & player meta — a viewer renders with no engine access', () => 
     }
   });
 
-  // replay.ts:59-64 + :125-144 — buildReplay is "the trim/reshape step":
+  // replay.ts:59-64 + :146-157 — buildReplay is "the trim/reshape step":
   // player meta is exactly {id, name, pos, heightIn}. Ratings/tendencies
   // must never ship inside the artifact.
   it('player meta is trimmed to exactly {id, name, pos, heightIn} — no ratings leak', () => {
@@ -106,7 +114,10 @@ describe('team & player meta — a viewer renders with no engine access', () => 
 
   // Replay doc (replay.ts:81) — "self-contained ... sufficient on its own to
   // render a full game": every player id the embedded events reference must
-  // resolve in the meta, or the viewer shows unnamed actors.
+  // resolve in the meta, or the viewer shows unnamed actors. The key list
+  // spans the flow vocabulary too — jump_ball names its tied-up `between`
+  // pair plus `gainedBy`, and a violation's optional `player` rides the
+  // generic key below (all scouted present on this seed).
   it('every player id referenced by the events resolves in the meta', () => {
     const known = new Set<string>();
     for (const t of replay.teams) for (const p of t.players) known.add(p.id);
@@ -120,7 +131,8 @@ describe('team & player meta — a viewer renders with no engine access', () => 
     for (const e of replay.events) {
       const r = e as unknown as Record<string, unknown>;
       for (const k of ['shooter', 'player', 'from', 'to', 'on', 'stolenBy',
-        'assist', 'blockedBy', 'contestedBy', 'drawnBy']) check(r[k]);
+        'assist', 'blockedBy', 'contestedBy', 'drawnBy', 'gainedBy']) check(r[k]);
+      if (e.type === 'jump_ball') for (const id of e.between) check(id);
       if (e.type === 'substitution') for (const id of [...e.out, ...e.in]) check(id);
       if (e.type === 'game_start') {
         for (const id of [...e.home.lineup, ...e.away.lineup]) check(id);
@@ -132,11 +144,11 @@ describe('team & player meta — a viewer renders with no engine access', () => 
 });
 
 describe('lineup timeline (LineupSnapshot[])', () => {
-  // replay.ts:145-170 comment + LineupSnapshot doc (replay.ts:73-79): fold
+  // replay.ts:159-183 comment + LineupSnapshot doc (replay.ts:73-79): fold
   // game_start's two starting fives, then each substitution replaces out[i]
   // with in[i] IN PLACE (slot-stable — slot index i is holderSlot i / 5+i),
   // pushing one snapshot per change, keyed on the source event's wt.
-  // events.ts:119-120 — "LineupSnapshot.t is copied from event wt and does
+  // events.ts:142-143 — "LineupSnapshot.t is copied from event wt and does
   // match exactly" (the ONE exact join between events and the replay
   // timeline). This re-derives the whole timeline from the documented fold
   // and demands deep equality.
@@ -161,7 +173,7 @@ describe('lineup timeline (LineupSnapshot[])', () => {
     expect(replay.lineups).toEqual(expected);
   });
 
-  // replay.ts:148-149 — "start from the game_start event's two starting
+  // replay.ts:159-161 — "start from the game_start event's two starting
   // fives (one snapshot per side, both at t = game start)".
   it('opens with both starting fives at the game_start wall-clock stamp', () => {
     const gs = replay.events[0]!;
@@ -171,12 +183,12 @@ describe('lineup timeline (LineupSnapshot[])', () => {
     expect(replay.lineups[1]).toEqual({ t: gs.wt, side: 1, slots: gs.away.lineup });
   });
 
-  // replay.ts:150-152 — one snapshot per substitution event; and every
+  // replay.ts:175-182 — one snapshot per substitution event; and every
   // snapshot is a legal five (a viewer draws exactly 5 bodies per side).
   it('adds exactly one snapshot per substitution, each a legal five', () => {
     const subs = replay.events.filter((e) => e.type === 'substitution').length;
     expect(replay.lineups.length).toBe(2 + subs);
-    expect(subs).toBeGreaterThanOrEqual(10); // scouted 64 — rotations are real
+    expect(subs).toBeGreaterThanOrEqual(10); // re-scouted 60 — rotations are real
     for (const snap of replay.lineups) {
       expect(snap.slots.length).toBe(5);
       expect(new Set(snap.slots).size).toBe(5);
@@ -199,7 +211,7 @@ describe('frame rows: [t, period, clock, ballX, ballY, holderSlot, 10x(x,y)]', (
 
   // replay.ts:11-17 — frame [0] is WALL-clock seconds at 1-decimal rounding
   // (`round1(s.wallT)`) — deliberately a different rounding than events' 2dp
-  // wt (events.ts:117-119: an equality join must fail; sync by ordering).
+  // wt (events.ts:139-141: an equality join must fail; sync by ordering).
   it('frame [0] is wall-clock at 1-decimal rounding', () => {
     let bad = 0;
     for (const row of replay.frames) {
@@ -222,8 +234,8 @@ describe('frame rows: [t, period, clock, ballX, ballY, holderSlot, 10x(x,y)]', (
       else held++;
     }
     expect(bad).toBe(0);
-    expect(loose).toBeGreaterThanOrEqual(100); // scouted 3675
-    expect(held).toBeGreaterThanOrEqual(100); // scouted 11445
+    expect(loose).toBeGreaterThanOrEqual(100); // re-scouted 4997
+    expect(held).toBeGreaterThanOrEqual(100); // re-scouted 10688
   });
 
   // replay.ts:18-22 — [1] is the 1-based period (matches Base.period, so it
@@ -249,7 +261,7 @@ describe('frame rows: [t, period, clock, ballX, ballY, holderSlot, 10x(x,y)]', (
   // coordinate frame (court feet, dims in replay.rules). The contract fixes
   // the coordinate SYSTEM, not strict in-bounds-ness: out-of-bounds passes
   // and caroms legitimately take the BALL outside the lines (scouted ball
-  // range x -1.9..95.5 on the 94ft court), so this is a render-sanity
+  // range x -1.9..95.6 on the 94ft court), so this is a render-sanity
   // envelope (court ± 6 ft) — it catches a scrambled row layout (a clock or
   // wt value in a coordinate slot), not centimeter physics.
   it('all coordinate slots stay in a court-sized envelope', () => {
@@ -311,7 +323,7 @@ describe('frame rows: [t, period, clock, ballX, ballY, holderSlot, 10x(x,y)]', (
       }
     }
     expect(bad).toBe(0);
-    expect(windows).toBeGreaterThanOrEqual(10); // scouted 15/15 trips span >=2 frames
+    expect(windows).toBeGreaterThanOrEqual(10); // re-scouted 14/14 trips span >=2 frames
   });
 
   // AGENTS §1.5 + replay.ts:11-17 — wallT advances during EVERY tick,

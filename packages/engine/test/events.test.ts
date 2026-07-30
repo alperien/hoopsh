@@ -12,20 +12,33 @@
  * monotonicity. This file pins the uncovered halves: first-event framing,
  * period pairing, start/end INTERLEAVING, per-event running score, per-type
  * field completeness, personal-foul chains, and the wt/t axis promises.
+ * Also not duplicated from officiating.test.ts: the flow vocabulary's
+ * forced-rate emission floors and consumer chains live there — this file
+ * pins the DEFAULT-stream shape of whatever the pinned seeds emit.
  *
- * Budget: exactly TWO game sims, frames OFF (~1s). Seeds re-scouted
- * 2026-07-30 against the audited engine (the release-audit SimParams hoist,
- * PR #11, reshuffled the rng streams and dropped the original evstream-3 OT
- * seed back to regulation — exactly the failure mode predicted below):
- *   evstream-1  — regulation; 1229 events, 9 blocks, 4 and-ones, 11 fouled
- *                 misses, 3 charges, 18 steal-starts, 15 multi-FT trips.
- *   evstream-19 — reaches OVERTIME (period 5): 2 tip_offs, 2 'tip' possession
- *                 starts, a tied Q4 period_end; 3 charges, 5 and-ones.
+ * Budget: exactly TWO game sims, frames OFF (~1s). Seeds re-anchored
+ * 2026-07-30 (second anchor — the first was the PR #11 SimParams-hoist
+ * reshuffle) after the flow re-fits (two AI dials: openerShootMalus,
+ * pullUpThreeBonus; findings/refit-g3.md, g5) reshuffled every rng stream:
+ * evstream-19 dropped from OT back to regulation — exactly the failure mode
+ * the previous header predicted — and slot 1 moved off evstream-1 (still
+ * regulation, but zero violations on the new streams) so the pool keeps
+ * every flow-vocabulary event type live. Scanned evstream-1..110:
+ *   evstream-5  — regulation; 1247 events, 3 violations (2 kicked_ball,
+ *                 1 def_goaltend), 1 technical, 1 DEFENSE-won mid-game jump
+ *                 ball (a 'tip' possession start with no tip_off), 2
+ *                 charges, 13 blocks, 8 and-ones, 27 multi-FT trips.
+ *   evstream-48 — reaches OVERTIME (period 5): 2 tip_offs, 2 'tip'
+ *                 possession starts, a tied Q4 period_end; 2 technicals, 6
+ *                 takes, 1 travel, 1 OFFENSE-won jump ball, 5 replay
+ *                 reviews, 11 and-ones, and one shooting-foul whistle with
+ *                 a technical rider (the tech FT precedes the trip).
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
  * the fix is to re-scout an OT seed for the second slot (same doctrine as
- * ncaa-rules.test.ts's throw-on-scan-exhaustion).
+ * ncaa-rules.test.ts's throw-on-scan-exhaustion; the subs.test.ts H-02
+ * comment keeps the same re-anchor trail for its own OT seeds).
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -37,7 +50,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-1', 'evstream-19'].map((seed) => {
+const pool: GameResult[] = ['evstream-5', 'evstream-48'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -70,7 +83,7 @@ const ftTrips = (g: GameResult): FreeThrowEvent[][] => {
 };
 
 describe('stream framing: game_start / tip_off / period boundaries / game_end', () => {
-  // events.ts:142 — "Fires exactly once, first in the stream. `lineup` is
+  // events.ts:166 — "Fires exactly once, first in the stream. `lineup` is
   // each team's 5 starting on-court player ids."
   it('game_start fires exactly once, first, carrying two legal starting fives', () => {
     for (const g of pool) {
@@ -88,7 +101,7 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:155 — "the stream opens `game_start` → `tip_off`".
+  // events.ts:179 — "the stream opens `game_start` → `tip_off`".
   it('the stream opens game_start then tip_off', () => {
     for (const g of pool) {
       const second = g.events[1]!;
@@ -99,7 +112,7 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:165 — "Fires exactly once, always last in the stream — only
+  // events.ts:189 — "Fires exactly once, always last in the stream — only
   // after a period ends with the score NOT tied".
   it('game_end fires exactly once, last, and never with a tied score', () => {
     for (const g of pool) {
@@ -111,8 +124,8 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:155 — "Period 1 has NO `period_start` ... the count is always
-  // periods played − 1"; events.ts:160 — period_end "fires once when a
+  // events.ts:179 — "Period 1 has NO `period_start` ... the count is always
+  // periods played − 1"; events.ts:184 — period_end "fires once when a
   // period's clock reaches 0". Each fires once per period, in period order.
   it('period_start runs 2..N and period_end runs 1..N, once per period', () => {
     for (const g of pool) {
@@ -134,8 +147,8 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:160 — period_end fires "before either `period_start` (next
-  // period) or `game_end`"; events.ts:155 — every period_start comes after a
+  // events.ts:184 — period_end fires "before either `period_start` (next
+  // period) or `game_end`"; events.ts:179 — every period_start comes after a
   // period_end. Checked on the boundary-event subsequence (subs/timeouts may
   // legally sit between the horn and the next period's opener).
   it('boundary order: period_end → (period_start | game_end); period_start always follows a period_end', () => {
@@ -158,7 +171,7 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:165 — "a tied period always triggers another overtime instead"
+  // events.ts:189 — "a tied period always triggers another overtime instead"
   // (of game_end), once regulation periods are exhausted.
   it('a tied period_end at/after regulation forces another period, never game_end', () => {
     let tiedEndsSeen = 0;
@@ -173,12 +186,12 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
         }
       }
     }
-    // Vacuity floor: the evstream-19 OT game contributes its tied Q4 horn.
+    // Vacuity floor: the evstream-48 OT game contributes its tied Q4 horn.
     expect(tiedEndsSeen).toBeGreaterThanOrEqual(1);
   });
 
   // Existence floor for every OT-conditional assert in this file. Scouted:
-  // evstream-19 plays period 5. If an rng-sequence change reshuffles this
+  // evstream-48 plays period 5. If an rng-sequence change reshuffles this
   // seed back to regulation, re-scout a fresh OT seed (see file header).
   it('the pool reaches overtime (existence floor for the OT legs)', () => {
     const otPeriods = pool.reduce(
@@ -186,8 +199,10 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     expect(otPeriods).toBeGreaterThanOrEqual(1);
   });
 
-  // events.ts:149 — "Fires once per period-opening jump ball: at game start
+  // events.ts:173 — "Fires once per period-opening jump ball: at game start
   // and, per NBA convention, again at the start of every overtime period."
+  // (Mid-game held-ball jumps are JumpBallEvent, never tip_off — the counts
+  // here stay pure period openers.)
   it('tip_off fires once at game start plus once per overtime period', () => {
     for (const g of pool) {
       const tips = g.events.filter((e) => e.type === 'tip_off');
@@ -204,36 +219,70 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:149 — "`winner` gets the ball first." And the possession kind:
-  // possession.ts endPeriod (:561-571) stamps every jump-ball opener (game
-  // AND each OT) kind 'tip', and events.ts:170 now documents exactly that
-  // for every OT period — docs and code agree since audit M-01 corrected the
-  // stale 'inbound' sentence.
-  it("every tip_off hands the first possession to its winner, kind 'tip'", () => {
+  // events.ts:173 — "`winner` gets the ball first." And the possession kind:
+  // possession.ts endPeriod (:810-816) stamps every jump-ball opener (game
+  // AND each OT) kind 'tip', and since the flow officiating vocabulary
+  // events.ts:194 extends the same label to a DEFENSE-won mid-game held-ball
+  // jump (JumpBallEvent, sim/possession.ts tickScramble / sim/passing.ts
+  // attemptReachIn) — "reusing 'tip' keeps an administered jump from ever
+  // reading as a transition/fastbreak start". An OFFENSE-won jump continues
+  // the same possession with no possession_start at all, so the pairing is:
+  // tip starts = tip_offs + defense-won jump_balls, each handed to its
+  // winner. (The deeper offense-won/held_ball consumer chain is pinned at
+  // forced rates in officiating.test.ts.)
+  it("every tip_off and defense-won jump_ball hands the next possession to its winner, kind 'tip'", () => {
+    let defWon = 0;
+    let offWon = 0;
+    let tipStarts = 0;
+    let tipOffs = 0;
     for (const g of pool) {
+      let open: 0 | 1 | null = null;
       for (let i = 0; i < g.events.length; i++) {
         const e = g.events[i]!;
-        if (e.type !== 'tip_off') continue;
+        if (e.type === 'possession_start') {
+          open = e.team;
+          if (e.kind === 'tip') tipStarts++;
+          continue;
+        }
+        if (e.type === 'possession_end') {
+          open = null;
+          continue;
+        }
+        if (e.type !== 'tip_off' && e.type !== 'jump_ball') continue;
+        if (e.type === 'tip_off') tipOffs++;
+        else {
+          // both mid-game tie-up sites are live-ball, so a jump always
+          // fires with a possession open; the offense keeping the tap means
+          // that SAME possession simply continues (no new start to check).
+          expect(open).not.toBe(null);
+          if (e.winner === open) {
+            offWon++;
+            continue;
+          }
+          defWon++;
+        }
         const ps = g.events.slice(i + 1).find((x) => x.type === 'possession_start');
         expect(ps?.type).toBe('possession_start');
         if (ps?.type !== 'possession_start') continue;
         expect(ps.team).toBe(e.winner);
         expect(ps.kind).toBe('tip');
       }
-      // 1:1 pairing — a 'tip' possession start exists only off a jump ball.
-      const tipStarts = g.events.filter(
-        (e) => e.type === 'possession_start' && e.kind === 'tip').length;
-      const tipOffs = g.events.filter((e) => e.type === 'tip_off').length;
-      expect(tipStarts).toBe(tipOffs);
     }
+    // pairing across the pool — a 'tip' start exists only off a jump:
+    // period openers 1:1, plus one per defense-won mid-game jump ball.
+    expect(tipStarts).toBe(tipOffs + defWon);
+    // both mid-game branches live: evstream-5's scramble tie-up goes to the
+    // defense, evstream-48's to the offense (scouted, see header).
+    expect(defWon).toBeGreaterThanOrEqual(1);
+    expect(offWon).toBeGreaterThanOrEqual(1);
   });
 
-  // RESOLVED doc conflict (was an it.todo): events.ts:170 used to claim OT
+  // RESOLVED doc conflict (was an it.todo): events.ts:194 used to claim OT
   // openers were labeled 'inbound' while endPeriod stamps 'tip'. Audit M-01
   // fixed the doc — it now reads 'tip' for every OT jump ball — so nothing
   // is left to track; the 'tip' behavior stays pinned by the test above.
 
-  // events.ts:149 — "Regulation Q2/Q3 open with the ball going to the
+  // events.ts:173 — "Regulation Q2/Q3 open with the ball going to the
   // game-opening tip's LOSER and Q4 to its winner — the real NBA rule
   // (W-L-L-W across the quarters), not an alternating arrow."
   it('regulation period openers follow W-L-L-W around the opening tip', () => {
@@ -253,7 +302,7 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // sim/passing.ts:102-121 horn guards + events.ts:160 — the documented
+  // sim/passing.ts:108-146 horn guards + events.ts:184 — the documented
   // phantom-possession regression class: nothing may start a possession
   // between a period's horn and the next period's opener.
   it('no possession ever starts between a period horn and the next period_start', () => {
@@ -271,8 +320,8 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
 });
 
 describe('possession pairing', () => {
-  // events.ts:170 — "Pairs 1:1 with a later `possession_end` for the same
-  // possession"; events.ts:177-189 — exactly once per possession.
+  // events.ts:194 — "Pairs 1:1 with a later `possession_end` for the same
+  // possession"; events.ts:201-208 — exactly once per possession.
   // invariants.test.ts pins equal COUNTS only; this pins the INTERLEAVING
   // and that each end names the open possession's team.
   it('starts and ends strictly alternate, and each end matches the open team', () => {
@@ -296,8 +345,8 @@ describe('possession pairing', () => {
     }
   });
 
-  // events.ts:170 — "'steal': a takeaway (bad pass or reach-in) starts the
-  // new team's possession immediately"; events.ts:319 — the turnover's
+  // events.ts:194 — "'steal': a takeaway (bad pass or reach-in) starts the
+  // new team's possession immediately"; events.ts:355 — the turnover's
   // `team` is the side LOSING the ball, so the thief's side is 1 - team.
   it("a steal-kind possession belongs to the thief's side, straight off a stolen turnover", () => {
     let checked = 0;
@@ -316,12 +365,12 @@ describe('possession pairing', () => {
         expect(e.team).toBe(1 - to.team);
       }
     }
-    expect(checked).toBeGreaterThanOrEqual(5); // re-scouted 37 across the pool
+    expect(checked).toBeGreaterThanOrEqual(5); // re-scouted 29 across the pool
   });
 });
 
 describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
-  // events.ts:113-115 — "`wt` is always >= `t` and monotonically
+  // events.ts:137-139 — "`wt` is always >= `t` and monotonically
   // non-decreasing across the event stream"; t only advances with the game
   // clock, so it is non-decreasing too.
   it('wt >= t on every event, and both axes never run backwards', () => {
@@ -339,7 +388,7 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
     }
   });
 
-  // events.ts:117-119 — "events stamp wt at 2 decimals (state.ts emit)";
+  // events.ts:139-141 — "events stamp wt at 2 decimals (state.ts emit)";
   // Base.clock is "seconds remaining in period" (never negative, and capped
   // by the period's length: rulepack periodMinutes / otMinutes).
   it('t, wt, clock carry 2-decimal stamps; clock stays in [0, period length]', () => {
@@ -357,10 +406,13 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
     }
   });
 
-  // events.ts:139 — "score AFTER this event: [home, away]". Folding ONLY
+  // events.ts:162 — "score AFTER this event: [home, away]". Folding ONLY
   // made shots and made free throws must reproduce every event's score
   // field (invariants.test.ts checks the FINAL score alone; this pins the
-  // running value at all ~1200 events per game).
+  // running value at all ~1200 events per game). Technical free throws fold
+  // in like any other make (events.ts:305-306); a def_goaltend violation
+  // rides a made `shot` whose points the shot itself already carries, so no
+  // event type outside makes ever moves the score.
   it('score is the running score AFTER each event, reconstructible from makes alone', () => {
     for (const g of pool) {
       let h = 0;
@@ -379,9 +431,9 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
     }
   });
 
-  // events.ts:106-107 — "Two events during the same dead ball share the same
+  // events.ts:131-132 — "Two events during the same dead ball share the same
   // `t`"; §1.5 — wallT advances every tick, stoppages included; and
-  // events.ts:253-257 — n runs 1..of within a trip for one shooter.
+  // events.ts:280-284 — n runs 1..of within a trip for one shooter.
   it('a free-throw trip runs on a frozen game clock: equal t, advancing wt, n counting 1..of', () => {
     let multiTrips = 0;
     for (const g of pool) {
@@ -400,10 +452,10 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
       }
       expect(bad).toEqual([]);
     }
-    expect(multiTrips).toBeGreaterThanOrEqual(10); // re-scouted 42 across the pool
+    expect(multiTrips).toBeGreaterThanOrEqual(10); // re-scouted 53 across the pool
   });
 
-  // §1.5 / events.ts:109-112 — the axes genuinely diverge: stoppages occupy
+  // §1.5 / events.ts:133-137 — the axes genuinely diverge: stoppages occupy
   // wall time, so by the final horn wt has outrun t.
   it('the wall clock outruns the game clock by the end of every game', () => {
     for (const g of pool) {
@@ -414,26 +466,35 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
 });
 
 describe('per-type field contract', () => {
-  // The GameEvent union, core/events.ts:397-413, plus each interface's
+  // The GameEvent union, core/events.ts:512-530, plus each interface's
   // documented required fields. A consumer types against these; an event
-  // missing one is a contract break even if the sim looks fine.
+  // missing one is a contract break even if the sim looks fine. The table
+  // spans the ENTIRE union — the flow officiating vocabulary (replay v3:
+  // jump_ball / violation / replay_review, TurnoverKind travel /
+  // off_goaltend, FoulKind take / technical, the timeout-economy reasons)
+  // is covered with its own documented required fields, and a type this
+  // table does not document fails the default arm below: an undocumented
+  // type IS the regression this net exists to catch.
   it('every event carries its documented per-type required fields', () => {
     const KINDS = {
       possession_start: ['inbound', 'live_rebound', 'steal', 'tip'],
       pass: ['normal', 'kickout', 'outlet', 'entry', 'handoff'],
-      turnover: ['bad_pass', 'lost_ball', 'off_foul', 'shot_clock', 'out_of_bounds'],
-      foul: ['shooting', 'reach', 'offensive', 'loose_ball'],
-      outcome: ['made_fg', 'made_ft', 'def_rebound', 'turnover', 'period_end'],
+      turnover: ['bad_pass', 'lost_ball', 'off_foul', 'shot_clock',
+        'out_of_bounds', 'travel', 'off_goaltend'],
+      foul: ['shooting', 'reach', 'offensive', 'loose_ball', 'take', 'technical'],
+      outcome: ['made_fg', 'made_ft', 'def_rebound', 'turnover', 'period_end', 'held_ball'],
       zone: ['rim', 'paint', 'mid', 'three'],
       move: ['catch_shoot', 'pull_up', 'drive', 'cut_finish', 'post', 'putback', 'heave'],
-      timeout: ['stop_run', 'advance']
+      timeout: ['stop_run', 'advance', 'mandatory', 'regroup'],
+      violation: ['def_goaltend', 'kicked_ball'],
+      review: ['oob', 'late_make', 'period_end']
     };
     const seen = new Map<GameEvent['type'], number>();
     const bad: string[] = [];
     for (const g of pool) {
       for (const e of g.events) {
         seen.set(e.type, (seen.get(e.type) ?? 0) + 1);
-        // Base (events.ts:125-140): both clocks, a 1-based period, a
+        // Base (events.ts:149-164): both clocks, a 1-based period, a
         // [home, away] score of non-negative integers.
         if (!Number.isFinite(e.t) || !Number.isFinite(e.wt)) bad.push(`${e.type}: bad clocks`);
         if (!Number.isInteger(e.period) || e.period < 1) bad.push(`${e.type}: bad period`);
@@ -441,6 +502,21 @@ describe('per-type field contract', () => {
           bad.push(`${e.type}: bad score`);
         }
         switch (e.type) {
+          case 'game_start':
+            // events.ts:166-171 — a teamId and a starting five per side
+            // (the legal-five detail is pinned by the framing suite above).
+            if (typeof e.home.teamId !== 'string' || typeof e.away.teamId !== 'string') {
+              bad.push('game_start: teamId');
+            }
+            if (e.home.lineup.length !== 5 || e.away.lineup.length !== 5) {
+              bad.push('game_start: lineup');
+            }
+            break;
+          case 'period_start':
+          case 'period_end':
+          case 'game_end':
+            // Base-only markers (events.ts:179-192) — nothing beyond Base.
+            break;
           case 'tip_off':
             if (e.winner !== 0 && e.winner !== 1) bad.push('tip_off: winner');
             break;
@@ -484,7 +560,12 @@ describe('per-type field contract', () => {
           case 'foul':
             if (typeof e.on !== 'string') bad.push('foul: on');
             if (!KINDS.foul.includes(e.kind)) bad.push(`foul: kind ${e.kind}`);
-            if (!Number.isInteger(e.personalCount) || e.personalCount < 1) bad.push('foul: personalCount');
+            // events.ts:85-91 — a technical stamps SNAPSHOT counts (legal on
+            // 0 personals); every other kind has just incremented, so >= 1.
+            if (!Number.isInteger(e.personalCount) ||
+              e.personalCount < (e.kind === 'technical' ? 0 : 1)) {
+              bad.push('foul: personalCount');
+            }
             if (!Number.isInteger(e.teamCountInPeriod) || e.teamCountInPeriod < 0) bad.push('foul: teamCount');
             if (typeof e.inBonus !== 'boolean' || typeof e.fouledOut !== 'boolean') bad.push('foul: flags');
             break;
@@ -493,27 +574,59 @@ describe('per-type field contract', () => {
             if (!Number.isInteger(e.remaining) || e.remaining < 0) bad.push('timeout: remaining');
             break;
           case 'substitution':
-            // events.ts:382-387 — parallel arrays; every current caller swaps
+            // events.ts:431-434 — parallel arrays; every current caller swaps
             // exactly one player, and never a player for himself.
             if (e.out.length !== 1 || e.in.length !== 1) bad.push('substitution: array shape');
             if (e.out[0] === e.in[0]) bad.push('substitution: no-op swap');
             break;
-          default:
+          case 'jump_ball':
+            // events.ts:459-470 — two distinct tied-up contestants, the side
+            // that controls the tap, and whoever came up with it.
+            if (e.between.length !== 2 || e.between.some((p) => typeof p !== 'string') ||
+              e.between[0] === e.between[1]) {
+              bad.push('jump_ball: between');
+            }
+            if (e.winner !== 0 && e.winner !== 1) bad.push('jump_ball: winner');
+            if (typeof e.gainedBy !== 'string') bad.push('jump_ball: gainedBy');
             break;
+          case 'violation':
+            // events.ts:484-491 — kind carries the contract; player is
+            // optional (a future team-attributed kind may omit it) but a
+            // string when present.
+            if (!KINDS.violation.includes(e.kind)) bad.push(`violation: kind ${e.kind}`);
+            if (e.player !== undefined && typeof e.player !== 'string') bad.push('violation: player');
+            break;
+          case 'replay_review':
+            // events.ts:493-509 — trigger only; deliberately NO outcome
+            // field (an always-'stands' outcome would be dead surface per
+            // AGENTS.md DO-NOT #5, so don't "strengthen" one in here).
+            if (!KINDS.review.includes(e.trigger)) bad.push(`replay_review: trigger ${e.trigger}`);
+            break;
+          default:
+            // An event type this table does not document is an undocumented
+            // stream shape — extend the table from the events.ts per-type
+            // docs; never allowlist past this arm (THE COVENANT: skipping
+            // unknown types is weakening).
+            bad.push(`undocumented event type ${(e as { type: string }).type}`);
         }
       }
     }
     expect(bad).toEqual([]);
-    // Vacuity floors — every common type actually appeared in the pool
-    // (timeout included: endgame defaults ON, events.ts:355-362).
+    // Vacuity floors — every type the pinned seeds deterministically emit
+    // actually appeared (timeout included: endgame defaults ON,
+    // events.ts:394-397; the flow trio re-scouted 2 jump_balls, 3
+    // violations, 7 replay_reviews across the pool). held_ball and
+    // off_goaltend never occur on these seeds — their forced-rate emission
+    // floors are officiating.test.ts's job, not this file's.
     for (const t of ['game_start', 'tip_off', 'period_start', 'period_end', 'game_end',
       'possession_start', 'possession_end', 'pass', 'shot', 'free_throw',
-      'rebound', 'turnover', 'foul', 'timeout', 'substitution'] as const) {
+      'rebound', 'turnover', 'foul', 'timeout', 'substitution',
+      'jump_ball', 'violation', 'replay_review'] as const) {
       expect(seen.get(t) ?? 0).toBeGreaterThanOrEqual(1);
     }
   });
 
-  // events.ts:197-202 — "All five kinds are live AI code paths today."
+  // events.ts:221-228 — "All five kinds are live AI code paths today."
   // Scouted: all five appear in EACH pool game individually.
   it('all five pass kinds are live code paths', () => {
     const kinds = new Set<string>();
@@ -525,7 +638,7 @@ describe('per-type field contract', () => {
     }
   });
 
-  // events.ts:213-214 — "shot charts are built directly from x/y/distFt/
+  // events.ts:238-240 — "shot charts are built directly from x/y/distFt/
   // zone/three": chart coordinates live in the court frame (a shooter
   // releases in bounds), court dims read from result.rules.
   it('shot x/y land inside the court', () => {
@@ -539,10 +652,10 @@ describe('per-type field contract', () => {
   });
 });
 
-describe('shot event invariants (events.ts:213-231)', () => {
+describe('shot event invariants (events.ts:238-258)', () => {
   const all: ShotEvent[] = pool.flatMap((g) => shots(g));
 
-  // events.ts:215-217 — "`points` is always 0 when `made` is false, and
+  // events.ts:241-243 — "`points` is always 0 when `made` is false, and
   // always `three ? 3 : 2` when `made` is true — never inferred from zone".
   it('points: 0 on a miss, three ? 3 : 2 on a make', () => {
     let bad = 0;
@@ -563,7 +676,7 @@ describe('shot event invariants (events.ts:213-231)', () => {
     expect(madeThrees).toBeGreaterThanOrEqual(5);
   });
 
-  // events.ts:219-222 — assist "present only when `made` is true"; a passer
+  // events.ts:243-247 — assist "present only when `made` is true"; a passer
   // never assists his own shot (sim/shooting.ts startShot excludes it).
   it('assist appears only on makes and never names the shooter', () => {
     let assisted = 0;
@@ -579,7 +692,7 @@ describe('shot event invariants (events.ts:213-231)', () => {
     expect(assisted).toBeGreaterThanOrEqual(10);
   });
 
-  // events.ts:222-224 — "`blockedBy` can only be set when `made` is false
+  // events.ts:247-250 — "`blockedBy` can only be set when `made` is false
   // ... blocks subtract from misses, not from makes".
   it('blockedBy appears only on misses', () => {
     let blocked = 0;
@@ -591,10 +704,10 @@ describe('shot event invariants (events.ts:213-231)', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(blocked).toBeGreaterThanOrEqual(5); // re-scouted 23 across the pool
+    expect(blocked).toBeGreaterThanOrEqual(5); // re-scouted 25 across the pool
   });
 
-  // events.ts:229-231 / :243 — contest is "0 wide open .. 1 smothered".
+  // events.ts:254-257 / :269 — contest is "0 wide open .. 1 smothered".
   it('contest sits in [0, 1] on every attempt', () => {
     let bad = 0;
     for (const e of all) {
@@ -604,11 +717,14 @@ describe('shot event invariants (events.ts:213-231)', () => {
     expect(all.length).toBeGreaterThan(100);
   });
 
-  // events.ts:225-229 — "`andOne: true` iff the shot ALSO went in (bonus
+  // events.ts:250-254 — "`andOne: true` iff the shot ALSO went in (bonus
   // single free throw); `andOne: false` means the shot missed and
   // `ftAwarded` (2 or 3, matching shot value) free throws follow"; plus
-  // events.ts:256-257 — "an and-one is always `n: 1, of: 1`". The trip that
-  // follows belongs to the fouled shooter.
+  // events.ts:283-284 — "an and-one is always `n: 1, of: 1`". The trip that
+  // follows belongs to the fouled shooter — though when the same whistle
+  // also draws a technical, the tech shooter's single 1-of-1 attempt is
+  // interposed BEFORE the trip (events.ts:298-305, real row order), so the
+  // shooter's trip is the first NON-technical free throw.
   it('a shooting foul stamps andOne = made, awards made ? 1 : (three ? 3 : 2) FTs to the shooter', () => {
     let fouled = 0;
     let andOnes = 0;
@@ -623,7 +739,8 @@ describe('shot event invariants (events.ts:213-231)', () => {
         if (e.foul.andOne !== e.made) bad.push(`andOne ${e.foul.andOne} but made ${e.made}`);
         const wantFts = e.made ? 1 : e.three ? 3 : 2;
         if (e.foul.ftAwarded !== wantFts) bad.push(`ftAwarded ${e.foul.ftAwarded}, want ${wantFts}`);
-        const ft = evs.slice(i + 1).find((x): x is FreeThrowEvent => x.type === 'free_throw');
+        const ft = evs.slice(i + 1).find(
+          (x): x is FreeThrowEvent => x.type === 'free_throw' && x.technical !== true);
         if (!ft) bad.push('no free throw follows a shooting foul');
         else {
           if (ft.shooter !== e.shooter) bad.push('FT shooter is not the fouled shooter');
@@ -632,14 +749,16 @@ describe('shot event invariants (events.ts:213-231)', () => {
       }
     }
     expect(bad).toEqual([]);
-    expect(fouled).toBeGreaterThanOrEqual(5); // re-scouted 32 (9 and-ones)
+    // re-scouted 56 (19 and-ones) — incl. ONE tech-rider interposition on
+    // evstream-48, so the non-technical skip above is a live branch.
+    expect(fouled).toBeGreaterThanOrEqual(5);
     expect(andOnes).toBeGreaterThanOrEqual(1);
   });
 
-  // sim/shooting.ts:66 gate documented in docs/INTERNALS.md known
+  // sim/shooting.ts gate documented in docs/INTERNALS.md known
   // simplifications: a shooting foul is only awarded when a contester
   // exists — so every fouled shot carries contestedBy. (Deliberately NOT
-  // asserting foul.by === contestedBy: events.ts:229-231 declares them
+  // asserting foul.by === contestedBy: events.ts:254-257 declares them
   // independent.)
   it('a shooting foul implies a contester: foul ⇒ contestedBy present', () => {
     let fouled = 0;
@@ -653,11 +772,13 @@ describe('shot event invariants (events.ts:213-231)', () => {
 });
 
 describe('turnover and foul bookkeeping', () => {
-  // events.ts:44-53 — 'lost_ball' "always carries `stolenBy`"; 'shot_clock'
+  // events.ts:44-60 — 'lost_ball' "always carries `stolenBy`"; 'shot_clock'
   // and 'out_of_bounds' never do; an 'off_foul' (charge) awards a dead-ball
-  // inbound, never a steal. ('bad_pass' carries it only when picked off, so
-  // it has no unconditional side to pin.)
-  it('stolenBy: always on lost_ball, never on shot_clock / out_of_bounds / off_foul', () => {
+  // inbound, never a steal; and the flow kinds 'travel' and 'off_goaltend'
+  // are dead-ball violation TOs that "never carry stolenBy" (the real
+  // scoring convention). ('bad_pass' carries it only when picked off, so it
+  // has no unconditional side to pin — every OTHER kind is a never-steal.)
+  it('stolenBy: always on lost_ball, never on any other kind but bad_pass', () => {
     let lost = 0;
     let never = 0;
     let bad = 0;
@@ -667,18 +788,18 @@ describe('turnover and foul bookkeeping', () => {
         if (e.kind === 'lost_ball') {
           lost++;
           if (!e.stolenBy) bad++;
-        } else if (e.kind === 'shot_clock' || e.kind === 'out_of_bounds' || e.kind === 'off_foul') {
+        } else if (e.kind !== 'bad_pass') {
           never++;
           if (e.stolenBy !== undefined) bad++;
         }
       }
     }
     expect(bad).toBe(0);
-    expect(lost).toBeGreaterThanOrEqual(5); // re-scouted 21
-    expect(never).toBeGreaterThanOrEqual(5); // re-scouted 21
+    expect(lost).toBeGreaterThanOrEqual(5); // re-scouted 13
+    expect(never).toBeGreaterThanOrEqual(5); // re-scouted 26 (incl. 1 travel)
   });
 
-  // events.ts:48-50 — 'off_foul' is "always immediately followed by a `foul`
+  // events.ts:49-51 — 'off_foul' is "always immediately followed by a `foul`
   // event with kind 'offensive' for the same player" (turnover first, then
   // the foul — sim/game.ts tickLive ordering).
   it('a charge is a pair: off_foul turnover immediately followed by the offensive foul on that player', () => {
@@ -695,30 +816,45 @@ describe('turnover and foul bookkeeping', () => {
         expect(next.on).toBe(e.player);
       }
     }
-    expect(charges).toBeGreaterThanOrEqual(2); // re-scouted 6 across the pool
+    expect(charges).toBeGreaterThanOrEqual(2); // re-scouted 8 across the pool
   });
 
-  // events.ts:329-331 — personalCount is "the fouler's running total for the
+  // events.ts:365-366 — personalCount is "the fouler's running total for the
   // game (not the period)": +1 per foul, never resetting across periods.
-  // (invariants.test.ts pins the TEAM chain; the per-player chain is new.)
-  it('personalCount is a per-player running game total: +1 per foul, never resetting', () => {
+  // Kind 'technical' is the documented exception (events.ts:85-91): a tech
+  // is not a personal in NBA accounting, so its stamp REPEATS the fouler's
+  // current total unchanged — "snapshot, not an increment" (fouls.ts:113).
+  // (invariants.test.ts pins the TEAM chain; the per-player chain is here.)
+  it('personalCount chains +1 per personal foul, never resets; a technical repeats it unchanged', () => {
+    let techs = 0;
     for (const g of pool) {
       const counts = new Map<string, number>();
       let bad = 0;
       for (const e of g.events) {
         if (e.type !== 'foul') continue;
         const prev = counts.get(e.on) ?? 0;
-        if (e.personalCount !== prev + 1) bad++;
-        counts.set(e.on, e.personalCount);
+        if (e.kind === 'technical') {
+          techs++;
+          if (e.personalCount !== prev) bad++;
+        } else {
+          if (e.personalCount !== prev + 1) bad++;
+          counts.set(e.on, e.personalCount);
+        }
       }
       expect(bad).toBe(0);
       expect(counts.size).toBeGreaterThan(5); // several distinct foulers
     }
+    expect(techs).toBeGreaterThanOrEqual(1); // re-scouted 3 across the pool
   });
 
-  // events.ts:330-339 — inBonus is driven by teamCountInPeriod against
-  // rules.teamFoulBonusAt; fouledOut is "true exactly when personalCount >=
-  // rules.foulOutAt". Thresholds read from result.rules, not literals.
+  // events.ts:366-375 — inBonus is driven by teamCountInPeriod against
+  // rules.teamFoulBonusAt (a tech's snapshot count included); fouledOut is
+  // "true exactly when personalCount >= rules.foulOutAt" — EXCEPT kind
+  // 'technical', where it "is always false" (events.ts:88-91). The tech
+  // draw runs AFTER the foul-out replacement (fouls.ts:103-116), so a tech
+  // riding a foul-out whistle legally stamps personalCount AT the limit
+  // with fouledOut still false — the naive formula is wrong for techs.
+  // Thresholds read from result.rules, not literals.
   it('inBonus and fouledOut follow their documented threshold formulas', () => {
     let fouls = 0;
     let bad = 0;
@@ -727,26 +863,30 @@ describe('turnover and foul bookkeeping', () => {
         if (e.type !== 'foul') continue;
         fouls++;
         if (e.inBonus !== (e.teamCountInPeriod >= rules.teamFoulBonusAt)) bad++;
-        if (e.fouledOut !== (e.personalCount >= rules.foulOutAt)) bad++;
+        if (e.kind === 'technical') {
+          if (e.fouledOut !== false) bad++;
+        } else if (e.fouledOut !== (e.personalCount >= rules.foulOutAt)) bad++;
       }
     }
     expect(bad).toBe(0);
     expect(fouls).toBeGreaterThan(30);
   });
 
-  // events.ts:66-69 — an offensive foul "counts against the fouler's
-  // personal total but, per NBA rule, is NOT a team foul". Its event stamps
-  // the team-period count UNCHANGED from the last non-offensive foul.
-  it('an offensive foul never bumps the team-period foul count', () => {
+  // events.ts:76-78 — an offensive foul "counts against the fouler's
+  // personal total but, per NBA rule, is NOT a team foul"; and a technical
+  // stamps teamCountInPeriod "unchanged" too (events.ts:87-90). Either
+  // kind's event repeats the team-period count of the last COUNTING foul.
+  it('offensive and technical fouls never bump the team-period foul count', () => {
     let offensives = 0;
+    let techs = 0;
     let bad = 0;
     for (const g of pool) {
       const teamCounts = new Map<string, number>();
       for (const e of g.events) {
         if (e.type !== 'foul') continue;
         const key = `${e.team}:${e.period}`;
-        if (e.kind === 'offensive') {
-          offensives++;
+        if (e.kind === 'offensive' || e.kind === 'technical') {
+          if (e.kind === 'offensive') offensives++; else techs++;
           if (e.teamCountInPeriod !== (teamCounts.get(key) ?? 0)) bad++;
         } else {
           teamCounts.set(key, e.teamCountInPeriod);
@@ -754,10 +894,11 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 6
+    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 8
+    expect(techs).toBeGreaterThanOrEqual(1); // re-scouted 3
   });
 
-  // events.ts:268-270 — oneAndOne "is stamped on every attempt of such a
+  // events.ts:293-296 — oneAndOne "is stamped on every attempt of such a
   // trip and ABSENT everywhere else, so leagues without the rule emit
   // byte-identical events". NBA has no one-and-one: the KEY itself must
   // never appear (ncaa-rules.test.ts covers bonus trips; this is the
@@ -773,6 +914,6 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(stamped).toBe(0);
-    expect(fts).toBeGreaterThan(30); // re-scouted 95 across the pool
+    expect(fts).toBeGreaterThan(30); // re-scouted 130 across the pool
   });
 });
