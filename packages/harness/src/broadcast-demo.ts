@@ -20,13 +20,16 @@ import {
   BOOTH_PRESETS, buildBoothScript, buildBroadcastScript, formatBoothScript, formatScript,
   TemplateColorProvider, type BoothPresetId
 } from '@hoopsh/narration';
+import { checkFlags, flagValue } from './args.js';
 
-const arg = (name: string): string | null => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i !== -1 ? process.argv[i + 1] ?? null : null;
-};
-const seed = arg('seed') ?? 'showcase-v2';
-const boothId = (arg('booth') ?? 'classic') as BoothPresetId;
+// args.ts's loud parser, not the old bare `arg` helper: this file IS the
+// silent-seed incident args.ts's header records (`--seed` with a forgotten
+// value simulated seed "--booth"/"undefined" and wrote a garbage filename,
+// exit 0). checkFlags also rejects typo'd / `=`-spelled / repeated flags the
+// exact-token reads cannot see (audit H-03).
+checkFlags(process.argv, ['--seed', '--booth', '--legacy']);
+const seed = flagValue(process.argv, '--seed', 'showcase-v2');
+const boothId = flagValue(process.argv, '--booth', 'classic') as BoothPresetId;
 const legacy = process.argv.includes('--legacy');
 
 const { home, away } = sampleMatchup();
