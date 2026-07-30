@@ -1184,6 +1184,11 @@ export interface SimParams {
     openerShootMalus: number;    // EV malus on shooting inside the opener window (0 = STAGED dark)
     openerDriveShare: number;    // share of the shoot malus the drive channel pays
     openerRampFloorShare: number; // shot-clock share where the suppression reaches zero
+    /** 1 = the period break stages the next period's inbound formation
+     *  (possession.ts endPeriod calls setupDeadTargets, the fdesign-grammar
+     *  M1a structural half), so the opener is a genuine full-court trip;
+     *  0 = STAGED legacy: players idle where the horn froze them */
+    openerResetOn: number;
     // OREB scramble economy (concept 10; the terms live
     // at their decide.ts sites; doctrine in ai/concepts.ts)
     orebPutbackBonus: number;    // uShoot term on a putback-taxonomy touch (0 = STAGED dark)
@@ -2742,6 +2747,15 @@ export const defaultParams: SimParams = {
     // that the median first shot lands ~15-17s, matching the real 16s.
     // Window shape, identity doctrine; off the sweep surface.
     openerRampFloorShare: 0.4167,
+    // M1a stage switch (flip: 1). The concept-9 commit deferred the
+    // endPeriod formation re-set as a mechanics-tier change; it lands here
+    // behind a switch so the default stream stays byte-identical
+    // (setupDeadTargets is rng-free but positions change outcomes).
+    // ffit-grammar §2.2 measured G3 unreachable at every malus rung
+    // without it: the frozen-at-the-horn openers have no advance time to
+    // absorb, so suppression overshoots the median before the <=8s share
+    // clears. Expect the fitted malus to drop a rung once this flips.
+    openerResetOn: 0,
 
     // ---- Concept 10 (scramble economy): OREB putback + kick-out read ----
     // After a player OREB the real game resolves fast: 71.6% of grabs see a

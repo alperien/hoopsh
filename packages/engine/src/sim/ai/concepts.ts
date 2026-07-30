@@ -770,6 +770,13 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
  * rows as first attacks, and real openers don't rim-attack in 6s either;
  * openerDriveShare < 1 keeps a blown coverage attackable.
  *
+ * Reads the Possession.opener marker (fdesign-grammar M1b, stamped in
+ * possession.ts startPossession). The marker replaced this file's startT
+ * re-derivation (a tolerance compare against the summed prior-period
+ * seconds): one stored fact instead of two codepaths agreeing about clock
+ * arithmetic, and the whistle-continuation semantics ride the possession
+ * object itself. Same truth table; the swap changes no behavior.
+ *
  * Called from decideBall every decision tick; pure (no rng, no state
  * writes). STAGED: openerShootMalus defaults to 0, which makes both returns
  * exactly 0; the appended `− 0` terms are bit-identical through the
@@ -777,37 +784,13 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
  */
 export function openerSet(s: GameState, shotClockShare: number): { shoot: number; drive: number } {
   const A = s.params.ai;
-  if (!isOpenerPossession(s) || (s.poss.phase !== 'halfcourt' && s.poss.phase !== 'advance')) {
+  if (!s.poss.opener || (s.poss.phase !== 'halfcourt' && s.poss.phase !== 'advance')) {
     return { shoot: 0, drive: 0 };
   }
   // full suppression at possession start, linear to zero at the floor share
   const w = clamp((shotClockShare - A.openerRampFloorShare) / (1 - A.openerRampFloorShare), 0, 1);
   const m = A.openerShootMalus * w * A.openerScale;
   return { shoot: m, drive: m * A.openerDriveShare };
-}
-
-/**
- * Is the current possession the period's first? Derived, not stored: the
- * period's first possession is the one whose startT equals the game-clock
- * time at which the period began (the sum of all prior periods' scheduled
- * seconds; advanceClock never runs t past a horn, so each period
- * contributes exactly its scheduled length). A whistle continuation resumes
- * the same possession (same startT), so the flag correctly survives
- * non-shooting fouls: the whistle doesn't cancel the set.
- *
- * Tolerance, not exact equality: t accrues fl-rounded 0.1s ticks
- * (params.tickHz), so a period boundary lands within ~1e-9 of its exact
- * value, never exactly on it. The nearest non-opener startT is at least one
- * tick (0.1s) later; 1e-3 sits three orders of magnitude from both sides.
- * (A stored Possession.opener flag set in startPossession is the structural
- * equivalent; this derivation keeps the concept wiring inside the decision
- * layer.)
- */
-function isOpenerPossession(s: GameState): boolean {
-  const regDone = Math.min(s.period - 1, s.rules.periods);
-  const otDone = Math.max(0, s.period - 1 - s.rules.periods);
-  const periodStartT = regDone * s.rules.periodMinutes * 60 + otDone * s.rules.otMinutes * 60;
-  return Math.abs(s.poss.startT - periodStartT) < 1e-3;
 }
 
 /*

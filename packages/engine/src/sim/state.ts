@@ -266,6 +266,17 @@ export interface Possession {
   phase: 'advance' | 'halfcourt' | 'transition';
   startT: number;
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip';
+  /**
+   * The period's first possession (fdesign-grammar M1b). Stamped in
+   * startPossession: the game clock still reads the period's full value
+   * there, which no later possession can reproduce (the period-opening
+   * dead ball never runs the clock and any prior possession consumes live
+   * ticks). A whistle continuation resumes the same possession object, so
+   * the marker survives non-shooting fouls the way a called set survives
+   * a whistle. Consumed by concept 9 (ai/concepts.ts openerSet, STAGED at
+   * openerShootMalus 0).
+   */
+  opener: boolean;
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
   /**

@@ -136,6 +136,12 @@ export function startPossession(
     phase: kind === 'live_rebound' || kind === 'steal' ? 'transition' : 'advance',
     startT: s.t,
     kind,
+    // the period's first possession: the game clock still reads the full
+    // period value here (the opening dead ball never runs it, advanceClock
+    // is the only clock writer, and any prior possession consumes live
+    // ticks), so exact equality is safe. See Possession.opener (state.ts).
+    opener: s.clock ===
+      (s.period > s.rules.periods ? s.rules.otMinutes : s.rules.periodMinutes) * 60,
     lastPass: null,
     spotMap: new Map(),
     spots: new Map(), // filled by assignSpots below (jittered per possession)
@@ -805,5 +811,15 @@ export function endPeriod(s: GameState): void {
   // not fatigue-forced ones. No timeout evaluation here; real first-60s
   // timeout share is 1.0%, and quarter-opening inbounds never host one.
   checkSubs(s, undefined, { wave: true });
+  // Opener formation re-set (fdesign-grammar M1a, STAGED off at
+  // ai.openerResetOn 0): every other inbound routes through deadBall,
+  // which stages the freeze-walk formation; the period break never did, so
+  // the ten idle where the horn froze them and the opener's handler can
+  // receive already in his frontcourt (13.4% of sim openers attacked
+  // inside 4s vs the real 0.0%; the re-set alone is worth ~16pp of the
+  // <=8s share). Same order as deadBall: subs first, then targets on the
+  // post-sub lineup. setupDeadTargets consumes no rng; the switch exists
+  // because positions change outcomes (mechanics tier at the flip).
+  if (s.params.ai.openerResetOn > 0) setupDeadTargets(s, team);
   // matchup/spot targets refresh when the possession starts
 }

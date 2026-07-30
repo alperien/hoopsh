@@ -30,6 +30,7 @@ import {
 import { sampleMatchup } from '@hoopsh/data';
 import { decideBall, type BallAction } from '../src/sim/ai/decide.js';
 import { decisiveness, openerSet } from '../src/sim/ai/concepts.js';
+import { endPeriod, startPossession } from '../src/sim/possession.js';
 import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
 
 type ParamOverrides = Parameters<typeof withParams>[0];
@@ -132,6 +133,9 @@ function mkState(o: StateOpts = {}): { s: GameState; holder: string; arcMate: st
     poss: {
       team: 0, shotClock: o.shotClock ?? 20, phase: o.phase ?? 'halfcourt',
       startT, kind: 'inbound', lastPass: null,
+      // the M1b marker mirrors what startPossession would have stamped for
+      // this startT (default = the period's start, an opener)
+      opener: startT === periodStartT(period),
       spotMap: new Map(), spots: new Map(), action: null, ended: false
     },
     phase: { kind: 'live' },
@@ -174,12 +178,11 @@ const shootCount = (as: BallAction[]) => as.filter((a) => a.kind === 'shoot').le
 
 describe('concept 9 — opening set (staged wiring)', () => {
   const stub = (over: {
-    period?: number; startT?: number; phase?: string; params?: ParamOverrides;
+    opener?: boolean; phase?: string; params?: ParamOverrides;
   }) => ({
     params: withParams(over.params),
     rules: NBA,
-    period: over.period ?? 2,
-    poss: { phase: over.phase ?? 'halfcourt', startT: over.startT ?? 720 }
+    poss: { phase: over.phase ?? 'halfcourt', opener: over.opener ?? true }
   }) as unknown as GameState;
 
   const FORCED: ParamOverrides = { ai: { openerShootMalus: 0.4 } };
@@ -206,18 +209,27 @@ describe('concept 9 — opening set (staged wiring)', () => {
   });
 
   it('never fires on a non-opener possession or outside advance/halfcourt', () => {
-    expect(openerSet(stub({ params: FORCED, startT: 726.4 }), 1).shoot).toBe(0);
+    expect(openerSet(stub({ params: FORCED, opener: false }), 1).shoot).toBe(0);
     expect(openerSet(stub({ params: FORCED, phase: 'transition' }), 1).shoot).toBe(0);
   });
 
-  it('recognizes openers in Q1, Q4, and OT, with float-noise tolerance', () => {
-    expect(openerSet(stub({ params: FORCED, period: 1, startT: 0 }), 1).shoot).toBe(0.4);
-    expect(openerSet(stub({ params: FORCED, period: 4, startT: 2160 }), 1).shoot).toBe(0.4);
-    expect(openerSet(stub({ params: FORCED, period: 5, startT: 2880 }), 1).shoot).toBe(0.4);
-    // t accrues fl-rounded ticks: the boundary is never exact; tolerance pin
-    expect(openerSet(stub({ params: FORCED, startT: 719.9999999 }), 1).shoot).toBe(0.4);
-    // ...but one tick later is a different possession
-    expect(openerSet(stub({ params: FORCED, period: 5, startT: 2884 }), 1).shoot).toBe(0);
+  it('the M1b marker is stamped by startPossession: true at the full period clock only', () => {
+    // the period-opening dead ball never runs the clock, so the first
+    // possession of Q1/Q4/OT starts at the exact full value; any later
+    // possession has consumed live ticks
+    for (const [period, clock] of [[1, 720], [4, 720], [5, 300]] as const) {
+      const { s } = mkState({ period });
+      s.period = period;
+      s.clock = clock;
+      startPossession(s, 0, 'inbound');
+      expect(s.poss.opener).toBe(true);
+    }
+    // one tick of live clock later it is a different possession, even when
+    // the opener itself was a single tick long
+    const { s } = mkState({});
+    s.clock = 719.9;
+    startPossession(s, 0, 'inbound');
+    expect(s.poss.opener).toBe(false);
   });
 
   it('master scale gates the whole concept', () => {
@@ -238,6 +250,39 @@ describe('concept 9 — opening set (staged wiring)', () => {
     // same opener possession below the window floor (share 9/24 = 0.375): free
     const lateClock = mkState({ params: forced, shotClock: 9 });
     expect(shootCount(sample(lateClock.s, N))).toBeGreaterThan(0);
+  });
+});
+
+// ------------------------------- M1a: opener formation re-set (endPeriod)
+
+describe('M1a — opener formation re-set (endPeriod, staged wiring)', () => {
+  const runEnd = (params?: ParamOverrides): GameState => {
+    const { s } = mkState({ params, period: 2 });
+    s.clock = 0; // the horn
+    endPeriod(s);
+    return s;
+  };
+
+  it('STAGED default: the break leaves everyone where the horn froze them', () => {
+    const s = runEnd();
+    expect(s.period).toBe(3);
+    // mkState parks everyone at intent 'spot'; without the re-set the
+    // period break touches no positioning state
+    for (const a of s.agents.values()) expect(a.intent).toBe('spot');
+  });
+
+  it('forced live: the break stages the inbound formation on the post-sub lineup', () => {
+    const s = runEnd({ ai: { openerResetOn: 1 } });
+    expect(s.period).toBe(3);
+    // setupDeadTargets froze all ten into the walk-to formation
+    for (const a of s.agents.values()) expect(a.intent).toBe('freeze');
+    // the inbounder's spot: a step in front of his own baseline, off the
+    // centerline (the setupDeadTargets handler branch)
+    const inbounder = [...s.agents.values()].find(
+      (a) => a.target.y === s.court.centerY - 6
+    );
+    expect(inbounder).toBeDefined();
+    expect(inbounder!.side).toBe(1); // Q3 opens with the arrow: other(tipWinner)
   });
 });
 
