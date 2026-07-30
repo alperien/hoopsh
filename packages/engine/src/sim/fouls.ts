@@ -9,14 +9,15 @@
  * whenever `s.phase.kind === 'freethrows'` — see docs/INTERNALS.md's pipeline.
  */
 
-import { attackedRim, agent, emit, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
+import { attackedRim, agent, emit, liveOnCourt, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
+import type { FoulKind, TeamSide } from '../core/events.js';
 import { bonusFreeThrowAward, type BonusAward } from '../rules/rulepack.js';
-import { freeThrowP, sampleMissLanding } from './resolve.js';
+import { freeThrowP, sampleMissLanding, sampleScrambleSec } from './resolve.js';
 import { checkSubs, replaceFouledOut } from './subs.js';
 import { applyFatigue, integrateMovement } from './movement.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
-import { noteScore } from './endgame.js';
+import { maybeFtTimeout, noteScore } from './endgame.js';
 
 export interface FoulOutcome {
   fouledOut: boolean;
@@ -31,6 +32,20 @@ export interface FoulOutcome {
    * callers ignore it: their FT count comes from the shot (2/3/and-one).
    */
   bonus: BonusAward | null;
+  /**
+   * Technical rider (officiating wave, live at
+   * officiating.techPerFoulWhistle 0.017 — 0.71/g REAL, so shipped games
+   * carry the occasional non-null): the fouler drew a tech arguing this whistle, and `techFT` is the
+   * awarded technical free-throw shooter (highest freeThrow rating on the
+   * opposing floor, the real coaching pick). The tech `foul` event was
+   * already emitted here; every recordFoul caller must thread a non-null
+   * shooter into its next step so the tech FT is shot first, then the
+   * interrupted flow resumes (real row order): callers whose foul awards
+   * FTs anyway pass `{ pre }` into enterFreeThrows; callers headed for a
+   * side-out/inbound dead ball send a technical-only trip with `{ resume }`
+   * carrying the exact deadBall arguments they would otherwise pass.
+   */
+  techFT: Agent | null;
 }
 
 /**
@@ -47,12 +62,15 @@ export interface FoulOutcome {
 export function recordFoul(
   s: GameState,
   fouler: Agent,
-  kind: 'shooting' | 'reach' | 'offensive' | 'loose_ball',
+  kind: Exclude<FoulKind, 'technical'>,
   drawnBy?: Agent
 ): FoulOutcome {
   fouler.fouls += 1;
   const side = fouler.side;
-  const countsTeam = kind !== 'offensive'; // offensive fouls: personal only (v0.1)
+  // offensive fouls: personal only (v0.1). A 'take' is an ordinary common
+  // foul, same team-foul/bonus arithmetic as a reach (fdesign-officiating
+  // §1.5: the label is vocabulary, never a new penalty).
+  const countsTeam = kind !== 'offensive';
   if (countsTeam) s.teamFoulsPeriod[side] += 1;
   const inBonus = s.teamFoulsPeriod[side] >= s.rules.teamFoulBonusAt;
   // the award is looked up AFTER the team-foul bump, so the foul that puts a
@@ -73,7 +91,38 @@ export function recordFoul(
     fouledOut
   });
   if (fouledOut) replaceFouledOut(s, fouler);
-  return { fouledOut, inBonus, bonus };
+
+  // Technical foul (officiating wave, fdesign-officiating §1.4, live at
+  // techPerFoulWhistle 0.017 — 0.71/g REAL; the rate gate still runs
+  // before the draw, so a zeroed rate leaves the rng stream
+  // untouched). V1 models the dominant real
+  // trigger only, after-foul frustration (42% of corpus techs): the fouler
+  // argues the whistle he just got. The tech is not a personal in NBA
+  // accounting: every count below is a stamped snapshot, nothing
+  // increments, `fouledOut` is always false (stats/box.ts excludes kind
+  // 'technical' from pf on the same convention). Draw order at this site is
+  // fixed: exactly one chance() after the foul-out replacement.
+  let techFT: Agent | null = null;
+  const O = s.params.officiating;
+  if (O.techPerFoulWhistle > 0 && s.rng.chance(O.techPerFoulWhistle)) {
+    emit(s, {
+      type: 'foul',
+      team: side,
+      on: fouler.p.id,
+      kind: 'technical',
+      personalCount: fouler.fouls, // unchanged; snapshot, not an increment
+      teamCountInPeriod: s.teamFoulsPeriod[side], // unchanged
+      inBonus,
+      fouledOut: false // a tech never disqualifies in this model
+    });
+    // the real coaching pick: best free-throw shooter on the floor for the
+    // side the tech was called against (the fouler's opponents). Falls back
+    // through onCourt only in the bench-exhausted degenerate state.
+    const shooters = liveOnCourt(s, other(side));
+    const eligible = shooters.length > 0 ? shooters : onCourt(s, other(side));
+    techFT = eligible.reduce((m, a) => (a.p.attr.freeThrow > m.p.attr.freeThrow ? a : m));
+  }
+  return { fouledOut, inBonus, bonus, techFT };
 }
 
 // ------------------------------------------------------------- free throws
@@ -87,11 +136,35 @@ export function recordFoul(
  * marks the trip as an NCAA-style one-and-one (count is the POTENTIAL 2;
  * tickFreeThrows ends the trip with a live ball if the front end misses) —
  * bonus callers pass it straight from FoulOutcome.bonus.
+ *
+ * `tech` (officiating wave; only ever passed when FoulOutcome.techFT was
+ * non-null, so shipped games never reach it) arranges the technical free
+ * throw in one of two mutually exclusive shapes:
+ *  - `pre`: this is a normal FT trip whose whistle also drew a tech. The
+ *    tech shooter's single attempt is shot first (n:1 of:1 technical:true,
+ *    no rebound on a miss), then the trip runs unchanged.
+ *  - `resume`: the trip is the technical (the foul awarded nothing itself:
+ *    side-out / charge flows). `shooter` is the tech shooter, `count`
+ *    must be 1, and on completion tickFreeThrows re-enters `deadBall` with
+ *    exactly these arguments instead of ending the possession, so the
+ *    pre-whistle flow resumes byte-identically to the no-tech path.
+ *
  * Trap: `checkSubs(s, shooter.p.id)` passes the shooter's id as the
  * `protect` argument specifically so the normal fatigue-rotation logic can't
  * yank the free-throw shooter off the floor between the whistle and his shot.
+ * A `pre` tech shooter is not protected; tickFreeThrows re-picks from the
+ * live floor at shot time if the sub window moved him.
  */
-export function enterFreeThrows(s: GameState, shooter: Agent, count: number, oneAndOne = false): void {
+export function enterFreeThrows(
+  s: GameState,
+  shooter: Agent,
+  count: number,
+  oneAndOne = false,
+  tech?: {
+    pre?: string;
+    resume?: { nextTeam: TeamSide; continuation: boolean; resumeIn: number };
+  }
+): void {
   s.ball.holderId = null;
   s.ball.flight = null;
   // abandon any windup, exactly as deadBall does — the whistle killed the
@@ -110,9 +183,32 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
     // set — slightly quicker than a full dead-ball delay since the whistle
     // already stopped the action
     nextIn: s.params.move.ftSetupSec,
-    oneAndOne
+    oneAndOne,
+    // conditional spread, the oneAndOne byte-discipline pattern: a no-tech
+    // trip's phase object (and everything downstream) is shaped exactly as
+    // before
+    ...(tech?.pre ? { pre: { shooterId: tech.pre } } : {}),
+    ...(tech?.resume ? { resume: tech.resume } : {})
   };
-  checkSubs(s, shooter.p.id); // never sub out the man headed to the line
+  // FT-whistle timeout site (fdesign-timeouts §1.2.2; the structural miss
+  // ffit-timeouts §5.1 names): 17.5% of real timeouts ride foul whistles,
+  // logged before the FTs. One evaluation per trip, at entry, before the
+  // sub pass (checkSubs reads phase.timeout, the §4 handshake). Live since
+  // the FLOW flip at the shipped to* values: the site decides mandatory
+  // anchors and hazard calls for real.
+  maybeFtTimeout(s);
+  // Between-FT sub grammar (ffit-rotations §3.2): at ftGapSubMode 3 the
+  // trip-entry pass is urgent-only (a fouler in trouble still leaves at the
+  // whistle) and the routine rotation moves to the between-attempts slot in
+  // tickFreeThrows, where real logs place FT-window subs (14.2/g strictly
+  // between attempts). Left here, trip entry harvests every pending swap
+  // before the first free_throw row and the gap slot has nothing to host.
+  // Legacy modes (STAGED 0-2) keep the full pass at entry.
+  if (s.params.sub.ftGapSubMode >= 3) {
+    checkSubs(s, shooter.p.id, { urgentOnly: true });
+  } else {
+    checkSubs(s, shooter.p.id); // never sub out the man headed to the line
+  }
   // cosmetic positioning around the key — none of this affects the free-throw
   // probability model (that's purely rating-based in resolve.ts), it's just
   // so the replay doesn't show players standing wherever the whistle caught them
@@ -151,6 +247,12 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
       // extra lane index so they don't overlap
       : { x: rim.x + dir * 26, y: s.court.centerY + side * (6 + lane) };
   }
+  // a technical prefix shooter walks to the line too (cosmetic; the lane
+  // loop above parked him on a box spot; the FT model reads no positions)
+  if (tech?.pre) {
+    const p = s.agents.get(tech.pre);
+    if (p) p.target = { ...ftSpot };
+  }
 }
 
 /**
@@ -174,6 +276,44 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   ph.nextIn -= dt;
   if (ph.nextIn > 0) return;
 
+  // Technical prefix attempt (officiating wave; reachable only when a tech
+  // rider was passed into enterFreeThrows, never in a shipped game): shot
+  // first, before the main trip's sequence. By rule the ball is dead: a
+  // miss produces no rebound of any kind (not even the formality row) and
+  // the attempt has no possession effects; the main trip then runs
+  // unchanged (`taken` untouched).
+  if (ph.pre) {
+    let tShooter = agent(s, ph.pre.shooterId);
+    if (!tShooter.onCourt || tShooter.fouledOut) {
+      // the whistle's sub window moved the picked shooter; the coach hands
+      // the tech FT to the best live free-throw shooter still out there
+      // (deterministic re-pick, no rng; keeps the no-off-court-actor
+      // invariant airtight)
+      const live = liveOnCourt(s, ph.side);
+      const eligible = live.length > 0 ? live : onCourt(s, ph.side);
+      tShooter = eligible.reduce((m, a) => (a.p.attr.freeThrow > m.p.attr.freeThrow ? a : m));
+    }
+    const techMade = s.rng.chance(freeThrowP(s, tShooter));
+    if (techMade) {
+      s.score[ph.side] += 1;
+      noteScore(s, ph.side, 1); // unanswered-run tracker (endgame layer)
+    }
+    emit(s, {
+      type: 'free_throw',
+      team: ph.side,
+      shooter: tShooter.p.id,
+      n: 1,
+      of: 1,
+      made: techMade,
+      technical: true
+    });
+    ph.pre = undefined;
+    // 0.9s to the main trip's first attempt: the lane is already set, same
+    // beat as between ordinary attempts
+    ph.nextIn = 0.9;
+    return;
+  }
+
   const shooter = agent(s, ph.shooterId);
   const made = s.rng.chance(freeThrowP(s, shooter));
   ph.taken += 1;
@@ -191,7 +331,11 @@ export function tickFreeThrows(s: GameState, dt: number): void {
     // stamped only on one-and-one trips: conditional spread (not an
     // always-present false) so every other league's event objects — and
     // therefore the golden fingerprint corpus — stay byte-identical
-    ...(ph.oneAndOne ? { oneAndOne: true } : {})
+    ...(ph.oneAndOne ? { oneAndOne: true } : {}),
+    // a technical-only trip's attempts carry the technical stamp (same
+    // conditional-spread byte discipline); prefix techs are stamped at
+    // their own emit above
+    ...(ph.resume ? { technical: true } : {})
   });
 
   // A missed one-and-one FRONT END forfeits the second attempt — by rule the
@@ -220,10 +364,35 @@ export function tickFreeThrows(s: GameState, dt: number): void {
         y: round1(rim.y)
       });
     }
+    // The between-attempts sub slot (fdesign-rotations §2.5; subs.ts staged
+    // the urgentOnly option for exactly this caller). Real subs walk in
+    // during FT administration: 33.8% of corpus subs ride FT windows.
+    // Mode 1 = urgentOnly (foul-trouble/concede only, the design default);
+    // modes 2/3 = the full rotation pass (with the post-make window closed
+    // this becomes the routine host). The shooter stays protected. The pass
+    // is rng-free, so a no-sub gap leaves the stream untouched. STAGED 0 =
+    // no call, byte-identical.
+    if (s.params.sub.ftGapSubMode > 0) {
+      checkSubs(s, ph.shooterId,
+        s.params.sub.ftGapSubMode === 1 ? { urgentOnly: true } : undefined);
+    }
     // ftBetweenSec between subsequent attempts: shorter than the lead-in
     // since the shooter is already set at the line — just the ritual
     // dribble/pause
     ph.nextIn = s.params.move.ftBetweenSec;
+    return;
+  }
+
+  // Technical-only trip complete (officiating wave): the possession was
+  // never in question. No possession_end, no live rebound on a miss (the
+  // ball is dead by rule); the interrupted flow simply resumes through the
+  // exact deadBall call the no-tech path would have made at the whistle.
+  if (ph.resume) {
+    deadBall(s, ph.resume.nextTeam, {
+      clockRuns: false,
+      continuation: ph.resume.continuation,
+      resumeIn: ph.resume.resumeIn
+    });
     return;
   }
 
@@ -247,16 +416,12 @@ export function tickFreeThrows(s: GameState, dt: number): void {
     // whose FT line isn't NBA's (EuroLeague: 13.85).
     const rim = attackedRim(s, ph.side);
     s.ball.pos = { ...rim };
-    // ftScramble window (reb.ftScrambleLoSec/HiSec): a free-throw miss is a
-    // shorter, more contained scrum than a live-shot rebound (everyone's
-    // already boxed out in the lane) so it resolves a bit faster than a
-    // typical miss scramble
-    enterScramble(
-      s,
-      sampleMissLanding(s, rim, s.rules.ftLineFt - s.rules.rimInsetFt),
-      s.rng.range(s.params.reb.ftScrambleLoSec, s.params.reb.ftScrambleHiSec),
-      ph.side
-    );
+    // FT-miss scramble window (its own cadence fit; resolve.ts
+    // sampleScrambleSec 'ft'): a free-throw miss is a shorter, more
+    // contained scrum than a live-shot rebound (the lane is already boxed,
+    // and the real game clock only starts on the touch, so logged deltas
+    // run ~1s faster than FG misses; corpus p50 2s vs 3s)
+    enterScramble(s, sampleMissLanding(s, rim, s.rules.ftLineFt - s.rules.rimInsetFt), sampleScrambleSec(s, 'ft'), ph.side);
     onShotReleased(s, ph.side); // trigger crash/get-back off-ball reactions, same as any missed shot
   }
 }

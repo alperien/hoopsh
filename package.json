@@ -44,6 +44,7 @@
     "noisefloor": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/noisefloor.ts",
     "fingerprint": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fingerprint.ts",
     "flow": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/flow.ts",
+    "flowboard": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/scoreboard.ts",
     "turing": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/turing.ts",
     "fingerprint:write": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fingerprint.ts --write",
     "calreport": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/calreport.ts",

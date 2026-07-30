@@ -56,7 +56,9 @@ console.log(`and ${callUnder(REC)} in the ${REC.name}. Same spot, different rule
 console.log('');
 
 // ---- 3. same teams, same seed, two rule books ---------------------------------
-const SEED = 'sunday-run';
+// seed re-anchored at the FLOW rebase: the reshuffled stream left the old
+// 'sunday-run' rec game bonus-quiet (0 front ends); this one shows 4
+const SEED = 'saturday-run';
 const game = (rules?: RulePack): GameResult => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed: SEED, home, away, rules });

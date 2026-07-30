@@ -89,6 +89,19 @@ export interface Replay {
    * predate.
    *
    * History:
+   * - 3 (2026-07-30): jump_ball / violation / replay_review joined the
+   *   GameEvent union (the officiating vocabulary, wired STAGED inert at
+   *   params.officiating zeros; live since the FLOW flip — a values-only
+   *   change, no shape change, so v3 stands and default-params replays now
+   *   carry all three); TurnoverKind += travel, off_goaltend;
+   *   FoulKind += take, technical (technical stamps counts without
+   *   incrementing); FreeThrowEvent.technical? added; PossessionOutcome +=
+   *   held_ball; TimeoutEvent.reason += mandatory, regroup (the
+   *   timeout-economy reasons, staged then and live since the same flip,
+   *   previously emitted through a documented
+   *   cast, sim/endgame.ts callTimeout). Frame row layout unchanged. v2
+   *   viewers render unknown feed rows as blanks; the version banner is
+   *   the tell.
    * - 2 (2026-07-27): `ReboundEvent.player` went required → optional and
    *   gained `deadBall?` (playerless team/dead-ball rebounds occur in every
    *   default game via `reb.deadBallCaromChance`); `TimeoutEvent` joined the
@@ -104,7 +117,7 @@ export interface Replay {
    *   v1 replay therefore has frame [0] on the game-clock axis, and
    *   nothing in the artifact distinguishes the two v1 shapes.
    */
-  version: 2;
+  version: 3;
   seed: string;
   rules: {
     id: string;
@@ -172,7 +185,7 @@ export function buildReplay(result: GameResult): Replay {
   return {
     // must stay in lockstep with the `Replay.version` literal type above —
     // the version history lives at that field's doc comment
-    version: 2,
+    version: 3,
     seed: result.seed,
     rules: {
       id: result.rules.id,

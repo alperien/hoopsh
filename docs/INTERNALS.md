@@ -44,12 +44,12 @@ event `wt` key on it). Do not mix them.
 | `sim/movement.ts` | clock advance, physical integration, collision, fatigue | locomotion, energy |
 | `sim/ai.ts` | **all basketball behavior** — the stable barrel over `sim/ai/` | start below, per layer |
 | `sim/ai/decide.ts` | decideBall: ball-handler utilities + softmax | shot selection, pass choice, drives |
-| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one; concept 7 = score pressure: channel-1 continuation tilt wired but MEASURED NULL, ships at 0 — channel-2 defensive intensity LIVE at `scorePressureDefGain` 0.3; concept 8 = probe culture, STAGED at zero magnitudes) | decision bias terms, late-clock behavior, game-state coupling |
+| `sim/ai/concepts.ts` | the bounded-rationality layer, consolidated (drilled-behavior bias terms; concept 6 = game-state urgency: clock kill, hold-for-last, two-for-one; concept 7 = score pressure: channel-1 continuation tilt wired but MEASURED NULL, ships at 0 — channel-2 defensive intensity LIVE at `scorePressureDefGain` 0.3; concept 8 = probe culture, STAGED at zero magnitudes; concept 9 = opening set, LIVE since the FLOW flip; concept 10 = OREB scramble economy, LIVE — both under "Flow-program families" below) | decision bias terms, late-clock behavior, game-state coupling |
 | `sim/ai/actions.ts` | pnr/post/iso/dho lifecycle | calling & phasing team actions |
 | `sim/ai/offense.ts` | spacing spots, cuts, screens, shot-reaction crash/boxout | off-ball offense |
 | `sim/ai/defense.ts` | matchups, help, blitz, drop, containment, denial, sag; the on-ball containment gap + closeout slack consume concept 7's channel-2 score-pressure lean | defensive positioning |
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
-| `sim/endgame.ts` | endgame layer (`GameConfig.endgame`, **default ON** since the n=1260/arm flag-on survey; explicit `endgame: false` is the byte-identical legacy path): timeout brain, intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
+| `sim/endgame.ts` | endgame layer (`GameConfig.endgame`, **default ON** since the n=1260/arm flag-on survey; explicit `endgame: false` is the byte-identical legacy path): timeout brain (plus the game-wide timeout economy since the FLOW flip — below), intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
 | `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
@@ -60,6 +60,48 @@ event `wt` key on it). Do not mix them.
 | `model/player.ts` | attributes & tendencies (the 38 dials) | the editable surface |
 | `model/derived.ts` | rating → physical-unit curves | what "90 speed" means |
 | `replay/replay.ts` | replay JSON assembly | viewer data needs |
+
+Flow-program families, live since the FLOW flip (`853ebd1`; wired
+STAGED-inert first, byte-identity proven against the golden corpus). Every
+rate and magnitude lives in `sim/params.ts` — that file is the source of
+truth; values quoted below are identity anchors only.
+
+Officiating vocabulary (`params.officiating`; event kinds `jump_ball`,
+`violation`, replay reviews — replay format v3, with the box/narration/viewer
+consumer chain): kicked balls at pass arrivals (passing.ts), held-ball jump
+balls at rebound scrambles and on-ball reach-ins (possession.ts / passing.ts;
+an offense-retains tie-up floors the shot clock like an offensive board),
+defensive/offensive goaltends (shooting.ts / the putback branch), travel
+hazards on committed drive and post time (game.ts), technicals after foul
+whistles (fouls.ts), take fouls (the endgame-hunt relabel plus the
+beaten-in-transition window, passing.ts), replay reviews at flagged dead
+balls, late makes, and period ends (possession.ts; wallT-only stoppages —
+the game clock never moves). The rates are corpus-fitted REAL targets
+(ffit-officiating) and deliberately NOT in `harness/knobs.ts`: the 17-band
+sweep measures no officiating statistic and would trade them to zero to
+relieve the tov/pf ceilings; the flowboard G2 gate owns them instead.
+
+Concept 9 (opening set) raises the shoot/drive bar on a period's first
+possession only — never the pass channel, never the continuation
+(`ai.openerShootMalus` 0.55 after the post-audit re-fit, drives paying
+`openerDriveShare` 0.75 of it; openers start from a real formation via the
+period-break re-set). Concept 10 (scramble economy) is the
+putback/continuation family after a player OREB: a putback shoot term and a
+kick-out pass term priced against the post-OREB continuation, plus the M2a
+supply half — one hard perimeter refill behind the grab (`ai/offense.ts`
+onOrebSecured). Flowboard G3/G4 gate them (the G4 kick-3 supply residual is
+REGISTER W57).
+
+Timeout economy (`params.endgame` `to*` dials; `endgame.ts` decideTimeout
+plus the possession.ts dead-ball/live sites; the budget stays in
+`rules.timeoutsPerGame`): mandatory (TV) stoppages at the NBA Rule 5 VI(b)
+anchors, the REAL Q4/late/OT caps, the coach voluntary-timeout hazard
+(run- and trail-pressure weighted, cooldown, quarter-open quiet window,
+pre-cap burn), and the live-ball site (defensive board or steal, called
+before the advance). Corpus-fitted (ffit-timeouts); flowboard G1 gates
+volume and quarter coverage. The legacy stop_run trigger is retired in
+place at `timeoutRunPts` 999 — the hazard subsumes it; the param and the
+endgame.ts branch that still reads it go together when removed.
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±; official-convention
 FGA — no attempt charged on a shooting-foul miss, `5d9671f`), `data/` (schemas,
@@ -79,7 +121,8 @@ modules an agent is likely to be pointed at):
 | `fidelity.ts` | star-fixture identity gates (Curry/LeBron/Jokić profiles) |
 | `texture.ts` | frame-level feel forensics: speeds, stillness, ping-pong passing |
 | `flow.ts` + `flow-metrics.ts` | game-arc forensics + event grammar (CLI/report + doctrine in flow.ts; pure metric library in flow-metrics.ts) |
-| `turing.ts` | blind PBP discrimination protocol vs real bbref logs |
+| `turing.ts` | blind PBP discrimination protocol vs real bbref logs; also exports the matched-representation neutral schema (`NeutralRow`) the flowboard measures on |
+| `scoreboard.ts` | the flowboard (`npm run flowboard`): the flow program's 13-gate judgment instrument — T1/T2 blind discrimination by a deterministic in-repo statistical judge over the neutral schema, plus gates G1-G11 (timeout volume, officiating rows, opener/heave/sub grammar, rebound cadence, shot diet — dead-ball/texture structure the enforced flow gates cannot see). One algorithm, two adapters: the corpus side is live-computed from the committed 184-game shards at print time, never hand-typed; writes `out/scoreboard.json` |
 | `oos.ts` | out-of-sample generated-roster bands + the distributional report |
 | `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
 | `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
@@ -160,9 +203,10 @@ it had grown a 600-line measured-state journal; superseded eras are in
 Simplified inbounds (timed reset, no inbound passer) · endgame management
 (timeouts, intentional fouling, hold-for-last, two-for-one, clock burn) is
 implemented and DEFAULT-ON since the calib/integration landing
-(`endgame: false` = the byte-identical legacy path); real timeout-usage
-patterns (mandatory/TV timeouts, ATO play-calls) remain unmodeled and
-ungraded — no cited base rate exists · no backcourt/
+(`endgame: false` = the byte-identical legacy path); the game-wide timeout
+economy (mandatory/TV anchors, the coach voluntary hazard, the live-ball
+site) is live since the FLOW flip, corpus-fitted and gated by flowboard G1 —
+ATO play-calls remain unmodeled · no backcourt/
 8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
 team-foul counting hardcodes the NBA rule under every pack (offensive fouls
 are personal-only, sim/fouls.ts `countsTeam`): under NCAA men's rules a

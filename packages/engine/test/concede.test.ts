@@ -46,8 +46,10 @@ const live = withParams({
 });
 
 // updateConcede reads exactly: period, rules.periods, clock, score,
-// params.sub, conceded. checkSubs additionally walks teams/lineup — empty
-// arrays make it a pure hysteresis call. Hand-built states suffice.
+// params.sub, conceded. checkSubs additionally walks teams/lineup (empty
+// arrays make it a pure hysteresis call) and reads phase (the
+// timeout-huddle handshake, inert at the shipped timeoutSubRelaxPts 0).
+// Hand-built states suffice.
 function hState(
   params: SimParams,
   o: { period?: number; clock: number; score: [number, number]; conceded?: [boolean, boolean] }
@@ -64,6 +66,7 @@ function hState(
     agents: new Map(),
     t: 0,
     wallT: 0,
+    phase: { kind: 'dead', resumeIn: 1, clockRuns: false, nextTeam: 0, possKind: 'inbound' },
     events: []
   } as unknown as GameState;
 }
@@ -175,8 +178,8 @@ function mkAgent(p: Player, side: TeamSide, onCourt: boolean, energy: number): A
   return {
     p, side,
     pos: { x: 47, y: 25 }, vel: { x: 0, y: 0 },
-    energy, secondsPlayed: 0, fouls: 0,
-    onCourt, fouledOut: false,
+    energy, load: 0, secondsPlayed: 0, fouls: 0,
+    onCourt, fouledOut: false, lastSwapT: 0,
     target: { x: 47, y: 25 }, intent: 'freeze', sprinting: false,
     spotKey: null, manId: null,
     dribblesSinceCatch: 0, dribbleAcc: 0, catchT: -99,
@@ -213,6 +216,7 @@ function fullState(params: SimParams, benchEnergy: number): { s: GameState; home
     teams: [home, away],
     agents,
     lineup: [[...home.starters], [...away.starters]],
+    phase: { kind: 'dead', resumeIn: 1, clockRuns: false, nextTeam: 0, possKind: 'inbound' },
     events: []
   } as unknown as GameState;
   return { s, home, away };
@@ -474,6 +478,8 @@ function midConcedeState(
     wallT: 2880 - o.clock,
     score: o.score,
     conceded: [true, false],
+    // the huddle handshake: checkSubs reads phase.timeout (inert here)
+    phase: { kind: 'dead', resumeIn: 1, clockRuns: false, nextTeam: 0, possKind: 'inbound' },
     teams: [home, away],
     agents,
     lineup: [
@@ -552,25 +558,35 @@ describe('LIVE default §5.1: a close game never concedes', () => {
     }
   });
 
-  it('full-game leg: late in a close game the floor is never a full bench unit', () => {
-    // In every pool event inside the last 4:00 with the margin ≤ 8 (crunch
-    // territory: within a possession-swing of the crunch definition), the
-    // side must field at least one starter. A conceded side sits at 0-1
-    // starters (probed), so a concede firing without the margin shows up
-    // here immediately; natural close-game rotations probed ≥2 starters at
-    // every such event across the pool — the ≥1 bar sits below that with
-    // room for future re-tune reshuffles (a gassed-roster crunch can
-    // legally hold starters out, so the bar must stay beneath the
-    // crunchEnergyMin texture).
+  it('full-game leg: late in a close game the floor is never a full bench unit at any legal stoppage', () => {
+    // At every dead-ball MARKER inside the last 4:00 with the margin ≤ 8
+    // (crunch territory: within a possession-swing of the crunch
+    // definition), the side must field at least one starter. A conceded
+    // side sits at 0-1 starters (probed), so a concede firing without the
+    // margin shows up here immediately. The ≥1 bar leaves room for a
+    // gassed-roster crunch, which can legally hold starters out.
+    //
+    // Measurement correction at the FLOW landing (re-adjudicated per
+    // f-assembly §4d, the ffit-rotations diagnosis): this leg used to
+    // assert at EVERY event, which was valid only while postMakeSubWindow 1
+    // hosted a sub window on every made basket (re-insertion latency ~0).
+    // Under the real rule a comeback that cuts a blowout inside the crunch
+    // window mid-live-play waits for the next legal stoppage before the
+    // crunch re-insertion can execute (measured on this pool: one ~21s
+    // possession with the margin freshly cut to 7 and the un-conceded
+    // bench five still out — the coach legally cannot act sooner). The
+    // behavior contract is asserted where a checkSubs pass has actually
+    // run: the dead-ball settlement markers, the same device the
+    // composition pin above uses.
     let sampled = 0;
     for (const g of pool) {
       foldFinalPeriod(g, ({ e, m, count }) => {
-        if (e.clock <= 240 && m <= 8) {
+        if (isDeadBall(e) && e.clock <= 240 && m <= 8) {
           sampled++;
           expect(count).toBeGreaterThanOrEqual(1);
         }
       });
     }
-    expect(sampled).toBeGreaterThan(100); // probed ~1000+: close endings are common
+    expect(sampled).toBeGreaterThan(100); // probed 366 marker events: close endings are common
   });
 });

@@ -28,6 +28,10 @@ function shooter(): Agent {
   return {
     p: makePlayer({ id: 'sh', name: 'Shooter', pos: 'C', heightIn: 78 }),
     energy: 100,
+    // the rhythm wave widened the Agent contract: resolution reads
+    // effectiveEnergy = energy − load (resolve.ts), so the stub carries the
+    // field a real agent always has. 0 = fresh legs, the pre-pool value.
+    load: 0,
     catchQuality: 0
   } as unknown as Agent;
 }

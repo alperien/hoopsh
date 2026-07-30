@@ -33,16 +33,51 @@ export type MoveIntent =
  */
 export type BallAcquisition = 'pass' | 'rebound' | 'steal' | 'deadball';
 
+/**
+ * Timeout vocabulary, now identical to TimeoutEvent['reason']
+ * (core/events.ts): the officiating wave widened the event contract to the
+ * full set with replay v3 (fdesign-timeouts §5, value-only widening, no
+ * shape change), so the internal superset and the contract converged.
+ * 'mandatory' (scorer-imposed TV stoppage, charged per NBA Rule 5 VI(b)
+ * convention) and 'regroup' (coach hazard below the stop-run label) are
+ * live since the FLOW flip at the shipped params.endgame.to* fits and
+ * print in default streams.
+ */
+export type TimeoutReason = 'stop_run' | 'advance' | 'mandatory' | 'regroup';
+
 export interface Agent {
   p: Player;
   side: TeamSide;
   pos: V2;
   vel: V2;
   energy: number;      // 0-100
+  /**
+   * Cumulative load, 0-100 ("legs"; fdesign-rhythm M1, live at
+   * fatigue.loadPerSec 0.011 since the FLOW flip): the second fatigue
+   * pool. Accrues on court on the
+   * same speed/stamina chain as energy drain, recovers far slower on the
+   * bench, takes one lump off at halftime (possession.ts endPeriod), so it
+   * trends across the game where energy is a stint-local sawtooth.
+   * Consumed by resolution only: movement.ts effectiveEnergy into the
+   * resolve.ts shot-fatigue and speed terms, plus the foul.load*Swing and
+   * endgame.deadGameBoost couplings (wired per ffit-rhythm §8, inert while
+   * loadPerSec is 0); subs/rotation cadence deliberately keep reading raw
+   * energy (M1 contract: the load pool must not silently shorten stints).
+   */
+  load: number;
   secondsPlayed: number;
   fouls: number;
   onCourt: boolean;
   fouledOut: boolean;
+  /** game-clock t of this player's last lineup swap (0 at init), written in
+   *  one place, subs.ts swapPlayers. Because movement.ts#advanceClock is the
+   *  only writer of t and it only runs during live/clock-running play,
+   *  `s.t − a.lastSwapT` reads as live seconds this stint for on-court
+   *  players and live seconds rested for bench, the same axis
+   *  secondsPlayed uses (two-axes discipline). Consumed by the rotation
+   *  grammar (subs.ts quarterWave stint/bench gates, live since the FLOW
+   *  flip). */
+  lastSwapT: number;
 
   // working state
   target: V2;
@@ -135,6 +170,15 @@ export interface PendingShot {
   made: boolean;
   assist?: string;
   foul?: { by: string; ftAwarded: number; andOne: boolean };
+  /**
+   * defensive goaltending violator (the contesting defender): the miss was
+   * flipped to a made shot at the release roll (shooting.ts startShot,
+   * live at officiating.goaltendPerContestedInsideMiss 0.0205) and
+   * resolveShotOutcome emits the `violation` row right after the shot
+   * event. Internal state, never an event field; the contract carries the
+   * violation as its own event.
+   */
+  goaltend?: string;
 }
 
 export interface BallFlight {
@@ -175,6 +219,14 @@ export type Phase =
        * this) — endgame layer only (sim/endgame.ts maybeTimeout)
        */
       advanceInbound?: boolean;
+      /**
+       * a timeout was called at this stoppage (stamped by sim/endgame.ts
+       * callTimeout, which runs before checkSubs at every site; the
+       * sub-window handshake, fdesign-timeouts §4): the rotation layer reads
+       * it to relax the pull leash for the huddle. Lives for the stoppage
+       * only; internal state, never an event/replay field.
+       */
+      timeout?: { team: TeamSide; reason: TimeoutReason };
     }
   | {
       kind: 'freethrows';
@@ -186,6 +238,23 @@ export type Phase =
       nextIn: number;
       /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
       oneAndOne: boolean;
+      /** pending technical prefix attempt (officiating wave, fouls.ts): shot
+       *  first (n:1 of:1, technical:true, no rebound on a miss, no
+       *  possession effects) before the main trip's `taken`/`of` sequence
+       *  runs unchanged (real row order: foul → tech → tech FT → the
+       *  personal's own penalty). Cleared once shot. */
+      pre?: { shooterId: string };
+      /** technical-only trip (the triggering foul awarded no FTs of its
+       *  own): after the single attempt, tickFreeThrows skips endPossession
+       *  and the miss scramble and re-enters `deadBall` with exactly these
+       *  stored arguments, so the pre-whistle possession flow resumes
+       *  byte-identically to the no-tech path. Every attempt of such a trip
+       *  stamps `technical: true`. */
+      resume?: { nextTeam: TeamSide; continuation: boolean; resumeIn: number };
+      /** same handshake as the dead variant's, written by the FT-whistle
+       *  timeout site (fouls.ts enterFreeThrows → maybeFtTimeout,
+       *  fdesign-timeouts §1.2.2; live since the FLOW flip) */
+      timeout?: { team: TeamSide; reason: TimeoutReason };
     }
   | {
       kind: 'scramble'; // live rebound up for grabs
@@ -200,6 +269,17 @@ export interface Possession {
   phase: 'advance' | 'halfcourt' | 'transition';
   startT: number;
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip';
+  /**
+   * The period's first possession (fdesign-grammar M1b). Stamped in
+   * startPossession: the game clock still reads the period's full value
+   * there, which no later possession can reproduce (the period-opening
+   * dead ball never runs the clock and any prior possession consumes live
+   * ticks). A whistle continuation resumes the same possession object, so
+   * the marker survives non-shooting fouls the way a called set survives
+   * a whistle. Consumed by concept 9 (ai/concepts.ts openerSet, live at
+   * openerShootMalus 0.55).
+   */
+  opener: boolean;
   lastPass: { from: string; t: number } | null;
   spotMap: Map<string, string>; // agentId -> spacing spot key
   /**
@@ -252,6 +332,24 @@ export interface GameState {
   endgame: boolean;
   timeoutsLeft: [number, number];
   runPts: [number, number];
+  /**
+   * Timeout-economy bookkeeping (fdesign-timeouts §3.2). Same doctrine as
+   * runPts/timeoutsLeft above: cheap counters maintained always (no rng),
+   * read only when the flag is on; the consumers (sim/endgame.ts
+   * decideMandatory/canSpend) are live since the FLOW flip at the shipped
+   * params.endgame to* fits. Per-period
+   * counters reset unconditionally in endPeriod (unlike the OT foul carry).
+   */
+  /** timeouts charged per side this period; drives the mandatory-stoppage
+   *  owed/charging arithmetic (voluntary calls count toward it: that is what
+   *  makes real totals substitute rather than add) */
+  timeoutsThisPeriod: [number, number];
+  /** timeouts used per side in the final scheduled period (the ≤4 cap) */
+  timeoutsUsedFinalPeriod: [number, number];
+  /** ...of which inside its last toFinalPeriodLateSec (the ≤2 cap) */
+  timeoutsUsedFinalLate: [number, number];
+  /** game-clock t of each side's last timeout (coach-hazard cooldown), −99 at init */
+  lastTimeoutT: [number, number];
   /**
    * GARBAGE-TIME CONCEDE flags, per side: "this game is decided — starters
    * out, whoever's on the bench closes it." Written only inside checkSubs

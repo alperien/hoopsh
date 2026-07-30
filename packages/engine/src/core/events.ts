@@ -42,61 +42,85 @@ export type ShotMoveType =
   | 'heave';
 
 /**
- * How a turnover happened. `bad_pass` — a thrown pass that misses (sim/passing.ts
- * resolvePassArrival), always carries `stolenBy` when a defender picks it off.
- * `lost_ball` — stripped by a reach-in on the current holder (sim/passing.ts
- * attemptReachIn), always carries `stolenBy`. `off_foul` — a charge committed
- * while driving (sim/game.ts tickLive); always immediately followed by a
- * `foul` event with kind 'offensive' for the same player. `shot_clock` — the
- * shot clock expired with the ball still live (sim/game.ts tickLive); never
- * carries `stolenBy`. `out_of_bounds` — a failed pass that isn't picked off
- * (sim/passing.ts resolvePassArrival); never carries `stolenBy`.
+ * How a turnover happened. `bad_pass`: a thrown pass that misses
+ * (sim/passing.ts resolvePassArrival); always carries `stolenBy` when a
+ * defender picks it off. `lost_ball`: stripped by a reach-in on the current
+ * holder (sim/passing.ts attemptReachIn); always carries `stolenBy`.
+ * `off_foul`: a charge committed while driving (sim/game.ts tickLive);
+ * always immediately followed by a `foul` event with kind 'offensive' for
+ * the same player. `shot_clock`: the shot clock expired with the ball still
+ * live (sim/game.ts tickLive); never carries `stolenBy`. `out_of_bounds`: a
+ * failed pass that isn't picked off (sim/passing.ts resolvePassArrival);
+ * never carries `stolenBy`. `travel`: a traveling violation while attacking
+ * (drive/post backdown ticks, sim/game.ts tickLive); a dead-ball violation
+ * TO, never carries `stolenBy` (never a steal, the real scoring
+ * convention). `off_goaltend`: offensive goaltending on a putback attempt
+ * (the rebounder interferes at the rim, sim/possession.ts tickScramble); a
+ * TO with no shot event logged (matches real logs: OREB row → turnover row,
+ * no FGA), never carries `stolenBy`.
  */
 export type TurnoverKind =
   | 'bad_pass'
   | 'lost_ball'
   | 'off_foul'
   | 'shot_clock'
-  | 'out_of_bounds';
+  | 'out_of_bounds'
+  | 'travel'
+  | 'off_goaltend';
 
 /**
  * What kind of foul was called. `shooting` — contact during a shot attempt
  * (sim/shooting.ts resolveShotOutcome); always paired with the triggering
- * `shot` event's own `foul` field. `reach` — a defender's steal attempt that
- * missed and made contact instead (sim/passing.ts attemptReachIn). `offensive`
- * — a charge (sim/game.ts tickLive); counts against the fouler's personal
- * total but, per NBA rule, is NOT a team foul (doesn't count toward the bonus
- * — see rules/rulepack.ts teamFoulBonusAt). `loose_ball` — contact during a
- * live-rebound scramble (sim/possession.ts tickScramble), defense-only in the
- * current model.
+ * `shot` event's own `foul` field. `reach`: a defender's steal attempt that
+ * missed and made contact instead (sim/passing.ts attemptReachIn).
+ * `offensive`: a charge (sim/game.ts tickLive); counts against the fouler's
+ * personal total but, per NBA rule, is not a team foul, so it doesn't count
+ * toward the bonus (see rules/rulepack.ts teamFoulBonusAt). `loose_ball`:
+ * contact during a live-rebound scramble (sim/possession.ts tickScramble),
+ * defense-only in the current model. `take`: a deliberate wrap-up before
+ * the play develops (the endgame foul game and the transition-killing take,
+ * sim/passing.ts attemptReachIn); an ordinary personal through recordFoul,
+ * same counts, same bonus/side-out resolution as a reach; the kind is a
+ * label and context, not a new penalty mechanic (corpus: zero
+ * 1-FT-and-retain penalties in 184 games). `technical`: a technical foul
+ * (arguing a whistle, sim/fouls.ts recordFoul); counts are stamped
+ * snapshots, none incremented, because techs are not personal fouls in NBA
+ * accounting, so `personalCount`/`teamCountInPeriod` repeat the current
+ * values unchanged and `fouledOut` is always false; resolved as one
+ * technical free throw with possession unchanged (see
+ * FreeThrowEvent.technical).
  */
-export type FoulKind = 'shooting' | 'reach' | 'offensive' | 'loose_ball';
+export type FoulKind = 'shooting' | 'reach' | 'offensive' | 'loose_ball' | 'take' | 'technical';
 
 /**
- * How a possession ended — always exactly one `possession_end` event per
- * possession carries one of these (see the `ended` guard on Possession in
- * sim/state.ts, enforced by sim/possession.ts endPossession, which is a
- * no-op if already called this possession). `made_fg` — a clean field goal
- * with no shooting foul (sim/shooting.ts resolveShotOutcome). A made shot
- * WITH a shooting foul (and-one) does not end the possession here at all —
- * it hands off to the free-throw sequence, which is what actually closes the
- * possession: `made_ft` if that FT sequence's last attempt goes in,
- * otherwise the sequence's live-rebound scramble decides it (`def_rebound`,
- * or the offense keeps the same possession alive on an offensive rebound
- * with no possession_end in between). `def_rebound` — the defense secured
- * the rebound off a missed shot or missed final free throw: either a
- * live-ball board by a player (next possession starts as 'live_rebound') or
- * a dead carom awarded to the defense as a TEAM rebound (next possession
- * starts as a dead-ball 'inbound' — see ReboundEvent below). `turnover` —
- * any TurnoverKind. `period_end` — the period horn sounded with the
- * possession still live (a no-shot buzzer-beater situation).
+ * How a possession ended. Exactly one `possession_end` event per possession
+ * carries one of these (see the `ended` guard on Possession in sim/state.ts,
+ * enforced by sim/possession.ts endPossession, which is a no-op if already
+ * called this possession). `made_fg`: a clean field goal with no shooting
+ * foul (sim/shooting.ts resolveShotOutcome). A made shot with a shooting
+ * foul (and-one) does not end the possession here at all; it hands off to
+ * the free-throw sequence, which is what closes the possession: `made_ft`
+ * if that FT sequence's last attempt goes in, otherwise the sequence's
+ * live-rebound scramble decides it (`def_rebound`, or the offense keeps the
+ * same possession alive on an offensive rebound with no possession_end in
+ * between). `def_rebound`: the defense secured the rebound off a missed
+ * shot or missed final free throw, either a live-ball board by a player
+ * (next possession starts as 'live_rebound') or a dead carom awarded to the
+ * defense as a team rebound (next possession starts as a dead-ball
+ * 'inbound'; see ReboundEvent below). `turnover`: any TurnoverKind.
+ * `period_end`: the period horn sounded with the possession still live (a
+ * no-shot buzzer-beater situation). `held_ball`: the holder was tied up and
+ * lost the ensuing jump ball (sim/passing.ts attemptReachIn's held-ball
+ * branch only; see JumpBallEvent): possession flips with no turnover
+ * charged, the real scoring convention for a jump-ball loss.
  */
 export type PossessionOutcome =
   | 'made_fg'
   | 'made_ft'
   | 'def_rebound'
   | 'turnover'
-  | 'period_end';
+  | 'period_end'
+  | 'held_ball';
 
 /**
  * Fields common to every event. Two independent time axes — never mix them:
@@ -167,7 +191,7 @@ export interface GameEndEvent extends Base {
   type: 'game_end';
 }
 
-/** Marks the start of a new possession for `team`. Pairs 1:1 with a later `possession_end` for the same possession. `kind` — 'inbound': dead-ball inbound (make/miss-and-FT/OOB/violation aftermath); 'live_rebound': defense grabbed a live-ball defensive rebound and plays on without a stoppage; 'steal': a takeaway (bad pass or reach-in) starts the new team's possession immediately, ball-in-hand; 'tip': the opening possession of a period that starts with a jump ball — the game opener AND every overtime period (each OT re-flips a fresh `tip_off`, and its first possession is stamped 'tip' by sim/possession.ts endPeriod even though it is queued through the dead-ball machinery). Regulation Q2-Q4 openers are ordinary 'inbound's. (An earlier revision of this doc said OT openers were labeled 'inbound' — true before W38 fixed the stamp, stale after; audit M-01.) */
+/** Marks the start of a new possession for `team`. Pairs 1:1 with a later `possession_end` for the same possession. `kind` — 'inbound': dead-ball inbound (make/miss-and-FT/OOB/violation aftermath); 'live_rebound': defense grabbed a live-ball defensive rebound and plays on without a stoppage; 'steal': a takeaway (bad pass or reach-in) starts the new team's possession immediately, ball-in-hand; 'tip': the opening possession of a period that starts with a jump ball — the game opener AND every overtime period (each OT re-flips a fresh `tip_off`, and its first possession is stamped 'tip' by sim/possession.ts endPeriod even though it is queued through the dead-ball machinery) — or a mid-game held-ball jump won by the defense (see JumpBallEvent; reusing 'tip' keeps an administered jump from ever reading as a transition/fastbreak start). Regulation Q2-Q4 openers are ordinary 'inbound's. (An earlier revision of this doc said OT openers were labeled 'inbound' — true before W38 fixed the stamp, stale after; audit M-01.) */
 export interface PossessionStartEvent extends Base {
   type: 'possession_start';
   team: TeamSide;
@@ -270,6 +294,15 @@ export interface ShotEvent extends Base {
  * rebound event is a real scramble result. `oneAndOne` is stamped on every
  * attempt of such a trip and ABSENT everywhere else, so leagues without the
  * rule emit byte-identical events.
+ *
+ * Technical free throws (`technical: true`, always `n: 1, of: 1`): the one
+ * shot awarded for a `foul` of kind 'technical', taken during the stoppage
+ * before the interrupted flow resumes. Never live off the rim (a missed
+ * technical FT produces no rebound event of any kind) and never changes
+ * possession (the pre-whistle possession state resumes after it, see
+ * sim/fouls.ts tickFreeThrows). Stamped by conditional spread like
+ * `oneAndOne`, so games without techs emit byte-identical events. Folds
+ * into FTA/FTM/PTS like any other free throw (real box convention).
  */
 export interface FreeThrowEvent extends Base {
   type: 'free_throw';
@@ -279,6 +312,7 @@ export interface FreeThrowEvent extends Base {
   of: number;
   made: boolean;
   oneAndOne?: boolean;
+  technical?: boolean;
 }
 
 /**
@@ -360,7 +394,8 @@ export interface FoulEvent extends Base {
  * A team timeout (endgame layer — emitted only when the game runs with
  * `GameConfig.endgame` enabled, which is the DEFAULT: sim/game.ts resolves
  * `endgame: cfg.endgame ?? true` since the integration landing, so
- * essentially every real stream contains timeouts (~80% of default games).
+ * essentially every real stream contains timeouts (every default game
+ * since the FLOW flip's mandatory anchors; ~80% even before them).
  * Only an explicit `endgame: false` legacy run never emits one — an earlier
  * revision of this doc predated the default flip and promised the opposite;
  * a10 contract scan F2). Fires at a dead ball, called by the team that will inbound
@@ -373,7 +408,14 @@ export interface FoulEvent extends Base {
  * payoff is the inbound spot, see sim/possession.ts setupDeadTargets).
  * 'advance' exists only in leagues whose rule pack has the rule
  * (rules.advanceAfterTimeout — NBA/EuroLeague yes, NCAA men no; an NCAA
- * stream never contains it). `remaining` is
+ * stream never contains it). 'mandatory': a scorer-imposed TV stoppage
+ * charged to a team per the NBA Rule 5 VI(b) convention; 'regroup': a
+ * coach's voluntary huddle below the stop-run label (both from the
+ * game-wide timeout economy, sim/endgame.ts, live since the FLOW flip at
+ * the shipped params.endgame.to* fits — the 419/179 mandatory anchors and
+ * the fitted coach hazard — so both appear in ordinary default streams;
+ * the values joined this union with replay v3 so the wiring
+ * emits without a cast). `remaining` is
  * the calling team's budget AFTER this timeout (budget per game:
  * rules.timeoutsPerGame). The game clock never runs during the timeout;
  * `wt` keeps advancing so replays show the huddle as real elapsed time.
@@ -381,7 +423,7 @@ export interface FoulEvent extends Base {
 export interface TimeoutEvent extends Base {
   type: 'timeout';
   team: TeamSide;
-  reason: 'stop_run' | 'advance';
+  reason: 'stop_run' | 'advance' | 'mandatory' | 'regroup';
   /** timeouts the calling team has left AFTER this one */
   remaining: number;
 }
@@ -402,6 +444,70 @@ export interface SubstitutionEvent extends Base {
   in: string[];
 }
 
+/**
+ * A mid-game held-ball jump ball (period openers stay TipOffEvent; that
+ * contract is untouched). Fires from a rebound-scramble tie-up or an on-ball
+ * tie-up (sim/possession.ts tickScramble / sim/passing.ts attemptReachIn),
+ * live at the shipped params.officiating.heldBallPer* rates since the FLOW
+ * flip (0.0095 per scramble / 0.005 per reach — 0.83/g total, REAL). A real
+ * jump is administered (no possession arrow, the NBA rule): `winner` is the
+ * side that controls the tap, and play continues from there. Offense wins
+ * → the same possession continues (no possession_start); defense wins →
+ * a new possession of kind 'tip' (scramble site closes the old one as
+ * 'def_rebound'; the on-ball site closes it as 'held_ball', no TO charged).
+ */
+export interface JumpBallEvent extends Base {
+  type: 'jump_ball';
+  /**
+   * the two contestants tied up at the whistle. Order is [rebound winner |
+   * ball holder, opponent] by emission site; home-side-first is not
+   * guaranteed.
+   */
+  between: [string, string];
+  winner: TeamSide;
+  /** who came up with the tap: a teammate of the winning jumper ~96% of the time (corpus: 326/340 taps go to a third player), else the jumper himself */
+  gainedBy: string;
+}
+
+/**
+ * A non-foul, non-turnover officiating violation (live at the shipped
+ * params.officiating rates since the FLOW flip). `kind` values: 'def_goaltend' is
+ * defensive goaltending; it always immediately follows the made `shot`
+ * event it rides (same `t`/`wt`, and that event's `score` already includes
+ * the points; real accounting logs a normal FGM, assist eligible, then the
+ * violation row; sim/shooting.ts). 'kicked_ball' is a defender's foot
+ * killing a pass (sim/passing.ts resolvePassArrival); no turnover and no
+ * pass event (the pass never completed), and the offense retains at a
+ * same-possession stoppage with the shot clock floored at
+ * rules.shotClockOffRebSec.
+ */
+export interface ViolationEvent extends Base {
+  type: 'violation';
+  /** the violating side */
+  team: TeamSide;
+  /** the violator (real logs attribute goaltending to Team; the engine knows the player; optional so a future team-attributed kind, e.g. defensive 3 seconds, slots in without a shape change) */
+  player?: string;
+  kind: 'def_goaltend' | 'kicked_ball';
+}
+
+/**
+ * An officials' replay review, a pure wallT-only stoppage; the game clock
+ * never moves during one (live at the shipped params.officiating review*
+ * rates since the FLOW flip — 2.2-2.6 reviews/g, REAL). Deliberately no
+ * outcome field: reviews never overturn in
+ * v1 (corpus: 441/441 labeled outcomes read "stands"), and an always-
+ * 'stands' field would be dead surface (AGENTS.md DO-NOT #5); add an
+ * outcome only when overturning becomes real. `trigger` values: 'oob' is a
+ * close out-of-bounds/violation call at a dead ball; 'late_make' is a made
+ * basket inside the final two minutes (2-vs-3 / release checks);
+ * 'period_end' is a last-second look before the break (emitted before the
+ * period_end event, matching real row order).
+ */
+export interface ReplayReviewEvent extends Base {
+  type: 'replay_review';
+  trigger: 'oob' | 'late_make' | 'period_end';
+}
+
 /** The full discriminated union — every event a game can ever emit, discriminated on `type`. */
 export type GameEvent =
   | GameStartEvent
@@ -418,7 +524,10 @@ export type GameEvent =
   | TurnoverEvent
   | FoulEvent
   | TimeoutEvent
-  | SubstitutionEvent;
+  | SubstitutionEvent
+  | JumpBallEvent
+  | ViolationEvent
+  | ReplayReviewEvent;
 
 /** Just the `type` tags of GameEvent, e.g. for building `Record<GameEventType, ...>` handler tables. */
 export type GameEventType = GameEvent['type'];

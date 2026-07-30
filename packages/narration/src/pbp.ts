@@ -259,6 +259,20 @@ function renderEvent(
       return renderShot(e, lk, pool);
     case 'free_throw': {
       const who = lk.last(e.shooter);
+      if (e.technical) {
+        // the technical single, a different beat from a trip to the line
+        // (no "1 of 2" bookkeeping worth saying out loud on a 1-of-1)
+        return e.made
+          ? pool.pick('fttm', [
+              `${who} knocks down the technical.`,
+              `${who} steps up and sinks the technical free throw.`,
+              `The technical is good — ${who} adds the point.`
+            ])
+          : pool.pick('fttx', [
+              `${who} misses the technical free throw.`,
+              `The technical won't drop for ${who}.`
+            ]);
+      }
       // NCAA bonus one-and-one: `of` is the POTENTIAL 2 (core/events.ts) —
       // the second attempt exists only if the front end drops, so "(1 of 2)"
       // announced an attempt that a miss forfeits (the next event is a live
@@ -338,6 +352,18 @@ function renderEvent(
           return `The buzzer sounds — shot-clock violation on ${lk.teamName(e.team)}.`;
         case 'out_of_bounds':
           return `${who} throws it away — out of bounds.`;
+        case 'travel':
+          return pool.pick('travel', [
+            `${who} shuffles his feet — traveling.`,
+            `Traveling on ${who}, and the whistle kills the play.`,
+            `${who} takes one step too many — that's a travel.`
+          ]);
+        case 'off_goaltend':
+          return pool.pick('offgt', [
+            `${who} tips it on the rim — offensive goaltending, no basket.`,
+            `Offensive goaltending on ${who} — the putback comes off the board.`,
+            `${who} gets it while it's on the cylinder — offensive interference, turnover.`
+          ]);
       }
       return null;
     }
@@ -357,10 +383,25 @@ function renderEvent(
       if (e.kind === 'offensive') {
         return extras.length ? `On the offensive foul — ${extras.join(', ')}.` : null;
       }
+      // a technical is its own beat: no personal-count/bonus news to append
+      // (the engine stamps its counts unchanged; core/events.ts FoulKind)
+      if (e.kind === 'technical') {
+        return pool.pick('ftech', [
+          `Technical foul on ${who}.`,
+          `${who} has a word with the official — that's a technical.`,
+          `They hit ${who} with a tech for arguing the call.`
+        ]);
+      }
       const base =
         e.kind === 'shooting' ? `Whistle — shooting foul on ${who}` :
         e.kind === 'reach' ? `Reach-in foul on ${who}` :
-        `Loose-ball foul on ${who}`;
+        e.kind === 'take'
+          ? pool.pick('ftake', [
+              `${who} wraps him up before the break gets going — take foul`,
+              `Take foul from ${who} — give one to stop the run-out`,
+              `${who} concedes it with the deliberate grab`
+            ])
+          : `Loose-ball foul on ${who}`;
       return `${base}${extras.length ? ' — ' + extras.join(', ') : ''}.`;
     }
     case 'timeout': {
@@ -381,6 +422,47 @@ function renderEvent(
         `That'll be a timeout from the ${team} bench.`
       ]);
     }
+    case 'jump_ball': {
+      // mid-game held ball (period openers are tip_off events); the tap
+      // usually finds a third player, worth naming (corpus: 96%)
+      const gainer = lk.last(e.gainedBy);
+      return pool.pick('jump', [
+        `Held ball! ${lk.last(e.between[0])} and ${lk.last(e.between[1])} tie it up — ${gainer} comes away with the tap.`,
+        `Jump ball — ${gainer} wins it for ${lk.teamName(e.winner)}.`,
+        `They're tied up, and we'll have a jump… ${gainer} controls it for ${lk.teamName(e.winner)}.`
+      ]);
+    }
+    case 'violation': {
+      // player is optional on the contract (real logs attribute some kinds
+      // to Team); fall back to the violating side's name
+      const culprit = e.player ? lk.last(e.player) : lk.teamName(e.team);
+      if (e.kind === 'def_goaltend') {
+        return pool.pick('dgt', [
+          `Goaltending on ${culprit} — the basket counts.`,
+          `That's goaltending — ${culprit} got it on the way down, and they'll count it.`,
+          `Too late on the swat by ${culprit} — goaltend, good basket.`
+        ]);
+      }
+      const off = lk.teamName(e.team === 0 ? 1 : 0);
+      return pool.pick('kick', [
+        `Kicked ball on ${culprit} — ${off} keep it, fresh clock coming.`,
+        `${culprit} sticks a foot out — kicked ball, and ${off} retain.`,
+        `Whistle: kicked ball. ${off} will play on with a reset clock.`
+      ]);
+    }
+    case 'replay_review':
+      // no outcome on the event by design; reviews never overturn (v1), so
+      // the narration owns the "stands" beat
+      return e.trigger === 'period_end'
+        ? pool.pick('rrp', [
+            `They'll review it before the break — the call stands.`,
+            `One last look at the monitor before the horn… stands.`
+          ])
+        : pool.pick('rr', [
+            `Officials take a look at the monitor… the call stands.`,
+            `We're going to replay — after the review, no change.`,
+            `Quick check with the replay center, and the call on the floor stands.`
+          ]);
     case 'substitution':
       return null; // too noisy for PBP; viewers show these separately
     case 'possession_start':

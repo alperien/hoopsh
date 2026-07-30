@@ -12,12 +12,14 @@
 
 import { clamp } from '../core/rng.js';
 import { add, dist, lerp, scale } from '../core/vec.js';
+import type { TeamSide } from '../core/events.js';
 import { agent, attackedRim, emit, liveOnCourt, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
 import { assignedDefender, onBallDefender } from './ai.js';
-import { passRisk } from './resolve.js';
+import { defendersBack, passRisk } from './resolve.js';
 import {
-  deadBall, endPeriod, endPossession, giveBall, retentionFoulShotClock, startPossession
+  deadBall, endPeriod, endPossession, giveBall, jumpGainer, jumpWinnerOf,
+  retentionFoulShotClock, startPossession
 } from './possession.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 import { foulHuntSide } from './endgame.js';
@@ -122,12 +124,43 @@ export function resolvePassArrival(s: GameState): void {
       // through the full dead-ball ritual (tickDead never checks the horn
       // with clockRuns:false) and inbounded a phantom possession after 0:00
       if (s.clock < 1e-6) { endPeriod(s); return; }
-      deadBall(s, other(passer.side), { clockRuns: false });
+      // an OOB call is the canonical reviewable close call (officiating
+      // wave; the flag costs nothing while the review rates are staged at 0)
+      deadBall(s, other(passer.side), { clockRuns: false, reviewable: 'oob' });
     }
     return;
   }
 
   const to = agent(s, f.passTo!);
+
+  // Kicked ball (officiating wave, fdesign-officiating §1.6, live at
+  // kickedPerPass 0.00127 — 0.57/g REAL, rate gate before the draw): on a clean-catch
+  // arrival only (the pass-fail branch above owns steals/OOB), a defender's
+  // foot kills the pass. No turnover and no pass event (the pass never
+  // completed); the offense retains at a same-possession stoppage with the
+  // shot clock floored at the rule pack's short-clock reset (the NBA's
+  // 14-reset). Violator = the intended receiver's assigned defender
+  // (fallback: nearest live defender to the catch spot). Skipped at the
+  // horn: a pass arriving after 0.0 is a dead play, not a whistle (the
+  // buzzer check below owns it). Draw order: one chance() per clean catch.
+  const O = s.params.officiating;
+  if (s.clock >= 1e-6 && O.kickedPerPass > 0 && s.rng.chance(O.kickedPerPass)) {
+    const kicker = assignedDefender(s, to) ??
+      liveOnCourt(s, other(to.side))
+        .sort((a, b) => dist(a.pos, to.pos) - dist(b.pos, to.pos))[0];
+    if (kicker) {
+      emit(s, {
+        type: 'violation', team: kicker.side, player: kicker.p.id, kind: 'kicked_ball'
+      });
+      s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+      // 1.2s continuation: same possession resumes. The whistle, the
+      // clock freeze, and the fresh short clock are the texture (the same
+      // side-out pattern as a non-bonus reach-in foul)
+      deadBall(s, to.side, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+      return;
+    }
+  }
+
   emit(s, {
     type: 'pass', team: passer.side, from, to: to.p.id, kind: f.passKind ?? 'normal'
   });
@@ -172,6 +205,30 @@ export function resolvePassArrival(s: GameState): void {
 // ---------------------------------------------------------------- reach-in
 
 /**
+ * Is the transition take live for the defense right now? (officiating wave,
+ * fdesign-officiating §1.5, live at takeHuntRateMult 0.06728; at 0 the
+ * first check returns and nothing else evaluates.) True only in the
+ * opening seconds of a steal/live-rebound possession while the defense is
+ * beaten (fewer than transSetBackCount−1 back): the real "wrap him up
+ * before the break gets going" calculus, built exactly like foulHuntSide.
+ * The existing reach-in dice get loaded (rate × takeHuntRateMult, strip
+ * share collapsed), never a scripted foul. Never active in the final
+ * period's last 2:00: the real rule excludes it there, and the exclusion
+ * doubles as the firewall between this and the endgame foul hunt (whose
+ * fouls are the take's other context, relabeled via takeRelabelHuntFouls).
+ */
+function takeHuntActive(s: GameState, offSide: TeamSide): boolean {
+  const O = s.params.officiating;
+  if (O.takeHuntRateMult <= 0) return false; // 0 = staged off
+  if (s.poss.kind !== 'steal' && s.poss.kind !== 'live_rebound') return false;
+  if (s.t - s.poss.startT > O.takeWindowSec) return false;
+  // 120 s: the real transition-take rule carves out the final two minutes
+  // (late-game fouling is the endgame hunt's jurisdiction, not a take)
+  if (s.period >= s.rules.periods && s.clock <= 120) return false;
+  return defendersBack(s, offSide) < s.params.move.transSetBackCount - 1;
+}
+
+/**
  * Per-tick pressure check on whoever currently holds the ball, from his
  * primary defender. Polled every live tick from `game.ts` regardless of what
  * else is happening (dribbling, deciding, mid-drive) — this is what produces
@@ -208,24 +265,79 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // is a whistle, not a poke). defense.ts presses the on-ball defender into
   // range so the grab actually connects. Flag off, hunting is always false.
   const hunting = s.endgame && foulHuntSide(s) === other(h.side);
+  // Transition take (officiating wave): the same loaded-dice doctrine for
+  // the beaten-in-transition wrap-up. Hunt geometry, take rate, strip
+  // share collapsed to zero, foul kind 'take'. Live at takeHuntRateMult
+  // 0.06728 (takeHuntActive gates; 0 = off), and the endgame hunt
+  // takes precedence when both could apply (it can't by construction, the
+  // final-2:00 exclusion; the ordering documents the priority).
+  const takeHunting = !hunting && takeHuntActive(s, h.side);
   const E = s.params.endgame;
-  // 4.2ft: has to be tight, hand-check range — this is deliberately shorter
-  // than onBallDefender's own 12ft "who guards him" radius, since a reach-in
-  // needs the defender close enough to actually get a hand on the ball
-  // (attacking widens it to gather range: strips happen at the gather)
+  // 4.2ft: hand-check range, deliberately shorter than onBallDefender's
+  // own 12ft "who guards him" radius, since a reach-in needs the defender
+  // close enough to actually get a hand on the ball
+  // (attacking widens it to gather range: strips happen at the gather; a
+  // hunted/take grab is a lunge, the wider hunt range)
   const F = s.params.foul;
-  const reachRange = hunting ? E.foulHuntReachDistFt : attacking ? F.attackReachDistFt : F.reachDistFt;
+  const reachRange = hunting || takeHunting
+    ? E.foulHuntReachDistFt
+    : attacking ? F.attackReachDistFt : F.reachDistFt;
   if (!d || dist(d.pos, h.pos) > reachRange) return;
   // per-tick probability from a per-second rate (reachInPerSec * dt), boosted
   // up to +85% for a maximum-gambleSteal defender — aggressive gamblers reach
   // in far more often than conservative ones, at the cost of the foul risk below
-  // (a hunted grab replaces the gamble swing with the coach's order: the
-  // deliberate foulHuntRateMult)
+  // (a hunted/take grab replaces the gamble swing with the coach's order:
+  // the deliberate foulHuntRateMult / takeHuntRateMult)
   const exposure = attacking ? F.attackReachInMult : 1;
+  // heavy legs reach (rhythm wiring): a loaded defender stops moving his
+  // feet and starts using his hands, so the ORGANIC rate scales with his
+  // cumulative load. Hunted/take grabs are coach orders and stay unscaled.
+  // Exactly ×1 while the load pool is staged at 0.
+  const legs = 1 + F.loadReachSwing * (d.load / 100);
   const p = hunting
     ? F.reachInPerSec * dt * E.foulHuntRateMult
-    : F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal));
+    : takeHunting
+      ? F.reachInPerSec * dt * s.params.officiating.takeHuntRateMult
+      : F.reachInPerSec * dt * exposure * (1 + F.reachInGambleSwing * n(d.p.tend.gambleSteal)) * legs;
   if (!s.rng.chance(p)) return;
+
+  // Held ball → mid-game jump (officiating wave, fdesign-officiating §1.1
+  // secondary site, live at heldBallPerReach 0.005 — the ~15% on-ball
+  // share of the 0.83/g REAL total, rate gate before
+  // the draw): organic reach events only (a hunted/take grab is a foul on
+  // purpose, never a tie-up). The defender ties the holder up instead of
+  // stripping or hacking, and the officials administer a jump between the
+  // two. Draw order inside the reach event is fixed: this one chance(),
+  // then (on fire) jumpWinnerOf's one weighted(); the strip/foul split
+  // below is never reached on a tie-up.
+  if (!hunting && !takeHunting) {
+    const O = s.params.officiating;
+    if (O.heldBallPerReach > 0 && s.rng.chance(O.heldBallPerReach)) {
+      const jumpWinner = jumpWinnerOf(s, h, d);
+      const gainer = jumpGainer(s, jumpWinner, h.pos);
+      emit(s, {
+        type: 'jump_ball',
+        between: [h.p.id, d.p.id],
+        winner: jumpWinner.side,
+        gainedBy: gainer.p.id
+      });
+      if (jumpWinner.side === h.side) {
+        // offense controls the tap: the same possession resumes at a
+        // continuation dead ball, the loose-ball side-out pattern (1.2s,
+        // clock stopped, shot clock floored at the 14s reset)
+        s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+        deadBall(s, h.side, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+      } else {
+        // defense controls the tap: possession flips with no turnover
+        // charged (real scoring convention; the 'held_ball' outcome exists
+        // for exactly this), and the new possession is an administered
+        // 'tip', never a transition burst
+        endPossession(s, 'held_ball');
+        startPossession(s, d.side, 'tip', gainer);
+      }
+      return;
+    }
+  }
 
   // given a reach-in happens, stripP is the clean-strip share: a base, plus a
   // swing for an elite-steal defender, minus a swing for an elite ball-handler
@@ -237,14 +349,19 @@ export function attemptReachIn(s: GameState, dt: number): void {
   // more often than a hack (without the skew, the attack-exposure tax paid
   // out in fouls instead of the turnovers it exists to produce)
   // a hunted grab is a foul on purpose: the clean-strip share collapses to
-  // foulHuntStripShare (hands still find ball once in a while — the
-  // occasional legitimate endgame steal off the "foul" is real texture)
+  // foulHuntStripShare (hands still find ball once in a while; the
+  // occasional legitimate endgame steal off the "foul" is real texture).
+  // A take is even more deliberate: the wrap-up before the break develops
+  // is a whistle every time (stripP 0 keeps the draw count identical while
+  // the corpus's zero-strip resolution holds)
   const stripP = hunting
     ? E.foulHuntStripShare
-    : clamp(
-        F.stripBase + (attacking ? F.attackStripBonus : 0) + F.stripStealSwing * n(d.p.attr.steal) - F.stripHandleSwing * n(h.p.attr.ballHandle),
-        F.stripMin, F.stripMax
-      );
+    : takeHunting
+      ? 0
+      : clamp(
+          F.stripBase + (attacking ? F.attackStripBonus : 0) + F.stripStealSwing * n(d.p.attr.steal) - F.stripHandleSwing * n(h.p.attr.ballHandle),
+          F.stripMin, F.stripMax
+        );
   if (s.rng.chance(stripP)) {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'lost_ball', stolenBy: d.p.id
@@ -252,12 +369,23 @@ export function attemptReachIn(s: GameState, dt: number): void {
     endPossession(s, 'turnover');
     startPossession(s, d.side, 'steal', d);
   } else {
-    const { bonus } = recordFoul(s, d, 'reach', h);
+    // foul kind vocabulary (officiating wave): a transition-take grab is a
+    // 'take'; the endgame hunt's wrap-ups are takes too now that the
+    // relabel switch is flipped (takeRelabelHuntFouls 1, live since the
+    // FLOW flip; the relabel changes no rates or stats, only the kind
+    // the corpus actually prints for the Q4 foul game). Everything else
+    // stays a 'reach'.
+    const kind = takeHunting || (hunting && s.params.officiating.takeRelabelHuntFouls > 0)
+      ? 'take'
+      : 'reach';
+    const { bonus, techFT } = recordFoul(s, d, kind, h);
     if (bonus) {
       h.usedPoss++; // a bonus trip uses the possession (usage bookkeeping)
       // award comes from FoulOutcome.bonus, not rules.bonusFreeThrows: under
       // NCAA rules team fouls 7-9 are a one-and-one, not a flat two
-      enterFreeThrows(s, h, bonus.shots, bonus.oneAndOne);
+      // (a technical rider prefixes the trip: fouls.ts, staged-inert)
+      enterFreeThrows(s, h, bonus.shots, bonus.oneAndOne,
+        techFT ? { pre: techFT.p.id } : undefined);
     } else {
       // not in the bonus: no free throws, offense just keeps the ball — the
       // defensive-foul retention reset (retentionFoulShotClock: frontcourt
@@ -267,6 +395,19 @@ export function attemptReachIn(s: GameState, dt: number): void {
       // delay (move.deadBallSideOutSec — same possession, no team change)
       // lets the whistle register before play resumes
       s.poss.shotClock = retentionFoulShotClock(s, h.side, h.pos);
+      if (techFT) {
+        // technical rider with no FTs of its own: the tech FT is shot
+        // first, then this exact deadBall runs from tickFreeThrows via
+        // resume, so the possession resumes byte-identically to the no-tech
+        // path
+        enterFreeThrows(s, techFT, 1, false, {
+          resume: {
+            nextTeam: h.side, continuation: true,
+            resumeIn: s.params.move.deadBallSideOutSec
+          }
+        });
+        return;
+      }
       deadBall(s, h.side, {
         clockRuns: false, continuation: true,
         resumeIn: s.params.move.deadBallSideOutSec

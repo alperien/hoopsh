@@ -21,7 +21,7 @@ import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, probeCulture, scorePressure, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, openerSet, probeCulture, scorePressure, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: ShotMoveType }
@@ -77,13 +77,45 @@ export function decideBall(s: GameState): BallAction {
   // Doctrine in ai/concepts.ts; flag off never reaches this call.
   if (s.endgame) continuation = endgameContinuation(s, h.side, continuation);
 
-  // Desperation heave (trigger constants: params.decide.heave*): with the
-  // shot clock nearly gone (or a period horn expiring first) and no chance
-  // to get closer than the heave range, just launch it. Bypasses the whole
-  // utility comparison — no shot is "good", but a violation is worse.
+  // Desperation heave (trigger constants: params.decide.heave*): two
+  // regimes at the same heaveMinDistFt radius, both bypassing
+  // the utility comparison. (The regime split preserves the old
+  // `(sc < heaveShotClockSec || periodExpiring)` coverage exactly: a forced
+  //    shot clock with the game
+  // clock the binding clock implies periodExpiring, so no case is lost.)
+  //  - Shot-clock-forced (sc < heaveShotClockSec and the shot clock
+  //    binds): launch,
+  //    unchanged. A violation is strictly worse, and real players do
+  //    launch those.
+  //  - Period-expiring: real players protect their percentages. The
+  //    hopeless end-quarter heave is held and released after the buzzer,
+  //    never logged as an FGA (sim logged 1.97/g at 0/218 made vs the real
+  //    0.05/g with 7 of 9 made, the grammar corpus's #1 tell), unless the
+  //    shot matters: final period/OT, tied or down <= heaveKeepDeficitMax
+  //    (one make ties/wins), or the occasional careless launch
+  //    (heaveLaunchChance). A leading team at any horn holds: the
+  //    dribble-out. Holding via the same early-return path is deliberate:
+  //    with the horn collapsing the continuation toward 0, the normal
+  //    softmax would fire a 33-40 ft pull_up instead, the same logged row
+  //    the discipline exists to remove.
   const periodExpiring = s.clock < D.heavePeriodClockSec && s.clock < sc;
-  if ((sc < D.heaveShotClockSec || periodExpiring) && distToRim > D.heaveMinDistFt) {
+  if (sc < D.heaveShotClockSec && sc <= s.clock && distToRim > D.heaveMinDistFt) {
     return { kind: 'shoot', moveType: 'heave' };
+  }
+  if (periodExpiring && distToRim > D.heaveMinDistFt) {
+    const margin = s.score[h.side] - s.score[other(h.side)];
+    const itMatters =
+      s.period >= s.rules.periods && margin <= 0 && -margin <= D.heaveKeepDeficitMax;
+    // Live at heaveLaunchChance 0.06 since the FLOW flip: the discipline
+    // is armed and gated horn evaluations consume one draw (~2-3/game).
+    // At ≥ 1 the short-circuit fires before the rng draw and every
+    // period-expiring case launches (the staged legacy behavior, draw-free
+    // and byte-identical).
+    if (D.heaveLaunchChance >= 1 || itMatters || s.rng.chance(D.heaveLaunchChance)) {
+      return { kind: 'shoot', moveType: 'heave' };
+    }
+    // protect the percentages: hold, release after the buzzer
+    return { kind: 'hold' };
   }
 
   // Which KIND of shot this would be — drives the difficulty adjustment and
@@ -184,11 +216,31 @@ export function decideBall(s: GameState): BallAction {
   // never on the drive channel (doctrine in ai/concepts.ts). Both terms
   // append at the END of their sums — float order is the byte contract.
   const probe = probeCulture(s, shotClockShare);
-  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot;
+  // CONCEPT 9: OPENING SET — the period's first possession is a called set,
+  // an early-window shoot/drive malus only (never the pass channel, never
+  // the continuation). Doctrine in ai/concepts.ts; live at
+  // openerShootMalus 0.55.
+  const opener = openerSet(s, shotClockShare);
+  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot
+    // concept-9 term appended at the end of the sum (float-order contract,
+    // ai/concepts.ts header); exactly 0 with the malus zeroed
+    - opener.shoot
+    // Concept 10, scramble economy (putback appetite): the drilled "go
+    // right back up". The putback taxonomy above already guarantees
+    // rebound-acquired ∧ interior ∧ quick 0-dribble touch; doctrine in
+    // ai/concepts.ts. Appended at the end; exactly 0 with the bonus zeroed.
+    + (shotMove === 'putback' ? A.orebPutbackBonus * A.scrambleScale : 0);
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
   let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
+  // CONCEPT 10: SCRAMBLE ECONOMY (kick-out read) — while the holder's touch
+  // is a fresh rebound, the crash has collapsed the defense and a spotted
+  // arc teammate is the designed outlet. Context keys off the holder's
+  // acquiredBy/catchT stamps (dies when the ball moves on); doctrine in
+  // ai/concepts.ts. Live at orebKickWindowSec 4; at 0 the context is
+  // never true, which also keeps the 'kickout' taxonomy below inert.
+  const orebCtx = h.acquiredBy === 'rebound' && s.t - h.catchT < A.orebKickWindowSec;
   for (const m of liveOnCourt(s, h.side)) {
     if (m.p.id === h.p.id) continue;
     const o = openness(s, m);
@@ -214,17 +266,26 @@ export function decideBall(s: GameState): BallAction {
     // determinism contract).
     const adv = advantagePass(s, h, m, s.t < m.cutUntil, shotClockShare);
     const pay = commitmentPass(s, h, m, act0);
+    // Concept 10: flat kick term (the cutterBonus shape; a team reflex,
+    // not a creator read, so no vision scaling); exactly 0 while staged
+    const kick = orebCtx && mLoc.zone === 'three' ? A.orebKickBonus * A.scrambleScale : 0;
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
       + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
       - continuation * A.passContinuationScale
-      + probe.swing;
+      + probe.swing
+      // concept-10 term appended at the end of the sum (float-order contract)
+      + kick;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,
         u,
         passKind: pay.dhoTarget ? 'handoff'
           : pay.entryTarget ? 'entry'
+          // Concept 10: the post-OREB spray to the arc reads as a kick-out
+          // in the log, the way a broadcast scan tags it (dark while staged:
+          // orebKickWindowSec 0 keeps event streams byte-identical)
+          : orebCtx && mLoc.zone === 'three' ? 'kickout'
           : driving ? 'kickout'
           : s.poss.phase === 'transition' ? 'outlet' : 'normal'
       };
@@ -319,6 +380,10 @@ export function decideBall(s: GameState): BallAction {
     // CONCEPT 2: ACTION COMMITMENT (drive payoff) — attack the called action
     // (live screen, cleared side); doctrine in ai/concepts.ts
     uDrive += commitmentDrive(s, h.p.id, act0);
+    // Concept 9, opening set (drive share): appended at the end of the sum
+    // (float-order contract); drives are not exempt because the corpus
+    // counts shooting-foul rows as first attacks. Exactly 0 while staged.
+    uDrive -= opener.drive;
   }
 
   // --- utility: hold (keep probing)

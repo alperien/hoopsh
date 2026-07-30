@@ -154,6 +154,18 @@ class Expectation {
   toBeTruthy(): void {
     this.assert(Boolean(this.actual), 'expected truthy value');
   }
+
+  // vitest's toBeDefined/toBeUndefined pair (first needed by the officiating
+  // suite's optional-event-field pins, e.g. "travel turnovers never carry
+  // stolenBy"). Vitest semantics exactly: defined means `!== undefined`,
+  // so null is defined; the negated forms come free through `.not`.
+  toBeDefined(): void {
+    this.assert(this.actual !== undefined, 'expected value to be defined');
+  }
+
+  toBeUndefined(): void {
+    this.assert(this.actual === undefined, 'expected undefined');
+  }
 }
 
 // Failure-message formatter: JSON-stringifies the value being asserted on so

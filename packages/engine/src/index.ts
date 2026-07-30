@@ -20,7 +20,7 @@ export type {
   ShotEvent, PassEvent, ReboundEvent, TurnoverEvent, FoulEvent,
   FreeThrowEvent, SubstitutionEvent, PossessionStartEvent, PossessionEndEvent,
   GameStartEvent, GameEndEvent, PeriodStartEvent, PeriodEndEvent, TipOffEvent,
-  TimeoutEvent
+  TimeoutEvent, JumpBallEvent, ViolationEvent, ReplayReviewEvent
 } from './core/events.js';
 
 // rules & court — RulePack is the league/mod boundary (custom leagues are

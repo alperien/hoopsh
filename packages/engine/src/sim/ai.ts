@@ -32,5 +32,5 @@
 
 export { decideBall, type BallAction } from './ai/decide.js';
 export { assignedDefender, onBallDefender, moveSpeed, midPullUpLight } from './ai/shared.js';
-export { onShotReleased, assignSpots, offenseOffBallTick } from './ai/offense.js';
+export { onShotReleased, onOrebSecured, assignSpots, offenseOffBallTick } from './ai/offense.js';
 export { assignMatchups, defenseTick } from './ai/defense.js';

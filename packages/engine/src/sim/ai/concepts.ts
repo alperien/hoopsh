@@ -5,16 +5,18 @@
  * with resolution — but real players are not EV-optimizers; they run DRILLED
  * BEHAVIORS. Every non-EV bias in decideBall used to be its own hand-shaped
  * patch (both external reviews called them epicycles, correctly). They are
- * now EIGHT named concepts, each modeling one drilled behavior, each with a
+ * now TEN named concepts, each modeling one drilled behavior, each with a
  * MASTER SCALE in params.ai (default 1.0) so the sweep can budget an entire
  * concept — and the whole layer is measured, not assumed small (the
  * decision-vs-EV divergence metric in the harness).
  *
  *   1. DECISIVENESS (decisivenessScale) — a drilled shot fires in its trigger
  *      context: the open catch-and-shoot three, the transition pull-up, the
- *      worked post move, the conceded mid-range jumper. Green-light-gated:
- *      it belongs to shooters/post threats/mid-range artists, never to the
- *      player the defense WANTS shooting.
+ *      worked post move, the conceded mid-range jumper, and the halfcourt
+ *      pull-up three (live at pullUpThreeBonus 0.70 since the flow
+ *      re-fit). Green-light-gated: it belongs to shooters/post
+ *      threats/mid-range artists, never to the player the defense WANTS
+ *      shooting.
  *   2. ACTION COMMITMENT (actionCommitScale) — a called action is a plan:
  *      its designed payoff is preferred (entry feed, handoff, attack off the
  *      screen/clear-out) and its carrier waits for it to arrive (screen
@@ -47,6 +49,18 @@
  *      ~5 s of set offense are pass-friendly and shot-averse (probe the
  *      defense before attacking it); ramps to zero by mid-clock, never in
  *      transition, never on the drive channel.
+ *   9. Opening set (openerScale): the period's first possession is a
+ *      called, scripted trip. An early-window shoot/drive malus (never the
+ *      pass channel, never the continuation) makes ball movement carry the
+ *      opener the way a coached first set does. Live at openerShootMalus
+ *      0.55 since the flow re-fit.
+ *   10. Scramble economy (scrambleScale): post-OREB the real game resolves
+ *      fast: a putback appetite on the rebounder's quick touch and a
+ *      kick-out read to the arc over the collapsed crash. Both terms live
+ *      inline in decideBall (they key off the shot taxonomy and the
+ *      holder's acquiredBy/catchT stamps, the concept-4 "kept where the
+ *      loop lives" shape); doctrine at the end of this file. Live since
+ *      the FLOW flip at the ffit-grammar joint-ladder doses.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -65,8 +79,9 @@
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
 import { other, type Agent, type GameState } from '../state.js';
+import type { SimParams } from '../params.js';
 import type { ShotMoveType, TeamSide } from '../../core/events.js';
-import { hurriedness } from '../endgame.js';
+import { chaseAliveness, hurriedness } from '../endgame.js';
 import { creation, midGreenLight, midPullUpLight } from './shared.js';
 
 type Action = GameState['poss']['action'];
@@ -101,6 +116,31 @@ type ShotMove = ShotMoveType;
  * a drive-first star actually takes (his halfcourt threes are conceded to
  * the rim threat). Green-light gated identically; without this the downhill
  * benchmark attempted 0.7 threes against a real 5-7.
+ *
+ * halfcourt pull-up three: the signature modern self-created shot, the
+ * stepback/off-dribble three over drop or under coverage. The engine
+ * already builds the separation (pnrUnderSagFt, the screen stun, the
+ * navUnder concession) and then talks the handler into driving or
+ * re-swinging: elite pull-up-3 EV ≈ 1.03 against a mid-clock continuation
+ * of 1.38-1.44, so pre-term the shot was argmax essentially never; the
+ * mid-range restoration's exact pre-fix signature, one zone out. Decision
+ * layer on purpose: movePullUp −0.22 matches real pull-up-vs-catch quality
+ * gaps, and buffing the make model would corrupt 3P% calibration (the
+ * midRangeBonus doctrine names this exact wrong fix). Gates, each earned:
+ * the contest ceiling reuses midContestCeil rather than the arc gate's 0.5
+ * (the shot's habitat is a defender in the picture conceding the rise;
+ * requiring arc-style openness selected away the mid game's actual context,
+ * same incident; one conceded-jumper ceiling, no speculative new dial);
+ * distance ≤ pullUpThreeMaxFt keeps the green light out of the ≥30 ft
+ * logo-bomb excess the heave discipline drains; the halfcourt phase gate
+ * leaves transition to its own term above (no double-dip; advance-phase
+ * pull-ups are 35-footers the distance gate excludes anyway); and the
+ * deepPullUpLight zero-veto joint gate (below) keeps it from sagged-off
+ * bigs and no-dribble catch specialists. pullUpBias still applies at the
+ * call site (the generic off-dribble appetite); this term is the
+ * three-specific drilled shot stacked on top, exactly how the mid pull-up
+ * stacks midRangeBonus over pullUpBias. Live at pullUpThreeBonus 0.70
+ * (the flow re-fit, findings/refit-g5.md).
  *
  * worked post move: after the backdown the turnaround is the plan — without
  * this the spray won 8:1 and post scoring never materialized.
@@ -144,6 +184,16 @@ export function decisiveness(
   } else if (s.poss.phase === 'transition' && shotMove === 'pull_up' && zone === 'three') {
     term = A.transitionPullUpBonus
       * clamp((h.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1);
+  } else if (
+    zone === 'three' && shotMove === 'pull_up' && s.poss.phase === 'halfcourt' &&
+    distFt <= A.pullUpThreeMaxFt
+  ) {
+    // the drilled halfcourt pull-up three (doctrine in the JSDoc above):
+    // conceded-jumper contest ceiling (midContestCeil, reused) × the
+    // zero-veto joint appetite gate. Live at pullUpThreeBonus 0.70.
+    term = A.pullUpThreeBonus
+      * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1)
+      * deepPullUpLight(A, h);
   } else if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     term = A.postShotBonus;
   } else if (
@@ -188,6 +238,27 @@ export function decisiveness(
     term = A.midRangeBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1) * moveGate;
   }
   return term * A.decisivenessScale;
+}
+
+/**
+ * The deep half of the pull-up light: joint gate over the off-dribble
+ * appetite and the three-point appetite, as a geometric mean, the
+ * midPullUpLight doctrine verbatim (ai/shared.ts): both are required
+ * (either at/below its floor vetoes the light entirely: a sagged-off big
+ * is open precisely because the defense wants him rising, and a
+ * catch-and-shoot specialist with no dribble game never steps back), while
+ * the mean avoids double-counted moderation. The three side reads the same
+ * hoisted threeGreenLightFloor/Range the other three-point green lights use
+ * (audit H-01); the pull-up side matches midPullUpLight's inline (t − 25)/50.
+ * Module-local until a second consumer (a stepback separation mechanic is
+ * the design's named follow-on) earns the shared.ts promotion; shared.ts
+ * stays small by design.
+ */
+function deepPullUpLight(A: SimParams['ai'], a: Agent): number {
+  return Math.sqrt(
+    clamp((a.p.tend.pullUp - 25) / 50, 0, 1)
+      * clamp((a.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1)
+  );
 }
 
 // --------------------------------------- 2. ACTION COMMITMENT (pass/drive/hold)
@@ -436,7 +507,18 @@ export function endgameContinuation(
   // (the horn collapse above applies in every regime; holdFade kills every
   // "rises" row inside the urgency window)
   if (s.period >= s.rules.periods) {
-    if (margin > 0 && clock <= E.leadHoldClockSec) {
+    if (E.deadGameBoost > 0 && margin !== 0 && chaseAliveness(s, Math.abs(margin)) === 0) {
+      // Garbage-time wind-down (fdesign-rhythm M3, wired per ffit-rhythm
+      // §8; live at deadGameBoost 0.25 since the FLOW flip): once the
+      // trailing side's chase is
+      // dead, both teams stop hunting. A mild continuation raise makes
+      // dribble-outs and walk-up possessions emerge from the same yardstick
+      // every other concept-6 behavior reshapes; complements the concede
+      // branch (personnel) without duplicating it (intent). First in the
+      // chain on purpose: a decided game outranks leadHold/hurry, and the
+      // `> 0` gate keeps a zeroed dial on the legacy branches below.
+      mult *= 1 + E.scale * E.deadGameBoost * holdFade;
+    } else if (margin > 0 && clock <= E.leadHoldClockSec) {
       const ramp = 1 - clock / E.leadHoldClockSec;
       // full effect while the lead is worth protecting, gone by 2× the ref
       // (a 16+ point Q4 lead is garbage time, nobody is milking with intent)
@@ -662,4 +744,87 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
  * definition in resolve.ts defendersBack) is itself the state gate; the
  * surviving state-aware piece is the defender-aware projected drive contest
  * in decide.ts. Numbers in params.decide.stealBreakBonus's comment.
+ */
+
+// ------------------------------------------------- 9. OPENING SET (shoot/drive)
+
+/**
+ * Quarter-opener deliberateness: a real period opener is a coached, scripted
+ * possession (real median first shot 16s; first attack inside 8s happens
+ * 1.7% of the time vs the sim's 36.6%; flow-grammar §1b). The engine has no
+ * "called first set" concept, so openers attack like any other trip. This
+ * term raises the shoot/drive bar early in the period's first possession
+ * only, ramping to zero by shot clock ~10 (openerRampFloorShare): held/pass
+ * beats shoot/drive inside the window, ball movement carries the possession,
+ * and the suppression is long dead before the urgency window or any
+ * concept-6 horn window can overlap (a Q4 opener starts at clock 720).
+ *
+ * Deliberately never the pass channel (no swing subsidy, no pass malus) and
+ * never the continuation: a yardstick raise taxes passes at ~90% via
+ * passContinuationScale, the probe-culture record's measured poison. And
+ * deliberately identity-blind: the malus is flat (no tendency/rating gate)
+ * because it models the coach's script, not a player trait. It cannot
+ * re-route creation credit, and at one possession per period (~2.3% of
+ * trips, assigned by the tip/arrow symmetrically and score-independently) it
+ * is margin-orthogonal by construction.
+ *
+ * Drives are not exempt (unlike the probe): the corpus counts shooting-foul
+ * rows as first attacks, and real openers don't rim-attack in 6s either;
+ * openerDriveShare < 1 keeps a blown coverage attackable.
+ *
+ * Reads the Possession.opener marker (fdesign-grammar M1b, stamped in
+ * possession.ts startPossession). The marker replaced this file's startT
+ * re-derivation (a tolerance compare against the summed prior-period
+ * seconds): one stored fact instead of two codepaths agreeing about clock
+ * arithmetic, and the whistle-continuation semantics ride the possession
+ * object itself. Same truth table; the swap changes no behavior.
+ *
+ * Called from decideBall every decision tick; pure (no rng, no state
+ * writes). Live at openerShootMalus 0.55 since the flow re-fit
+ * (findings/refit-g3.md); at 0 both returns are exactly 0 and the
+ * appended `− 0` terms are bit-identical through the
+ * softmax (the concepts-consolidation byte-stability contract above).
+ */
+export function openerSet(s: GameState, shotClockShare: number): { shoot: number; drive: number } {
+  const A = s.params.ai;
+  if (!s.poss.opener || (s.poss.phase !== 'halfcourt' && s.poss.phase !== 'advance')) {
+    return { shoot: 0, drive: 0 };
+  }
+  // full suppression at possession start, linear to zero at the floor share
+  const w = clamp((shotClockShare - A.openerRampFloorShare) / (1 - A.openerRampFloorShare), 0, 1);
+  const m = A.openerShootMalus * w * A.openerScale;
+  return { shoot: m, drive: m * A.openerDriveShare };
+}
+
+/*
+ * ------------------------------------ 10. SCRAMBLE ECONOMY (decide.ts inline)
+ *
+ * Post-OREB resolution economy: real second chances resolve fast (71.6% of
+ * player OREBs see a team FGA inside 6s; 28.2% of those are threes, the
+ * kick-out over the collapsed crash), while the sim's post-OREB possession
+ * is told to be patient (shot clock refloored to 14 ⇒ continuation ≈ 1.36,
+ * above a contested second-chance look) and the arc is empty of receivers.
+ * Two demand terms, both inline in decideBall because they key off holder
+ * state the loop already has (the concept-4 shape):
+ *
+ *  - putback appetite: uShoot += orebPutbackBonus × scrambleScale when the
+ *    shot taxonomy says 'putback'. No extra gating: the taxonomy already
+ *    guarantees rebound-acquired ∧ interior ∧ quick 0-dribble touch, and it
+ *    reaches the 6-14 ft grabs the <6 ft auto-putback branch
+ *    (possession.ts) never could, at honest contests, which is also the
+ *    putback-FG% dilution the corpus wants.
+ *  - kick-out read: per-teammate pass utility += orebKickBonus ×
+ *    scrambleScale for arc teammates while the holder's touch is a fresh
+ *    rebound (acquiredBy 'rebound', within orebKickWindowSec of the grab),
+ *    and the passKind selector labels that pass 'kickout' so the event log
+ *    reads "OREB → kickout → three" the way a broadcast log does. Flat
+ *    (the cutterBonus shape), not vision-scaled: the OREB kick is a team
+ *    reflex, not a creator read; vision-scaling would concentrate it on
+ *    hubs, which the corpus doesn't show for this pass.
+ *
+ * No possession-level state: context keys off the holder's existing
+ * acquiredBy/catchT stamps and dies when the ball moves on, matching the
+ * corpus scan's stop-at-next-event semantics. The supply half (M2a,
+ * ai/offense.ts onOrebSecured: the perimeter re-fill behind the grab) is
+ * wired from possession.ts tickScramble, live at ai.orebRefillSec 1.8.
  */

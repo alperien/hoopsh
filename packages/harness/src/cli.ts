@@ -60,6 +60,23 @@ import { resolveWorkerCount, runGames } from './parallel.js';
  * noise. Measure with `npm run batch -- --games 48` after the re-baseline,
  * then raise. Never lower it to make a red run green.
  *
+ * FLOW-landing record (pre-rebase engine, four independent bases): the
+ * landed stream measured 15 of NBA_BANDS.length at the 40-48-game sample
+ * (acceptance-48 and swp-alpha/beta/gamma-40 all read exactly 15/17;
+ * acceptance-96 read 16/17). The systematic miss was fga (+0.05 at 48g,
+ * +0.6 at 96g over the 92.0 ceiling — the flow program's documented
+ * residual: the pair-gap closed from (+1.9, −1.1) to (+0.6, +0.1) at the
+ * landing, knot-combo §3, unswappable inside current rails at 28 sweep
+ * iterations); the second miss rotated among edge-riders by base (pace
+ * 94.6-94.9 at 48g vs the 95.0 floor — passing at 96g — or an astd/fgPct
+ * floor-graze). ffit-cadence §5.2 names the absorption path (riskBase is
+ * walled at −3.6, so a non-assist-coupled tov source or an intervalSec
+ * lo-rail extension, next coordinated sweep). The landing briefly lowered
+ * this floor to 15 to match; that was REVERTED — the gate does not move to
+ * fit the diff. The fga/pace residual gets re-centered by the sweep or
+ * registered red, not absorbed by a weaker gate. Post-rebase counts pend
+ * the integration re-baseline above.
+ *
  * Gating needs sample size: below ~24 games band noise dominates (an 8-game
  * run loses 3-4 bands to variance alone), and even at 24 several boundary
  * bands (3P%, FTA) flicker in and out. CI runs 48 games, where the count

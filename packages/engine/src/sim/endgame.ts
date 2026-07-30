@@ -3,6 +3,12 @@
  * timeout brain. (The ball-handler half — continuation reshaping — is
  * CONCEPT 6 in ai/concepts.ts; the two share the chase arithmetic here.)
  *
+ * Name caveat: with the timeout economy wired game-wide (mandatory TV
+ * stoppages, the coach hazard; fdesign-timeouts, live since the FLOW flip),
+ * "endgame" is a misnomer: this file covers game-wide game management. The
+ * file is deliberately not renamed (ownership map row "late-game
+ * management"); the flag stays `GameState.endgame`.
+ *
  * Everything is gated on `GameState.endgame` (from `GameConfig.endgame`,
  * default ON since the n=1260/arm flag-on survey): with the flag explicitly
  * off, no function in this file changes behavior or consumes rng — the
@@ -20,7 +26,7 @@
 
 import type { TeamSide } from '../core/events.js';
 import { clamp } from '../core/rng.js';
-import { emit, other, type GameState, type Phase } from './state.js';
+import { emit, other, type GameState, type Phase, type TimeoutReason } from './state.js';
 
 /**
  * Score-change bookkeeping: unanswered-run tracking for the stop-the-run
@@ -165,17 +171,70 @@ export function foulHuntSide(s: GameState): TeamSide | null {
  * timeoutResumeSec of WALL time — the replay shows a real huddle, the game
  * clock shows none (two-axes discipline).
  */
-export function maybeTimeout(s: GameState): void {
+export function maybeTimeout(s: GameState, pre?: TimeoutCall): void {
   if (!s.endgame) return;
   const ph = s.phase;
   if (ph.kind !== 'dead' || ph.possKind === 'tip') return;
-  const team = ph.nextTeam;
-  if (s.timeoutsLeft[team] <= 0) return;
+  // a pre-stamped decision (the live-ball site, possession.ts) skips the
+  // evaluation entirely: one timeout per stoppage, hard
+  const call = pre ?? decideTimeout(s, ph);
+  if (!call) return;
+  callTimeout(s, call.team, call.reason);
+}
+
+/** a timeout decision: who calls it and why (sim-internal; see TimeoutReason) */
+export interface TimeoutCall {
+  team: TeamSide;
+  reason: TimeoutReason;
+}
+
+/**
+ * The FT-whistle timeout site (fdesign-timeouts §1.2.2), called from
+ * fouls.ts enterFreeThrows after the freethrows phase is set and before
+ * the sub pass (ordering is the §4 handshake: checkSubs reads
+ * phase.timeout). Real grammar needs the site: 17.5% of all corpus
+ * timeouts and 44.8% of anchor timeouts sit on foul whistles, logged
+ * before the FTs; without it, anchors over-land on made baskets
+ * (ffit-timeouts §5.1). Decision order matches deadBall's brain minus the
+ * advance (a whistle is not an inbound, there is nothing to advance):
+ * mandatory first (a rule), then the coach hazard for the shooting team
+ * (the possession holder at the line). The legacy deterministic stop_run
+ * trigger deliberately does not evaluate here: it is retired in place at
+ * timeoutRunPts 999 (the hazard owns stop-the-run texture — see the
+ * timeoutRunPts params doc). Live since the FLOW flip: mandatory decides
+ * at the shipped 419/179 anchors and the hazard draws at its fitted
+ * magnitudes, so this site calls for real in default streams.
+ * Effects on a call are callTimeout's freethrows branch (wall-time huddle
+ * stretch on nextIn; the whistle already stopped the game clock).
+ */
+export function maybeFtTimeout(s: GameState): void {
+  if (!s.endgame) return;
+  const ph = s.phase;
+  if (ph.kind !== 'freethrows') return;
+  const team = ph.side;
   const E = s.params.endgame;
   const margin = s.score[team] - s.score[other(team)];
   const finalPeriod = s.period >= s.rules.periods;
+  const advanceWindow = finalPeriod && s.clock <= E.timeoutAdvanceClockSec && s.clock > 0;
+  const call = decideMandatory(s) ?? decideCoachHazard(s, team, margin, advanceWindow);
+  if (!call) return;
+  callTimeout(s, call.team, call.reason);
+}
 
-  let reason: 'stop_run' | 'advance' | null = null;
+/**
+ * The pure decision at a dead-ball stoppage, in priority order: advance
+ * (deterministic; near-universal correct coaching, unchanged), mandatory
+ * (deterministic; it's a rule, live at the shipped 419/179 anchors), the
+ * deterministic legacy stop-the-run (retired in place at timeoutRunPts
+ * 999 — never fires; see the params doc), then the coach voluntary hazard
+ * (probabilistic; live magnitudes, so it consumes rng — one draw per
+ * qualifying stoppage once every deterministic gate passes).
+ */
+function decideTimeout(s: GameState, ph: Extract<Phase, { kind: 'dead' }>): TimeoutCall | null {
+  const team = ph.nextTeam; // the possession requirement: only the inbounder calls
+  const E = s.params.endgame;
+  const margin = s.score[team] - s.score[other(team)];
+  const finalPeriod = s.period >= s.rules.periods;
   // no advance rule in this league (rules.advanceAfterTimeout false — NCAA
   // men) ⇒ no advance window at all: the advance arm never fires AND the
   // save-for-the-advance suppression below never bites, so stop_run stays
@@ -184,29 +243,216 @@ export function maybeTimeout(s: GameState): void {
   const advanceWindow = finalPeriod && s.rules.advanceAfterTimeout &&
     s.clock <= E.timeoutAdvanceClockSec && s.clock > 0;
   if (
-    advanceWindow && margin <= 0 && -margin <= E.timeoutAdvanceDeficitMax &&
-    chaseAliveness(s, -margin) > 0 && !ph.continuation
-  ) {
     // margin <= 0: trailing or TIED — the tied team wants the last shot in
     // the frontcourt just as much (audit M-10; a tied deficit of 0 passes
     // the deficit/aliveness gates trivially)
-    reason = 'advance';
-  } else if (
+    canSpend(s, team) &&
+    advanceWindow && margin <= 0 && -margin <= E.timeoutAdvanceDeficitMax &&
+    chaseAliveness(s, -margin) > 0 && !ph.continuation
+  ) {
+    return { team, reason: 'advance' };
+  }
+  const mandatory = decideMandatory(s);
+  if (mandatory) return mandatory;
+  if (
     // save-for-the-advance suppression applies only while this side might
-    // still need an advance (trailing/tied) — a leader always may regroup
+    // still need an advance (trailing/tied); a leader always may regroup
+    canSpend(s, team) &&
     s.runPts[other(team)] >= E.timeoutRunPts && (!advanceWindow || margin > 0)
   ) {
-    reason = 'stop_run';
+    return { team, reason: 'stop_run' };
   }
-  if (!reason) return;
+  return decideCoachHazard(s, team, margin, advanceWindow);
+}
 
+/**
+ * Budget + Q4-cap gate (fdesign-timeouts §3.3): a team may spend iff it has
+ * budget and, in the final scheduled period only, is under the ≤4 period cap
+ * and (inside the last toFinalPeriodLateSec) the ≤2 late cap. OT periods are
+ * exempt from the caps; the per-OT budget binds there instead. Applies to
+ * coach and advance calls; the mandatory rule uses it only to pick which
+ * side the scorer charges. Live at the real caps since the FLOW flip (4 in
+ * the final period, 2 after its 3:00 — the NBA numbers); at 99-caps this
+ * reduces to the legacy `timeoutsLeft > 0` check exactly (the staging
+ * identity).
+ */
+function canSpend(s: GameState, team: TeamSide): boolean {
+  if (s.timeoutsLeft[team] <= 0) return false;
+  const E = s.params.endgame;
+  if (s.period === s.rules.periods) {
+    if (s.timeoutsUsedFinalPeriod[team] >= E.toFinalPeriodMaxTimeouts) return false;
+    if (
+      s.clock <= E.toFinalPeriodLateSec &&
+      s.timeoutsUsedFinalLate[team] >= E.toFinalPeriodLateMaxTimeouts
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The mandatory (TV) stoppage: NBA Rule 5 VI(b), live at the shipped
+ * 419/179 anchors (6:59/2:59) since the FLOW flip. Regulation periods only
+ * (the corpus shows no OT anchor):
+ * if the period has no timeout yet at a qualifying stoppage under
+ * toMandatoryFirstBelowSec, the scorer takes one charged to the home side;
+ * if it has ≤ 1 under toMandatorySecondBelowSec, charged to the side not
+ * yet charged this period (tie → away, home took the first by convention).
+ * Charged from the team's normal budget (real rule); if the convention
+ * target can't pay (budget/caps), the other side is charged; if neither
+ * can, the stoppage is skipped. Deterministic, no rng: it's a rule.
+ */
+function decideMandatory(s: GameState): TimeoutCall | null {
+  const E = s.params.endgame;
+  if (s.period > s.rules.periods) return null; // no mandatory in OT
+  const charged = s.timeoutsThisPeriod;
+  const total = charged[0] + charged[1];
+  let target: TeamSide | null = null;
+  if (E.toMandatoryFirstBelowSec >= 0 && total === 0 && s.clock <= E.toMandatoryFirstBelowSec) {
+    target = 0; // first anchor: charged to the home side by convention
+  } else if (
+    E.toMandatorySecondBelowSec >= 0 && total <= 1 && s.clock <= E.toMandatorySecondBelowSec
+  ) {
+    // the side not yet charged this period; fewer-charged generalizes it,
+    // and a 0-0 tie goes to the away side (home owes the first anchor)
+    target = charged[0] < charged[1] ? 0 : 1;
+  }
+  if (target === null) return null;
+  const payer = canSpend(s, target) ? target : canSpend(s, other(target)) ? other(target) : null;
+  return payer === null ? null : { team: payer, reason: 'mandatory' };
+}
+
+/**
+ * The game-wide coach voluntary-timeout hazard (fdesign-timeouts §2), the
+ * probabilistic replacement for the deterministic run trigger: real coaches
+ * stop ~3 in 10 runs at any size, so a threshold is a metronome tell.
+ * Deterministic gates run first; rng is consumed only after every gate
+ * passes and p > 0. Live since the FLOW flip at the ffit-timeouts
+ * magnitudes (base 0.02, runW 0.195, trailW 0.03, burn 0.13), so the
+ * shipped engine draws here; zeroed magnitudes make p exactly 0 and
+ * restore the draw-free staged stream. `team` is the team with the ball at
+ * the stoppage being evaluated.
+ */
+function decideCoachHazard(
+  s: GameState,
+  team: TeamSide,
+  margin: number,
+  advanceWindow: boolean
+): TimeoutCall | null {
+  const E = s.params.endgame;
+  if (!canSpend(s, team)) return null;
+  // cooldown: prevents machine-gunning without touching mandatory/advance
+  if (s.t - s.lastTimeoutT[team] < E.toCoachCooldownSec) return null;
+  // quarter-open quiet window (real first-60s share: 1.0%)
+  const periodLen = (s.period > s.rules.periods ? s.rules.otMinutes : s.rules.periodMinutes) * 60;
+  if (periodLen - s.clock < E.toQuarterOpenQuietSec) return null;
+  // a non-final period's last possession is sacred (one definition of
+  // "hold for one", shared param), so no huddle interrupts it
+  if (s.period < s.rules.periods && s.clock <= E.holdForOneClockSec) return null;
+  // advance-reserve: trailing/tied inside the advance window, the timeout
+  // is saved for the advance decision (which owns that window)
+  if (advanceWindow && margin <= 0) return null;
+  const oppRun = s.runPts[other(team)];
+  const run = clamp((oppRun - E.toRunMinPts) / (E.toRunFullPts - E.toRunMinPts), 0, 1);
+  const trail = clamp(-margin / E.toTrailRefPts, 0, 1);
+  // spend-it-or-lose-it: inside the 5:00→3:00 window of the final scheduled
+  // period, a team still holding more than the late cap burns the excess
+  const burn =
+    s.period === s.rules.periods &&
+    s.clock > E.toFinalPeriodLateSec && s.clock <= E.toBurnWindowSec &&
+    s.timeoutsLeft[team] > E.toFinalPeriodLateMaxTimeouts
+      ? E.toBurnBoost
+      : 0;
+  const p = Math.min(E.toCoachMaxP, E.toCoachBasePerDead + E.toCoachRunW * run + E.toCoachTrailW * trail + burn);
+  // the staging off-path, kept: p ≤ 0 returns before the draw (zeroed
+  // magnitudes leave the rng stream untouched); at the shipped fits p > 0
+  // and the draw is real
+  if (p <= 0) return null;
+  if (!s.rng.chance(p)) return null;
+  return { team, reason: oppRun >= E.toStopRunLabelPts ? 'stop_run' : 'regroup' };
+}
+
+/**
+ * The decision for the live-ball possession-timeout site (possession.ts
+ * startPossession tail, kinds live_rebound/steal; live at
+ * params.endgame.toLiveSiteOn 1 since the FLOW flip): grab the board /
+ * steal and call time. The
+ * only path by which the endgame advance can fire off a defensive rebound
+ * or a steal; the caller turns a non-null decision into a continuation dead
+ * ball with the call pre-stamped (maybeTimeout's `pre`), so the stoppage's
+ * own evaluation never runs twice. No continuation block on the advance
+ * here: this site creates its stoppage, and advancing off a board is the
+ * point. Pure decision: effects stay in callTimeout.
+ */
+export function decideLiveTimeout(s: GameState, team: TeamSide): TimeoutCall | null {
+  const E = s.params.endgame;
+  const margin = s.score[team] - s.score[other(team)];
+  const finalPeriod = s.period >= s.rules.periods;
+  // same advance semantics as decideTimeout: rule-pack gated (audit M-11)
+  // and open to a tied team (audit M-10) — the live site replicates the
+  // dead-ball advance rule, not a private variant of it
+  const advanceWindow = finalPeriod && s.rules.advanceAfterTimeout &&
+    s.clock <= E.timeoutAdvanceClockSec && s.clock > 0;
+  if (
+    canSpend(s, team) &&
+    advanceWindow && margin <= 0 && -margin <= E.timeoutAdvanceDeficitMax &&
+    chaseAliveness(s, -margin) > 0
+  ) {
+    return { team, reason: 'advance' };
+  }
+  return decideCoachHazard(s, team, margin, advanceWindow);
+}
+
+/**
+ * The effects block, shared by every site: pay the budget, maintain the
+ * period/cap/cooldown counters, emit, freeze the stoppage, and stamp the
+ * phase's `timeout` field, the sub-window handshake (checkSubs runs after
+ * this at every site, so the rotation layer can read it). Wall-time only:
+ * the huddle stretches resumeIn/nextIn while the game clock stays frozen
+ * (two-axes discipline). The freethrows branch is reached from the
+ * FT-whistle site (maybeFtTimeout above, called by fouls.ts
+ * enterFreeThrows), live since the FLOW flip at the shipped to* values.
+ */
+function callTimeout(s: GameState, team: TeamSide, reason: TimeoutReason): void {
+  const E = s.params.endgame;
   s.timeoutsLeft[team] -= 1;
-  emit(s, { type: 'timeout', team, reason, remaining: s.timeoutsLeft[team] });
-  ph.clockRuns = false;
-  ph.resumeIn = Math.max(ph.resumeIn, E.timeoutResumeSec);
-  if (reason === 'advance') {
-    (ph as Extract<Phase, { kind: 'dead' }>).advanceInbound = true;
-  } else {
-    s.runPts[other(team)] = 0; // the regroup: the run is answered by the whistle
+  s.timeoutsThisPeriod[team] += 1;
+  if (s.period === s.rules.periods) {
+    s.timeoutsUsedFinalPeriod[team] += 1;
+    if (s.clock <= E.toFinalPeriodLateSec) s.timeoutsUsedFinalLate[team] += 1;
+  }
+  s.lastTimeoutT[team] = s.t;
+  // Contract converged (officiating wave, replay v3): TimeoutEvent.reason
+  // now carries the full TimeoutReason set. 'mandatory'/'regroup' are live
+  // since the FLOW flip (the 419/179 anchors, the fitted hazard) and emit
+  // through the real union, no cast (fdesign-timeouts §5's value-only
+  // widening, delivered with the rest of the event-contract chain).
+  emit(s, {
+    type: 'timeout', team, reason, remaining: s.timeoutsLeft[team]
+  });
+  const ph = s.phase;
+  if (ph.kind === 'dead') {
+    ph.clockRuns = false;
+    ph.resumeIn = Math.max(ph.resumeIn, E.timeoutResumeSec);
+    if (reason === 'advance') ph.advanceInbound = true;
+    ph.timeout = { team, reason };
+  } else if (ph.kind === 'freethrows') {
+    // whistle already stopped the clock; the huddle is wall-time only
+    ph.nextIn = Math.max(ph.nextIn, E.timeoutResumeSec);
+    ph.timeout = { team, reason };
+  }
+  if (reason !== 'advance') {
+    // the huddle answers the run for both benches (one rule for all non-
+    // advance reasons; prevents hazard re-triggering without a second
+    // mechanism). For the legacy stop_run this is provably the old
+    // one-sided reset: noteScore keeps at most one side's run nonzero, so
+    // the caller's own run is already 0 whenever the opponent's is alive.
+    // 'advance' deliberately keeps the legacy no-reset (byte-identity with
+    // the shipped path); fdesign-timeouts §1.2 would reset there too. May
+    // unify when the retired-in-place deterministic trigger is finally
+    // deleted (the timeoutRunPts params doc).
+    s.runPts[0] = 0;
+    s.runPts[1] = 0;
   }
 }

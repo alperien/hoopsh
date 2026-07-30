@@ -23,7 +23,7 @@ import {
   bestHandler, deadBall, endPeriod, endPossession, giveBall, setupDeadTargets,
   tickDead, tickScramble, tipWeightedWinner
 } from './possession.js';
-import { recordFoul, tickFreeThrows } from './fouls.js';
+import { enterFreeThrows, recordFoul, tickFreeThrows } from './fouls.js';
 import { hurriedness } from './endgame.js';
 import { resolveShotOutcome, startShot, windupSec } from './shooting.js';
 import { attemptReachIn, resolvePassArrival, startPass } from './passing.js';
@@ -151,10 +151,12 @@ function initState(cfg: GameConfig): GameState {
         },
         vel: { x: 0, y: 0 },
         energy: 100,
+        load: 0,
         secondsPlayed: 0,
         fouls: 0,
         onCourt: false,
         fouledOut: false,
+        lastSwapT: 0,
         target: { x: court.midX, y: court.centerY },
         intent: 'freeze',
         sprinting: false,
@@ -206,6 +208,11 @@ function initState(cfg: GameConfig): GameState {
     endgame: cfg.endgame ?? true,
     timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
     runPts: [0, 0],
+    // timeout-economy bookkeeping (state.ts doc): upkeep always, staged consumers
+    timeoutsThisPeriod: [0, 0],
+    timeoutsUsedFinalPeriod: [0, 0],
+    timeoutsUsedFinalLate: [0, 0],
+    lastTimeoutT: [-99, -99],
     conceded: [false, false],
     poss: {
       team: 0,
@@ -213,6 +220,9 @@ function initState(cfg: GameConfig): GameState {
       phase: 'advance',
       startT: 0,
       kind: 'tip',
+      // pre-tip placeholder; the tip possession itself is stamped by
+      // startPossession like every period start
+      opener: false,
       lastPass: null,
       spotMap: new Map(),
       spots: new Map(),
@@ -437,10 +447,46 @@ function tickLive(s: GameState, dt: number): void {
     emit(s, {
       type: 'turnover', team: h.side, player: h.p.id, kind: 'off_foul'
     });
-    recordFoul(s, h, 'offensive');
+    const { techFT } = recordFoul(s, h, 'offensive');
     endPossession(s, 'turnover');
+    if (techFT) {
+      // technical rider on the charge (officiating wave, staged-inert,
+      // fouls.ts): the defense shoots the tech first, then the same inbound
+      // dead ball runs from tickFreeThrows via resume (1.8s default delay,
+      // matching the no-tech deadBall below)
+      enterFreeThrows(s, techFT, 1, false, {
+        resume: { nextTeam: other(h.side), continuation: false, resumeIn: 1.8 }
+      });
+      return;
+    }
     deadBall(s, other(h.side), { clockRuns: false });
     return;
+  }
+
+  // Traveling (officiating wave, fdesign-officiating §1.3, live at the
+  // shipped travelPer*Sec rates — 1.05/g REAL total, rate gate before the
+  // draw): a sibling hazard
+  // to the charge, drawing only on attacking ticks. Committed drive time
+  // rolls travelPerDriveSec·dt, post-backdown time rolls travelPerPostSec·dt
+  // (same per-second × dt shape as chargePerDrive; ≤1 roll per attacking
+  // tick, and the charge roll above keeps stream priority). A travel is a
+  // violation, not a foul: dead-ball turnover, no PF, no team foul, never a
+  // steal. It is the arc's main repair of the dead-turnover deficit. The
+  // dead ball is flagged reviewable ('oob'; a shuffle at the gather is the
+  // same close boundary call).
+  {
+    const O = s.params.officiating;
+    const travelRate = s.t < h.driveUntil
+      ? O.travelPerDriveSec
+      : backingDown ? O.travelPerPostSec : 0;
+    if (travelRate > 0 && s.rng.chance(travelRate * dt)) {
+      emit(s, {
+        type: 'turnover', team: h.side, player: h.p.id, kind: 'travel'
+      });
+      endPossession(s, 'turnover');
+      deadBall(s, other(h.side), { clockRuns: false, reviewable: 'oob' });
+      return;
+    }
   }
 
   // 12. off-ball brains, then physics: movement integration + fatigue
