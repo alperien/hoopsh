@@ -1,6 +1,6 @@
 /**
  * Broadcast demo:
- *   npm run broadcast [-- --seed showcase-v2 --booth classic|tnt]
+ *   npm run broadcast [-- --seed showcase-v2 --booth classic|latenight]
  *   npm run broadcast -- --legacy          # the v1 pbp+color pipeline
  * Sims a game (deterministic by seed) and renders the two-voice BOOTH script
  * (docs/BROADCAST.md): play-by-play + analyst with geography, running-stat

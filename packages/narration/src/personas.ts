@@ -1,13 +1,16 @@
 /**
- * The shipped booth personas — real-announcer imitations, as data packs.
+ * The shipped booth personas — original archetypes on researched craft.
  *
- * Policy (project decision, 2026-07, superseding the earlier original-persona
- * approach): these packs IMITATE real broadcasters — Mike Breen, Hubie Brown,
- * Kevin Harlan — because invented broadcast language reads as generated text.
- * Every line here is one of:
- *   1. modeled on a VERIFIED call or verbal formula from the phrase inventory
- *      gathered from real transcripts and interviews (sources in
- *      docs/BROADCAST.md §7), or
+ * Policy (final form of the 2026-07 language decision): invented broadcast
+ * language reads as generated text, so every template keeps the craft of
+ * the researched phrase inventory — but the personas are ORIGINAL
+ * archetypes. No real broadcaster is named and no verbatim personal
+ * signature call is used; what carries over is the discipline of the
+ * genre, not anyone's identity. Every line here is one of:
+ *   1. modeled on the SHAPE of verified calls and verbal formulas from the
+ *      phrase inventory gathered from real transcripts and interviews
+ *      (sources in docs/BROADCAST.md §7) — the pattern, never the verbatim
+ *      trademark, or
  *   2. genre lingua franca confirmed as standard NBA play-by-play vocabulary
  *      ("won't go", "in and out", "off the back iron", "splits free throws",
  *      "kicks it out", "ahead to…", "and the foul", "checks in for"), or
@@ -18,13 +21,10 @@
  * the machine-checkable subset.
  *
  * Signature budgets follow the real usage discipline the research found:
- * Breen's "BANG! BANG!" has been used ~11 times in a CAREER; Harlan's "no
- * regard for human life" a handful of times ever. Per-game budgets of 1 with
- * high heat floors are already generous at game scale — they exist so a
- * signature stays an event.
- *
- * This is stylistic imitation for a simulation project; no affiliation with
- * or endorsement by the named broadcasters is implied.
+ * the famous real signature calls are career-rare — order tens of uses in
+ * thousands of games. Per-game budgets of 1 with high heat floors are
+ * already generous at game scale — they exist so a signature stays an
+ * event.
  *
  * Slot vocabulary (filled by booth.ts buildContext — keep in sync):
  *   {player} {Player} {passer} {blocker} {stealer} {victim} {assist}
@@ -39,32 +39,32 @@
 import type { VoicePack } from './voice.js';
 
 /**
- * MIKE BREEN — play-by-play. Crescendo discipline (his own description:
- * start low so the voice has somewhere to go): terse standard calls through
- * routine play, "It's good! It's good!" doubling at big moments, BANG
- * reserved for big threes only (threes-only is his stated rule), the double
- * BANG once a game at most for the impossible one.
+ * MILES CORBIN — play-by-play, the precision anchor. Crescendo discipline
+ * (the researched anchor's rule: start low so the voice has somewhere to
+ * go): terse standard calls through routine play, "It's good! It's good!"
+ * doubling at big moments, COUNT IT reserved for big threes only, the
+ * double form once a game at most for the impossible one.
  */
-export const BREEN: VoicePack = {
-  id: 'breen',
-  displayName: 'Mike Breen',
+export const CORBIN: VoicePack = {
+  id: 'corbin',
+  displayName: 'Miles Corbin',
   role: 'pbp',
   style: { statAffinity: 0.4 },
   signatures: [
     {
-      id: 'bang-bang',
+      id: 'count-it-double',
       text: [
-        'BANG! BANG! Oh, what a shot by {Player}!',
-        '{Player} from {dist} feet… BANG! BANG!'
+        'COUNT IT — OH, COUNT IT! What a shot by {Player}!',
+        '{Player} from {dist} feet… COUNT IT! COUNT IT!'
       ],
       when: { kinds: ['shot_made'], tags: ['heave'], minHeat: 0.9 },
       perGame: 1
     },
     {
-      id: 'bang',
+      id: 'count-it',
       text: [
-        '{player} for three… BANG!',
-        '{Player} from {spot}… BANG!'
+        '{player} for three… COUNT IT!',
+        '{Player} from {spot}… COUNT IT!'
       ],
       when: { kinds: ['shot_made'], tags: ['three'], minHeat: 0.72 },
       perGame: 3
@@ -308,16 +308,15 @@ export const BREEN: VoicePack = {
 };
 
 /**
- * HUBIE BROWN — analyst. The teaching register, from his own verified
- * formulas: "you must" directives, conditional second person ("if you're X,
- * you have to…"), "the painted area", numbers cited plainly, "That's it!
- * That's it!" as peak approval, credit to the coaching staff, and the
- * measured maxims he actually says ("when two good teams play each other,
- * the team that gets the most layups wins").
+ * GUS TREMAINE — analyst, the teacher. The teaching register the research
+ * catalogued: "you must" directives, conditional second person ("if you're
+ * X, you have to…"), "the painted area", numbers cited plainly, "That's
+ * it! That's it!" as peak approval, credit to the coaching staff, and
+ * measured old-coach maxims delivered as settled fact.
  */
-export const HUBIE: VoicePack = {
-  id: 'hubie',
-  displayName: 'Hubie Brown',
+export const TREMAINE: VoicePack = {
+  id: 'tremaine',
+  displayName: 'Gus Tremaine',
   role: 'color',
   style: { statAffinity: 0.9 },
   signatures: [
@@ -353,7 +352,7 @@ export const HUBIE: VoicePack = {
     ],
     'note.drought': [
       'The {team} finally score — that was {droughtMin} without a point. When you go dry like that, you must get into the painted area and get to the line.',
-      'That ends {droughtMin} of nothing. When two good teams play each other, the team that gets the most layups wins — go get a layup.'
+      'That ends {droughtMin} of nothing. The oldest rule in the book: the team that gets more layups wins — go get a layup.'
     ],
     'note.clutch': [
       'Okay — winning time. You must get a stop, and you must take care of the basketball.',
@@ -365,7 +364,7 @@ export const HUBIE: VoicePack = {
     ],
     'reaction.transition': [
       'Against a good half-court defense you must get out and run — and that is exactly what they did.',
-      'That is what forcing turnovers gives you: layups. And the team that gets the most layups wins.'
+      'That is what forcing turnovers gives you: layups. And the team that gets more layups wins.'
     ],
     'reaction.and_one': [
       'Excellent. He initiates the contact, he keeps his balance, and he finishes. Now go make it a three-point play.',
@@ -419,45 +418,45 @@ export const HUBIE: VoicePack = {
 };
 
 /**
- * KEVIN HARLAN — alternate play-by-play. His verified structure: controlled
- * start, staccato action-word enumeration on the big ones ("ELEVATES… COCKS
- * AND ROCKS IT!"), "Oh my goodness!" as the bridge exclamation, "What a
- * play!" as the closing tag, and the famous calls under real-usage budgets.
+ * DANA BOONE — alternate play-by-play, the firecracker. The researched
+ * high-energy structure: controlled start, staccato action-word
+ * enumeration on the big ones, a bridge exclamation, "What a play!" as the
+ * closing tag, and signature calls held under real-usage budgets.
  */
-export const HARLAN: VoicePack = {
-  id: 'harlan',
-  displayName: 'Kevin Harlan',
+export const BOONE: VoicePack = {
+  id: 'boone',
+  displayName: 'Dana Boone',
   role: 'pbp',
   style: { statAffinity: 0.3 },
   signatures: [
     {
-      id: 'no-regard',
+      id: 'baptized',
       text: [
-        '{Player}… WITH NO REGARD FOR HUMAN LIFE!'
+        '{Player}… OH, HE BAPTIZED HIM AT THE RIM!'
       ],
       when: { kinds: ['shot_made'], tags: ['drive'], minHeat: 0.88 },
       perGame: 1
     },
     {
-      id: 'sledgehammer',
+      id: 'hammer',
       text: [
-        '{Player}, climbing the ladder and dropping the sledgehammer! Who in their right mind would get in his way?!'
+        '{Player} climbs the ladder and BRINGS DOWN THE HAMMER! Goodness gracious!'
       ],
       when: { kinds: ['shot_made'], tags: ['putback', 'drive'], minHeat: 0.78 },
       perGame: 1
     },
     {
-      id: 'did-we-just-see',
+      id: 'zip-code',
       text: [
-        'IT’S GOOD! Did we just see what I think we just saw?! WOW!'
+        'IT’S GOOD! FROM ANOTHER ZIP CODE! Are you seeing this?!'
       ],
       when: { kinds: ['shot_made'], tags: ['heave', 'buzzer'], minHeat: 0.9 },
       perGame: 1
     },
     {
-      id: 'between-the-eyes',
+      id: 'dagger',
       text: [
-        '{Player}… right between the eyes!'
+        '{Player}… and THAT, folks, is the dagger!'
       ],
       when: { kinds: ['shot_made'], tags: ['dagger'], minHeat: 0.72 },
       perGame: 1
@@ -652,9 +651,9 @@ export const HARLAN: VoicePack = {
 };
 
 /** the shipped two-voice booths */
-export const BOOTH_PRESETS: Record<'classic' | 'tnt', { pbp: VoicePack; color: VoicePack }> = {
-  classic: { pbp: BREEN, color: HUBIE },
-  tnt: { pbp: HARLAN, color: HUBIE }
+export const BOOTH_PRESETS: Record<'classic' | 'latenight', { pbp: VoicePack; color: VoicePack }> = {
+  classic: { pbp: CORBIN, color: TREMAINE },
+  latenight: { pbp: BOONE, color: TREMAINE }
 };
 
 export type BoothPresetId = keyof typeof BOOTH_PRESETS;

@@ -528,7 +528,7 @@ function renderShot(
     const andOne = e.foul?.andOne ? ` AND the foul!` : '';
     const body = e.three
       ? pool.pick('made3', [
-          `${who} lets it fly... BANG! ${open}triple`,
+          `${who} lets it fly... GOOD! ${open}triple`,
           `${who} from deep... got it!`,
           `Splash! ${who} buries the ${open}three.`,
           `${who} rises from beyond the arc — pure!`

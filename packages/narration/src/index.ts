@@ -53,5 +53,5 @@ export { makeGeo, shotSpot } from './geometry.js';
 export type { ShotSpot, GeoContext } from './geometry.js';
 export type { VoicePack, Signature, RenderContext } from './voice.js';
 export { fillSlots, LineDealer, resolvePool, clockPhrase, periodPhrase, mmss, ordinal, minutesText, runText } from './voice.js';
-export { BREEN, HUBIE, HARLAN, BOOTH_PRESETS } from './personas.js';
+export { CORBIN, TREMAINE, BOONE, BOOTH_PRESETS } from './personas.js';
 export type { BoothPresetId } from './personas.js';
