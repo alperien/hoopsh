@@ -105,10 +105,23 @@ export interface RulePack {
   /**
    * Team timeouts per game (flat per-game simplification of each league's
    * real budget rules — no per-half carryover or last-two-minute caps yet).
-   * Consumed only by the endgame layer (GameConfig.endgame — sim/endgame.ts);
-   * a default-config game never calls one, so this field is inert there.
+   * Consumed only by the endgame layer (sim/endgame.ts maybeTimeout).
+   * GameConfig.endgame ships ON by default (the n=1260/arm survey flip), so
+   * default-config games DO spend these; only an explicit `endgame: false`
+   * legacy run leaves the budget untouched.
    */
   timeoutsPerGame: number;
+  /**
+   * Whether a late-game timeout lets the inbounding team ADVANCE the ball to
+   * its frontcourt (sim/endgame.ts maybeTimeout reason 'advance', staged by
+   * sim/possession.ts setupDeadTargets). True where the rule book has it:
+   * NBA (last two minutes of Q4/OT) and FIBA/EuroLeague (FIBA Official
+   * Rules Art. 17.2.4, frontcourt throw-in line, since the 2018 rules).
+   * NCAA men have NO such rule — the throw-in stays where play stopped —
+   * so a false here removes both the advance timeout and the
+   * save-a-timeout-for-it suppression on stop-the-run calls.
+   */
+  advanceAfterTimeout: boolean;
 }
 
 export const NBA: RulePack = {
@@ -145,7 +158,10 @@ export const NBA: RulePack = {
   // 7 team timeouts per game — the real modern NBA budget (the real rule
   // also caps usage at 4 in the fourth period / 2 in the last three minutes;
   // that refinement is future work, see the interface note).
-  timeoutsPerGame: 7
+  timeoutsPerGame: 7,
+  // the NBA advance-the-ball rule: a timeout in the last two minutes of the
+  // fourth period/OT moves the throw-in to the frontcourt hashmark
+  advanceAfterTimeout: true
 };
 
 /** placeholder stubs — tuned packs land with the league-expansion milestone */
@@ -189,7 +205,12 @@ export const NCAA: RulePack = {
   foulOutAt: 5,
   // NCAA: 4 timeouts (3×30s + 1×60s) in the flat per-game simplification —
   // media-timeout structure is out of scope, same as the NBA note above.
-  timeoutsPerGame: 4
+  timeoutsPerGame: 4,
+  // NCAA men have NO advance-the-ball rule: after any timeout the throw-in
+  // is at the spot nearest where play stopped (this previously inherited
+  // the NBA's true via the spread and NCAA endgames got the NBA advance —
+  // audit M-11)
+  advanceAfterTimeout: false
 };
 
 /** like NCAA, a structural stub — real EuroLeague rule-book numbers below, but not independently probability-tuned; see the calibration-status note above. */
@@ -222,7 +243,13 @@ export const EUROLEAGUE: RulePack = {
   foulOutAt: 5,
   // FIBA/EuroLeague: 2 first-half + 3 second-half timeouts, flattened to 5
   // per game (same simplification as the other packs).
-  timeoutsPerGame: 5
+  timeoutsPerGame: 5,
+  // FIBA has the advance since its 2018 rules: after a timeout taken by the
+  // team entitled to a backcourt throw-in in the last two minutes of the
+  // fourth period/OT, play resumes at the frontcourt throw-in line (FIBA
+  // Official Rules Art. 17.2.4). Stated explicitly rather than inherited —
+  // rule provenance belongs on the pack.
+  advanceAfterTimeout: true
 };
 
 /**

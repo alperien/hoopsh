@@ -362,10 +362,13 @@ export interface FoulEvent extends Base {
  * (possession requirement, like the real rule — see sim/endgame.ts
  * maybeTimeout, invoked from sim/possession.ts deadBall). `reason` —
  * 'stop_run': the opponent has scored `params.endgame.timeoutRunPts`
- * unanswered and the coach stops the bleeding; 'advance': a trailing team
- * late in the final period burns a timeout so the ensuing inbound starts in
- * the FRONTcourt (the real advance-the-ball rule — the mechanical payoff is
- * the inbound spot, see sim/possession.ts setupDeadTargets). `remaining` is
+ * unanswered and the coach stops the bleeding; 'advance': a trailing or
+ * tied team late in the final period burns a timeout so the ensuing inbound
+ * starts in the FRONTcourt (the real advance-the-ball rule — the mechanical
+ * payoff is the inbound spot, see sim/possession.ts setupDeadTargets).
+ * 'advance' exists only in leagues whose rule pack has the rule
+ * (rules.advanceAfterTimeout — NBA/EuroLeague yes, NCAA men no; an NCAA
+ * stream never contains it). `remaining` is
  * the calling team's budget AFTER this timeout (budget per game:
  * rules.timeoutsPerGame). The game clock never runs during the timeout;
  * `wt` keeps advancing so replays show the huddle as real elapsed time.
