@@ -89,6 +89,10 @@ export interface SimParams {
     /** logit swing from rating (multiplied by n(rating) in [-1, 1]) */
     skillCoef: number;
     skillCoefThree: number;
+    /** paint-zone skill definition — the finishing/midRange blend fed to the
+     *  make model's skill term (touch-dominant; see the defaults' note) */
+    paintBlendFinishing: number;
+    paintBlendMidRange: number;
     /** logit penalty per unit contest above the calibration midpoint */
     contestCoef: number;
     contestMidpoint: number;
@@ -113,6 +117,10 @@ export interface SimParams {
     ftBasePct: number;
     ftSkillSwing: number;
     ftEliteKick: number;         // extra FT% above rating 80, full at 100 (elite tail curvature)
+    /** the elite kick's knee and ramp, in n-space: kick is zero at/below
+     *  n = ftEliteKneeN and reaches ftEliteKick at kneeN + rampN */
+    ftEliteKneeN: number;
+    ftEliteRampN: number;
     /** chance a rim/paint miss with a strong interior contest is a block */
     blockBase: number;
     blockSkillCoef: number;
@@ -736,6 +744,14 @@ export const defaultParams: SimParams = {
     // 31.8% on a heavy pull-up diet — BELOW league average. Elite spread
     // widened; the sweep re-centers baseThree if the league mean drifts.
     skillCoefThree: 0.66,
+    // Paint skill is TOUCH-dominant: the in-between game (floaters, push
+    // shots, short hooks) rides midRange far more than finishing — which is
+    // WHY sagging off a rim-runner works: his open 9-foot floater is a win
+    // for the defense. FEEL — hoisted from the inline resolve.ts zoneSkill
+    // blend per this file's header rule (a make-model skill input belongs
+    // on this surface; audit H-01).
+    paintBlendFinishing: 0.35,
+    paintBlendMidRange: 0.65,
     // Defense's main lever: penalty per unit of contest above the midpoint.
     // A smothered shot (contest 1.0) costs ~0.7 logits ≈ 15+ points of FG%
     // versus a wide-open one. SWEPT.
@@ -791,6 +807,12 @@ export const defaultParams: SimParams = {
     // REAL — the elite tail: +5.5% at rating 100, zero below 80; rating 99
     // lands ~90%, matching the 88-91% real elite band
     ftEliteKick: 0.055,
+    // The kick's knee and ramp in n-space: n = 0.6 is rating 80 (where the
+    // elite tail starts), and the 0.4 ramp reaches the full kick at rating
+    // 100 (n = 1.0). FEEL — were inline in resolve.ts freeThrowP; the elite
+    // tail's SHAPE is a make-path constant, so it lives here (audit H-01).
+    ftEliteKneeN: 0.6,
+    ftEliteRampN: 0.4,
     // Blocks are drawn only from shots that were ALREADY going to miss, so
     // this reallocates misses to blocks rather than changing FG%. Keeps block
     // totals tunable without disturbing efficiency calibration. SWEPT.
