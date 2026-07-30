@@ -32,12 +32,13 @@
 //       both bags and crashes on a non-numeric value (game.ts
 //       assertValidRatings), so there the schema and the loader agree.
 //     - wingspanIn/weightLb/rotationMinutes value types are checked by the
-//       editor even where JSON cannot represent the non-finite numbers the
-//       runtime validator guards against (JSON has no NaN/Infinity, so
-//       "type": "number" is exactly the finiteness check).
-//   LOOSER (rules draft 2020-12 cannot express — or not worth a hardcoded
-//   enum here; validateTeamPack still enforces them, so
-//   `npm run roster:validate` remains the final word):
+//       editor. NOT a finiteness check, though: JSON has no NaN/Infinity
+//       literals, but an overflowing numeric literal (1e999) legally parses
+//       to Infinity, and Infinity satisfies "type": "number" — the runtime
+//       validator's Number.isFinite guards stay the final word on
+//       non-finite values (release-audit L-62).
+//   LOOSER (rules draft 2020-12 cannot express; validateTeamPack still
+//   enforces them, so `npm run roster:validate` remains the final word):
 //     - players[].id uniqueness across the roster
 //     - every starters[] entry naming an id that exists in players[]
 //     - rotationMinutes keys naming ids that exist in players[]

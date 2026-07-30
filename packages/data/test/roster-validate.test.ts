@@ -128,6 +128,30 @@ describe('roster:validate warnings', () => {
     );
     expect(codes(booked)).toContain('rotation-overbooked');
   });
+
+  it('rotationMinutes: impossible UNDER-booking warns only when every player is capped (M-43)', () => {
+    // whole roster capped at a 120 total: 240 real minutes have nowhere to go
+    const under = scaffold();
+    under.team.rotationMinutes = Object.fromEntries(
+      under.team.players.map((pl: any) => [pl.id, 12])
+    );
+    expect(codes(under)).toContain('rotation-underbooked');
+
+    // partial coverage is a legal style: untargeted players soak the rest
+    const partial = scaffold();
+    partial.team.rotationMinutes = Object.fromEntries(
+      partial.team.players.slice(0, 5).map((pl: any) => [pl.id, 12])
+    );
+    expect(codes(partial)).not.toContain('rotation-underbooked');
+
+    // a full-coverage ~240 budget is exactly right — no warning either side
+    const budgeted = scaffold();
+    budgeted.team.rotationMinutes = Object.fromEntries(
+      budgeted.team.players.map((pl: any) => [pl.id, 24])
+    );
+    expect(codes(budgeted)).not.toContain('rotation-underbooked');
+    expect(codes(budgeted)).not.toContain('rotation-overbooked');
+  });
 });
 
 describe('roster:validate error enrichment', () => {
@@ -184,6 +208,31 @@ describe('roster:validate error enrichment', () => {
     expect(getAtPath(pack, '$.formatVersion')).toBe(2);
     expect(getAtPath(pack, '$.team.players[99].attr.three')).toBe(undefined);
   });
+
+  it('getAtPath resolves author ids that CONTAIN dots (rotationMinutes keys, L-61)', () => {
+    const pack = scaffold();
+    pack.team.rotationMinutes = { 'j.r.-smith': 'lots' } as any;
+    expect(getAtPath(pack, '$.team.rotationMinutes.j.r.-smith')).toBe('lots');
+    // and the enriched issue shows the actual value, not "missing"
+    const issues = validateTeamPack(pack);
+    const bad = issues.map((i) => explainIssue(pack, i) as any)
+      .find((e) => e.path === '$.team.rotationMinutes.j.r.-smith');
+    expect(bad?.current).toBe('"lots"');
+  });
+
+  it('the centimeter fix never suggests a value outside the legal window (L-60)', () => {
+    const pack = scaffold();
+    pack.team.players[0].heightIn = 500; // 500/2.54 = 197 in — NOT a height
+    pack.team.players[1].heightIn = 130; // 130/2.54 = 51 in — below the floor
+    const explained = validateTeamPack(pack).map((i) => explainIssue(pack, i) as any);
+    const fixes = explained.filter((e) => e.path.endsWith('.heightIn')).map((e) => e.fix ?? '');
+    expect(fixes.length).toBe(2);
+    for (const fix of fixes) {
+      expect(fix).not.toContain('197');
+      expect(fix).not.toContain('51');
+      expect(fix).not.toContain('centimeters');
+    }
+  });
 });
 
 describe('roster:validate CLI', () => {
@@ -229,5 +278,45 @@ describe('roster:validate CLI', () => {
     const res = run(f);
     expect(res.status).toBe(1);
     expect(res.stdout).toContain('trailing commas');
+  });
+
+  it('unknown flags are usage errors with a hint, never silent no-ops (M-42)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'hoopsh-rv-'));
+    const good = path.join(dir, 'good.json');
+    writeFileSync(good, JSON.stringify(scaffold()));
+
+    const typo = run(good, '--sctrict'); // the CI-gate-defeating typo
+    expect(typo.status).toBe(2);
+    expect(typo.stderr).toContain('--strict');
+
+    const joined = run(good, '--strict=true');
+    expect(joined.status).toBe(2);
+    expect(joined.stderr).toContain('write it bare');
+
+    const twoFiles = run(good, good);
+    expect(twoFiles.status).toBe(2);
+    expect(twoFiles.stderr).toContain('one pack per run');
+  });
+
+  it('piped --json survives past the 64 KiB pipe buffer intact (M-50)', () => {
+    // an invalid pack with hundreds of enriched issues: the JSON report runs
+    // well past 64 KiB, and exit-after-log used to truncate it mid-document
+    const dir = mkdtempSync(path.join(tmpdir(), 'hoopsh-rv-'));
+    const pack = scaffold();
+    for (let i = 0; i < 30; i++) {
+      pack.team.players.push(JSON.parse(JSON.stringify(pack.team.players[i % 10])));
+    }
+    for (const [i, pl] of pack.team.players.entries()) {
+      pl.id = `big-${i}`;
+      for (const k of Object.keys(pl.attr)) pl.attr[k] = '77'; // every rating quoted = an issue each
+    }
+    const f = path.join(dir, 'big.json');
+    writeFileSync(f, JSON.stringify(pack));
+    const res = run(f, '--json');
+    expect(res.status).toBe(1);
+    expect(res.stdout.length).toBeGreaterThan(64 * 1024);
+    const report = JSON.parse(res.stdout); // throws on truncation
+    expect(report.valid).toBe(false);
+    expect(report.issues.length).toBeGreaterThan(900); // 40 players x 24 attrs
   });
 });

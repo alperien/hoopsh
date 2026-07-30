@@ -94,6 +94,12 @@ export function renderEvent(
         const ast = e.assist ? ` (assist by ${name(e.assist)})` : '';
         return `${name(e.shooter)} makes ${kind}${ast}`;
       }
+      // A fouled miss never prints a miss line in the real register — the
+      // shooting-foul + FT rows ARE the play (0 of 3,876 corpus shooting
+      // fouls carry one; the sim printed 5.65/game, a deterministic tell a
+      // zero-knowledge classifier keyed on — release-audit H-07). Made
+      // and-ones keep their make line: bbref prints make + foul there.
+      if (e.foul) return null;
       const blk = e.blockedBy ? ` (block by ${name(e.blockedBy)})` : '';
       return `${name(e.shooter)} misses ${kind}${blk}`;
     }

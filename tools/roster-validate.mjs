@@ -37,9 +37,21 @@ export function getAtPath(obj, jsonPath) {
   if (jsonPath === '$') return obj;
   const segs = jsonPath.slice(2).split(/[.[]/).map((s) => s.replace(/\]$/, ''));
   let node = obj;
-  for (const seg of segs) {
+  for (let i = 0; i < segs.length; i++) {
     if (node == null) return undefined;
-    node = node[/^\d+$/.test(seg) ? Number(seg) : seg];
+    const seg = segs[i];
+    const next = node[/^\d+$/.test(seg) ? Number(seg) : seg];
+    // Author-chosen keys (rotationMinutes player ids) may CONTAIN dots —
+    // "$.team.rotationMinutes.j.r.-smith" is ONE key, but the split above
+    // cannot know that. On a miss, retry the remaining segments re-joined as
+    // a single key before giving up (a dotted id whose first segment
+    // collides with a real key still walks wrong — accepted, the fallback
+    // only fires when the plain walk dead-ends). Release-audit L-61.
+    if (next === undefined && i < segs.length - 1 && typeof node === 'object') {
+      const joined = segs.slice(i).join('.');
+      if (joined in node) return node[joined];
+    }
+    node = next;
   }
   return node;
 }
@@ -117,8 +129,13 @@ export function explainIssue(pack, issue) {
   }
   if (p.endsWith('.heightIn')) {
     out.legal = `${HEIGHT_MIN_IN}-${HEIGHT_MAX_IN} inches (5'0"-8'0")`;
-    if (typeof current === 'number' && current >= 120) {
-      out.fix = `${current} looks like centimeters — hoopsh wants inches: ${Math.round(current / 2.54)}`;
+    // the cm reading is only offered when the CONVERSION itself is legal —
+    // "500 cm" converts to 197 in, and a fix line must never suggest a value
+    // the validator would reject right back (release-audit L-60)
+    const asInches = typeof current === 'number' ? Math.round(current / 2.54) : NaN;
+    if (typeof current === 'number' && current >= 120
+      && asInches >= HEIGHT_MIN_IN && asInches <= HEIGHT_MAX_IN) {
+      out.fix = `${current} looks like centimeters — hoopsh wants inches: ${asInches}`;
     } else if (typeof current === 'number' && current > 0 && current < HEIGHT_MIN_IN) {
       out.fix = `${current} looks like feet — use total inches (6'9" = 81)`;
     } else {
@@ -361,6 +378,14 @@ export function computeWarnings(pack) {
       warn('rotation-overbooked', 'rotationMinutes',
         `targets sum to ${totalTarget}`,
         'five positions x 48 minutes = 240 player-minutes per game — targets beyond that cannot all be honored');
+    } else if (totalTarget < 235 && team.players.every((pl) => Object.hasOwn(team.rotationMinutes, pl.id))) {
+      // the under-booked mirror (same +-5 slack): with EVERY player capped,
+      // 240 player-minutes have nowhere legal to land, so the rotation must
+      // run somebody past their number. Partial coverage is fine — untargeted
+      // players soak the rest by design (release-audit M-43).
+      warn('rotation-underbooked', 'rotationMinutes',
+        `every player has a target and they sum to ${totalTarget}`,
+        'five positions x 48 minutes = 240 player-minutes MUST be played — under-booking the whole roster forces someone past his target; free at least one player of a target, or budget ~240');
     }
   }
 
@@ -391,20 +416,48 @@ function printWarning(w) {
 }
 
 async function main() {
-  const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-  const strict = process.argv.includes('--strict');
-  const asJson = process.argv.includes('--json');
-  const file = args[0];
-  if (!file) {
+  // Loud argv policy, mirroring packages/harness/src/args.ts: unknown flags,
+  // =-joined values, and stray positionals are usage errors (exit 2), never
+  // silent no-ops — a typo'd --strict used to validate WITHOUT strictness and
+  // let the CI gate pass wide open (release-audit M-42).
+  const KNOWN_FLAGS = ['--strict', '--json'];
+  const argv = process.argv.slice(2);
+  const files = [];
+  let usageError = null;
+  for (const a of argv) {
+    if (!a.startsWith('-')) { files.push(a); continue; }
+    if (KNOWN_FLAGS.includes(a)) continue;
+    const bare = a.includes('=') ? a.slice(0, a.indexOf('=')) : a;
+    if (KNOWN_FLAGS.includes(bare)) {
+      usageError = `${bare} takes no value — write it bare (got "${a}")`;
+    } else {
+      const guess = closest(bare, KNOWN_FLAGS);
+      usageError = `unknown flag "${a}"${guess ? ` — did you mean "${guess}"?` : ''}`;
+    }
+    break;
+  }
+  if (!usageError && files.length > 1) {
+    usageError = `one pack per run — got ${files.length} positionals (${files.join(', ')}); validate them one at a time`;
+  }
+  const strict = argv.includes('--strict');
+  const asJson = argv.includes('--json');
+  const file = files[0];
+  // exit discipline throughout main(): set process.exitCode and return, never
+  // process.exit() — exit() right after console.log truncated piped --json
+  // reports at the 64 KiB pipe buffer (release-audit M-50)
+  if (usageError || !file) {
+    if (usageError) console.error(`roster-validate: ${usageError}`);
     console.error('usage: npm run roster:validate -- <pack.json> [--strict] [--json]');
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
   let raw;
   try {
     raw = readFileSync(file, 'utf8');
   } catch (err) {
     console.error(`cannot read ${file}: ${err.code ?? err.message}`);
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
 
   const { team, issues } = loadTeamPack(raw);
@@ -441,8 +494,7 @@ async function main() {
     }
   }
 
-  if (team === null) process.exit(1);
-  if (strict && warnings.length > 0) process.exit(1);
+  if (team === null || (strict && warnings.length > 0)) process.exitCode = 1;
 }
 
 const isMain = process.argv[1]
