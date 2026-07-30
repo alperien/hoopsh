@@ -99,7 +99,7 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
       let budget = FULL;
       let lastRemaining = FULL;
       let lastWasLate = false;
-      let lastKind: 'playerOreb' | 'sideOut' = 'playerOreb';
+      let lastKind: 'playerOreb' | 'sideOut' | 'jump' = 'playerOreb';
       let frozen = 0;          // measured scramble time inside this segment
       let shotT: number | null = null; // pending miss whose scramble is open
       for (let j = i + 1; j < evs.length; j++) {
@@ -118,7 +118,7 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
           if (elapsed > budget + END_SLOP) ceilingViolations++;
           if (lastWasLate && elapsed > lastRemaining + 2.0) {
             if (lastKind === 'playerOreb') playerOrebGrants++;
-            else sideOutGrants++;
+            else if (lastKind === 'sideOut') sideOutGrants++;
             lastWasLate = false; // count each granted reset once
           }
           if (e.type === 'shot' && !e.made) shotT = e.t; // scramble may open
@@ -133,12 +133,21 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
         // shot clock floored at rules.shotClockOffRebSec (events.ts doc) —
         // same max(remaining, 14) arithmetic as the other side-out sites
         const kickReset = e.type === 'violation' && e.kind === 'kicked_ball';
-        if (orebReset || foulReset || kickReset) {
+        // a mid-possession jump ball reaching this line is the offense-
+        // retains branch (defense winning the tap ends the possession, and
+        // the fold never gets past possession_end): the engine floors the
+        // clock at shotClockOffRebSec exactly like an offensive board
+        // (sim/possession.ts, held-ball site). Jump grants stay OUT of the
+        // grant counters below so the floor-deletion mutant claims keep
+        // their measured meaning.
+        const jumpReset = e.type === 'jump_ball';
+        if (orebReset || foulReset || kickReset || jumpReset) {
           const remainingUpper = budget - Math.max(0, elapsed - FLIGHT_ALLOW);
           lastRemaining = Math.max(0, remainingUpper);
           lastWasLate = remainingUpper < 11;
           if (lastWasLate) lateResets++;
-          lastKind = orebReset && e.player ? 'playerOreb' : 'sideOut';
+          lastKind = jumpReset ? 'jump'
+            : orebReset && e.type === 'rebound' && e.player ? 'playerOreb' : 'sideOut';
           // Foul resets budget FULL: L-11 (this audit wave) grants backcourt
           // retention fouls a fresh 24, frontcourt max(remaining, 14) — FULL
           // is the sound ceiling for both. OREB and kicked-ball resets keep

@@ -186,10 +186,11 @@ describe('concept 9 — opening set (live wiring)', () => {
   const FORCED: ParamOverrides = { ai: { openerShootMalus: 0.4 } };
 
   it('the live default fires at the fitted dose; a pinned 0 stays exactly zero', () => {
-    // ship-at-live pin (ffit-grammar: malus 0.32, drive share 0.75)
+    // ship-at-live pin (re-fit on the post-audit engine: malus 0.55 —
+    // refit-g3, opener share 4.2% vs the 6% gate; drive share 0.75)
     const live = openerSet(stub({}), 1);
-    expect(live.shoot).toBe(0.32);
-    expect(live.drive).toBe(0.32 * 0.75);
+    expect(live.shoot).toBe(0.55);
+    expect(live.drive).toBe(0.55 * 0.75);
     // the stage-switch semantics still hold behind an explicit override
     const pinned = openerSet(stub({ params: { ai: { openerShootMalus: 0 } } }), 1);
     expect(pinned.shoot).toBe(0);
