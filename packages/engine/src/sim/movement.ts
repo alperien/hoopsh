@@ -146,8 +146,9 @@ export function applyFatigue(s: GameState, dt: number): void {
       const staminaMult = 1.25 - (a.p.attr.stamina / 100) * 0.5;
       const drain = F.drainPerSec * (1 + speedShare * F.sprintDrainMult) * staminaMult * dt;
       a.energy = clamp(a.energy - drain, 0, 100);
-      // Cumulative load (fdesign-rhythm M1, STAGED at loadPerSec 0, where
-      // load provably stays 0): heavy legs accrue on the same effort/stamina
+      // Cumulative load (fdesign-rhythm M1, live at loadPerSec 0.011 since
+      // the FLOW flip; at 0 load provably stays 0): heavy legs accrue on
+      // the same effort/stamina
       // chain as energy, but recover an order of magnitude slower below.
       // That asymmetry is what makes load trend across a game while energy
       // sawtooths per stint. See state.ts Agent.load for the consumer map.
@@ -165,8 +166,9 @@ export function applyFatigue(s: GameState, dt: number): void {
  * Resolution-side energy: raw energy minus cumulative load ("a tired body
  * with heavy legs"). The consumers are the resolution models (resolve.ts's
  * shot-fatigue term and currentMaxSpeed), wired per ffit-rhythm §8 and
- * STAGED behind fatigue.loadPerSec 0: load stays 0 there, so this equals
- * raw energy exactly. Subs/rotation never read this (M1 contract: rotation
+ * live at fatigue.loadPerSec 0.011 since the FLOW flip (at 0 load stays 0
+ * and this equals
+ * raw energy exactly). Subs/rotation never read this (M1 contract: rotation
  * cadence belongs to raw energy).
  */
 export function effectiveEnergy(a: Agent): number {

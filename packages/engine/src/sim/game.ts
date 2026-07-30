@@ -463,8 +463,9 @@ function tickLive(s: GameState, dt: number): void {
     return;
   }
 
-  // Traveling (officiating wave, fdesign-officiating §1.3, STAGED inert at
-  // the travelPer*Sec zeros, rate gate before the draw): a sibling hazard
+  // Traveling (officiating wave, fdesign-officiating §1.3, live at the
+  // shipped travelPer*Sec rates — 1.05/g REAL total, rate gate before the
+  // draw): a sibling hazard
   // to the charge, drawing only on attacking ticks. Committed drive time
   // rolls travelPerDriveSec·dt, post-backdown time rolls travelPerPostSec·dt
   // (same per-second × dt shape as chargePerDrive; ≤1 roll per attacking

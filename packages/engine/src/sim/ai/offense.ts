@@ -80,12 +80,13 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
  *
  * Called from possession.ts tickScramble at the grab, before the putback
  * roll (a putback releases in ~0.25s and the refill is what the NEXT beat
- * needs either way). Deterministic, no rng. STAGED off at ai.orebRefillSec
- * 0: returns before touching any positioning state.
+ * needs either way). Deterministic, no rng. Live at ai.orebRefillSec 1.8
+ * since the FLOW flip; at 0 it returns before touching any positioning
+ * state.
  */
 export function onOrebSecured(s: GameState, winner: Agent): void {
   const A = s.params.ai;
-  if (A.orebRefillSec <= 0) return; // STAGED off
+  if (A.orebRefillSec <= 0) return; // 0 = staged off
   for (const a of liveOnCourt(s, winner.side)) {
     if (a.p.id === winner.p.id) continue;
     if (

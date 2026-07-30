@@ -72,7 +72,8 @@ export function startShot(
   }
 
   // Defensive goaltending (officiating wave, fdesign-officiating §1.2,
-  // STAGED inert at goaltendPerContestedInsideMiss 0, rate gate before the
+  // live at goaltendPerContestedInsideMiss 0.0205 — 0.51/g REAL, rate gate
+  // before the
   // draw): one gated roll after the make/block/foul rolls, on contested
   // rim/paint would-be misses only. On fire the miss becomes a made shot
   // before the assist bookkeeping below (goaltended makes carry assists;

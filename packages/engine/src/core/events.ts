@@ -394,7 +394,8 @@ export interface FoulEvent extends Base {
  * A team timeout (endgame layer — emitted only when the game runs with
  * `GameConfig.endgame` enabled, which is the DEFAULT: sim/game.ts resolves
  * `endgame: cfg.endgame ?? true` since the integration landing, so
- * essentially every real stream contains timeouts (~80% of default games).
+ * essentially every real stream contains timeouts (every default game
+ * since the FLOW flip's mandatory anchors; ~80% even before them).
  * Only an explicit `endgame: false` legacy run never emits one — an earlier
  * revision of this doc predated the default flip and promised the opposite;
  * a10 contract scan F2). Fires at a dead ball, called by the team that will inbound
@@ -410,9 +411,10 @@ export interface FoulEvent extends Base {
  * stream never contains it). 'mandatory': a scorer-imposed TV stoppage
  * charged to a team per the NBA Rule 5 VI(b) convention; 'regroup': a
  * coach's voluntary huddle below the stop-run label (both from the
- * game-wide timeout economy, sim/endgame.ts, STAGED inert behind
- * params.endgame.to* never-fire values, so neither appears in a default
- * stream; the values joined this union with replay v3 so the staged wiring
+ * game-wide timeout economy, sim/endgame.ts, live since the FLOW flip at
+ * the shipped params.endgame.to* fits — the 419/179 mandatory anchors and
+ * the fitted coach hazard — so both appear in ordinary default streams;
+ * the values joined this union with replay v3 so the wiring
  * emits without a cast). `remaining` is
  * the calling team's budget AFTER this timeout (budget per game:
  * rules.timeoutsPerGame). The game clock never runs during the timeout;
@@ -446,7 +448,8 @@ export interface SubstitutionEvent extends Base {
  * A mid-game held-ball jump ball (period openers stay TipOffEvent; that
  * contract is untouched). Fires from a rebound-scramble tie-up or an on-ball
  * tie-up (sim/possession.ts tickScramble / sim/passing.ts attemptReachIn),
- * STAGED inert at the shipped params.officiating.heldBallPer* zeros. A real
+ * live at the shipped params.officiating.heldBallPer* rates since the FLOW
+ * flip (0.0095 per scramble / 0.005 per reach — 0.83/g total, REAL). A real
  * jump is administered (no possession arrow, the NBA rule): `winner` is the
  * side that controls the tap, and play continues from there. Offense wins
  * → the same possession continues (no possession_start); defense wins →
@@ -467,8 +470,8 @@ export interface JumpBallEvent extends Base {
 }
 
 /**
- * A non-foul, non-turnover officiating violation (STAGED inert at the
- * shipped params.officiating zeros). `kind` values: 'def_goaltend' is
+ * A non-foul, non-turnover officiating violation (live at the shipped
+ * params.officiating rates since the FLOW flip). `kind` values: 'def_goaltend' is
  * defensive goaltending; it always immediately follows the made `shot`
  * event it rides (same `t`/`wt`, and that event's `score` already includes
  * the points; real accounting logs a normal FGM, assist eligible, then the
@@ -489,8 +492,9 @@ export interface ViolationEvent extends Base {
 
 /**
  * An officials' replay review, a pure wallT-only stoppage; the game clock
- * never moves during one (STAGED inert at the shipped params.officiating
- * review* zeros). Deliberately no outcome field: reviews never overturn in
+ * never moves during one (live at the shipped params.officiating review*
+ * rates since the FLOW flip — 2.2-2.6 reviews/g, REAL). Deliberately no
+ * outcome field: reviews never overturn in
  * v1 (corpus: 441/441 labeled outcomes read "stands"), and an always-
  * 'stands' field would be dead surface (AGENTS.md DO-NOT #5); add an
  * outcome only when overturning becomes real. `trigger` values: 'oob' is a

@@ -172,9 +172,9 @@ export function startPossession(
   // an instant no-look heave the moment the ball touches his hands
   s.decisionAt = s.t + s.params.decide.delayNewPossSec;
 
-  // Live-ball possession timeout (fdesign-timeouts §1.2.3, STAGED off
-  // behind params.endgame.toLiveSiteOn): grab the defensive board / steal
-  // and call time. 12.4% of real timeouts, and the only way the endgame
+  // Live-ball possession timeout (fdesign-timeouts §1.2.3, live at
+  // params.endgame.toLiveSiteOn 1 since the FLOW flip): grab the defensive
+  // board / steal and call time. 12.4% of real timeouts, and the only way the endgame
   // advance ever fires off a live change of possession (today these flows
   // never pass through deadBall, so the timeout brain is unreachable from
   // them). Inbound/tip possessions are skipped: their stoppage already had
@@ -276,8 +276,8 @@ export function deadBall(
      *  live_rebound/steal hook): applied here instead of re-evaluating;
      *  one timeout per stoppage, hard */
     timeout?: TimeoutCall;
-    /** this stoppage hosts a reviewable call (officiating wave, STAGED
-     *  inert at the officiating.reviewPer* zeros): set by exactly the
+    /** this stoppage hosts a reviewable call (officiating wave, live at
+     *  the shipped officiating.reviewPer* rates): set by exactly the
      *  close-call sites, OOB/travel/off-goaltend turnovers ('oob') and the
      *  final-period last-2:00 made-FG dead ball ('late_make'). Unflagged
      *  dead balls consume nothing. */
@@ -615,7 +615,8 @@ export function tickScramble(s: GameState, dt: number): void {
   });
 
   // Held ball → mid-game jump (officiating wave, fdesign-officiating §1.1,
-  // STAGED inert at heldBallPerScramble 0: the rate gate runs before the
+  // live at heldBallPerScramble 0.0095 — the primary site of the 0.83/g
+  // REAL total; the rate gate runs before the
   // draw). The scrum's winner gets tied up by the nearest live opponent and
   // the officials administer a real jump (no possession arrow, the NBA
   // rule). The rebound above stays credited as scored: real logs print the
@@ -667,8 +668,8 @@ export function tickScramble(s: GameState, dt: number): void {
     s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
     s.poss.phase = 'halfcourt';
     giveBall(s, winner, 'rebound');
-    // perimeter re-fill behind the grab (fdesign-grammar M2a, STAGED off at
-    // ai.orebRefillSec 0): the kick-out read needs a receiver on the arc.
+    // perimeter re-fill behind the grab (fdesign-grammar M2a, live at
+    // ai.orebRefillSec 1.8): the kick-out read needs a receiver on the arc.
     // Before the putback roll on purpose: a putback releases in ~0.25s and
     // the refill serves the next beat either way. Rng-free.
     onOrebSecured(s, winner);
@@ -681,8 +682,9 @@ export function tickScramble(s: GameState, dt: number): void {
       dist(winner.pos, rim) < s.params.reb.putbackRadiusFt &&
       s.rng.chance(s.params.reb.putbackChance)
     ) {
-      // Offensive goaltending (officiating wave, §1.2, STAGED inert at
-      // goaltendPerPutback 0, rate gate before the draw): the rebounder
+      // Offensive goaltending (officiating wave, §1.2, live at
+      // goaltendPerPutback 0.024 — 0.13/g REAL, rate gate before the
+      // draw): the rebounder
       // interferes on the rim instead of getting the attempt off. A
       // turnover with no shot event (real logs read OREB row → turnover
       // row, no FGA) and never a steal. The dead ball is flagged
@@ -726,7 +728,7 @@ export function endPeriod(s: GameState): void {
   s.clock = 0;
   s.pendingRelease = null; // a windup at the horn never gets released
   // Period-end replay review (officiating wave, fdesign-officiating §1.7,
-  // STAGED inert at reviewPerPeriodEnd 0, rate gate before the draw): the
+  // live at reviewPerPeriodEnd 0.09, rate gate before the draw): the
   // last-second look at the monitor. Emitted before the period_end event
   // (real logs print the replay row, then "End of quarter") and it
   // stretches the period break's wall-clock delay (game clock is already at
@@ -765,18 +767,20 @@ export function endPeriod(s: GameState): void {
   // Timeout bookkeeping resets every period, unlike the OT foul carry above
   // (state.ts doc): the per-period count drives the mandatory-stoppage
   // owed/charging arithmetic, the final-period counters back the Q4 caps.
-  // Upkeep always, consumers STAGED (sim/endgame.ts, fdesign-timeouts §3.2).
+  // Upkeep always; the consumers (sim/endgame.ts decideMandatory/canSpend,
+  // fdesign-timeouts §3.2) are live since the FLOW flip.
   s.timeoutsThisPeriod = [0, 0];
   s.timeoutsUsedFinalPeriod = [0, 0];
   s.timeoutsUsedFinalLate = [0, 0];
   if (isOT && s.params.endgame.toOvertimeTimeouts >= 0) {
     // per-OT budget replaces the regulation remainder (real NBA rule; the
     // corpus's 8-9-used team-games are all consistent with 7 + 2/OT).
-    // STAGED off at the shipped −1 (remainder carries, today's behavior)
+    // Live at the shipped 2 since the FLOW flip; −1 = staged off (the
+    // remainder carries, the legacy behavior)
     s.timeoutsLeft = [s.params.endgame.toOvertimeTimeouts, s.params.endgame.toOvertimeTimeouts];
   }
-  // Halftime legs (fdesign-rhythm M1, a no-op at the STAGED loadPerSec 0,
-  // where load is identically 0): the locker room takes one lump off the
+  // Halftime legs (fdesign-rhythm M1, live at loadPerSec 0.011; a no-op at
+  // the staged 0, where load is identically 0): the locker room takes one lump off the
   // cumulative-load pool, for everyone. A partial reset, so Q3 pace stays
   // near Q1's while the load-driven foul gradient persists. Fires exactly
   // once per game: the period just ended is the half boundary (NBA: after

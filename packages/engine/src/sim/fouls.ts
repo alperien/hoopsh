@@ -33,9 +33,9 @@ export interface FoulOutcome {
    */
   bonus: BonusAward | null;
   /**
-   * Technical rider (officiating wave, STAGED inert at
-   * officiating.techPerFoulWhistle 0, so this is null in every shipped
-   * game): the fouler drew a tech arguing this whistle, and `techFT` is the
+   * Technical rider (officiating wave, live at
+   * officiating.techPerFoulWhistle 0.017 — 0.71/g REAL, so shipped games
+   * carry the occasional non-null): the fouler drew a tech arguing this whistle, and `techFT` is the
    * awarded technical free-throw shooter (highest freeThrow rating on the
    * opposing floor, the real coaching pick). The tech `foul` event was
    * already emitted here; every recordFoul caller must thread a non-null
@@ -92,9 +92,10 @@ export function recordFoul(
   });
   if (fouledOut) replaceFouledOut(s, fouler);
 
-  // Technical foul (officiating wave, fdesign-officiating §1.4, STAGED
-  // inert at techPerFoulWhistle 0: the rate gate runs before the draw, so
-  // the shipped rng stream is untouched). V1 models the dominant real
+  // Technical foul (officiating wave, fdesign-officiating §1.4, live at
+  // techPerFoulWhistle 0.017 — 0.71/g REAL; the rate gate still runs
+  // before the draw, so a zeroed rate leaves the rng stream
+  // untouched). V1 models the dominant real
   // trigger only, after-foul frustration (42% of corpus techs): the fouler
   // argues the whistle he just got. The tech is not a personal in NBA
   // accounting: every count below is a stamped snapshot, nothing
@@ -192,8 +193,9 @@ export function enterFreeThrows(
   // FT-whistle timeout site (fdesign-timeouts §1.2.2; the structural miss
   // ffit-timeouts §5.1 names): 17.5% of real timeouts ride foul whistles,
   // logged before the FTs. One evaluation per trip, at entry, before the
-  // sub pass (checkSubs reads phase.timeout, the §4 handshake). STAGED:
-  // at the shipped to* values the site decides null and draws nothing.
+  // sub pass (checkSubs reads phase.timeout, the §4 handshake). Live since
+  // the FLOW flip at the shipped to* values: the site decides mandatory
+  // anchors and hazard calls for real.
   maybeFtTimeout(s);
   // Between-FT sub grammar (ffit-rotations §3.2): at ftGapSubMode 3 the
   // trip-entry pass is urgent-only (a fouler in trouble still leaves at the

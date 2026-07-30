@@ -201,7 +201,7 @@ export interface SimParams {
     // means more reaching, late contests arrive in the body. Both are
     // multipliers of the form 1 + swing × load/100 and are exactly ×1
     // while fatigue.loadPerSec is 0 (load provably stays 0, the M1 stage
-    // switch), so the wiring ships inert.
+    // switch); live since the FLOW flip at loadPerSec 0.011.
     /** organic reach-in rate swing per full load (passing.ts
      *  attemptReachIn; hunt/take grabs are coach orders, unscaled).
      *  REAL-fit seed; knobs range 0.6-2.0 at the flip bake */
@@ -569,8 +569,9 @@ export interface SimParams {
     timeoutSubRelaxPts: number;
     // --- fit-identified hooks (findings/ffit-rotations.md §3): the flip
     // dials above cannot reach the G8 gates alone; these five carry the
-    // missing mechanisms. Wired, STAGED at legacy/never-fire values; the
-    // fit-recommended flips are noted per default. When-dials, not swept.
+    // missing mechanisms. Wired STAGED at legacy/never-fire values, live
+    // since the FLOW flip at the fit-recommended values (see the
+    // defaults). When-dials, not swept.
     /** post-make sub window (possession.ts deadBall): 1 = a made-basket
      *  dead ball with the clock still running hosts the rotation pass
      *  (legacy; ~30 live-ball subs/g vs corpus 1.16, the G8c tell); 0 =
@@ -761,7 +762,7 @@ export interface SimParams {
     toFinalPeriodLateSec: number;
     /** per-OT replacement budget. REAL NBA: 2 per OT period, replacing the
      *  regulation remainder (not adding). STAGED −1 = keep the remainder
-     *  (today's behavior). RulePack-home caveat as above. */
+     *  (the legacy behavior). RulePack-home caveat as above. */
     toOvertimeTimeouts: number;
     /** the live-ball possession-timeout site (grab the defensive board /
      *  steal and call time; 12.4% of real timeouts, and the only path to an
@@ -2601,12 +2602,19 @@ export const defaultParams: SimParams = {
     // decisiveness flavor (midRangeBonus's sibling), never a make-model
     // buff (movePullUp −0.22 matches real pull-up-vs-catch gaps; buffing it
     // would corrupt 3P% calibration, the midRangeBonus doctrine's exact
-    // wrong fix). Live at 0.35; registered [0.15, 0.55] in knobs.ts (the
-    // midRangeBonus precedent registers the dial itself). The solo fit
-    // preferred the 0.5 ladder top (ffit-grammar §2.4), but at assembly
-    // G5 sits floor-edge at 0.35 and the knot-combo mix shift dropped it
-    // LOW (2.5-3.1/g vs floor 3.0) — re-fit together with the reach/
-    // riskBase mix at the next move (knot-combo §5.5).
+    // wrong fix). Fit history: the solo fit preferred the 0.5 ladder top
+    // (ffit-grammar §2.4), assembly sat G5 floor-edge at the fitted 0.35,
+    // and the knot-combo mix shift dropped it LOW (2.5-3.1/g vs floor
+    // 3.0). Live at 0.70 per the post-audit flow re-fit
+    // (findings/refit-g5.md): the dose-response is convex and 0.70 is the
+    // only ladder rung that buys the gate — G5 unassisted made 3s to
+    // 3.81/g vs the ≥3.0 floor, band excursions at the mid rungs
+    // adjudicated draw noise on paired five-base centers (FG% Δ ±0.0,
+    // tpPct +0.3, tpaShare +1.6); the real dose cost is astdShare margin
+    // (center 54.4-54.7 vs floor 54.0 — watch it). Registered [0.35, 1.0]
+    // in knobs.ts (the midRangeBonus precedent registers the dial itself;
+    // the bumped range is refit-g5 §6's bake debt). The sturdier joint
+    // re-fit with the reach/riskBase mix stays open (knot-combo §5.5).
     pullUpThreeBonus: 0.7,
     // REAL-ish: 29 ft, the real pull-up band's outer edge (24-29 ft).
     // Beyond it lives the logo bomb; sim deep-3s (≥30 ft) already run
@@ -2785,11 +2793,19 @@ export const defaultParams: SimParams = {
     // probe-culture record names that exact poison). One possession per
     // period ≈ 2.3% of trips: narrow by construction, assigned by the
     // tip/arrow symmetrically, so it cannot correlate with margin.
-    // Live at 0.32, the ladder center (ffit-grammar §2.2: 0.45 buys share
-    // but overshoots the median and inflates opener TOs). Re-checked at
-    // assembly with M1a live: 0.32 → share 7.7%, 0.26 → 10.3%, so the
-    // predicted one-rung drop did not materialize — keep 0.32 (f-assembly
-    // §6.2). Magnitude is hand-owned (flow-gated). FEEL → ladder-fitted.
+    // Fitted 0.32 at the ladder center (ffit-grammar §2.2: 0.45 bought
+    // share but overshot the median and inflated opener TOs); re-checked
+    // at assembly with M1a live — 0.32 → share 7.7%, 0.26 → 10.3%, the
+    // predicted one-rung drop did not materialize, keep 0.32 (f-assembly
+    // §6.2). Re-fit to 0.55 on the post-audit engine
+    // (findings/refit-g3.md): the audit's mechanics fixes moved the shot
+    // economics under 0.32 (opener attack-≤8s share 9.0% pooled vs the
+    // ≤6% gate), and 0.55 is the only rung clearing every seed base
+    // individually — pooled 4.2%, median 17 s, n=432 openers/dose across
+    // three bases. Near the top of the usable window (one base touched
+    // the 18.0 s median ceiling): do not ladder higher without watching
+    // the median. Magnitude is hand-owned (flow-gated). FEEL →
+    // ladder-fitted → re-fitted.
     openerShootMalus: 0.55,
     // FEEL: a blown coverage is still attacked; drives keep a quarter of
     // their appetite inside the window (shooting-foul rows count as first

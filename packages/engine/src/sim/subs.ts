@@ -162,7 +162,8 @@ export function updateConcede(s: GameState): void {
  * the bar reaches foulOutAt and the concept dissolves: ride him (real).
  * Crunch never consults this (its `continue` precedes the pull branch):
  * riding a 5-foul starter in a close endgame is the real override.
- * STAGED: unreachable at the shipped offset 99.
+ * Live at the shipped offset 1 (the classic period+1 bar) since the FLOW
+ * flip; 99 = the staged unreachable bar.
  */
 function inFoulTrouble(s: GameState, a: Agent): boolean {
   return !a.fouledOut && a.fouls >= s.period + s.params.sub.ftroublePersonalOffset;
@@ -178,11 +179,12 @@ function inFoulTrouble(s: GameState, a: Agent): boolean {
  * five) and per-side under concede here. Entries are ranked by the same
  * minutesPace the eager-return path uses, so the 35-minute equilibrium is
  * preserved by construction; determinism rides roster/lineup insertion
- * order + stable sorts (AGENTS §1.2). STAGED inert at waveMaxPerTeam 0.
+ * order + stable sorts (AGENTS §1.2). Live at waveMaxPerTeam 2 since the
+ * FLOW flip; 0 = staged inert.
  */
 function quarterWave(s: GameState): void {
   const P = s.params.sub;
-  if (P.waveMaxPerTeam <= 0) return; // STAGED-inert guard
+  if (P.waveMaxPerTeam <= 0) return; // 0 = staged-inert guard
   if (s.period <= 1 || s.period > s.rules.periods) return;
   for (const side of [0, 1] as TeamSide[]) {
     if (s.conceded[side]) continue; // concede outranks the wave
@@ -199,8 +201,8 @@ function quarterWave(s: GameState): void {
     // H2-boundary entries: halftime is 15 real minutes of rest, but s.t is
     // the live-clock axis and never advances through the break, so a
     // starter pulled late in Q2 would otherwise be blocked from opening Q3
-    // (the real Q3-start starter share is 96.2%). STAGED off at
-    // waveHalfResetMax 0.
+    // (the real Q3-start starter share is 96.2%). Live at waveHalfResetMax
+    // 5 since the FLOW flip; 0 = staged off.
     const skipBenchFloor = halfReset && P.waveHalfResetMax > 0;
     const entries = team.players.map((p) => agent(s, p.id)).filter((b) =>
       !b.onCourt && !b.fouledOut && !inFoulTrouble(s, b) &&
@@ -362,8 +364,8 @@ export function checkSubs(
         }
         continue;
       }
-      // Foul-trouble pull (fdesign-rotations §2.4, STAGED inert at offset
-      // 99): pull regardless of fatigue/minutes-pace; the replacement bar is
+      // Foul-trouble pull (fdesign-rotations §2.4, live at the shipped
+      // offset 1): pull regardless of fatigue/minutes-pace; the replacement bar is
       // replaceFouledOut's (any standing non-troubled body, position first,
       // energy as tiebreaker), not readyThreshold, because the pull must
       // happen even with a gassed bench. A foul inside the period's last
@@ -457,8 +459,8 @@ export function checkSubs(
         swapPlayers(s, side, a, bench[0]!);
       }
     }
-    // Proactive eager return (ffit-rotations §3.4, STAGED off at
-    // eagerReturnProactive 0): a rested behind-pace minutes target
+    // Proactive eager return (ffit-rotations §3.4, live at
+    // eagerReturnProactive 1; 0 = off): a rested behind-pace minutes target
     // re-enters at the next legal stoppage even when nobody on the floor
     // reads tired. The eager-return path above is passive: it fires only
     // inside another player's pull, which the legacy engine hit every ~30 s

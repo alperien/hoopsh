@@ -13,8 +13,8 @@
  *   1. DECISIVENESS (decisivenessScale) — a drilled shot fires in its trigger
  *      context: the open catch-and-shoot three, the transition pull-up, the
  *      worked post move, the conceded mid-range jumper, and the halfcourt
- *      pull-up three (STAGED at pullUpThreeBonus 0 until the flow-grammar
- *      fit flips it). Green-light-gated: it belongs to shooters/post
+ *      pull-up three (live at pullUpThreeBonus 0.70 since the flow
+ *      re-fit). Green-light-gated: it belongs to shooters/post
  *      threats/mid-range artists, never to the player the defense WANTS
  *      shooting.
  *   2. ACTION COMMITMENT (actionCommitScale) — a called action is a plan:
@@ -52,15 +52,15 @@
  *   9. Opening set (openerScale): the period's first possession is a
  *      called, scripted trip. An early-window shoot/drive malus (never the
  *      pass channel, never the continuation) makes ball movement carry the
- *      opener the way a coached first set does. STAGED inert at
- *      openerShootMalus 0 until the flow-grammar fit flips it.
+ *      opener the way a coached first set does. Live at openerShootMalus
+ *      0.55 since the flow re-fit.
  *   10. Scramble economy (scrambleScale): post-OREB the real game resolves
  *      fast: a putback appetite on the rebounder's quick touch and a
  *      kick-out read to the arc over the collapsed crash. Both terms live
  *      inline in decideBall (they key off the shot taxonomy and the
  *      holder's acquiredBy/catchT stamps, the concept-4 "kept where the
- *      loop lives" shape); doctrine at the end of this file. STAGED dark
- *      at zero bonuses and a zero read window.
+ *      loop lives" shape); doctrine at the end of this file. Live since
+ *      the FLOW flip at the ffit-grammar joint-ladder doses.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -139,7 +139,8 @@ type ShotMove = ShotMoveType;
  * bigs and no-dribble catch specialists. pullUpBias still applies at the
  * call site (the generic off-dribble appetite); this term is the
  * three-specific drilled shot stacked on top, exactly how the mid pull-up
- * stacks midRangeBonus over pullUpBias. STAGED at pullUpThreeBonus 0.
+ * stacks midRangeBonus over pullUpBias. Live at pullUpThreeBonus 0.70
+ * (the flow re-fit, findings/refit-g5.md).
  *
  * worked post move: after the backdown the turnaround is the plan — without
  * this the spray won 8:1 and post scoring never materialized.
@@ -189,7 +190,7 @@ export function decisiveness(
   ) {
     // the drilled halfcourt pull-up three (doctrine in the JSDoc above):
     // conceded-jumper contest ceiling (midContestCeil, reused) × the
-    // zero-veto joint appetite gate. STAGED: pullUpThreeBonus 0.
+    // zero-veto joint appetite gate. Live at pullUpThreeBonus 0.70.
     term = A.pullUpThreeBonus
       * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1)
       * deepPullUpLight(A, h);
@@ -508,13 +509,14 @@ export function endgameContinuation(
   if (s.period >= s.rules.periods) {
     if (E.deadGameBoost > 0 && margin !== 0 && chaseAliveness(s, Math.abs(margin)) === 0) {
       // Garbage-time wind-down (fdesign-rhythm M3, wired per ffit-rhythm
-      // §8; STAGED at deadGameBoost 0): once the trailing side's chase is
+      // §8; live at deadGameBoost 0.25 since the FLOW flip): once the
+      // trailing side's chase is
       // dead, both teams stop hunting. A mild continuation raise makes
       // dribble-outs and walk-up possessions emerge from the same yardstick
       // every other concept-6 behavior reshapes; complements the concede
       // branch (personnel) without duplicating it (intent). First in the
       // chain on purpose: a decided game outranks leadHold/hurry, and the
-      // `> 0` gate keeps the staged default on the legacy branches below.
+      // `> 0` gate keeps a zeroed dial on the legacy branches below.
       mult *= 1 + E.scale * E.deadGameBoost * holdFade;
     } else if (margin > 0 && clock <= E.leadHoldClockSec) {
       const ramp = 1 - clock / E.leadHoldClockSec;
@@ -778,8 +780,9 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
  * object itself. Same truth table; the swap changes no behavior.
  *
  * Called from decideBall every decision tick; pure (no rng, no state
- * writes). STAGED: openerShootMalus defaults to 0, which makes both returns
- * exactly 0; the appended `− 0` terms are bit-identical through the
+ * writes). Live at openerShootMalus 0.55 since the flow re-fit
+ * (findings/refit-g3.md); at 0 both returns are exactly 0 and the
+ * appended `− 0` terms are bit-identical through the
  * softmax (the concepts-consolidation byte-stability contract above).
  */
 export function openerSet(s: GameState, shotClockShare: number): { shoot: number; drive: number } {
@@ -823,5 +826,5 @@ export function openerSet(s: GameState, shotClockShare: number): { shoot: number
  * acquiredBy/catchT stamps and dies when the ball moves on, matching the
  * corpus scan's stop-at-next-event semantics. The supply half (M2a,
  * ai/offense.ts onOrebSecured: the perimeter re-fill behind the grab) is
- * wired from possession.ts tickScramble, STAGED off at ai.orebRefillSec 0.
+ * wired from possession.ts tickScramble, live at ai.orebRefillSec 1.8.
  */

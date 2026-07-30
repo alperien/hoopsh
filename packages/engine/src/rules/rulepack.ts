@@ -112,17 +112,18 @@ export interface RulePack {
    * Pending pack fields (timeout economy, fdesign-timeouts §3.1): the
    * mandatory-stoppage clock anchors, the final-period usage caps, and the
    * per-OT replacement budget are league rules whose correct home is this
-   * pack, but they currently live as params.endgame.to* STAGED stage
-   * switches (sim/params.ts), where the never-fire value (−1/99) is both
-   * "off" and "no data". Migrating them here was evaluated by the
-   * officiating wave and deliberately deferred: pack data must carry the
-   * league-true numbers (NBA 419s/179s anchors, 4/2 Q4 caps, 2 per OT),
-   * and installing those while the mechanism is staged would either flip
-   * it live (a fingerprint break the staging discipline forbids) or
-   * require splitting value-vs-switch inside sim/endgame.ts's
-   * decideMandatory/canSpend, the timeout fit wave's jurisdiction. Do the
-   * move when that wave flips the rule live: add the fields here with real
-   * per-league values, point decideMandatory/canSpend at `rules.*`, and
+   * pack, but they currently live as params.endgame.to* dials
+   * (sim/params.ts), shipped at the NBA numbers since the FLOW flip
+   * (419/179 anchors, 4/2 Q4 caps, 2 per OT) — so every league pack
+   * silently plays NBA timeout rules. Migrating them here was evaluated by
+   * the officiating wave and deliberately deferred while the mechanism was
+   * staged: installing league-true numbers then would either have flipped
+   * it live (a fingerprint break the staging discipline forbade) or
+   * required splitting value-vs-switch inside sim/endgame.ts's
+   * decideMandatory/canSpend. The flip has since landed those values in
+   * params, so the deferral's blocker is gone and the move is plain debt:
+   * add the fields here with real per-league values, point
+   * decideMandatory/canSpend at `rules.*`, and
    * retire the params stand-ins in the same change.
    */
   timeoutsPerGame: number;

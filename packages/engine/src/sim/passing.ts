@@ -133,8 +133,8 @@ export function resolvePassArrival(s: GameState): void {
 
   const to = agent(s, f.passTo!);
 
-  // Kicked ball (officiating wave, fdesign-officiating §1.6, STAGED inert
-  // at kickedPerPass 0, rate gate before the draw): on a clean-catch
+  // Kicked ball (officiating wave, fdesign-officiating §1.6, live at
+  // kickedPerPass 0.00127 — 0.57/g REAL, rate gate before the draw): on a clean-catch
   // arrival only (the pass-fail branch above owns steals/OOB), a defender's
   // foot kills the pass. No turnover and no pass event (the pass never
   // completed); the offense retains at a same-possession stoppage with the
@@ -206,8 +206,8 @@ export function resolvePassArrival(s: GameState): void {
 
 /**
  * Is the transition take live for the defense right now? (officiating wave,
- * fdesign-officiating §1.5, STAGED off at takeHuntRateMult 0, the first
- * check, so a shipped game never evaluates the rest.) True only in the
+ * fdesign-officiating §1.5, live at takeHuntRateMult 0.06728; at 0 the
+ * first check returns and nothing else evaluates.) True only in the
  * opening seconds of a steal/live-rebound possession while the defense is
  * beaten (fewer than transSetBackCount−1 back): the real "wrap him up
  * before the break gets going" calculus, built exactly like foulHuntSide.
@@ -219,7 +219,7 @@ export function resolvePassArrival(s: GameState): void {
  */
 function takeHuntActive(s: GameState, offSide: TeamSide): boolean {
   const O = s.params.officiating;
-  if (O.takeHuntRateMult <= 0) return false; // STAGED off
+  if (O.takeHuntRateMult <= 0) return false; // 0 = staged off
   if (s.poss.kind !== 'steal' && s.poss.kind !== 'live_rebound') return false;
   if (s.t - s.poss.startT > O.takeWindowSec) return false;
   // 120 s: the real transition-take rule carves out the final two minutes
@@ -267,8 +267,8 @@ export function attemptReachIn(s: GameState, dt: number): void {
   const hunting = s.endgame && foulHuntSide(s) === other(h.side);
   // Transition take (officiating wave): the same loaded-dice doctrine for
   // the beaten-in-transition wrap-up. Hunt geometry, take rate, strip
-  // share collapsed to zero, foul kind 'take'. STAGED off at
-  // takeHuntRateMult 0 (takeHuntActive's first check), and the endgame hunt
+  // share collapsed to zero, foul kind 'take'. Live at takeHuntRateMult
+  // 0.06728 (takeHuntActive gates; 0 = off), and the endgame hunt
   // takes precedence when both could apply (it can't by construction, the
   // final-2:00 exclusion; the ordering documents the priority).
   const takeHunting = !hunting && takeHuntActive(s, h.side);
@@ -302,7 +302,8 @@ export function attemptReachIn(s: GameState, dt: number): void {
   if (!s.rng.chance(p)) return;
 
   // Held ball → mid-game jump (officiating wave, fdesign-officiating §1.1
-  // secondary site, STAGED inert at heldBallPerReach 0, rate gate before
+  // secondary site, live at heldBallPerReach 0.005 — the ~15% on-ball
+  // share of the 0.83/g REAL total, rate gate before
   // the draw): organic reach events only (a hunted/take grab is a foul on
   // purpose, never a tie-up). The defender ties the holder up instead of
   // stripping or hacking, and the officials administer a jump between the
@@ -369,9 +370,9 @@ export function attemptReachIn(s: GameState, dt: number): void {
     startPossession(s, d.side, 'steal', d);
   } else {
     // foul kind vocabulary (officiating wave): a transition-take grab is a
-    // 'take'; the endgame hunt's wrap-ups are takes too once the relabel
-    // switch flips (takeRelabelHuntFouls, STAGED 0 so shipped events are
-    // byte-identical; the relabel changes no rates or stats, only the kind
+    // 'take'; the endgame hunt's wrap-ups are takes too now that the
+    // relabel switch is flipped (takeRelabelHuntFouls 1, live since the
+    // FLOW flip; the relabel changes no rates or stats, only the kind
     // the corpus actually prints for the Q4 foul game). Everything else
     // stays a 'reach'.
     const kind = takeHunting || (hunting && s.params.officiating.takeRelabelHuntFouls > 0)

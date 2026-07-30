@@ -39,8 +39,9 @@ export type BallAcquisition = 'pass' | 'rebound' | 'steal' | 'deadball';
  * full set with replay v3 (fdesign-timeouts §5, value-only widening, no
  * shape change), so the internal superset and the contract converged.
  * 'mandatory' (scorer-imposed TV stoppage, charged per NBA Rule 5 VI(b)
- * convention) and 'regroup' (coach hazard below the stop-run label) remain
- * producible only under forced params (params.endgame.to* STAGED inert).
+ * convention) and 'regroup' (coach hazard below the stop-run label) are
+ * live since the FLOW flip at the shipped params.endgame.to* fits and
+ * print in default streams.
  */
 export type TimeoutReason = 'stop_run' | 'advance' | 'mandatory' | 'regroup';
 
@@ -51,8 +52,9 @@ export interface Agent {
   vel: V2;
   energy: number;      // 0-100
   /**
-   * Cumulative load, 0-100 ("legs"; fdesign-rhythm M1, STAGED inert at
-   * fatigue.loadPerSec 0): the second fatigue pool. Accrues on court on the
+   * Cumulative load, 0-100 ("legs"; fdesign-rhythm M1, live at
+   * fatigue.loadPerSec 0.011 since the FLOW flip): the second fatigue
+   * pool. Accrues on court on the
    * same speed/stamina chain as energy drain, recovers far slower on the
    * bench, takes one lump off at halftime (possession.ts endPeriod), so it
    * trends across the game where energy is a stint-local sawtooth.
@@ -73,7 +75,8 @@ export interface Agent {
    *  `s.t − a.lastSwapT` reads as live seconds this stint for on-court
    *  players and live seconds rested for bench, the same axis
    *  secondsPlayed uses (two-axes discipline). Consumed by the rotation
-   *  grammar (subs.ts quarterWave stint/bench gates, STAGED inert). */
+   *  grammar (subs.ts quarterWave stint/bench gates, live since the FLOW
+   *  flip). */
   lastSwapT: number;
 
   // working state
@@ -170,7 +173,7 @@ export interface PendingShot {
   /**
    * defensive goaltending violator (the contesting defender): the miss was
    * flipped to a made shot at the release roll (shooting.ts startShot,
-   * STAGED inert at officiating.goaltendPerContestedInsideMiss 0) and
+   * live at officiating.goaltendPerContestedInsideMiss 0.0205) and
    * resolveShotOutcome emits the `violation` row right after the shot
    * event. Internal state, never an event field; the contract carries the
    * violation as its own event.
@@ -248,9 +251,9 @@ export type Phase =
        *  byte-identically to the no-tech path. Every attempt of such a trip
        *  stamps `technical: true`. */
       resume?: { nextTeam: TeamSide; continuation: boolean; resumeIn: number };
-      /** same handshake as the dead variant's. STAGED: written only once the
-       *  officiating wave adds the FT-whistle timeout hook in fouls.ts
-       *  enterFreeThrows (fdesign-timeouts §1.2.2) */
+      /** same handshake as the dead variant's, written by the FT-whistle
+       *  timeout site (fouls.ts enterFreeThrows → maybeFtTimeout,
+       *  fdesign-timeouts §1.2.2; live since the FLOW flip) */
       timeout?: { team: TeamSide; reason: TimeoutReason };
     }
   | {
@@ -273,8 +276,8 @@ export interface Possession {
    * dead ball never runs the clock and any prior possession consumes live
    * ticks). A whistle continuation resumes the same possession object, so
    * the marker survives non-shooting fouls the way a called set survives
-   * a whistle. Consumed by concept 9 (ai/concepts.ts openerSet, STAGED at
-   * openerShootMalus 0).
+   * a whistle. Consumed by concept 9 (ai/concepts.ts openerSet, live at
+   * openerShootMalus 0.55).
    */
   opener: boolean;
   lastPass: { from: string; t: number } | null;
@@ -332,8 +335,9 @@ export interface GameState {
   /**
    * Timeout-economy bookkeeping (fdesign-timeouts §3.2). Same doctrine as
    * runPts/timeoutsLeft above: cheap counters maintained always (no rng),
-   * read only when the flag is on, and their consumers ship STAGED behind
-   * never-fire params (sim/endgame.ts, params.endgame to*). Per-period
+   * read only when the flag is on; the consumers (sim/endgame.ts
+   * decideMandatory/canSpend) are live since the FLOW flip at the shipped
+   * params.endgame to* fits. Per-period
    * counters reset unconditionally in endPeriod (unlike the OT foul carry).
    */
   /** timeouts charged per side this period; drives the mandatory-stoppage

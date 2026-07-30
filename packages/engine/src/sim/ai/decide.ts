@@ -106,11 +106,11 @@ export function decideBall(s: GameState): BallAction {
     const margin = s.score[h.side] - s.score[other(h.side)];
     const itMatters =
       s.period >= s.rules.periods && margin <= 0 && -margin <= D.heaveKeepDeficitMax;
-    // STAGED: heaveLaunchChance 1 short-circuits before the rng draw, so
-    // every period-expiring case launches (the legacy behavior, draw-free
-    // and byte-identical). Flipping below 1 arms the discipline and adds one
-    // draw at gated horn evaluations (~2-3/game): mechanics tier,
-    // fingerprint invalidation expected (AGENTS §1.2), noisefloor regen.
+    // Live at heaveLaunchChance 0.06 since the FLOW flip: the discipline
+    // is armed and gated horn evaluations consume one draw (~2-3/game).
+    // At ≥ 1 the short-circuit fires before the rng draw and every
+    // period-expiring case launches (the staged legacy behavior, draw-free
+    // and byte-identical).
     if (D.heaveLaunchChance >= 1 || itMatters || s.rng.chance(D.heaveLaunchChance)) {
       return { kind: 'shoot', moveType: 'heave' };
     }
@@ -218,17 +218,17 @@ export function decideBall(s: GameState): BallAction {
   const probe = probeCulture(s, shotClockShare);
   // CONCEPT 9: OPENING SET — the period's first possession is a called set,
   // an early-window shoot/drive malus only (never the pass channel, never
-  // the continuation). Doctrine in ai/concepts.ts; STAGED inert at
-  // openerShootMalus 0.
+  // the continuation). Doctrine in ai/concepts.ts; live at
+  // openerShootMalus 0.55.
   const opener = openerSet(s, shotClockShare);
   const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot
     // concept-9 term appended at the end of the sum (float-order contract,
-    // ai/concepts.ts header); exactly 0 while staged
+    // ai/concepts.ts header); exactly 0 with the malus zeroed
     - opener.shoot
     // Concept 10, scramble economy (putback appetite): the drilled "go
     // right back up". The putback taxonomy above already guarantees
     // rebound-acquired ∧ interior ∧ quick 0-dribble touch; doctrine in
-    // ai/concepts.ts. Appended at the end; exactly 0 while staged.
+    // ai/concepts.ts. Appended at the end; exactly 0 with the bonus zeroed.
     + (shotMove === 'putback' ? A.orebPutbackBonus * A.scrambleScale : 0);
 
   // --- utility: pass to each teammate
@@ -238,7 +238,7 @@ export function decideBall(s: GameState): BallAction {
   // is a fresh rebound, the crash has collapsed the defense and a spotted
   // arc teammate is the designed outlet. Context keys off the holder's
   // acquiredBy/catchT stamps (dies when the ball moves on); doctrine in
-  // ai/concepts.ts. STAGED dark at orebKickWindowSec 0: the context is
+  // ai/concepts.ts. Live at orebKickWindowSec 4; at 0 the context is
   // never true, which also keeps the 'kickout' taxonomy below inert.
   const orebCtx = h.acquiredBy === 'rebound' && s.t - h.catchT < A.orebKickWindowSec;
   for (const m of liveOnCourt(s, h.side)) {

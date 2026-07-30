@@ -4,7 +4,7 @@
  * CONCEPT 6 in ai/concepts.ts; the two share the chase arithmetic here.)
  *
  * Name caveat: with the timeout economy wired game-wide (mandatory TV
- * stoppages, the coach hazard; fdesign-timeouts, currently STAGED inert),
+ * stoppages, the coach hazard; fdesign-timeouts, live since the FLOW flip),
  * "endgame" is a misnomer: this file covers game-wide game management. The
  * file is deliberately not renamed (ownership map row "late-game
  * management"); the flag stays `GameState.endgame`.
@@ -199,10 +199,11 @@ export interface TimeoutCall {
  * advance (a whistle is not an inbound, there is nothing to advance):
  * mandatory first (a rule), then the coach hazard for the shooting team
  * (the possession holder at the line). The legacy deterministic stop_run
- * trigger deliberately does not evaluate here: it is live at shipped
- * params and this site must stay dark until the fit-wave flip. STAGED:
- * mandatory ships −1 and the hazard magnitudes 0, so the site decides
- * null, draws nothing, and the shipped stream is byte-identical.
+ * trigger deliberately does not evaluate here: it is retired in place at
+ * timeoutRunPts 999 (the hazard owns stop-the-run texture — see the
+ * timeoutRunPts params doc). Live since the FLOW flip: mandatory decides
+ * at the shipped 419/179 anchors and the hazard draws at its fitted
+ * magnitudes, so this site calls for real in default streams.
  * Effects on a call are callTimeout's freethrows branch (wall-time huddle
  * stretch on nextIn; the whistle already stopped the game clock).
  */
@@ -223,10 +224,11 @@ export function maybeFtTimeout(s: GameState): void {
 /**
  * The pure decision at a dead-ball stoppage, in priority order: advance
  * (deterministic; near-universal correct coaching, unchanged), mandatory
- * (deterministic; it's a rule, STAGED off), the deterministic legacy
- * stop-the-run (live; the fit wave retires it, see the params doc), then
- * the coach voluntary hazard (probabilistic; STAGED at zero magnitudes,
- * which consumes no rng: the fingerprint-critical stage switch).
+ * (deterministic; it's a rule, live at the shipped 419/179 anchors), the
+ * deterministic legacy stop-the-run (retired in place at timeoutRunPts
+ * 999 — never fires; see the params doc), then the coach voluntary hazard
+ * (probabilistic; live magnitudes, so it consumes rng — one draw per
+ * qualifying stoppage once every deterministic gate passes).
  */
 function decideTimeout(s: GameState, ph: Extract<Phase, { kind: 'dead' }>): TimeoutCall | null {
   const team = ph.nextTeam; // the possession requirement: only the inbounder calls
@@ -269,8 +271,10 @@ function decideTimeout(s: GameState, ph: Extract<Phase, { kind: 'dead' }>): Time
  * and (inside the last toFinalPeriodLateSec) the ≤2 late cap. OT periods are
  * exempt from the caps; the per-OT budget binds there instead. Applies to
  * coach and advance calls; the mandatory rule uses it only to pick which
- * side the scorer charges. STAGED: at the shipped 99-caps this reduces to
- * the legacy `timeoutsLeft > 0` check exactly.
+ * side the scorer charges. Live at the real caps since the FLOW flip (4 in
+ * the final period, 2 after its 3:00 — the NBA numbers); at 99-caps this
+ * reduces to the legacy `timeoutsLeft > 0` check exactly (the staging
+ * identity).
  */
 function canSpend(s: GameState, team: TeamSide): boolean {
   if (s.timeoutsLeft[team] <= 0) return false;
@@ -288,8 +292,9 @@ function canSpend(s: GameState, team: TeamSide): boolean {
 }
 
 /**
- * The mandatory (TV) stoppage: NBA Rule 5 VI(b), STAGED off at the shipped
- * −1 thresholds. Regulation periods only (the corpus shows no OT anchor):
+ * The mandatory (TV) stoppage: NBA Rule 5 VI(b), live at the shipped
+ * 419/179 anchors (6:59/2:59) since the FLOW flip. Regulation periods only
+ * (the corpus shows no OT anchor):
  * if the period has no timeout yet at a qualifying stoppage under
  * toMandatoryFirstBelowSec, the scorer takes one charged to the home side;
  * if it has ≤ 1 under toMandatorySecondBelowSec, charged to the side not
@@ -323,9 +328,11 @@ function decideMandatory(s: GameState): TimeoutCall | null {
  * probabilistic replacement for the deterministic run trigger: real coaches
  * stop ~3 in 10 runs at any size, so a threshold is a metronome tell.
  * Deterministic gates run first; rng is consumed only after every gate
- * passes and p > 0. At the STAGED zero magnitudes p is exactly 0, so the
- * shipped engine draws nothing and stays byte-identical. `team` is the team
- * with the ball at the stoppage being evaluated.
+ * passes and p > 0. Live since the FLOW flip at the ffit-timeouts
+ * magnitudes (base 0.02, runW 0.195, trailW 0.03, burn 0.13), so the
+ * shipped engine draws here; zeroed magnitudes make p exactly 0 and
+ * restore the draw-free staged stream. `team` is the team with the ball at
+ * the stoppage being evaluated.
  */
 function decideCoachHazard(
   s: GameState,
@@ -358,8 +365,9 @@ function decideCoachHazard(
       ? E.toBurnBoost
       : 0;
   const p = Math.min(E.toCoachMaxP, E.toCoachBasePerDead + E.toCoachRunW * run + E.toCoachTrailW * trail + burn);
-  // the stage switch: p === 0 at the shipped zero magnitudes; return before
-  // the draw so the rng stream is untouched (fingerprint-critical)
+  // the staging off-path, kept: p ≤ 0 returns before the draw (zeroed
+  // magnitudes leave the rng stream untouched); at the shipped fits p > 0
+  // and the draw is real
   if (p <= 0) return null;
   if (!s.rng.chance(p)) return null;
   return { team, reason: oppRun >= E.toStopRunLabelPts ? 'stop_run' : 'regroup' };
@@ -367,8 +375,9 @@ function decideCoachHazard(
 
 /**
  * The decision for the live-ball possession-timeout site (possession.ts
- * startPossession tail, kinds live_rebound/steal; STAGED off behind
- * params.endgame.toLiveSiteOn): grab the board / steal and call time. The
+ * startPossession tail, kinds live_rebound/steal; live at
+ * params.endgame.toLiveSiteOn 1 since the FLOW flip): grab the board /
+ * steal and call time. The
  * only path by which the endgame advance can fire off a defensive rebound
  * or a steal; the caller turns a non-null decision into a continuation dead
  * ball with the call pre-stamped (maybeTimeout's `pre`), so the stoppage's
@@ -403,7 +412,7 @@ export function decideLiveTimeout(s: GameState, team: TeamSide): TimeoutCall | n
  * the huddle stretches resumeIn/nextIn while the game clock stays frozen
  * (two-axes discipline). The freethrows branch is reached from the
  * FT-whistle site (maybeFtTimeout above, called by fouls.ts
- * enterFreeThrows), STAGED dark at the shipped to* values.
+ * enterFreeThrows), live since the FLOW flip at the shipped to* values.
  */
 function callTimeout(s: GameState, team: TeamSide, reason: TimeoutReason): void {
   const E = s.params.endgame;
@@ -415,8 +424,8 @@ function callTimeout(s: GameState, team: TeamSide, reason: TimeoutReason): void 
   }
   s.lastTimeoutT[team] = s.t;
   // Contract converged (officiating wave, replay v3): TimeoutEvent.reason
-  // now carries the full TimeoutReason set. 'mandatory'/'regroup' remain
-  // unreachable at shipped params (STAGED to* values), but they emit
+  // now carries the full TimeoutReason set. 'mandatory'/'regroup' are live
+  // since the FLOW flip (the 419/179 anchors, the fitted hazard) and emit
   // through the real union, no cast (fdesign-timeouts §5's value-only
   // widening, delivered with the rest of the event-contract chain).
   emit(s, {
@@ -440,8 +449,9 @@ function callTimeout(s: GameState, team: TeamSide, reason: TimeoutReason): void 
     // one-sided reset: noteScore keeps at most one side's run nonzero, so
     // the caller's own run is already 0 whenever the opponent's is alive.
     // 'advance' deliberately keeps the legacy no-reset (byte-identity with
-    // the shipped path); fdesign-timeouts §1.2 would reset there too. The
-    // fit wave may unify when the deterministic trigger retires.
+    // the shipped path); fdesign-timeouts §1.2 would reset there too. May
+    // unify when the retired-in-place deterministic trigger is finally
+    // deleted (the timeoutRunPts params doc).
     s.runPts[0] = 0;
     s.runPts[1] = 0;
   }
