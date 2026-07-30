@@ -46,8 +46,10 @@ const live = withParams({
 });
 
 // updateConcede reads exactly: period, rules.periods, clock, score,
-// params.sub, conceded. checkSubs additionally walks teams/lineup — empty
-// arrays make it a pure hysteresis call. Hand-built states suffice.
+// params.sub, conceded. checkSubs additionally walks teams/lineup (empty
+// arrays make it a pure hysteresis call) and reads phase (the
+// timeout-huddle handshake, inert at the shipped timeoutSubRelaxPts 0).
+// Hand-built states suffice.
 function hState(
   params: SimParams,
   o: { period?: number; clock: number; score: [number, number]; conceded?: [boolean, boolean] }
@@ -64,6 +66,7 @@ function hState(
     agents: new Map(),
     t: 0,
     wallT: 0,
+    phase: { kind: 'dead', resumeIn: 1, clockRuns: false, nextTeam: 0, possKind: 'inbound' },
     events: []
   } as unknown as GameState;
 }
@@ -176,7 +179,7 @@ function mkAgent(p: Player, side: TeamSide, onCourt: boolean, energy: number): A
     p, side,
     pos: { x: 47, y: 25 }, vel: { x: 0, y: 0 },
     energy, secondsPlayed: 0, fouls: 0,
-    onCourt, fouledOut: false,
+    onCourt, fouledOut: false, lastSwapT: 0,
     target: { x: 47, y: 25 }, intent: 'freeze', sprinting: false,
     spotKey: null, manId: null,
     dribblesSinceCatch: 0, dribbleAcc: 0, catchT: -99,
@@ -213,6 +216,7 @@ function fullState(params: SimParams, benchEnergy: number): { s: GameState; home
     teams: [home, away],
     agents,
     lineup: [[...home.starters], [...away.starters]],
+    phase: { kind: 'dead', resumeIn: 1, clockRuns: false, nextTeam: 0, possKind: 'inbound' },
     events: []
   } as unknown as GameState;
   return { s, home, away };

@@ -454,6 +454,43 @@ export interface SimParams {
     concedeExitPts: number;
     /** energy floor for a garbage-time bench body (floor presence, not burst) */
     concedeEnergyMin: number;
+    // --- rotation grammar (fdesign-rotations, STAGED wiring). Quarter-break
+    // waves, the foul-trouble policy, and the timeout-window relaxation ship
+    // behind never-fire values (waveMaxPerTeam 0 / ftroublePersonalOffset 99 /
+    // timeoutSubRelaxPts 0 / subMinBenchSec 0) so default rotations are
+    // byte-identical; the rotation fit wave flips to the designed values
+    // noted per default. All when-dials (identity-shape windows); none are
+    // swept (knobs.ts doctrine; the band objective is blind to sub timing).
+    /** boundary-wave size cap per team per quarter break. REAL: measured
+     *  per-team boundary swaps 1.3-1.8; 0 = STAGED off (wave never runs) */
+    waveMaxPerTeam: number;
+    /** minimum live-clock stint before a player is wave-eligible to sit.
+     *  REAL-anchored FEEL: corpus starter first exit p25 = 345 s into the
+     *  quarter; protects a late-quarter returnee from an instant re-sit */
+    waveStintMinSec: number;
+    /** ready-bar relief for wave entries (a boundary swap is planned, not
+     *  forced): accepts readyThreshold − relief where the mid-quarter
+     *  rotation demands the full bar. FEEL */
+    waveReadyRelief: number;
+    /** minimum live-clock bench rest before any return (wave entries and the
+     *  fatigue rotation's bench filter; crunch exempt). FEEL: bench
+     *  recovery refills 62→88 in ~47 s, an unrealistically fast churn floor
+     *  that produces the Q2 dead-zone oscillation. STAGED 0 = off */
+    subMinBenchSec: number;
+    /** the classic foul-trouble bar: troubled above `period + offset`
+     *  personals (offset 1 ⇒ 2 in Q1 / 3 by half / 4 in Q3 / 5 in Q4).
+     *  REAL coaching orthodoxy; corpus pull rates 44-62% within a minute.
+     *  STAGED 99 = bar unreachable (the concede-999 idiom) */
+    ftroublePersonalOffset: number;
+    /** a foul inside a period's last N clock seconds rides to the break (no
+     *  nonsense pull at 0:05; the boundary wave handles him). FEEL, fitted
+     *  to the corpus ~32% unpulled share of late-quarter 2nd fouls */
+    ftroubleIgnoreClockSec: number;
+    /** pull-leash relaxation (energy pts) while this stoppage carries a
+     *  timeout (phase.timeout, the fdesign-timeouts §4 handshake): a huddle
+     *  is when the coach makes the non-urgent swap he'd otherwise defer.
+     *  FEEL: ~half the starter/bench leash gap. STAGED 0 = off */
+    timeoutSubRelaxPts: number;
   };
 
   /**
@@ -1629,7 +1666,19 @@ export const defaultParams: SimParams = {
     // crunchEnergyMin 35 because the incoming player needs floor presence,
     // not burst (mostly a degenerate-roster guard — bench sitters recover
     // toward 100 anyway, movement.ts bench recovery).
-    concedeEnergyMin: 25
+    concedeEnergyMin: 25,
+    // Rotation grammar (fdesign-rotations), STAGED-inert wiring values.
+    // The switches sit at never-fire values (interface doc above), so the
+    // shipped rotation is byte-identical; the rotation fit wave flips to
+    // the designed values noted inline and owns the corpus fit (§6). Not
+    // swept (when-dials).
+    waveMaxPerTeam: 0, // STAGED off; flip: 2 (REAL per-team boundary swaps 1.3-1.8)
+    waveStintMinSec: 300, // REAL-anchored FEEL: 5:00 of live clock (corpus first-exit p25 345 s)
+    waveReadyRelief: 10, // FEEL: accept energy 78 where the mid-quarter bar is 88
+    subMinBenchSec: 0, // STAGED off; flip: 150 (2.5 min of pine before any return)
+    ftroublePersonalOffset: 99, // STAGED unreachable; flip: 1 (the classic period+1 bar)
+    ftroubleIgnoreClockSec: 120, // FEEL: a last-2:00 foul rides to the break
+    timeoutSubRelaxPts: 0 // STAGED off; flip: 8 (≈ half the starter/bench leash gap)
   },
 
   endgame: {

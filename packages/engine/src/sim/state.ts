@@ -53,6 +53,14 @@ export interface Agent {
   fouls: number;
   onCourt: boolean;
   fouledOut: boolean;
+  /** game-clock t of this player's last lineup swap (0 at init), written in
+   *  one place, subs.ts swapPlayers. Because movement.ts#advanceClock is the
+   *  only writer of t and it only runs during live/clock-running play,
+   *  `s.t − a.lastSwapT` reads as live seconds this stint for on-court
+   *  players and live seconds rested for bench, the same axis
+   *  secondsPlayed uses (two-axes discipline). Consumed by the rotation
+   *  grammar (subs.ts quarterWave stint/bench gates, STAGED inert). */
+  lastSwapT: number;
 
   // working state
   target: V2;

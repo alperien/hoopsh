@@ -310,7 +310,7 @@ function mkAgent(p: Player, side: TeamSide, onCourt: boolean): Agent {
     p, side,
     pos: { x: 47, y: 25 }, vel: { x: 0, y: 0 },
     energy: 80, secondsPlayed: 0, fouls: 0,
-    onCourt, fouledOut: false,
+    onCourt, fouledOut: false, lastSwapT: 0,
     target: { x: 47, y: 25 }, intent: 'freeze', sprinting: false,
     spotKey: null, manId: null,
     dribblesSinceCatch: 0, dribbleAcc: 0, catchT: -99,

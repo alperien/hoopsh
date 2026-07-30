@@ -155,6 +155,7 @@ function initState(cfg: GameConfig): GameState {
         fouls: 0,
         onCourt: false,
         fouledOut: false,
+        lastSwapT: 0,
         target: { x: court.midX, y: court.centerY },
         intent: 'freeze',
         sprinting: false,

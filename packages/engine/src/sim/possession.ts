@@ -620,6 +620,10 @@ export function endPeriod(s: GameState): void {
     kind: 'dead', resumeIn: 1.6, clockRuns: false, nextTeam: team,
     possKind: isOT ? 'tip' : 'inbound'
   };
-  checkSubs(s);
+  // the period-opening stoppage is the quarter-break wave's site (subs.ts
+  // quarterWave, STAGED inert at waveMaxPerTeam 0): planned boundary swaps,
+  // not fatigue-forced ones. No timeout evaluation here; real first-60s
+  // timeout share is 1.0%, and quarter-opening inbounds never host one.
+  checkSubs(s, undefined, { wave: true });
   // matchup/spot targets refresh when the possession starts
 }
