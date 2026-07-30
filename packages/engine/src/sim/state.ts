@@ -33,6 +33,16 @@ export type MoveIntent =
  */
 export type BallAcquisition = 'pass' | 'rebound' | 'steal' | 'deadball';
 
+/**
+ * Timeout vocabulary, internal superset of TimeoutEvent's (core/events.ts,
+ * still 'stop_run' | 'advance'). STAGED: 'mandatory' (scorer-imposed TV
+ * stoppage, charged per NBA Rule 5 VI(b) convention) and 'regroup' (coach
+ * hazard below the stop-run label) are producible only under forced params
+ * until the officiating wave widens the event contract to match
+ * (fdesign-timeouts §5: value-only widening, no shape change).
+ */
+export type TimeoutReason = 'stop_run' | 'advance' | 'mandatory' | 'regroup';
+
 export interface Agent {
   p: Player;
   side: TeamSide;
@@ -175,6 +185,14 @@ export type Phase =
        * this) — endgame layer only (sim/endgame.ts maybeTimeout)
        */
       advanceInbound?: boolean;
+      /**
+       * a timeout was called at this stoppage (stamped by sim/endgame.ts
+       * callTimeout, which runs before checkSubs at every site; the
+       * sub-window handshake, fdesign-timeouts §4): the rotation layer reads
+       * it to relax the pull leash for the huddle. Lives for the stoppage
+       * only; internal state, never an event/replay field.
+       */
+      timeout?: { team: TeamSide; reason: TimeoutReason };
     }
   | {
       kind: 'freethrows';
@@ -186,6 +204,10 @@ export type Phase =
       nextIn: number;
       /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
       oneAndOne: boolean;
+      /** same handshake as the dead variant's. STAGED: written only once the
+       *  officiating wave adds the FT-whistle timeout hook in fouls.ts
+       *  enterFreeThrows (fdesign-timeouts §1.2.2) */
+      timeout?: { team: TeamSide; reason: TimeoutReason };
     }
   | {
       kind: 'scramble'; // live rebound up for grabs
@@ -252,6 +274,23 @@ export interface GameState {
   endgame: boolean;
   timeoutsLeft: [number, number];
   runPts: [number, number];
+  /**
+   * Timeout-economy bookkeeping (fdesign-timeouts §3.2). Same doctrine as
+   * runPts/timeoutsLeft above: cheap counters maintained always (no rng),
+   * read only when the flag is on, and their consumers ship STAGED behind
+   * never-fire params (sim/endgame.ts, params.endgame to*). Per-period
+   * counters reset unconditionally in endPeriod (unlike the OT foul carry).
+   */
+  /** timeouts charged per side this period; drives the mandatory-stoppage
+   *  owed/charging arithmetic (voluntary calls count toward it: that is what
+   *  makes real totals substitute rather than add) */
+  timeoutsThisPeriod: [number, number];
+  /** timeouts used per side in the final scheduled period (the ≤4 cap) */
+  timeoutsUsedFinalPeriod: [number, number];
+  /** ...of which inside its last toFinalPeriodLateSec (the ≤2 cap) */
+  timeoutsUsedFinalLate: [number, number];
+  /** game-clock t of each side's last timeout (coach-hazard cooldown), −99 at init */
+  lastTimeoutT: [number, number];
   /**
    * GARBAGE-TIME CONCEDE flags, per side: "this game is decided — starters
    * out, whoever's on the bench closes it." Written only inside checkSubs

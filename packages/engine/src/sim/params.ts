@@ -567,10 +567,88 @@ export interface SimParams {
     /** on-ball containment gap while hunting, ft — pressed up to grab, not
      *  sagged into a cushion (defense.ts containOnBall override) */
     foulHuntGapFt: number;
-    // --- timeouts (budget lives in rules.timeoutsPerGame — a league rule)
-    /** opponent unanswered points that trigger a stop-the-bleeding timeout —
-     *  REAL: coaches burn one at 8-0/10-0 to reset a run */
+    // --- timeouts (budget lives in rules.timeoutsPerGame, a league rule)
+    /** opponent unanswered points that trigger a stop-the-bleeding timeout.
+     *  REAL: coaches burn one at 8-0/10-0 to reset a run. STAGED-legacy:
+     *  the game-wide coach hazard below subsumes this deterministic trigger
+     *  at the timeout-economy flip (fdesign-timeouts §1.3/§6; the fit wave
+     *  retires it via 999, then it is removed). Until then it is the shipped
+     *  stop_run behavior and must not move. */
     timeoutRunPts: number;
+    // --- timeout economy, game-wide (fdesign-timeouts, STAGED wiring).
+    // The mandatory/TV-stoppage rule, the Q4 caps, the OT budget, the coach
+    // hazard, and the live-ball site all ship at never-fire values so the
+    // default stream stays byte-identical; the timeout fit wave flips them
+    // (design seeds noted per default below) and owns the corpus fit (§7
+    // protocol). All off the sweep surface: the hazard magnitudes are fitted
+    // by the dedicated timeout protocol, never the 17-band sweep (which
+    // measures no timeout statistic), and the rest are when/rule dials
+    // (identity-shape, knobs.ts doctrine). None of this is scaled by
+    // endgame.scale: that budgets concept-6 EV modulations, and a timeout
+    // rate is not an EV term.
+    /** mandatory (TV) stoppage clock thresholds, period-clock seconds: the
+     *  NBA Rule 5 VI(b) anchors, first taken at the first dead ball under
+     *  6:59 if the period has none yet, second under 2:59 if it has ≤ 1.
+     *  STAGED −1 = rule off. League-correct home is RulePack data
+     *  (fdesign-timeouts §3.1: NCAA/EL differ); params-staged until the
+     *  officiating wave lands the pack fields. */
+    toMandatoryFirstBelowSec: number;
+    toMandatorySecondBelowSec: number;
+    /** Q4 usage caps. REAL NBA rule: max 4 team timeouts in the final
+     *  scheduled period, max 2 after its 3:00 mark. STAGED 99 = caps never
+     *  bind (7-budget games can't reach them). RulePack-home caveat as above. */
+    toFinalPeriodMaxTimeouts: number;
+    toFinalPeriodLateMaxTimeouts: number;
+    /** the Q4 late-cap boundary, period-clock seconds (REAL: 3:00 = 180);
+     *  read by the cap upkeep/canSpend and the burn window's inner edge */
+    toFinalPeriodLateSec: number;
+    /** per-OT replacement budget. REAL NBA: 2 per OT period, replacing the
+     *  regulation remainder (not adding). STAGED −1 = keep the remainder
+     *  (today's behavior). RulePack-home caveat as above. */
+    toOvertimeTimeouts: number;
+    /** the live-ball possession-timeout site (grab the defensive board /
+     *  steal and call time; 12.4% of real timeouts, and the only path to an
+     *  endgame advance off a rebound): 1 = evaluate at live_rebound/steal
+     *  possession starts, 0 = STAGED off (site never evaluates) */
+    toLiveSiteOn: number;
+    // coach voluntary-timeout hazard, one draw per qualifying stoppage for
+    // the team with the ball (fdesign-timeouts §2). The four magnitudes ship
+    // at 0, so p is exactly 0 and no rng is ever drawn (the stage switch);
+    // the window/shape dials ship at design values (unread while p = 0).
+    /** base hazard per qualifying dead ball; carries the low-run mass
+     *  (median real run at call is 3). STAGED 0; corpus-fit seed 0.018 */
+    toCoachBasePerDead: number;
+    /** run term engages above this many opponent unanswered points (FEEL:
+     *  just above the median-run-at-call, 3) */
+    toRunMinPts: number;
+    /** run term saturates here. REAL: the canonical 10-0 */
+    toRunFullPts: number;
+    /** run-term weight. STAGED 0; corpus-fit seed 0.13 (target: ~29%/31%
+     *  of real 8-0/10-0 runs get stopped by a victim timeout) */
+    toCoachRunW: number;
+    /** full trail-pressure at this deficit (FEEL: 12 pts) */
+    toTrailRefPts: number;
+    /** trail-term weight. STAGED 0; corpus-fit seed 0.03 (target: 56.6%
+     *  of real timeouts are called trailing) */
+    toCoachTrailW: number;
+    /** hazard ceiling guard (FEEL) */
+    toCoachMaxP: number;
+    /** per-team cooldown, game-clock seconds, hazard only (FEEL: real
+     *  per-team spacing ~9 min; mandatory and the advance are exempt) */
+    toCoachCooldownSec: number;
+    /** no voluntary call in the first N seconds of a period. REAL-ish:
+     *  first-60s share of real timeouts is 1.0% (20/1,986) */
+    toQuarterOpenQuietSec: number;
+    /** burn window outer edge (period clock, final scheduled period). REAL:
+     *  the 5:00→3:00 spend-it-before-the-cap bump (Q4 minute-8 bucket
+     *  0.46/g vs 0.28-0.30 neighbors) */
+    toBurnWindowSec: number;
+    /** burn boost added to p inside the window while the team still holds
+     *  more than the late cap. STAGED 0; corpus-fit seed 0.10 */
+    toBurnBoost: number;
+    /** hazard-fired reason label: 'stop_run' at/above this opponent run,
+     *  'regroup' below (FEEL: ≥6-run share at real calls is 23.1%) */
+    toStopRunLabelPts: number;
     /** trailing inside this many final-period clock seconds spends a timeout
      *  to ADVANCE the ball (inbound moves to the frontcourt) — REAL rule */
     timeoutAdvanceClockSec: number;
@@ -1619,9 +1697,38 @@ export const defaultParams: SimParams = {
     foulHuntReachDistFt: 6,
     foulHuntGapFt: 1.5,
     // stop-the-run threshold: 10-0 is the canonical "timeout, regroup".
-    // Probed at 8 the coaches got chatty — 4.3 run timeouts/game combined,
-    // a panic button; at 10 it's ~1/game, the real once-or-twice cadence
+    // Probed at 8 the coaches got chatty (4.3 run timeouts/game combined,
+    // a panic button); at 10 it's ~1/game, the real once-or-twice cadence.
+    // STAGED-legacy (see interface doc): the fit wave retires this trigger
+    // (999) when the coach hazard below goes live.
     timeoutRunPts: 10,
+    // Timeout economy (fdesign-timeouts), STAGED-inert wiring values.
+    // Every switch below sits at its never-fire value, so shipped behavior
+    // (the advance + the deterministic stop-the-run above) is byte-identical
+    // to the pre-wiring engine; the timeout fit wave flips to the design
+    // seeds noted inline and owns the corpus fit (§7). Not swept.
+    toMandatoryFirstBelowSec: -1, // STAGED off; flip: 419 (6:59, NBA Rule 5 VI(b) first anchor; REAL)
+    toMandatorySecondBelowSec: -1, // STAGED off; flip: 179 (2:59, second anchor; REAL)
+    toFinalPeriodMaxTimeouts: 99, // STAGED unbinding; flip: 4 (REAL Q4 cap)
+    toFinalPeriodLateMaxTimeouts: 99, // STAGED unbinding; flip: 2 (REAL after-3:00 cap)
+    // 3:00 of the final period, REAL boundary; safe to ship live (only the
+    // staged caps/burn read it)
+    toFinalPeriodLateSec: 180,
+    toOvertimeTimeouts: -1, // STAGED keep-remainder; flip: 2 (REAL per-OT replacement budget)
+    toLiveSiteOn: 0, // STAGED off; flip: 1 (live rebound/steal timeout site, §1.2.3)
+    toCoachBasePerDead: 0, // STAGED; corpus-fit seed 0.018 (sized from ~33 stoppages/quarter)
+    // shape dials at design values, unread while the magnitudes are 0:
+    toRunMinPts: 4, // FEEL: engage above the median real run at call (3)
+    toRunFullPts: 10, // REAL: the canonical 10-0
+    toCoachRunW: 0, // STAGED; corpus-fit seed 0.13 (29%/31% of 8-0/10-0 runs stopped)
+    toTrailRefPts: 12, // FEEL: full trail pressure down 12
+    toCoachTrailW: 0, // STAGED; corpus-fit seed 0.03 (56.6% trailing-caller share)
+    toCoachMaxP: 0.35, // FEEL: hazard ceiling
+    toCoachCooldownSec: 120, // FEEL: real per-team spacing ~9 min of game clock
+    toQuarterOpenQuietSec: 60, // REAL-ish: first-60s share 1.0% (20/1,986)
+    toBurnWindowSec: 300, // REAL: the 5:00→3:00 pre-cap burn window
+    toBurnBoost: 0, // STAGED; corpus-fit seed 0.10 (Q4 minute-8 bucket 0.46/g vs 0.28-0.30)
+    toStopRunLabelPts: 6, // FEEL: ≥6-run share at real calls is 23.1%
     // advance timeouts live inside the final ~0:45 of a close game
     timeoutAdvanceClockSec: 45,
     timeoutAdvanceDeficitMax: 8,

@@ -206,6 +206,11 @@ function initState(cfg: GameConfig): GameState {
     endgame: cfg.endgame ?? true,
     timeoutsLeft: [rules.timeoutsPerGame, rules.timeoutsPerGame],
     runPts: [0, 0],
+    // timeout-economy bookkeeping (state.ts doc): upkeep always, staged consumers
+    timeoutsThisPeriod: [0, 0],
+    timeoutsUsedFinalPeriod: [0, 0],
+    timeoutsUsedFinalLate: [0, 0],
+    lastTimeoutT: [-99, -99],
     conceded: [false, false],
     poss: {
       team: 0,

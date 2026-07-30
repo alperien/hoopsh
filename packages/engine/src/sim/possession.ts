@@ -23,7 +23,7 @@ import { checkSubs } from './subs.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 import { startShot } from './shooting.js';
-import { maybeTimeout } from './endgame.js';
+import { decideLiveTimeout, maybeTimeout, type TimeoutCall } from './endgame.js';
 
 /**
  * Decide who wins a jump ball (opening tip, each overtime period).
@@ -140,6 +140,37 @@ export function startPossession(
   // before the AI is allowed to shoot/pass/drive off the inbound — prevents
   // an instant no-look heave the moment the ball touches his hands
   s.decisionAt = s.t + s.params.decide.delayNewPossSec;
+
+  // Live-ball possession timeout (fdesign-timeouts §1.2.3, STAGED off
+  // behind params.endgame.toLiveSiteOn): grab the defensive board / steal
+  // and call time. 12.4% of real timeouts, and the only way the endgame
+  // advance ever fires off a live change of possession (today these flows
+  // never pass through deadBall, so the timeout brain is unreachable from
+  // them). Inbound/tip possessions are skipped: their stoppage already had
+  // its evaluation. On a call: the possession is retained through a
+  // continuation dead ball with the decision pre-stamped (one timeout per
+  // stoppage; deadBall's own evaluation must not run twice), the
+  // post-huddle possession is halfcourt (not a transition sprint), and the
+  // shot clock is left untouched (real rule: a timeout doesn't reset it).
+  // For 'advance' the continuation dead ball carries advanceInbound via
+  // callTimeout, and setupDeadTargets stages the frontcourt spot with no
+  // new positioning code.
+  if (
+    s.endgame && s.params.endgame.toLiveSiteOn > 0 &&
+    (kind === 'live_rebound' || kind === 'steal')
+  ) {
+    const call = decideLiveTimeout(s, team);
+    if (call) {
+      s.poss.phase = 'halfcourt';
+      // deadBallSideOutSec: the continuation-stoppage delay (same as the
+      // loose-ball side-out below, hoisted by audit H-01); the huddle
+      // stretch itself comes from callTimeout
+      deadBall(s, team, {
+        clockRuns: false, continuation: true,
+        resumeIn: s.params.move.deadBallSideOutSec, timeout: call
+      });
+    }
+  }
 }
 
 /**
@@ -208,7 +239,13 @@ export function endPossession(
 export function deadBall(
   s: GameState,
   nextTeam: TeamSide,
-  opts: { clockRuns: boolean; resumeIn?: number; continuation?: boolean }
+  opts: {
+    clockRuns: boolean; resumeIn?: number; continuation?: boolean;
+    /** a timeout decision already made at a live site (startPossession's
+     *  live_rebound/steal hook): applied here instead of re-evaluating;
+     *  one timeout per stoppage, hard */
+    timeout?: TimeoutCall;
+  }
 ): void {
   s.ball.flight = null;
   s.ball.holderId = null;
@@ -228,8 +265,9 @@ export function deadBall(
   // timeout HERE — the one choke point every stoppage routes through, which
   // is exactly where real timeouts live. May freeze the clock, stretch the
   // dead-ball delay, and flag a frontcourt inbound (see sim/endgame.ts);
-  // flag off, it returns immediately.
-  maybeTimeout(s);
+  // flag off, it returns immediately. Ordering: timeout before checkSubs is
+  // the sub-window handshake; the rotation layer reads phase.timeout.
+  maybeTimeout(s, opts.timeout);
   checkSubs(s);
   setupDeadTargets(s, nextTeam);
 }
@@ -547,6 +585,19 @@ export function endPeriod(s: GameState): void {
   // FIBA/EuroLeague treat extra periods as an extension of the 4th. The NBA
   // resets here like any other period (rules/rulepack.ts field doc).
   if (!(isOT && s.rules.teamFoulsCarryToOT)) s.teamFoulsPeriod = [0, 0];
+  // Timeout bookkeeping resets every period, unlike the OT foul carry above
+  // (state.ts doc): the per-period count drives the mandatory-stoppage
+  // owed/charging arithmetic, the final-period counters back the Q4 caps.
+  // Upkeep always, consumers STAGED (sim/endgame.ts, fdesign-timeouts §3.2).
+  s.timeoutsThisPeriod = [0, 0];
+  s.timeoutsUsedFinalPeriod = [0, 0];
+  s.timeoutsUsedFinalLate = [0, 0];
+  if (isOT && s.params.endgame.toOvertimeTimeouts >= 0) {
+    // per-OT budget replaces the regulation remainder (real NBA rule; the
+    // corpus's 8-9-used team-games are all consistent with 7 + 2/OT).
+    // STAGED off at the shipped −1 (remainder carries, today's behavior)
+    s.timeoutsLeft = [s.params.endgame.toOvertimeTimeouts, s.params.endgame.toOvertimeTimeouts];
+  }
   emit(s, { type: 'period_start' });
 
   let team: TeamSide;
