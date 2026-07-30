@@ -812,12 +812,12 @@ export function endPeriod(s: GameState): void {
     nextTeam: team, possKind: isOT ? 'tip' : 'inbound'
   };
   // the period-opening stoppage is the quarter-break wave's site (subs.ts
-  // quarterWave, STAGED inert at waveMaxPerTeam 0): planned boundary swaps,
+  // quarterWave, live at waveMaxPerTeam 2): planned boundary swaps,
   // not fatigue-forced ones. No timeout evaluation here; real first-60s
   // timeout share is 1.0%, and quarter-opening inbounds never host one.
   checkSubs(s, undefined, { wave: true });
-  // Opener formation re-set (fdesign-grammar M1a, STAGED off at
-  // ai.openerResetOn 0): every other inbound routes through deadBall,
+  // Opener formation re-set (fdesign-grammar M1a, live at
+  // ai.openerResetOn 1): every other inbound routes through deadBall,
   // which stages the freeze-walk formation; the period break never did, so
   // the ten idle where the horn froze them and the opener's handler can
   // receive already in his frontcourt (13.4% of sim openers attacked
@@ -825,6 +825,10 @@ export function endPeriod(s: GameState): void {
   // <=8s share). Same order as deadBall: subs first, then targets on the
   // post-sub lineup. setupDeadTargets consumes no rng; the switch exists
   // because positions change outcomes (mechanics tier at the flip).
+  // Trap: setupDeadTargets reads s.court.rims, so a hand-built minimal
+  // GameState that reaches endPeriod must carry court (or pin
+  // openerResetOn 0 in its params); three test fixtures crashed here at
+  // the flip (f-assembly §4b).
   if (s.params.ai.openerResetOn > 0) setupDeadTargets(s, team);
   // matchup/spot targets refresh when the possession starts
 }

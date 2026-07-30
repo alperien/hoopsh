@@ -108,10 +108,20 @@ export const SWEEPABLE: Knob[] = [
   // collapsed league 3P rate by 8 points through the FT-attempt/shot-attempt
   // interaction) — expect these two to move together with shot.* knobs
   // during a sweep rather than in isolation.
-  { path: 'foul.shootRim', lo: 0.26, hi: 0.52 },
+  // shootRim hi raised 0.52 -> 0.56 at the FLOW landing (ffit-rhythm §8
+  // bake note): the fitted start point 0.51974 sat 0.0003 under the old
+  // wall, and the optimizer has been wall-pinned here once before (0daa112).
+  { path: 'foul.shootRim', lo: 0.26, hi: 0.56 },
   { path: 'foul.shootPaint', lo: 0.1, hi: 0.26 },
   { path: 'foul.reachInPerSec', lo: 0.008, hi: 0.026 },
   { path: 'foul.looseBallPerReb', lo: 0.01, hi: 0.04 },
+  // Rhythm-wave levers (ffit-rhythm §8 bake note): the cumulative-load pool
+  // and its foul-mix couplings went live with the FLOW flip; these ranges
+  // hand the re-center sweep ownership instead of hand-nudging.
+  { path: 'fatigue.loadPerSec', lo: 0.006, hi: 0.018 },
+  { path: 'endgame.deadGameBoost', lo: 0.1, hi: 0.5 },
+  { path: 'foul.loadReachSwing', lo: 0.6, hi: 2.0 },
+  { path: 'foul.loadShootSwing', lo: 0.2, hi: 0.9 },
   // chargePerDrive is consumed per SECOND of committed drive time (see
   // params.ts: × dt × chargeTickMult), so the realized league rate rides on
   // drive exposure: at current exposure the rail spans ≈0.6 (lo) → ≈3.1 (hi)
@@ -210,7 +220,16 @@ export const SWEEPABLE: Knob[] = [
   // identity-shape, same doctrine as the mid-range green-light shape above.
   // timeoutRunPts additionally has no cited real base rate to calibrate
   // against (nba-ground-truth row 34): nothing for a band to aim at.
-  { path: 'endgame.scale', lo: 0.5, hi: 1.5 },
+  //
+  // endgame.scale was DE-REGISTERED at the FLOW landing (was [0.5, 1.5]):
+  // it is a style lever the band objective cannot see. The assembly
+  // re-sweep sold the Q4-min quarter shape through it (scale 1 → 0.5
+  // flattened G7's quarter curve while buying pace/ortg); restoring 1 put
+  // the shape back for 2 verify edge-fails (f-assembly §6.1, confirmed
+  // from the reach side by knot-combo §5.1). The ai.swingBase precedent,
+  // verbatim: bands cannot see flow structure, so the range must not let
+  // the optimizer trade it away. Re-register only if the flow gates join
+  // the sweep objective.
   { path: 'endgame.leadHoldMaxBoost', lo: 0.25, hi: 0.8 },
   { path: 'endgame.hurryMaxCut', lo: 0.25, hi: 0.7 },
   // probed at 0.3 the 2-for-1 window's shot rate barely moved over flag-off
@@ -224,8 +243,9 @@ export const SWEEPABLE: Knob[] = [
   // Concept 7 (score pressure) master — budgets the live channel-2
   // defensive-intensity coupling (scale × scorePressureDefGain; the gain
   // itself is a FITTED magnitude, θ-ladder provenance in params.ts, and
-  // stays OFF the surface — the master is the one sweep-owned dial, same
-  // shape as endgame.scale above). The lo rail is a DISTRIBUTIONAL floor,
+  // stays OFF the surface — the master is the one sweep-owned dial, the
+  // shape endgame.scale had before its de-registration above). The lo
+  // rail is a DISTRIBUTIONAL floor,
   // not a band-safety bound: the band objective cannot see what this knob
   // is for — margin mean-reversion, blowout tails, corr(h,a) are
   // distributional stats in no scoring path — so a sweep chasing league

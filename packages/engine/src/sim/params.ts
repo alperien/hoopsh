@@ -283,7 +283,8 @@ export interface SimParams {
      *  rolls dead) and is awarded as a TEAM rebound at a dead-ball inbound
      *  instead of credited to a player — see possession.ts tickScramble */
     deadBallCaromChance: number;
-    // --- rebound cadence (G9, fdesign-judge §3, STAGED wiring). How long a
+    // --- rebound cadence (G9, fdesign-judge §3; wired STAGED, live at 1
+    // since the FLOW flip). How long a
     // miss stays loose before someone secures it (resolve.ts
     // sampleScrambleSec -> possession.ts tickScramble's window). cadenceOn
     // is the stage switch: at 0 the legacy sub-second uniform windows are
@@ -474,7 +475,8 @@ export interface SimParams {
     recoverPerSecBench: number;
     /** speed multiplier at zero energy */
     minSpeedMult: number;
-    // --- cumulative load ("legs", fdesign-rhythm M1, STAGED wiring). A
+    // --- cumulative load ("legs", fdesign-rhythm M1; wired STAGED, live
+    // since the FLOW flip). A
     // second pool that trends across the game where energy sawtooths per
     // stint; consumed by resolution only (movement.ts effectiveEnergy into
     // the resolve.ts shot-fatigue/speed terms, the foul.load*Swing
@@ -483,9 +485,9 @@ export interface SimParams {
     // stage switch: at 0 the pool provably stays 0 and the engine is
     // byte-identical.
     /** on-court load accrual per second (same effort/stamina chain as
-     *  drainPerSec). STAGED 0; design seed 0.011 (REAL-fit: a starter
-     *  reaches load ~33-38 at Q4 crunch after ~31 min; sweepable at the
-     *  flip, knobs range 0.006-0.018) */
+     *  drainPerSec). Live at the 0.011 design seed (REAL-fit: a starter
+     *  reaches load ~33-38 at Q4 crunch after ~31 min; sweepable,
+     *  knobs range 0.006-0.018) */
     loadPerSec: number;
     /** bench load recovery per second. FEEL: a 4-min sit restores ~5, so
      *  legs stay heavy within a half (off the sweep surface: shape) */
@@ -529,13 +531,12 @@ export interface SimParams {
     concedeExitPts: number;
     /** energy floor for a garbage-time bench body (floor presence, not burst) */
     concedeEnergyMin: number;
-    // --- rotation grammar (fdesign-rotations, STAGED wiring). Quarter-break
-    // waves, the foul-trouble policy, and the timeout-window relaxation ship
-    // behind never-fire values (waveMaxPerTeam 0 / ftroublePersonalOffset 99 /
-    // timeoutSubRelaxPts 0 / subMinBenchSec 0) so default rotations are
-    // byte-identical; the rotation fit wave flips to the designed values
-    // noted per default. All when-dials (identity-shape windows); none are
-    // swept (knobs.ts doctrine; the band objective is blind to sub timing).
+    // --- rotation grammar (fdesign-rotations; wired STAGED, live since the
+    // FLOW flip at the ffit-rotations corpus fits — see the defaults).
+    // Field notes below that say "STAGED N" describe the staging
+    // discipline's never-fire value, not the shipped default. All
+    // when-dials (identity-shape windows); none are swept (knobs.ts
+    // doctrine; the band objective is blind to sub timing).
     /** boundary-wave size cap per team per quarter break. REAL: measured
      *  per-team boundary swaps 1.3-1.8; 0 = STAGED off (wave never runs) */
     waveMaxPerTeam: number;
@@ -655,15 +656,15 @@ export interface SimParams {
      *  SPRINTS the ball up instead of the normal dribble-jog — the visible
      *  push of a chasing team */
     hurrySprintMin: number;
-    /** garbage-time wind-down (fdesign-rhythm M3, STAGED 0): once the final
+    /** garbage-time wind-down (fdesign-rhythm M3; live since the FLOW
+     *  flip): once the final
      *  period is decided (trailing side's chaseAliveness 0), both teams get
      *  a mild continuation raise (× 1 + scale × deadGameBoost × holdFade)
      *  in ai/concepts.ts endgameContinuation, so dribble-outs emerge from
      *  the same yardstick every other concept-6 behavior reshapes. Consumer
-     *  wired (ffit-rhythm §8), gated `> 0` so the staged default keeps the
-     *  legacy branch order; knobs range (0.1-0.5) lands at the flip bake.
+     *  wired (ffit-rhythm §8), gated `> 0`; registered in knobs (0.1-0.5).
      *  Complements concede (personnel), does not duplicate it (intent).
-     *  FEEL seed 0.25 */
+     *  FEEL seed 0.25, live at the seed */
     deadGameBoost: number;
     // --- chase arithmetic shared by hurry / fouling (possessions-left math)
     /** assumed seconds per remaining CHASE possession (hurried offense + a
@@ -724,19 +725,19 @@ export interface SimParams {
      *  sagged into a cushion (defense.ts containOnBall override) */
     foulHuntGapFt: number;
     // --- timeouts (budget lives in rules.timeoutsPerGame, a league rule)
-    /** opponent unanswered points that trigger a stop-the-bleeding timeout.
-     *  REAL: coaches burn one at 8-0/10-0 to reset a run. STAGED-legacy:
-     *  the game-wide coach hazard below subsumes this deterministic trigger
-     *  at the timeout-economy flip (fdesign-timeouts §1.3/§6; the fit wave
-     *  retires it via 999, then it is removed). Until then it is the shipped
-     *  stop_run behavior and must not move. */
+    /** opponent unanswered points that trigger the LEGACY deterministic
+     *  stop-the-bleeding timeout. RETIRED IN PLACE at the FLOW flip: the
+     *  coach hazard below subsumes it (fdesign-timeouts §1.3/§6) and 999
+     *  never fires. Remove together with endgame.ts decideTimeout's
+     *  stop_run branch, its one remaining reader. */
     timeoutRunPts: number;
-    // --- timeout economy, game-wide (fdesign-timeouts, STAGED wiring).
-    // The mandatory/TV-stoppage rule, the Q4 caps, the OT budget, the coach
-    // hazard, and the live-ball site all ship at never-fire values so the
-    // default stream stays byte-identical; the timeout fit wave flips them
-    // (design seeds noted per default below) and owns the corpus fit (§7
-    // protocol). All off the sweep surface: the hazard magnitudes are fitted
+    // --- timeout economy, game-wide (fdesign-timeouts; wired STAGED, live
+    // since the FLOW flip at the ffit-timeouts corpus fits — see the
+    // defaults). The mandatory/TV-stoppage rule, the Q4 caps, the OT
+    // budget, the coach hazard, and the live-ball site. Field notes below
+    // that say "STAGED N" describe the staging discipline's never-fire
+    // value, not the shipped default.
+    // All off the sweep surface: the hazard magnitudes are fitted
     // by the dedicated timeout protocol, never the 17-band sweep (which
     // measures no timeout statistic), and the rest are when/rule dials
     // (identity-shape, knobs.ts doctrine). None of this is scaled by
@@ -768,9 +769,9 @@ export interface SimParams {
      *  possession starts, 0 = STAGED off (site never evaluates) */
     toLiveSiteOn: number;
     // coach voluntary-timeout hazard, one draw per qualifying stoppage for
-    // the team with the ball (fdesign-timeouts §2). The four magnitudes ship
-    // at 0, so p is exactly 0 and no rng is ever drawn (the stage switch);
-    // the window/shape dials ship at design values (unread while p = 0).
+    // the team with the ball (fdesign-timeouts §2). The four magnitudes
+    // shipped at 0 until the FLOW flip (p exactly 0, no rng drawn — the
+    // stage switch); live at the corpus fits, so the hazard now draws.
     /** base hazard per qualifying dead ball; carries the low-run mass
      *  (median real run at call is 3). STAGED 0; corpus-fit seed 0.018 */
     toCoachBasePerDead: number;
@@ -825,12 +826,12 @@ export interface SimParams {
    * Officiating vocabulary (fdesign-officiating): the non-foul whistle
    * texture the event stream structurally lacked: jump balls, goaltending,
    * travels, technicals, take fouls, kicked balls, replay reviews.
-   * STAGED-inert wiring: every rate below ships at 0 and every draw site
-   * short-circuits before consuming rng when its rate is 0 (the timeout-
-   * economy stage-switch discipline), so the shipped stream is byte-
-   * identical to the pre-wiring engine. The officiating fit wave flips the
-   * rates to the corpus-pinned seeds noted inline and owns the coordinated
-   * re-sweep (tov/pf both hug ceilings; fdesign-officiating §5).
+   * Wired STAGED-inert (every draw site short-circuits before consuming
+   * rng when its rate is 0 — the timeout-economy stage-switch discipline);
+   * LIVE since the FLOW flip at the ffit-officiating corpus fits (see the
+   * defaults). Field notes below that say "STAGED 0; seed X" describe the
+   * staging discipline and the fit's corpus target, not the shipped
+   * default.
    *
    * None of the rates join harness/knobs.ts: they are corpus-pinned REAL
    * targets the 17-band sweep cannot see; if the sweep owned them it would
@@ -1215,7 +1216,9 @@ export const defaultParams: SimParams = {
   shot: {
     // Zone bases — league-average shooter, league-average contest. SWEPT,
     // and they land near real NBA zone efficiencies:
-    baseRim: 0.5914,    // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    // baseRim re-swept at the FLOW landing (f-assembly §3 round 2), paying
+    // for the flipped foul/whistle mix; still ≈ 64% at the rim.
+    baseRim: 0.5547486941020601, // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
     basePaint: -0.4343418182430332,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
@@ -1358,10 +1361,13 @@ export const defaultParams: SimParams = {
     // rim is whistled constantly, a jump shot almost never. These four values
     // are the primary lever on league FTA/game (band: 18-27). SWEPT — and
     // the most coupling-sensitive knobs in the file (see header point 5).
-    shootRim: 0.3998,
-    shootPaint: 0.1304,
-    shootMid: 0.05,
-    shootThree: 0.012,
+    // Re-fit at the FLOW flip (ffit-rhythm): with the cumulative-load pool
+    // live, the loadShootSwing leg multiplies these, so the whole mix was
+    // re-centered (shootRim ×1.3 from the pre-flip point).
+    shootRim: 0.51974,
+    shootPaint: 0.16952,
+    shootMid: 0.065,
+    shootThree: 0.0156,
     // Tight contests foul more: multiplier scales 1.0 (uncontested) → 1.6
     // (smothered). Ties foul rate to defensive aggression. FEEL.
     contestFactor: 1.6,
@@ -1372,10 +1378,15 @@ export const defaultParams: SimParams = {
     drawFoulSwing: 0.65,
     foulAggrSwing: 0.5,
     shootFoulCap: 0.6,
-    // Per SECOND of on-ball pressure inside ~4 ft. Over a possession this
-    // yields the handful of reach-ins a real game produces. SWEPT.
-    reachInPerSec: 0.019111332459994627,
-    // FEEL — power dribbles expose the ball; attack volume pays a live-ball
+    // Per second of on-ball pressure inside ~4 ft. Over a possession this
+    // yields the handful of reach-ins a real game produces. Hand-fit at the
+    // FLOW landing (knot-combo §2): the rhythm fit cut it ×0.62, which broke
+    // fga/pace; raising organic reach is the one pace-positive fga absorber,
+    // with the endgame hunt and take mults rescaled to hold their products
+    // constant. Flow-shape ceiling near ~0.016 at loadReachSwing 1.3
+    // (knot-combo §5.1). Sweep-owned, rails [0.008, 0.026].
+    reachInPerSec: 0.01585,
+    // FEEL: power dribbles expose the ball; attack volume pays a live-ball
     // turnover tax (drives and post backdowns)
     attackReachInMult: 3.4,
     // gambleSteal swing on the per-tick reach-in rate; hand-check ranges (tight
@@ -1404,37 +1415,46 @@ export const defaultParams: SimParams = {
     // third-largest whistle category and ~30% of all turnovers (every
     // charge is an off_foul turnover). FEEL→REAL: hand-set to land the
     // real rate (post-change measured 1.16/1.31/1.28 per team-game on
-    // three 16-game seed bases at current drive exposure);
-    // previously tagged SWEPT but never registered in harness/knobs.ts
-    // (unsweepable in practice) — registered there now, so the coordinated
-    // sweep owns it henceforth.
-    chargePerDrive: 0.0034,
+    // three 16-game seed bases at current drive exposure). Previously
+    // tagged SWEPT but never registered in harness/knobs.ts (unsweepable
+    // in practice); registered there now, so the coordinated sweep owns it.
+    // SWEPT at the FLOW landing (f-assembly §3 round 2).
+    chargePerDrive: 0.005971976876462406,
     // Per-tick multiplier folded into the charge roll (game.ts tickLive:
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
     looseBallPerReb: 0.0382566165233726,
-    // Load foul couplings (ffit-rhythm §2 REAL-fit seeds): live values,
-    // provably ×1 while fatigue.loadPerSec is 0. The rhythm flip arms them
-    // by flipping the pool switch alone.
+    // Load foul couplings (ffit-rhythm §2 REAL-fit seeds), armed since the
+    // FLOW flip (fatigue.loadPerSec 0.011). Registered in knobs.ts
+    // ([0.6, 2.0] / [0.2, 0.9]). knot-combo §5.1: only the ORGANIC reach
+    // branch carries the loadReachSwing legs, so these swings set how
+    // Q4-heavy reach fouls run; trading loadReachSwing down against
+    // reachInPerSec up is the unexplored G7-shape lever.
     loadReachSwing: 1.3,
     loadShootSwing: 0.5
   },
 
   pass: {
-    // Base turnover logit for an unpressured pass ≈ 1.7% — passes are
+    // Base turnover logit for an unpressured pass ≈ 2.7%: passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
-    // This is the primary lever on league TOV/game (band 11.5-15.5). SWEPT.
-    riskBase: -3.95,
+    // This is the primary lever on league TOV/game (band 11.5-15.5).
+    // Hand-fit at the FLOW landing (knot-combo §2): -3.95 → -3.6 re-prices
+    // passes to absorb excess fga into tov; -3.6 is the measured fragility
+    // wall (deeper sells ast/astd% through their floors, knot-combo §3).
+    // Sweep-owned, rails [-4.3, -3.3].
+    riskBase: -3.6,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
     // Vision/accuracy reduce risk; an elite passer roughly halves it. SWEPT.
     skillCoef: 0.75,
-    // Of failed passes, ~55% are stolen (credited to a defender) and the rest
-    // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT.
-    stealShare: 0.5191718888538026,
-    // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s — long enough
+    // Of failed passes, ~57% are stolen (credited to a defender) and the rest
+    // sail out of bounds. Splits the TOV total into STL vs dead-ball. SWEPT;
+    // re-swept at the FLOW landing (f-assembly §3 round 1) after the
+    // officiating take-window suppressed the transition-steal channel.
+    stealShare: 0.5685795471373496,
+    // Ball speed in flight, ft/s. A 25 ft pass takes ~0.55 s, long enough
     // that a cutter's timing and a defender's recovery both matter. REAL-ish.
     speedFtS: 45,
     // Pass-lane danger model — how defenders in the lane are weighted.
@@ -1489,9 +1509,11 @@ export const defaultParams: SimParams = {
     // Higher = rebounding is pure positioning; lower = size/skill matter more.
     proximityPower: 1.4,
     // Chance an offensive rebound caught at the rim goes straight back up
-    // rather than resetting the offense. FEEL, and it produces the putback
-    // shot type. SWEPT-adjacent.
-    putbackChance: 0.4454454268146934,
+    // rather than resetting the offense; produces the putback shot type.
+    // Raised 0.4532 → 0.55 with the concept-10 OREB read (ffit-grammar:
+    // putback-within-6s share 65% vs the 62% floor at this dose). Registered
+    // [0.35, 0.8]; the sweep owns it from here.
+    putbackChance: 0.55,
     // FEEL — putback eligibility: the rebounder must still be right under
     // the basket (within 6 ft of the rim) for the automatic putback roll.
     // Was inline in possession.ts tickScramble (audit H-01, the
@@ -1550,7 +1572,7 @@ export const defaultParams: SimParams = {
     // team rebounds a normal sight in the log (~7/game plus the FT
     // dead-ball formalities). REAL anchor, FEEL discount.
     deadBallCaromChance: 0.08,
-    // ---- rebound cadence (G9, STAGED at cadenceOn 0) ----
+    // ---- rebound cadence (G9, live since the FLOW flip) ----
     // Real rebounds are not instant: the miss caroms off iron, bodies fight,
     // and only then does someone secure the ball. Measured on the committed
     // 184-game corpus (data/nba/pbp-plays, G9 definition = harness
@@ -1563,7 +1585,7 @@ export const defaultParams: SimParams = {
     // already boxed). The sim's legacy window resolved every scramble in
     // 0.5-0.95s; "rebound rows <=1s after every miss" was the blind
     // judges' #1 genuine tell (tell C / gate G9, findings/fdesign-judge).
-    cadenceOn: 0,
+    cadenceOn: 1, // live (ffit-cadence): the corpus CDF below owns scramble timing; G9 reads p50 3s, <=1s ~17%
     // REAL: corpus-fitted CDF levels. The knots sit at half-integer
     // seconds because both measurement pipelines floor clocks to whole
     // seconds: P(logged delta <= k) ~ F(k + 0.5), so fitting F at k+0.5
@@ -1617,9 +1639,10 @@ export const defaultParams: SimParams = {
     intervalJitterHi: 1.3,
     // Softmax temperature over action utilities, in expected-points units.
     // Low (0.06) = players nearly always take the best option; raising it adds
-    // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
-    temperature: 0.0732,
-    // REAL-ish — NBA tracking's catch-and-shoot definition is a 0-dribble
+    // human noise and bad decisions. This is the engine's "IQ dial". SWEPT;
+    // re-swept at the FLOW landing (f-assembly §3 round 1).
+    temperature: 0.0697461052602733,
+    // REAL-ish: NBA tracking's catch-and-shoot definition is a 0-dribble
     // jumper released within ~2s of the touch; the sim's decision cadence
     // (intervalSec ≈ 0.66, jittered) makes 0.9s the equivalent "rise
     // immediately off the catch" window. Was an inline 0.9 in decide.ts;
@@ -1648,9 +1671,11 @@ export const defaultParams: SimParams = {
     // being CONTINUED from a live-ball state, not its average outcome. SWEPT.
     // re-centered by hand for the Stage 2 decision-layer mechanics (drive
     // collapse pricing + catch-and-shoot decisiveness shifted the patience
-    // equilibrium; two sweeps could not escape the old basin) — then
-    // sweep-polished from this start point
-    continuationMax: 1.4714,
+    // equilibrium; two sweeps could not escape the old basin), then
+    // sweep-polished from this start point. Cut 1.4714 → 1.41 at the FLOW
+    // flip (ffit-cadence §4): the pace refund for the live rebound cadence,
+    // ~+1.4 pace and −1.5pp of 21+s possessions at this rung.
+    continuationMax: 1.41,
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
@@ -1745,17 +1770,18 @@ export const defaultParams: SimParams = {
     // core (endgame:false included), and reading params.endgame from it
     // would falsify that block's documented flag-off-unread contract.
     heaveKeepDeficitMax: 3,
-    // Stage switch: at 1 the period-expiring branch launches uncondition-
-    // ally without drawing (the legacy behavior, byte-identical); flipping
-    // below 1 arms the discipline: hold unless the heave matters or the
-    // occasional careless launch fires (real logs are not literally zero;
-    // at ~3 gated horn evaluations/game, 0.06 ⇒ ~0.2 logged heaves/g,
-    // inside the real-shaped 0.05-0.3 target). Fit ladder {0.02, 0.06,
-    // 0.1}. The flip adds one rng draw on a previously draw-free path:
-    // mechanics tier, fingerprint invalidation expected, noisefloor regen
-    // (AGENTS §1.2, §4.4). FEEL; hand-owned, flow-gated, because a sweep
-    // would push it to 0 or max for ±0.2 fga the bands can't attribute.
-    heaveLaunchChance: 1
+    // At 1 the period-expiring branch launches unconditionally without
+    // drawing (the legacy behavior); below 1 the discipline is armed: hold
+    // unless the heave matters or the occasional careless launch fires
+    // (real logs are not literally zero). Landed at 0.06: the solo grammar
+    // fit chose the 0.02 ladder rung (0.06 read 0.40/g on its tree,
+    // ffit-grammar §2.1), but the live officiating/timeout stoppage grammar
+    // shrinks horn exposure, and at assembly 0.06 reads 0.23 heaves/g vs
+    // the ≤0.3 gate (f-assembly §6.6). Makes are still unsampled (0/11 per
+    // 48g); adjudicate the makes>0 leg on a ≥600-game pool. FEEL;
+    // hand-owned, flow-gated, because a sweep would push it to 0 or max
+    // for ±0.2 fga the bands can't attribute.
+    heaveLaunchChance: 0.06
   },
 
   move: {
@@ -1902,10 +1928,12 @@ export const defaultParams: SimParams = {
     // Even at zero energy a player still moves at 82% speed — exhaustion
     // degrades, it doesn't cripple. FEEL.
     minSpeedMult: 0.82,
-    // Cumulative load (fdesign-rhythm M1), STAGED-inert wiring values (see
-    // the interface doc): the rhythm wave flips loadPerSec to its 0.011
-    // design seed and owns the calibration ladder.
-    loadPerSec: 0, // STAGED, the stage switch; flip: 0.011 (REAL-fit)
+    // Cumulative load (fdesign-rhythm M1), live since the FLOW flip.
+    // 0.011 is the REAL-fit design seed, confirmed on the ladder
+    // 0.0077/0.011/0.0143 (ffit-rhythm §2: 0.011 vs 0.0143
+    // indistinguishable at n=240). The pool switch: it also arms the
+    // foul.loadReachSwing/loadShootSwing legs. Registered [0.006, 0.018].
+    loadPerSec: 0.011,
     loadRecoverPerSecBench: 0.02, // FEEL: a 4-min sit restores ~5 pts of legs
     loadHalftimeRecover: 12 // REAL: the locker room's partial reset
   },
@@ -1982,24 +2010,22 @@ export const defaultParams: SimParams = {
     // not burst (mostly a degenerate-roster guard — bench sitters recover
     // toward 100 anyway, movement.ts bench recovery).
     concedeEnergyMin: 25,
-    // Rotation grammar (fdesign-rotations), STAGED-inert wiring values.
-    // The switches sit at never-fire values (interface doc above), so the
-    // shipped rotation is byte-identical; the rotation fit wave flips to
-    // the designed values noted inline and owns the corpus fit (§6). Not
+    // Rotation grammar (fdesign-rotations), live since the FLOW flip:
+    // corpus-fitted by ffit-rotations (per-dial fit notes inline). Not
     // swept (when-dials).
-    waveMaxPerTeam: 0, // STAGED off; flip: 2 (REAL per-team boundary swaps 1.3-1.8)
-    waveStintMinSec: 300, // REAL-anchored FEEL: 5:00 of live clock (corpus first-exit p25 345 s)
-    waveReadyRelief: 10, // FEEL: accept energy 78 where the mid-quarter bar is 88
-    subMinBenchSec: 0, // STAGED off; flip: 150 (2.5 min of pine before any return)
-    ftroublePersonalOffset: 99, // STAGED unreachable; flip: 1 (the classic period+1 bar)
-    ftroubleIgnoreClockSec: 120, // FEEL: a last-2:00 foul rides to the break
-    timeoutSubRelaxPts: 0, // STAGED off; flip: 8 (≈ half the starter/bench leash gap)
-    // fit-identified hooks (ffit-rotations §3), staged inert:
-    postMakeSubWindow: 1, // STAGED legacy; flip: 0 (real rule; G8c live-ball subs 31.3 -> 0.0/g)
-    ftGapSubMode: 0, // STAGED off; flip: 3 (trip entry urgentOnly + full pass in the gap; G8a 0 -> 14-19/g)
-    ftGapRelaxPts: 0, // STAGED off; flip: 3 (FEEL: the FT-line planned window, smaller than the huddle's 8)
-    waveHalfResetMax: 0, // STAGED off; flip: 5 (halftime restores the five; Q3-start starter share 0.86-0.89 vs gate 0.85)
-    eagerReturnProactive: 0 // STAGED off; flip: 1 (35-target stars back to ~34.5-35.5 min/g under the real-rule windows)
+    waveMaxPerTeam: 2, // REAL: per-team boundary swaps 1.3-1.8/period (ffit-rotations)
+    waveStintMinSec: 420, // FIT: 7:00 of live clock before wave-eligible (B1 1.5-1.8 held, G8d churn shed; ffit-rotations §2)
+    waveReadyRelief: 35, // FIT: reset/wave entries accept energy 53 (readyThreshold 88 − 35) — the Q3-start starter-share binder
+    subMinBenchSec: 300, // FIT: 5:00 of pine before any return — the churn floor, the main G8d dial (ffit-rotations §2)
+    ftroublePersonalOffset: 1, // REAL: the classic period+1 foul-trouble bar
+    ftroubleIgnoreClockSec: 420, // FIT: a foul inside the last 7:00 rides to the break (the fatigue oscillator re-subs riders within 120s, so the gate sits far above the design's 2:00; ffit-rotations O2)
+    timeoutSubRelaxPts: 8, // FEEL: ≈ half the starter/bench leash gap (ffit-rotations)
+    // fit-identified hooks (ffit-rotations §3), live:
+    postMakeSubWindow: 0, // REAL rule: no live-ball subs after makes (G8c 31.3 → 0.0/g)
+    ftGapSubMode: 3, // FIT: trip entry urgentOnly + full pass in the FT gap (G8a 0 → 14-19/g)
+    ftGapRelaxPts: 3, // FEEL: the FT-line planned window, smaller than the huddle's 8
+    waveHalfResetMax: 5, // FIT: halftime restores the five (Q3-start starter share 0.86-0.89 vs gate 0.85)
+    eagerReturnProactive: 1 // FIT: rested behind-pace targets re-enter at the next legal stoppage; 35-target stars back to ~34.5-35.5 min/g (ffit-rotations §3.4)
   },
 
   endgame: {
@@ -2013,12 +2039,17 @@ export const defaultParams: SimParams = {
     // (iters 14 × cands 4, verify 40×3: 16/17 on all bases, fga the
     // residual). Keep the odd precision. The basketball meaning of each is
     // on its interface doc above.
-    scale: 0.9850271257403264,
-    // a leading team starts protecting the ball inside ~2:30; the ramp means
-    // the full milk only shows in the final minute
-    leadHoldClockSec: 150,
-    // +50% continuation ≈ 2.2 expected points of "just keep it" at full ramp
-    // — above any shot the engine generates, so the holder waits for the
+    // scale is hand-owned since the FLOW landing (de-registered from
+    // knobs.ts): the assembly re-sweep sold the Q4-min quarter shape
+    // through it for pace/ortg the bands could see; restoring 1 put the
+    // shape back for 2 verify edge-fails (f-assembly §6.1).
+    scale: 1,
+    // a leading team starts protecting the ball inside ~7:00 (FEEL→REAL-fit,
+    // ffit-rhythm §2: THE Q4-shape lever, q4Δ −0.57 → +1.56 alone); the
+    // ramp still means the full milk only shows late
+    leadHoldClockSec: 420,
+    // +50% continuation ≈ 2.2 expected points of "just keep it" at full
+    // ramp, above any shot the engine generates, so the holder waits for the
     // urgency window (the boost itself fades inside urgencySec, see
     // concepts.ts, so late-clock offense still fires and violations don't spike)
     leadHoldMaxBoost: 0.4179006153562141,
@@ -2036,9 +2067,11 @@ export const defaultParams: SimParams = {
     hurryDepthFloor: 0.4,
     // past ~a third of full urgency, the walk-up becomes a push
     hurrySprintMin: 0.3,
-    // STAGED off; flip: ~0.25 (FEEL; the rhythm wave wires the concepts.ts
-    // consumer and sweeps it 0.1-0.5)
-    deadGameBoost: 0,
+    // live (ffit-rhythm; the concepts.ts consumer went live at the FLOW
+    // flip). Registered [0.1, 0.5]; the assembly sweep moved it to ~0.19
+    // and the G7 diagnostic moved it back — 0.25 is part of the restored
+    // endgame trio that holds the Q4-min shape (f-assembly §6.1).
+    deadGameBoost: 0.25,
     // ~12 s per chase possession-pair; 1.6 net points recoverable per chance
     // (score ~2.2, opponent answers ~0.6 through the foul game)
     chasePossSec: 12,
@@ -2063,44 +2096,48 @@ export const defaultParams: SimParams = {
     foulMinDeficit: 3,
     foulMaxDeficit: 12,
     foulMinShotClock: 5,
-    // 0.0165/s base × 55 ≈ 0.9/s within grab range — the foul lands ~1-1.5 s
-    // after the defender reaches the holder (real fouls-to-give cadence)
-    foulHuntRateMult: 50.62253679213248,
+    // hunt rate = foul.reachInPerSec × this (passing.ts): 0.01585 × 33.8644
+    // ≈ 0.54/s within grab range, the foul landing ~2 s after the defender
+    // reaches the holder. Rescaled 45.3 → 33.8644 at the FLOW landing to
+    // hold the product constant as organic reach rose (knot-combo §1), so
+    // the hunt economy is isolated from the fga/pace absorber; 45.3 itself
+    // was the restored inventory value after the band sweep sold the Q4
+    // shape through the endgame trio (f-assembly §6.1).
+    foulHuntRateMult: 33.8644,
     foulHuntStripShare: 0.12,
     foulHuntReachDistFt: 6,
     foulHuntGapFt: 1.5,
-    // stop-the-run threshold: 10-0 is the canonical "timeout, regroup".
-    // Probed at 8 the coaches got chatty (4.3 run timeouts/game combined,
-    // a panic button); at 10 it's ~1/game, the real once-or-twice cadence.
-    // STAGED-legacy (see interface doc): the fit wave retires this trigger
-    // (999) when the coach hazard below goes live.
-    timeoutRunPts: 10,
-    // Timeout economy (fdesign-timeouts), STAGED-inert wiring values.
-    // Every switch below sits at its never-fire value, so shipped behavior
-    // (the advance + the deterministic stop-the-run above) is byte-identical
-    // to the pre-wiring engine; the timeout fit wave flips to the design
-    // seeds noted inline and owns the corpus fit (§7). Not swept.
-    toMandatoryFirstBelowSec: -1, // STAGED off; flip: 419 (6:59, NBA Rule 5 VI(b) first anchor; REAL)
-    toMandatorySecondBelowSec: -1, // STAGED off; flip: 179 (2:59, second anchor; REAL)
-    toFinalPeriodMaxTimeouts: 99, // STAGED unbinding; flip: 4 (REAL Q4 cap)
-    toFinalPeriodLateMaxTimeouts: 99, // STAGED unbinding; flip: 2 (REAL after-3:00 cap)
+    // RETIRED IN PLACE at the FLOW flip: the coach hazard below owns
+    // stop-the-run texture now (toCoachRunW), so the legacy deterministic
+    // trigger never fires at 999. fdesign-timeouts §6 wants the param
+    // REMOVED, but the stop_run branch in endgame.ts decideTimeout still
+    // reads it; delete both together (an engine mechanics change, not a
+    // params flip). Until then 999 is the never-fire value, not a tunable.
+    timeoutRunPts: 999,
+    // Timeout economy (fdesign-timeouts), live since the FLOW flip:
+    // corpus-fitted by ffit-timeouts (G1 lands 8.5-13 timeouts/g with
+    // every quarter ≥1). Not swept.
+    toMandatoryFirstBelowSec: 419, // REAL: 6:59, NBA Rule 5 VI(b) first mandatory anchor
+    toMandatorySecondBelowSec: 179, // REAL: 2:59, second anchor
+    toFinalPeriodMaxTimeouts: 4, // REAL Q4 cap
+    toFinalPeriodLateMaxTimeouts: 2, // REAL after-3:00 cap
     // 3:00 of the final period, REAL boundary; safe to ship live (only the
     // staged caps/burn read it)
     toFinalPeriodLateSec: 180,
-    toOvertimeTimeouts: -1, // STAGED keep-remainder; flip: 2 (REAL per-OT replacement budget)
-    toLiveSiteOn: 0, // STAGED off; flip: 1 (live rebound/steal timeout site, §1.2.3)
-    toCoachBasePerDead: 0, // STAGED; corpus-fit seed 0.018 (sized from ~33 stoppages/quarter)
-    // shape dials at design values, unread while the magnitudes are 0:
+    toOvertimeTimeouts: 2, // REAL: per-OT replacement budget
+    toLiveSiteOn: 1, // live rebound/steal timeout site (fdesign-timeouts §1.2.3)
+    toCoachBasePerDead: 0.02, // corpus-fit (ffit-timeouts: the 0.018 seed fell ~0.4/g short of total volume)
+    // shape dials at design values:
     toRunMinPts: 4, // FEEL: engage above the median real run at call (3)
     toRunFullPts: 10, // REAL: the canonical 10-0
-    toCoachRunW: 0, // STAGED; corpus-fit seed 0.13 (29%/31% of 8-0/10-0 runs stopped)
+    toCoachRunW: 0.195, // corpus-fit (ffit-timeouts: 8-0 stop-rate response saturates; seed 0.13)
     toTrailRefPts: 12, // FEEL: full trail pressure down 12
-    toCoachTrailW: 0, // STAGED; corpus-fit seed 0.03 (56.6% trailing-caller share)
+    toCoachTrailW: 0.03, // corpus-fit at its seed (ffit-timeouts: 56.6% trailing-caller share)
     toCoachMaxP: 0.35, // FEEL: hazard ceiling
     toCoachCooldownSec: 120, // FEEL: real per-team spacing ~9 min of game clock
     toQuarterOpenQuietSec: 60, // REAL-ish: first-60s share 1.0% (20/1,986)
     toBurnWindowSec: 300, // REAL: the 5:00→3:00 pre-cap burn window
-    toBurnBoost: 0, // STAGED; corpus-fit seed 0.10 (Q4 minute-8 bucket 0.46/g vs 0.28-0.30)
+    toBurnBoost: 0.13, // corpus-fit (ffit-timeouts: Q4 total 3.05→3.27, in band; seed 0.10)
     toStopRunLabelPts: 6, // FEEL: ≥6-run share at real calls is 23.1%
     // advance timeouts live inside the final ~0:45 of a close game
     timeoutAdvanceClockSec: 45,
@@ -2112,30 +2149,35 @@ export const defaultParams: SimParams = {
     timeoutAdvanceSpotFt: 28
   },
 
-  // Officiating (fdesign-officiating), STAGED-inert wiring values. Every
-  // rate sits at 0 and every draw site short-circuits before touching rng at
-  // 0, so the shipped stream is byte-identical to the pre-wiring engine
-  // (fingerprint corpus is the authority). The officiating fit wave flips to
-  // the corpus-pinned seeds on the interface docs above and owns the
-  // coordinated tov/pf re-sweep (§5 blast radius). Not swept; see the
-  // interface block doc for why these rates must never join knobs.ts.
+  // Officiating (fdesign-officiating), live since the FLOW flip:
+  // measured-exposure corpus fits (ffit-officiating). Every family's
+  // per-game rate lands within ±25% of its 184-game corpus target except
+  // take rows, which over-print at ~1.4/g because the 0/1 relabel prints
+  // the endgame hunt's full appetite (documented deviation,
+  // ffit-officiating §4). G2 reads ~8-9 rows/g across 8 categories at
+  // assembly. Not swept; see the interface block doc for why these rates
+  // must never join knobs.ts.
   officiating: {
-    heldBallPerScramble: 0, // STAGED; corpus-fit seed ~0.009 (0.83/g total held balls, REAL)
-    heldBallPerReach: 0, // STAGED; corpus-fit seed ~0.05 (the 15% on-ball share, FEEL split)
-    goaltendPerContestedInsideMiss: 0, // STAGED; corpus-fit seed ~0.016 (0.51/g def goaltends, REAL)
-    goaltendPerPutback: 0, // STAGED; corpus-fit seed ~0.016 (0.13/g off goaltends, REAL)
-    travelPerDriveSec: 0, // STAGED; fit pins drive+post total 1.05/g REAL, 60:40 FEEL split
-    travelPerPostSec: 0, // STAGED; see travelPerDriveSec
-    techPerFoulWhistle: 0, // STAGED; corpus-fit seed ~0.016 (0.71/g techs, REAL)
-    takeRelabelHuntFouls: 0, // STAGED 0/1 switch; flip: 1 (pure relabel, zero stat change)
-    takeHuntRateMult: 0, // STAGED; fit seed ~35-55 (~0.2-0.3/g transition takes, REAL)
+    heldBallPerScramble: 0.0095, // fit: 0.83/g total held balls, REAL (ffit-officiating)
+    heldBallPerReach: 0.005, // fit: the ~15% on-ball share (FEEL split)
+    goaltendPerContestedInsideMiss: 0.0205, // fit: 0.51/g def goaltends, REAL
+    goaltendPerPutback: 0.024, // fit: 0.13/g off goaltends, REAL
+    travelPerDriveSec: 0.00265, // fit: drive carries the whole 1.05/g REAL travel total
+    travelPerPostSec: 0.0065, // fit: post exposure (~5 s/g) is too thin to carry the design's 60:40 split (ffit-officiating)
+    techPerFoulWhistle: 0.017, // fit: 0.71/g techs, REAL
+    takeRelabelHuntFouls: 1, // live 0/1: endgame hunt fouls print as kind 'take' (pure relabel, zero stat change)
+    // fit landed 0.09, not the design's ~35-55 register (the beaten-
+    // transition window saturates; ffit-officiating §4); then rescaled
+    // 0.09 → 0.06728 at the FLOW landing to hold take = reach × mult
+    // constant as organic reach rose (knot-combo §1)
+    takeHuntRateMult: 0.06728,
     // 4 s: the real transition-kill beat; the take happens before the break
-    // organizes, never after the defense is back (unread while the mult is 0)
+    // organizes, never after the defense is back
     takeWindowSec: 4,
-    kickedPerPass: 0, // STAGED; corpus-fit seed ~0.0018 (0.57/g kicked balls, REAL)
-    reviewPerOOB: 0, // STAGED; corpus-fit seed ~0.12 (review total 2.2-2.6/g REAL, mix FEEL)
-    reviewPerLateMake: 0, // STAGED; corpus-fit seed ~0.10
-    reviewPerPeriodEnd: 0, // STAGED; corpus-fit seed ~0.15/period
+    kickedPerPass: 0.00127, // fit: 0.57/g kicked balls, REAL
+    reviewPerOOB: 0.25, // fit: review total 2.2-2.6/g REAL, mix FEEL
+    reviewPerLateMake: 0.085, // fit (ffit-officiating; seed ~0.10)
+    reviewPerPeriodEnd: 0.09, // fit (ffit-officiating; seed ~0.15/period)
     // 18 s of wall-clock monitor time: same replay-texture register as the
     // 8 s timeout huddle; a review reads longer than a huddle (FEEL)
     reviewResumeSec: 18
@@ -2507,14 +2549,15 @@ export const defaultParams: SimParams = {
     // until the 5 s urgency window, so pre-fix the shot was NEVER argmax
     // (instrumented: 0 of 780 decisions at 17-20 ft). Real players take it
     // anyway because it is their identity shot and the defense offers it
-    // all game; that is exactly what a drilled-behavior term models. Sized
-    // to the measured gap: at full green light (tendency 75+) and full
-    // openness the term is worth ~0.35-0.5 expected points — enough to make
-    // an elite mid-range identity fire mid-clock — while fixture-level
-    // identities (shotMid 34-44) get a scaled fraction and fire in the
-    // 5-10 s window, matching the late-clock skew of real mid attempts.
-    midRangeBonus: 0.7081286886721777,
-    // REAL — 19.5 ft: the analytic boundary between the mid-range game and
+    // all game; that is what a drilled-behavior term models. Sized to the
+    // measured gap: at full green light (tendency 75+) and full openness
+    // the term is worth ~0.35-0.5 expected points, enough to make an elite
+    // mid-range identity fire mid-clock, while fixture-level identities
+    // (shotMid 34-44) get a scaled fraction and fire in the 5-10 s window,
+    // matching the late-clock skew of real mid attempts. SWEPT; re-swept
+    // at the FLOW landing (f-assembly §3 round 1).
+    midRangeBonus: 0.7541998395890331,
+    // REAL. 19.5 ft: the analytic boundary between the mid-range game and
     // the long 2 (the 14-19.5 ft band is the real-corpus reference: ~6.8%
     // of NBA FGA). The green light stops here on purpose: the 20-23 ft
     // toe-on-the-line two is the shot modern offenses REMOVED — no coach
@@ -2558,10 +2601,13 @@ export const defaultParams: SimParams = {
     // decisiveness flavor (midRangeBonus's sibling), never a make-model
     // buff (movePullUp −0.22 matches real pull-up-vs-catch gaps; buffing it
     // would corrupt 3P% calibration, the midRangeBonus doctrine's exact
-    // wrong fix). STAGED at 0 (term exactly 0 through the softmax);
-    // fit ladder {0.2, 0.35, 0.5}, then registered [0.15, 0.55] in knobs.ts
-    // (the midRangeBonus precedent registers the dial itself).
-    pullUpThreeBonus: 0,
+    // wrong fix). Live at 0.35; registered [0.15, 0.55] in knobs.ts (the
+    // midRangeBonus precedent registers the dial itself). The solo fit
+    // preferred the 0.5 ladder top (ffit-grammar §2.4), but at assembly
+    // G5 sits floor-edge at 0.35 and the knot-combo mix shift dropped it
+    // LOW (2.5-3.1/g vs floor 3.0) — re-fit together with the reach/
+    // riskBase mix at the next move (knot-combo §5.5).
+    pullUpThreeBonus: 0.35,
     // REAL-ish: 29 ft, the real pull-up band's outer edge (24-29 ft).
     // Beyond it lives the logo bomb; sim deep-3s (≥30 ft) already run
     // 5.08/g vs 2.08 real, and this green light must not refill the excess
@@ -2623,13 +2669,14 @@ export const defaultParams: SimParams = {
     //     green-light floor already refuses them.
     //   pnrMidPopChance — an eligible big still mixes in rolls (his rim
     //     dives keep the drop defender honest; a 100% pop diet would be
-    //     scoutable and would starve his lob/putback game). FEEL — just
-    //     under half his screens end in the short pop.
+    //     scoutable and would starve his lob/putback game). FEEL origin,
+    //     SWEPT since the FLOW landing (f-assembly §3 round 1): just over
+    //     half his screens end in the short pop.
     pnrMidPopScoreCut: 0.1,
-    pnrMidPopChance: 0.55,
-    // FEEL — the throwback: the handler comes off the screen reading the
-    // big. The ROLL half of that read was already priced (the roll is a
-    // cut, so the pocket pass earns cutterBonus 0.5); the POP half had no
+    pnrMidPopChance: 0.5740436431027109,
+    // FEEL. The throwback: the handler comes off the screen reading the
+    // big. The roll half of that read was already priced (the roll is a
+    // cut, so the pocket pass earns cutterBonus 0.5); the pop half had no
     // designed feed at all, so the popped big stood unused. 0.3 sits
     // between postEntryBonus (0.22) and the cutter/handoff feeds (0.5):
     // the throwback is a real designed outlet but the counter-read, not
@@ -2738,11 +2785,12 @@ export const defaultParams: SimParams = {
     // probe-culture record names that exact poison). One possession per
     // period ≈ 2.3% of trips: narrow by construction, assigned by the
     // tip/arrow symmetrically, so it cannot correlate with margin.
-    // STAGED at 0 (provably inert: uShoot − 0 / uDrive − 0 are bit-identical
-    // through the softmax). The flow fit wave flips it via the ladder
-    // {0.2, 0.32, 0.45}; magnitude is hand-owned (flow-gated), the master
-    // openerScale is the sweep's handle. FEEL → ladder-fitted.
-    openerShootMalus: 0,
+    // Live at 0.32, the ladder center (ffit-grammar §2.2: 0.45 buys share
+    // but overshoots the median and inflates opener TOs). Re-checked at
+    // assembly with M1a live: 0.32 → share 7.7%, 0.26 → 10.3%, so the
+    // predicted one-rung drop did not materialize — keep 0.32 (f-assembly
+    // §6.2). Magnitude is hand-owned (flow-gated). FEEL → ladder-fitted.
+    openerShootMalus: 0.32,
     // FEEL: a blown coverage is still attacked; drives keep a quarter of
     // their appetite inside the window (shooting-foul rows count as first
     // attacks in the corpus definition, so drives are not exempt).
@@ -2753,15 +2801,13 @@ export const defaultParams: SimParams = {
     // that the median first shot lands ~15-17s, matching the real 16s.
     // Window shape, identity doctrine; off the sweep surface.
     openerRampFloorShare: 0.4167,
-    // M1a stage switch (flip: 1). The concept-9 commit deferred the
-    // endPeriod formation re-set as a mechanics-tier change; it lands here
-    // behind a switch so the default stream stays byte-identical
-    // (setupDeadTargets is rng-free but positions change outcomes).
-    // ffit-grammar §2.2 measured G3 unreachable at every malus rung
-    // without it: the frozen-at-the-horn openers have no advance time to
-    // absorb, so suppression overshoots the median before the <=8s share
-    // clears. Expect the fitted malus to drop a rung once this flips.
-    openerResetOn: 0,
+    // M1a, live since the FLOW flip: endPeriod routes through
+    // setupDeadTargets, so openers start from a real formation instead of
+    // frozen at the horn (setupDeadTargets is rng-free but positions
+    // change outcomes). ffit-grammar §2.2 measured G3 unreachable at every
+    // malus rung without it. The predicted malus rung-down once this
+    // flipped did NOT materialize at assembly (f-assembly §6.2).
+    openerResetOn: 1,
 
     // ---- Concept 10 (scramble economy): OREB putback + kick-out read ----
     // After a player OREB the real game resolves fast: 71.6% of grabs see a
@@ -2770,30 +2816,27 @@ export const defaultParams: SimParams = {
     // three over the collapsed crash, not the tip-back (flow-grammar §2b).
     // Demand half: the putback shoot term and the kick-out pass term. The
     // supply half (M2a, re-filling getback perimeter teammates behind the
-    // grab) is ai/offense.ts onOrebSecured, staged off behind orebRefillSec
-    // below. STAGED at 0/0/0/0: both utility terms are exactly 0, the zero
-    // window keeps the kick context (including the 'kickout' passKind
-    // taxonomy, which is event-visible) dark, and the zero refill touches
-    // no positioning state, so default event streams stay byte-identical.
-    // The fit wave flips: orebPutbackBonus ~0.35 ×
-    // orebKickBonus ~0.30 (joint ladder {0.2,0.35}×{0.2,0.3,0.45}),
-    // orebKickWindowSec 4.0 (FEEL: the rebounder's half of the corpus 6s
-    // window; pass flight + catch + windup consume the rest), alongside
-    // reb.putbackChance 0.4532 → ~0.55 (already registered [0.35, 0.8]).
+    // grab) is ai/offense.ts onOrebSecured, live via orebRefillSec below.
+    // Live since the FLOW flip at the ffit-grammar joint-ladder doses.
+    // Known residual, owner follow-up: quick-3 share still reads 5-7% vs
+    // the 20% floor WITH M2a live — the arc stays receiver-poor at refill
+    // 1.8s + window 4s + kick 0.30, and dose saturation was already
+    // measured at the 3× ladder, so this is a mechanism question (refill
+    // timing vs kick-window phase), not a dose question (f-assembly §6.3).
     // FEEL → ladder-fitted; sized like its concept-1 siblings
-    // (catchShootBonus 0.18 … midRangeBonus 0.71) to close a ~0.15-0.25 EV
+    // (catchShootBonus 0.18 … midRangeBonus 0.75) to close a ~0.15-0.25 EV
     // gap against the post-OREB continuation ≈ 1.36.
-    orebPutbackBonus: 0,
+    orebPutbackBonus: 0.35, // ladder: 0.2 drops putback share below its floor (ffit-grammar §2.3)
     // FEEL → ladder-fitted; between postEntryBonus 0.22 and cutterBonus 0.5,
-    // a real designed outlet, not the primary read.
-    orebKickBonus: 0,
-    // stage switch (flip to 4.0); window shape, off the sweep surface.
-    orebKickWindowSec: 0,
-    // M2a stage switch (flip: 1.8, FEEL — one hard relocation, ~20 ft at
-    // sprint). ffit-grammar §2.3: without the refill the kick read pays a
-    // bonus to arc teammates who are not there (quick-3 share saturated at
-    // ~10% vs the 20% floor); re-fit orebKickBonus at {0.2, 0.3} once live.
-    orebRefillSec: 0
+    // a real designed outlet, not the primary read. 0.45 diagnostic bought
+    // quick-3 only +2.4pp while sinking putback share below floor.
+    orebKickBonus: 0.3,
+    // FEEL: the rebounder's half of the corpus 6s window (pass flight +
+    // catch + windup consume the rest); window shape, off the sweep surface.
+    orebKickWindowSec: 4,
+    // M2a live: one hard relocation, ~20 ft at sprint (FEEL). See the
+    // block note above for the open kick-3 residual (f-assembly §6.3).
+    orebRefillSec: 1.8
   }
 };
 
