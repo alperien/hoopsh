@@ -39,10 +39,12 @@ import { sampleMatchup } from '@hoopsh/data';
 // definitions, and the definition traps live in the data file — printed
 // numbers can never drift from the citation because they ARE the citation.
 import ref from '../../../data/nba/tracking-references-2023-24.json' with { type: 'json' };
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 // args.ts's loud parsers, not a local bare argOf — a dangling `--games`
-// used to become NaN and measure zero games silently (scan finding b4-8)
+// used to become NaN and measure zero games silently (scan finding b4-8).
+// checkFlags rejects typo'd and `=`-spelled flags the same way (audit H-03).
+checkFlags(process.argv, ['--games', '--seed']);
 const GAMES = flagNumber(process.argv, '--games', 8);
 const SEED = flagValue(process.argv, '--seed', 'texture');
 if (!Number.isInteger(GAMES) || GAMES < 1) throw new Error(`--games must be an integer >= 1, got ${GAMES}`);

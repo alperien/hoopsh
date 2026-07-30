@@ -92,12 +92,15 @@ export function accumulate(acc: Accumulator, box: TeamGameSummary): void {
  * and the sweep keeps its seed bases deliberately separate — pooling them
  * would hide one bad seed inside two good ones, see sweep-worker.ts).
  * Wiring condition: a sharded accumulation path that pre-reduces per-shard
- * Accumulators before IPC instead of shipping per-game summaries. The merge
- * itself is EXACT, which is the property such a consumer would need: every
- * Accumulator field is a running sum (even the `*Sum` fields — sums of a
- * different underlying per-game value), so component-wise addition followed
- * by finalize() gives the identical LeagueAverages as accumulating
- * everything into one Accumulator from the start.
+ * Accumulators before IPC instead of shipping per-game summaries. Precision,
+ * stated honestly (a prior comment claimed the merge was EXACT — audit
+ * L-37): integer count fields merge exactly, but the float `*Sum` fields do
+ * NOT in general — float addition isn't associative, so (a+b)+c from two
+ * pre-reduced shards can differ in the last bits from accumulating a, b, c
+ * in game order. A consumer needing bit-identity with the single-process
+ * path must fold per-game summaries in global game order (parallel.ts's
+ * determinism contract); this merge is for consumers that accept
+ * last-bit float drift in exchange for pre-reduced IPC payloads.
  */
 export function mergeAcc(a: Accumulator, b: Accumulator): Accumulator {
   const out = emptyAcc();

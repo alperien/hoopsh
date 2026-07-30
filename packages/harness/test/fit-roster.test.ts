@@ -179,6 +179,40 @@ describe('season-line schema validation', () => {
       expect(file !== null).toBe(true);
     }
   });
+
+  it('optional fields validate when present — string orb no longer sails through (M-29)', () => {
+    const bad = {
+      kind: 'season-lines',
+      provenance: 'test fixture',
+      players: [
+        line({ orb: '2.5' as unknown as number }),          // crashed mid-fit before
+        { ...line({ name: 'Neg' }), pf: -1 },               // silently skewed before
+        { ...line({ name: 'Fix' }), fixtureId: 7 as unknown as string }
+      ]
+    };
+    const { file, issues } = validateSeasonLines(bad);
+    expect(file).toBe(null);
+    const paths = issues.map((i) => i.path).join(' ');
+    expect(paths).toContain('$.players[0].orb');
+    expect(paths).toContain('$.players[1].pf');
+    expect(paths).toContain('$.players[2].fixtureId');
+  });
+
+  it('rejects names whose fitted ids would collide or come out empty (L-46)', () => {
+    const bad = {
+      kind: 'season-lines',
+      provenance: 'test fixture',
+      players: [
+        line({ name: 'J. Smith' }),
+        line({ name: 'J Smith' }), // slugs to the same "j-smith"
+        line({ name: '***' })      // slugs to ""
+      ]
+    };
+    const { file, issues } = validateSeasonLines(bad);
+    expect(file).toBe(null);
+    expect(issues.some((i) => i.path === '$.players[1].name' && i.message.includes('colliding'))).toBe(true);
+    expect(issues.some((i) => i.path === '$.players[2].name' && i.message.includes('empty'))).toBe(true);
+  });
 });
 
 describe('team pack emission', () => {
@@ -206,5 +240,20 @@ describe('refinement budget guard (throws before any game is simulated)', () => 
       iters: 5, cands: 3, games: 3, refine: true, seedBase: 't'
     })).toThrow(/exceeds the hard budget/);
     expect(3 * 3).toBeGreaterThan(MAX_GAMES_PER_ITER);
+  });
+
+  it('fractional and non-positive counts are rejected before the budget arithmetic (M-30, L-47)', () => {
+    const seed = analyticFit(line({})).player;
+    // 2.5 cands × 3 games claims "7.5" (under the cap of 8) but the loop
+    // executes 3 candidates = 9 games/iteration — the fractional bypass
+    expect(() => refineFit(seed, line({}), {
+      iters: 5, cands: 2.5, games: 3, refine: true, seedBase: 't'
+    })).toThrow(/cands must be an integer >= 1/);
+    expect(() => refineFit(seed, line({}), {
+      iters: -3, cands: 2, games: 4, refine: true, seedBase: 't'
+    })).toThrow(/iters must be an integer >= 1/);
+    expect(() => refineFit(seed, line({}), {
+      iters: 5, cands: 2, games: 0, refine: true, seedBase: 't'
+    })).toThrow(/games must be an integer >= 1/);
   });
 });

@@ -1,7 +1,10 @@
 /**
  * Mid-range probe — the measurement artifact for the wave2/midrange mission.
  *
- *   npm run probe:mid [-- --games 8 --seed midprobe]
+ * Run (no npm script exists for this probe — the alias a prior header
+ * quoted was never added, audit L-49):
+ *   node --disable-warning=ExperimentalWarning --import ./tools/register.mjs \
+ *     packages/harness/src/probe-mid.ts [--games 8 --seed midprobe]
  *
  * Reports the league shot mix by zone, the DISTANCE distribution inside the
  * mid zone (the diagnosis was that the few "mid" shots were 20-ft arc-toes,
@@ -16,11 +19,18 @@
 import { simulateGame } from '@hoopsh/engine';
 import type { GameEvent, ShotEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 // args.ts's loud parser — a bare argOf turned `--games abc` into NaN and
-// the probe silently measured zero games (c4-F3)
+// the probe silently measured zero games (c4-F3). checkFlags rejects
+// typo'd / `=`-spelled / repeated flags the same way (audit H-03).
+checkFlags(process.argv, ['--games', '--seed']);
 const games = flagNumber(process.argv, '--games', 8);
+// integer or die (audit M-31): `--games 2.5` ran ceil(2.5)=3 games but every
+// per-game rate below divided by 2.5 — inflated stats, exit 0
+if (!Number.isInteger(games) || games < 1) {
+  throw new Error(`--games must be an integer >= 1, got ${games} — fractional counts inflate every per-game rate`);
+}
 const seedBase = flagValue(process.argv, '--seed', 'midprobe');
 
 const shots: ShotEvent[] = [];
@@ -36,7 +46,11 @@ for (let i = 0; i < games; i++) {
     collectFrames: false
   });
   for (const ev of result.events as GameEvent[]) {
-    if (ev.type === 'shot') shots.push(ev);
+    // OFFICIAL FGAs only (the I26 convention; audit L-50): a fouled miss is
+    // not an FGA, and the "~6.8% of FGA" reference band below is corpus
+    // data counted on official FGAs — folding fouled misses in (~6.5% of
+    // shot events) deflated every share against that reference.
+    if (ev.type === 'shot' && (ev.made || !ev.foul)) shots.push(ev);
     if (ev.type === 'shot' && ev.made) ptsSum += ev.points;
     if (ev.type === 'free_throw' && ev.made) ptsSum += 1;
     if (ev.type === 'possession_end') possSum += 1;

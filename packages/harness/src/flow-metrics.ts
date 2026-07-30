@@ -70,6 +70,10 @@ export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinu
   let q4Led10By: -1 | 0 | 1 = 0; // which side (as sign) led by 10+ in the final regulation period
   let possStart = -1;
   let possHadOreb = false;
+  // Previous possession_end (the corpus "boundary") — possession lengths are
+  // measured boundary-to-boundary within a period, matching the reference
+  // corpus segmentation (see the possession_end case below; audit H-05).
+  let lastEnd: { t: number; period: number } | null = null;
   const FINAL = reg.periods; // "Q4" of the metric definitions
   const REG = reg.periods * reg.periodMinutes * 60;
 
@@ -126,35 +130,63 @@ export function gameFlow(events: GameEvent[], reg: { periods: number; periodMinu
         possStart = e.t;
         possHadOreb = false;
         break;
-      case 'possession_end':
+      case 'possession_end': {
         f.poss++;
-        if (possStart >= 0) f.possLens.push(Math.max(0, e.t - possStart));
+        // BOUNDARY-TO-BOUNDARY length, the corpus convention (audit H-05):
+        // a possession runs from the previous possession's END to this one's
+        // end, within a period. The old start-to-end read (possession_start
+        // to possession_end) silently excluded the post-make inbound time —
+        // the clock RUNS through the ~2.2s resume after a made basket
+        // (sim/shooting.ts) but possession_start only fires at the inbound
+        // touch, so ~41% of possessions (those following a make) measured
+        // short on the sim side ONLY. The reference corpus can't see inbound
+        // touches at all: it segments purely on boundary events (made FG,
+        // defensive rebound, turnover, made final FT, period end —
+        // data/nba/flow-reference.json possessionP50Sec.basis), so the two
+        // sides only count the same way boundary-to-boundary. Period openers
+        // fall back to possession_start.t (the tip/inbound that starts the
+        // period — the clock hasn't run before it, so it IS the period
+        // boundary).
+        const from = lastEnd && lastEnd.period === e.period ? lastEnd.t : possStart;
+        if (from >= 0) f.possLens.push(Math.max(0, e.t - from));
+        lastEnd = { t: e.t, period: e.period };
         if (possHadOreb) f.secondChancePoss++;
         possStart = -1;
         break;
+      }
       case 'rebound':
-        // The OREB base is PLAYER offensive rebounds only — the corpus
-        // definition these metrics are compared against
-        // (data/nba/flow-reference.json meta.definitions.ambiguitiesResolved:
-        // team-rebound bookkeeping rows are "excluded from the putback
-        // denominator and from second-chance marking"). The sim emits two
-        // non-player flavors the reference excludes on its own side:
-        // dead-ball FT formalities (`deadBall`, sim/fouls.ts — playerless,
-        // always offensive) and playerless team rebounds (dead caroms,
-        // reb.deadBallCaromChance). Folding those inflated the denominator
-        // ~30% and marked FT-trip possessions as second-chance with no live
-        // OREB (scan finding b4-1/c3-F1). Same filter box.ts applies to
-        // player rebound lines. NOTE: the putback/steal forward scans still
-        // STOP on EVERY rebound row (here and in the turnover case) — the
-        // corpus scan stops on all rebound rows too.
+        // The putback OREB base is PLAYER offensive rebounds only — the
+        // corpus definition these metrics are compared against
+        // (data/nba/flow-reference.json putbackWithin6sShareOfOreb: team-
+        // rebound bookkeeping rows are excluded from the denominator).
+        // Dead-ball FT formalities (`deadBall`, sim/fouls.ts — playerless,
+        // always offensive) count for NOTHING here; folding them inflated
+        // the denominator ~30% and marked FT-trip possessions as second-
+        // chance with no live OREB (scan finding b4-1/c3-F1). Same filter
+        // box.ts applies to player rebound lines.
+        // SECOND-CHANCE marking is broader than the putback base: the corpus
+        // marks a possession on any LIVE offensive rebound, team rebounds
+        // included (parse-nba.mjs excludes only the missed-non-final-FT
+        // artifact rows) — so a live playerless carom marks the possession
+        // here too, it just never enters the putback denominator (audit
+        // L-45, ~0.5pp of second-chance share).
+        // NOTE: the putback/steal forward scans still STOP on EVERY rebound
+        // row (here and in the turnover case) — the corpus scan stops on all
+        // rebound rows too.
+        if (e.offensive && !e.deadBall) possHadOreb = true;
         if (e.offensive && e.player && !e.deadBall) {
           f.oreb++;
-          possHadOreb = true;
-          // putback within 6s of game clock by the rebounding team
+          // putback within 6s of game clock by the rebounding team.
+          // OFFICIAL FGAs only (the I26 convention, audit M-49): a fouled
+          // miss never prints a miss line in real pbp — 0 of 3,876 corpus
+          // shooting fouls — so the corpus putback scan cannot count one,
+          // and it isn't an official FGA either. The scan skips it and keeps
+          // looking (the corpus scan walks past the foul row the same way);
+          // an and-one make still counts (its make line prints).
           for (let j = i + 1; j < events.length; j++) {
             const n = events[j]!;
             if (n.t - e.t > 6) break;
-            if (n.type === 'shot' && n.team === e.team) { f.putback6++; break; }
+            if (n.type === 'shot' && n.team === e.team && (n.made || !n.foul)) { f.putback6++; break; }
             if (n.type === 'turnover' || (n.type === 'rebound')) break;
           }
         }

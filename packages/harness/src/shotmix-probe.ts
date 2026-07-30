@@ -21,7 +21,7 @@
 
 import { simulateGame, type GameEvent, type ShotMoveType } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 const MOVES: ShotMoveType[] = ['catch_shoot', 'pull_up', 'drive', 'cut_finish', 'post', 'putback', 'heave'];
 const ZONES = ['rim', 'paint', 'mid', 'three'] as const;
@@ -75,14 +75,21 @@ export function tallyGame(events: GameEvent[], t: Tally): void {
         if (e.assist) t.assisted++;
         if (e.moveType === 'catch_shoot' && interior) t.interiorCsMake++;
       }
-    } else if (e.type === 'rebound' && e.offensive) {
+    } else if (e.type === 'rebound' && e.offensive && e.player && !e.deadBall) {
+      // PLAYER offensive rebounds only (audit M-48): this probe prints its
+      // share against "(real 71.6% ... of player OREBs)" but folded team and
+      // dead-ball FT-formality rebound rows into the denominator, reading
+      // ~10pp low against its own printed reference. Same base as
+      // flow-metrics.ts and the corpus definition.
       t.oreb++;
-      // flow-metrics.ts putback definition: any FGA by the rebounding team
-      // within 6s (game clock); forward scan stops at rebound/turnover
+      // flow-metrics.ts putback definition: any OFFICIAL FGA by the
+      // rebounding team within 6s (game clock); fouled misses are skipped —
+      // no corpus miss line, not an FGA under I26 (the M-49 convention) —
+      // and the forward scan stops at rebound/turnover
       for (let j = i + 1; j < events.length; j++) {
         const n = events[j]!;
         if (n.t - e.t > 6) break;
-        if (n.type === 'shot' && n.team === e.team) { t.putback6++; break; }
+        if (n.type === 'shot' && n.team === e.team && (n.made || !n.foul)) { t.putback6++; break; }
         if (n.type === 'turnover' || n.type === 'rebound') break;
       }
     } else if (e.type === 'turnover' && e.stolenBy) {
@@ -124,7 +131,14 @@ export function runProbe(games: number, seedBase: string): Tally {
 
 const isMain = process.argv[1]?.endsWith('shotmix-probe.ts');
 if (isMain) {
+  // typo'd / `=`-spelled / repeated flags die before simulating (H-03)
+  checkFlags(process.argv, ['--games', '--seed']);
   const games = flagNumber(process.argv, '--games', 12);
+  // integer or die (audit M-31): `--games 2.5` ran 3 games but the /game
+  // rates below divided by 2.5 — inflated stats, exit 0
+  if (!Number.isInteger(games) || games < 1) {
+    throw new Error(`--games must be an integer >= 1, got ${games} — fractional counts inflate every per-game rate`);
+  }
   const seed = flagValue(process.argv, '--seed', 'shotmix');
   const t0 = performance.now();
   const t = runProbe(games, seed);

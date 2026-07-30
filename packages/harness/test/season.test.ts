@@ -417,6 +417,21 @@ describe('league generation fixtures', () => {
     expect(twin.players[0]!.attr).toEqual(src.players[0]!.attr);
   });
 
+  it('cloneTeamWithIds re-keys rotationMinutes to the new ids, un-aliased (M-33)', () => {
+    const src = cascadiaBreakers();
+    const starter = src.starters[0]!;
+    src.rotationMinutes = { [starter]: 35 };
+    const twin = cloneTeamWithIds(src, 'q');
+    // the coach's target must follow the renamed player, or subs.ts finds no
+    // target for anyone and the twin's rotation runs unleashed
+    expect(twin.rotationMinutes).toEqual({ [`${starter}-q`]: 35 });
+    // and it must be a COPY — the old spread aliased the same object
+    src.rotationMinutes[starter] = 10;
+    expect(twin.rotationMinutes![`${starter}-q`]).toBe(35);
+    // a team without targets clones without inventing the field
+    expect(cloneTeamWithIds(cascadiaBreakers(), 'r').rotationMinutes).toBe(undefined);
+  });
+
   it('scaleTeam shifts every attribute, clamped to [1, 99]', () => {
     const src = cascadiaBreakers();
     const up = scaleTeam(src, 8, 'up');

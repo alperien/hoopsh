@@ -28,13 +28,16 @@
  * behind season.ts's SimulateGames seam, not here.
  */
 
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 import { makeLeague } from './league.js';
 import { roundRobin, runSeason, type SeasonResult, type TeamStanding } from './season.js';
 import { formatMatchup, simulateMatchup, simsToResolveEdge } from './matchup.js';
 import type { Team } from '@hoopsh/engine';
 
 const argv = process.argv;
+// declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
+// silently simulating a default season (args.ts checkFlags, audit H-03)
+checkFlags(argv, ['--teams', '--rounds', '--seed', '--json', '--matchup', '--sims', '--mirror', '--games']);
 const nTeams = flagNumber(argv, '--teams', 6);
 const rounds = flagNumber(argv, '--rounds', 2);
 const seed = flagValue(argv, '--seed', 'season-2026');
@@ -159,8 +162,13 @@ async function seasonMode(): Promise<void> {
 
 async function matchupMode(): Promise<void> {
   const sims = flagNumber(argv, '--sims', 100);
-  const parts = matchupSpec.split(',').map((s) => Number(s.trim()));
-  if (parts.length !== 2 || parts.some((v) => !Number.isInteger(v) || v < 0 || v >= teams.length)) {
+  // empty segments rejected BEFORE Number(): Number('') === 0, so a trailing
+  // comma (`--matchup 1,`) silently read as "team 1 vs team 0" and simulated
+  // a fixture nobody asked for (audit M-32)
+  const segs = matchupSpec.split(',').map((s) => s.trim());
+  const parts = segs.map((s) => Number(s));
+  if (segs.length !== 2 || segs.some((s) => s === '') ||
+      parts.some((v) => !Number.isInteger(v) || v < 0 || v >= teams.length)) {
     throw new Error(
       `--matchup needs two team indices 0..${teams.length - 1} (e.g. --matchup 0,3), got "${matchupSpec}"`
     );

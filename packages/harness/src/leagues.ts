@@ -61,8 +61,14 @@ export function loadNcaaBands(jsonPath: string = NCAA_BANDS_PATH): Band[] {
   let raw: string;
   try {
     raw = readFileSync(jsonPath, 'utf8');
-  } catch {
-    throw new Error(`NCAA bands file not found at ${jsonPath} — expected the data/ncaa research deliverable`);
+  } catch (err) {
+    // carry the real cause (audit L-44): this catch used to report EVERY
+    // read failure as "not found" — a permissions error or a directory at
+    // the path sent the reader hunting for a file that was right there
+    throw new Error(
+      `NCAA bands file could not be read at ${jsonPath} (${(err as Error).message}) — ` +
+      'expected the data/ncaa research deliverable'
+    );
   }
   const doc = JSON.parse(raw) as { bands?: BandsJsonEntry[] };
   if (!Array.isArray(doc.bands) || doc.bands.length === 0) {

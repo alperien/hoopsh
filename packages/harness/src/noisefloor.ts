@@ -29,13 +29,15 @@ import { sampleMatchup } from '@hoopsh/data';
 import { accumulate, emptyAcc, finalize, type LeagueAverages } from './aggregate.js';
 import { NBA_BANDS } from './bands.js';
 import { BENCHMARKS, TARGETS, runBenchmark } from './fidelity.js';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 // args.ts's loud parsers, not a local bare argOf — `--leagueBases` with a
 // forgotten value used to become NaN bases and sample NOTHING silently
 // (scan finding b4-8). A typo'd --mode is the same silent-no-op class (no
 // branch below matches, exit 0 having measured nothing), so it's validated
-// against the four real modes too.
+// against the four real modes too. checkFlags rejects typo'd / `=`-spelled /
+// repeated FLAGS on top of that (audit H-03).
+checkFlags(process.argv, ['--mode', '--leagueBases', '--starBases12', '--starBases40']);
 const MODE = flagValue(process.argv, '--mode', 'all');
 if (!['all', 'league', 'stars', 'emit'].includes(MODE)) {
   throw new Error(`--mode must be all|league|stars|emit, got "${MODE}"`);

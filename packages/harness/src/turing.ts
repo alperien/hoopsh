@@ -30,10 +30,13 @@
  *
  * Usage:
  *   npm run turing -- --sim 15 --out out/turing            # sim excerpts only
- *   npm run turing -- --sim 15 --real /path/to/plays-dir --out out/turing
- * The real-plays dir holds JSON arrays of { q, clockSec, side, text, a, h }
- * (see tools/fetch-nba.mjs notes / docs/REGISTER.md for how to produce them from
- * public play-by-play pages — raw fetched HTML stays out of the repo).
+ *   npm run turing -- --sim 15 --real data/nba/pbp-plays --out out/turing
+ * The real-plays dir holds the COMMITTED corpus shards (tools/parse-nba.mjs
+ * output: { meta, games: { gameId: { plays: [q, clockSec, side, text, a, h]
+ * tuple rows } } }) — the repo ships seven under data/nba/pbp-plays/. Bare
+ * JSON arrays of { q, clockSec, side, text, a, h } objects are also read
+ * (the shape an earlier header documented; --real could not actually read
+ * any artifact the repo ships, audit M-35). Windows never span games.
  * Output: pack.json (blind, shuffled), key.json (answers — do not show the
  * judges), and a per-excerpt .txt for convenient pasting.
  */
@@ -43,7 +46,7 @@ import path from 'node:path';
 import { Rng, simulateGame, type GameEvent, type Team } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { distPhrase, shotCall, type ShooterTraits } from '@hoopsh/narration';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 // a neutral name pool large enough for two rosters per excerpt; assignment is
 // per-excerpt so cross-excerpt frequency analysis can't fingerprint rosters
@@ -111,8 +114,19 @@ export function renderEvent(
       return `Turnover by ${name(e.player)} (${kind}${stl})`;
     }
     case 'foul': {
-      if (e.kind === 'offensive') return null; // the paired turnover line already reads as the play
-      const kind = e.kind === 'shooting' ? 'Shooting' : e.kind === 'loose_ball' ? 'Loose ball' : 'Personal';
+      // offensive fouls render their own line: real bbref prints BOTH the
+      // foul row and the paired turnover row (546/551 corpus charges —
+      // "Offensive foul by X (drawn by Y)" then "Turnover by X (offensive
+      // foul)"); suppressing the foul line here made every sim charge a
+      // one-line play, a deterministic tell the blind-pack judges keyed on
+      // (audit M-34). Residual difference, stated honestly: the engine
+      // emits turnover-then-foul (game.ts's foul-out ordering constraint),
+      // the corpus prints foul-then-turnover — a subtler tell than a
+      // missing line, and not fixable per-event in a stream renderer.
+      const kind =
+        e.kind === 'shooting' ? 'Shooting' :
+        e.kind === 'loose_ball' ? 'Loose ball' :
+        e.kind === 'offensive' ? 'Offensive' : 'Personal';
       const drawn = e.drawnBy ? ` (drawn by ${name(e.drawnBy)})` : '';
       return `${kind} foul by ${name(e.on)}${drawn}`;
     }
@@ -192,11 +206,52 @@ function simWindows(count: number, winLen: number, seedBase: string, rng: Rng, s
 
 interface RealPlay { q: number; clockSec: number; side: string | null; text: string; a: number; h: number }
 
-function realWindows(dir: string, count: number, winLen: number, rng: Rng, stripTimeouts: boolean): NormPlay[][] {
-  const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
-  const windows: NormPlay[][] = [];
+/** one committed-shard row: [q, clockSec, side, text, awayScore, homeScore] */
+type ShardRow = [number, number, string | null, string, number, number];
+
+/**
+ * Read every real game under `dir`, one play-list PER GAME (windows must
+ * never span two games' plays). Two formats (audit M-35 — the old reader
+ * accepted only the second, which no shipped artifact uses):
+ *   - a committed corpus shard, tools/parse-nba.mjs output:
+ *     { meta, games: { gameId: { plays: tuple rows } } } — what the repo
+ *     ships under data/nba/pbp-plays/;
+ *   - a bare JSON array of { q, clockSec, side, text, a, h } objects.
+ * Anything else fails loudly with both shapes named.
+ */
+function readRealGames(dir: string): RealPlay[][] {
+  // sorted: readdirSync order is filesystem-dependent, and a blind pack's
+  // excerpt numbering must not depend on which OS built it (audit L-51);
+  // game order INSIDE a shard follows the file's own key order, which is
+  // fixed by the committed bytes
+  const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
+  const games: RealPlay[][] = [];
   for (const f of files) {
-    const plays = JSON.parse(readFileSync(path.join(dir, f), 'utf8')) as RealPlay[];
+    const doc = JSON.parse(readFileSync(path.join(dir, f), 'utf8')) as unknown;
+    if (Array.isArray(doc)) {
+      games.push(doc as RealPlay[]);
+      continue;
+    }
+    const shardGames = (doc as { games?: Record<string, { plays?: ShardRow[] }> }).games;
+    if (shardGames && typeof shardGames === 'object') {
+      for (const [id, g] of Object.entries(shardGames)) {
+        if (!Array.isArray(g.plays)) throw new Error(`${f}: game ${id} has no plays array`);
+        games.push(g.plays.map(([q, clockSec, side, text, a, h]) => ({ q, clockSec, side, text, a, h })));
+      }
+      continue;
+    }
+    throw new Error(
+      `${f}: unrecognized real-plays format — expected a committed pbp shard ` +
+      `({ games: { id: { plays } } }, tools/parse-nba.mjs output) or a bare array of ` +
+      `{ q, clockSec, side, text, a, h } rows`
+    );
+  }
+  return games;
+}
+
+function realWindows(dir: string, count: number, winLen: number, rng: Rng, stripTimeouts: boolean): NormPlay[][] {
+  const windows: NormPlay[][] = [];
+  for (const plays of readRealGames(dir)) {
     const mid = plays.filter((p) => p.q >= 2 && p.q <= 3);
     const pool = rng.shuffle([...POOL]);
     const names = new Map<string, string>();
@@ -242,6 +297,9 @@ function realWindows(dir: string, count: number, winLen: number, rng: Rng, strip
 
 const isMain = process.argv[1]?.endsWith('turing.ts');
 if (isMain) {
+  // declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
+  // silently building a default pack (args.ts checkFlags, audit H-03)
+  checkFlags(process.argv, ['--sim', '--window', '--out', '--real', '--seed', '--strip-timeouts']);
   const simCount = flagNumber(process.argv, '--sim', 15);
   const winLen = flagNumber(process.argv, '--window', 14);
   const outDir = flagValue(process.argv, '--out', 'out/turing');

@@ -77,6 +77,13 @@ export function roundRobin(teamIds: readonly string[], rounds = 2): ScheduledGam
     throw new Error(`roundRobin: duplicate team ids in ${JSON.stringify(ids)}`);
   }
   if (ids.length < 2) throw new Error('roundRobin: need at least 2 teams');
+  // exported API, same doctrine as the id checks above (audit L-41): a
+  // fractional `rounds` silently ran a WHOLE extra cycle (`cycle < 1.5`
+  // executes cycles 0 and 1) and a non-positive one returned an empty
+  // schedule that downstream code happily "simulated" as a 0-game season
+  if (!Number.isInteger(rounds) || rounds < 1) {
+    throw new Error(`roundRobin: rounds must be an integer >= 1, got ${rounds}`);
+  }
   const BYE = null;
   // even slot count: odd league sizes rotate a phantom whose games are byes
   const slots: (string | null)[] = ids.length % 2 === 0 ? ids : [...ids, BYE];

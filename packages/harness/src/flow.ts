@@ -31,9 +31,15 @@
  *   clutch window — Q4, game clock <= 2:00, margin within 5 BEFORE the
  *     scoring event. clutchFTShare = FT points / all points inside that.
  *   Q4 comeback — a team leads by 10+ at any point in Q4 and loses.
- *   possession length — possession_end.t - possession_start.t (game-clock
- *     seconds; FT sequences freeze t, matching how possession-length data
- *     is usually reported against the shot/game clock).
+ *   possession length — boundary-to-boundary on the game clock: this
+ *     possession_end.t minus the PREVIOUS possession_end.t within the period
+ *     (period openers measure from possession_start, i.e. the period
+ *     boundary). This is the corpus segmentation (made FG / defensive
+ *     rebound / turnover / made final FT / period end are the boundaries),
+ *     so post-make inbound time — the clock runs through it — counts toward
+ *     the next possession on BOTH sides. FT sequences freeze t either way.
+ *     (The old start-to-end read undercounted ~41% of sim possessions by the
+ *     running post-make resume time; audit H-05.)
  *
  * The measurement/reduction code itself lives in flow-metrics.ts (so the
  * parallel runner's worker can import it without importing this CLI); games
@@ -55,7 +61,7 @@
  */
 
 import ref from '../../../data/nba/flow-reference.json' with { type: 'json' };
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 import { reduceFlows, type FlowAverages } from './flow-metrics.js';
 import { resolveLeague } from './leagues.js';
 import { resolveWorkerCount, runGames, runGamesInProcess } from './parallel.js';
@@ -88,7 +94,18 @@ if (isMain) {
 }
 
 async function main(): Promise<void> {
+  // declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
+  // silently measuring the defaults (args.ts checkFlags, audit H-03)
+  checkFlags(process.argv, ['--games', '--seed', '--league', '--workers', '--endgame', '--no-endgame']);
   const games = flagNumber(process.argv, '--games', 48);
+  // W13 pattern (cli.ts --games guard, red-team MINOR-4; audit M-22):
+  // `--games 0` printed an all-NaN flow report and exited 0 — a report over
+  // zero games is a misconfiguration, never a measurement. Die before
+  // simulating anything.
+  if (!Number.isInteger(games) || games < 1) {
+    console.error(`--games requires an integer >= 1, got ${games} — refusing to report on a run that simulates nothing`);
+    process.exit(1);
+  }
   const seedBase = flagValue(process.argv, '--seed', 'flow');
   const league = resolveLeague(flagValue(process.argv, '--league', 'nba'));
   const workers = resolveWorkerCount(flagValue(process.argv, '--workers', 'auto'));

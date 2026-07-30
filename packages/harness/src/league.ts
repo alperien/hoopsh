@@ -99,7 +99,17 @@ export function cloneTeamWithIds(team: Team, suffix: string): Team {
       tend: { ...p.tend }
     })),
     starters: team.starters.map(rename),
-    tactics: { ...team.tactics }
+    tactics: { ...team.tactics },
+    // rotationMinutes keys on PLAYER IDS, so it must be re-keyed like
+    // starters — the `...team` spread above carried it ALIASED (mutating one
+    // copy mutated the other) and keyed by ids that no longer exist on the
+    // clone, so subs.ts found no target for anyone and the twin's rotation
+    // ran unleashed on the default derivation (audit M-33)
+    ...(team.rotationMinutes !== undefined ? {
+      rotationMinutes: Object.fromEntries(
+        Object.entries(team.rotationMinutes).map(([id, min]) => [rename(id), min])
+      )
+    } : {})
   };
 }
 
