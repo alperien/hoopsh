@@ -358,9 +358,10 @@ function realWindows(dir: string, count: number, winLen: number, rng: Rng, strip
 // isolating the residual structure term: census − core = the vocabulary term.
 // ============================================================================
 
-/** Judge-visible row types. Sim streams can only produce the first eight;
- *  'violation'/'replay' are real-only today (the G2 vocabulary gap made
- *  visible; a census excerpt containing one is honestly judgeable). */
+/** Judge-visible row types. Both sides produce all ten since the officiating
+ *  vocabulary went live (ffit-officiating): sim 'violation' rows are
+ *  goaltends/kicked balls, 'replay' rows are review stoppages, and mid-game
+ *  'jump' rows are held-ball jumps — the G2 gap this schema made visible. */
 export type NeutralType =
   | 'shot' | 'ft' | 'reb' | 'tov' | 'foul' | 'sub' | 'timeout' | 'jump'
   | 'violation' | 'replay';
@@ -459,7 +460,9 @@ export function simToNeutral(
       case 'free_throw':
         rows.push({
           ...base, side: side(e.team), actor: e.shooter, type: 'ft',
-          ft: { n: e.n, of: e.of, made: e.made, klass: 'plain' },
+          // technical FTs mirror bbref's "makes technical free throw" klass
+          // (the real-side reFt mapping) — plain otherwise
+          ft: { n: e.n, of: e.of, made: e.made, klass: e.technical ? 'technical' : 'plain' },
           score: e.made ? [e.score[0], e.score[1]] : null
         });
         break;
@@ -489,11 +492,21 @@ export function simToNeutral(
           e.kind === 'bad_pass' ? 'badpass' :
           e.kind === 'lost_ball' ? 'lostball' :
           e.kind === 'off_foul' ? 'offfoul' :
-          e.kind === 'shot_clock' ? 'shotclock' : 'oob';
+          e.kind === 'shot_clock' ? 'shotclock' :
+          e.kind === 'travel' || e.kind === 'off_goaltend' ? 'violation' : 'oob';
+        // violation-class dead TOs carry the g2 census word exactly as the
+        // real-side mapper spells it (TOV_VIOLATION_WORDS) so the scoreboard
+        // G2 categories cannot fork between sides
+        const g2word =
+          e.kind === 'travel' ? 'traveling' :
+          e.kind === 'off_goaltend' ? 'off goaltending' : undefined;
         rows.push({
           ...base, side: side(e.team),
           actor: e.kind === 'shot_clock' ? 'TEAM' : e.player, type: 'tov',
-          tov: { live: sub === 'badpass' || sub === 'lostball', steal: e.stolenBy ?? null, sub },
+          tov: {
+            live: sub === 'badpass' || sub === 'lostball', steal: e.stolenBy ?? null, sub,
+            ...(g2word ? { g2: g2word } : {})
+          },
           score: null
         });
         break;
@@ -503,10 +516,14 @@ export function simToNeutral(
         const klass: NeutralFoulKlass =
           e.kind === 'shooting' ? 'shooting' :
           e.kind === 'loose_ball' ? 'looseball' :
-          e.kind === 'offensive' ? 'offensive' : 'personal'; // 'reach' -> personal, as bbref logs it
+          e.kind === 'offensive' ? 'offensive' :
+          e.kind === 'technical' ? 'technical' : 'personal'; // 'reach'/'take' -> personal, as bbref logs them
+        // a take is bbref's "Personal take foul" — klass personal plus the
+        // g2 census tag, mirroring the real-side reFoul mapping exactly
+        const foulG2 = e.kind === 'take' ? 'take' : undefined;
         rows.push({
           ...base, side: side(e.team), actor: e.on, type: 'foul',
-          foul: { klass, drawn: e.drawnBy ?? null }, score: null
+          foul: { klass, drawn: e.drawnBy ?? null, ...(foulG2 ? { g2: foulG2 } : {}) }, score: null
         });
         break;
       }
@@ -522,6 +539,23 @@ export function simToNeutral(
         break;
       case 'tip_off':
         rows.push({ ...base, side: null, actor: null, type: 'jump', score: null });
+        break;
+      case 'jump_ball':
+        // mid-game held-ball jump — same anonymous row shape as the real
+        // side's "Jump ball" template (contestants/gainer are sim-only
+        // detail bbref carries in text the mapper already drops)
+        rows.push({ ...base, side: null, actor: null, type: 'jump', score: null });
+        break;
+      case 'violation':
+        rows.push({
+          ...base, side: side(e.team), actor: e.player ?? 'TEAM', type: 'violation',
+          viol: { sub: e.kind === 'kicked_ball' ? 'kicked' : 'goaltend' }, score: null
+        });
+        break;
+      case 'replay_review':
+        // bbref's "Instant Replay" row: ruling detail dropped on the real
+        // side, trigger detail dropped here — the row IS the texture
+        rows.push({ ...base, side: null, actor: null, type: 'replay', score: null });
         break;
       case 'pass':
         count(excluded, 'sim.pass'); break;
