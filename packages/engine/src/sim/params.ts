@@ -419,6 +419,24 @@ export interface SimParams {
     recoverPerSecBench: number;
     /** speed multiplier at zero energy */
     minSpeedMult: number;
+    // --- cumulative load ("legs", fdesign-rhythm M1, STAGED wiring). A
+    // second pool that trends across the game where energy sawtooths per
+    // stint; consumed by resolution only (movement.ts effectiveEnergy; the
+    // resolve.ts couplings land with the rhythm wave). loadPerSec is the
+    // stage switch: at 0 the pool provably stays 0 and the engine is
+    // byte-identical.
+    /** on-court load accrual per second (same effort/stamina chain as
+     *  drainPerSec). STAGED 0; design seed 0.011 (REAL-fit: a starter
+     *  reaches load ~33-38 at Q4 crunch after ~31 min; sweepable at the
+     *  flip, knobs range 0.006-0.018) */
+    loadPerSec: number;
+    /** bench load recovery per second. FEEL: a 4-min sit restores ~5, so
+     *  legs stay heavy within a half (off the sweep surface: shape) */
+    loadRecoverPerSecBench: number;
+    /** the halftime lump (possession.ts endPeriod). REAL: the locker room;
+     *  a partial reset keeping Q3 pace near Q1's (+0.16 s/poss real) while
+     *  the load-driven foul gradient persists (off-surface: shape) */
+    loadHalftimeRecover: number;
   };
 
   sub: {
@@ -546,6 +564,15 @@ export interface SimParams {
      *  SPRINTS the ball up instead of the normal dribble-jog — the visible
      *  push of a chasing team */
     hurrySprintMin: number;
+    /** garbage-time wind-down (fdesign-rhythm M3, STAGED 0, defined but
+     *  deliberately unconsumed here): once the final period is decided
+     *  (trailing side's chaseAliveness 0), both teams get a mild
+     *  continuation raise (× 1 + scale × deadGameBoost × holdFade) in
+     *  ai/concepts.ts endgameContinuation, so dribble-outs emerge from the
+     *  same yardstick every other concept-6 behavior reshapes. The concepts
+     *  consumer + knobs range (0.1-0.5) land with the rhythm wave; complements
+     *  concede (personnel), does not duplicate it (intent). FEEL seed 0.25 */
+    deadGameBoost: number;
     // --- chase arithmetic shared by hurry / fouling (possessions-left math)
     /** assumed seconds per remaining CHASE possession (hurried offense + a
      *  stop/foul cycle) when counting how many chances remain — REAL: a
@@ -1592,7 +1619,13 @@ export const defaultParams: SimParams = {
     recoverPerSecBench: 0.55,
     // Even at zero energy a player still moves at 82% speed — exhaustion
     // degrades, it doesn't cripple. FEEL.
-    minSpeedMult: 0.82
+    minSpeedMult: 0.82,
+    // Cumulative load (fdesign-rhythm M1), STAGED-inert wiring values (see
+    // the interface doc): the rhythm wave flips loadPerSec to its 0.011
+    // design seed and owns the calibration ladder.
+    loadPerSec: 0, // STAGED, the stage switch; flip: 0.011 (REAL-fit)
+    loadRecoverPerSecBench: 0.02, // FEEL: a 4-min sit restores ~5 pts of legs
+    loadHalftimeRecover: 12 // REAL: the locker room's partial reset
   },
 
   sub: {
@@ -1715,6 +1748,9 @@ export const defaultParams: SimParams = {
     hurryDepthFloor: 0.4,
     // past ~a third of full urgency, the walk-up becomes a push
     hurrySprintMin: 0.3,
+    // STAGED off; flip: ~0.25 (FEEL; the rhythm wave wires the concepts.ts
+    // consumer and sweeps it 0.1-0.5)
+    deadGameBoost: 0,
     // ~12 s per chase possession-pair; 1.6 net points recoverable per chance
     // (score ~2.2, opponent answers ~0.6 through the foul game)
     chasePossSec: 12,

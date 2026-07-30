@@ -46,7 +46,7 @@ function mkAgent(p: Player, side: TeamSide, onCourt: boolean): Agent {
   return {
     p, side,
     pos: { x: 47, y: 25 }, vel: { x: 0, y: 0 },
-    energy: 90, secondsPlayed: 0, fouls: 0,
+    energy: 90, load: 0, secondsPlayed: 0, fouls: 0,
     onCourt, fouledOut: false, lastSwapT: 0,
     target: { x: 47, y: 25 }, intent: 'freeze', sprinting: false,
     spotKey: null, manId: null,

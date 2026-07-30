@@ -49,6 +49,18 @@ export interface Agent {
   pos: V2;
   vel: V2;
   energy: number;      // 0-100
+  /**
+   * Cumulative load, 0-100 ("legs"; fdesign-rhythm M1, STAGED inert at
+   * fatigue.loadPerSec 0): the second fatigue pool. Accrues on court on the
+   * same speed/stamina chain as energy drain, recovers far slower on the
+   * bench, takes one lump off at halftime (possession.ts endPeriod), so it
+   * trends across the game where energy is a stint-local sawtooth.
+   * Consumed by resolution only via movement.ts effectiveEnergy (the
+   * resolve.ts couplings land with the rhythm wave); subs/rotation cadence
+   * deliberately keep reading raw energy (M1 contract: the load pool must
+   * not silently shorten stints).
+   */
+  load: number;
   secondsPlayed: number;
   fouls: number;
   onCourt: boolean;

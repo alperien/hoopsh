@@ -12,6 +12,7 @@
  */
 
 import { dist, lerp, type V2 } from '../core/vec.js';
+import { clamp } from '../core/rng.js';
 import type { TeamSide } from '../core/events.js';
 import {
   attackedRim, emit, liveOnCourt, onCourt, other, round1,
@@ -597,6 +598,18 @@ export function endPeriod(s: GameState): void {
     // corpus's 8-9-used team-games are all consistent with 7 + 2/OT).
     // STAGED off at the shipped −1 (remainder carries, today's behavior)
     s.timeoutsLeft = [s.params.endgame.toOvertimeTimeouts, s.params.endgame.toOvertimeTimeouts];
+  }
+  // Halftime legs (fdesign-rhythm M1, a no-op at the STAGED loadPerSec 0,
+  // where load is identically 0): the locker room takes one lump off the
+  // cumulative-load pool, for everyone. A partial reset, so Q3 pace stays
+  // near Q1's while the load-driven foul gradient persists. Fires exactly
+  // once per game: the period just ended is the half boundary (NBA: after
+  // Q2; an NCAA halves pack: after period 1; each league's real halftime
+  // falls out of its pack). OT never re-triggers it.
+  if (s.period - 1 === Math.floor(s.rules.periods / 2)) {
+    for (const [, a] of s.agents) {
+      a.load = clamp(a.load - s.params.fatigue.loadHalftimeRecover, 0, 100);
+    }
   }
   emit(s, { type: 'period_start' });
 

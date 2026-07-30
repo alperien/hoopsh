@@ -151,6 +151,7 @@ function initState(cfg: GameConfig): GameState {
         },
         vel: { x: 0, y: 0 },
         energy: 100,
+        load: 0,
         secondsPlayed: 0,
         fouls: 0,
         onCourt: false,
