@@ -550,6 +550,40 @@ export interface SimParams {
      *  is when the coach makes the non-urgent swap he'd otherwise defer.
      *  FEEL: ~half the starter/bench leash gap. STAGED 0 = off */
     timeoutSubRelaxPts: number;
+    // --- fit-identified hooks (findings/ffit-rotations.md §3): the flip
+    // dials above cannot reach the G8 gates alone; these five carry the
+    // missing mechanisms. Wired, STAGED at legacy/never-fire values; the
+    // fit-recommended flips are noted per default. When-dials, not swept.
+    /** post-make sub window (possession.ts deadBall): 1 = a made-basket
+     *  dead ball with the clock still running hosts the rotation pass
+     *  (legacy; ~30 live-ball subs/g vs corpus 1.16, the G8c tell); 0 =
+     *  the real rule: no subs after a make unless the stoppage is real
+     *  (a timeout froze the clock, or the caller stopped it). STAGED 1 */
+    postMakeSubWindow: number;
+    /** between-FT-attempt sub slot (fouls.ts tickFreeThrows, the staged
+     *  urgentOnly caller in subs.ts): 0 = no call (legacy), 1 = urgentOnly
+     *  (fdesign-rotations §2.5), 2 = full rotation pass in the gap, 3 =
+     *  mode 2 plus the trip-entry pass goes urgentOnly (the routine
+     *  rotation moves to the gap; trip entry otherwise harvests every
+     *  pending swap before the first free_throw row and G8a reads 0).
+     *  Real logs place 14.2 subs/g strictly between attempts. STAGED 0 */
+    ftGapSubMode: number;
+    /** pull-leash relaxation (energy pts) during the between-FT pass: the
+     *  line is a planned window like a huddle, with its own smaller
+     *  magnitude (the huddle's 8 overshot G8a to 19-25/g). STAGED 0 = off */
+    ftGapRelaxPts: number;
+    /** halftime-reset wave cap override: at the H2 boundary starters return
+     *  (corpus Q3-start starter share 96.2%), so the reset ignores
+     *  waveMaxPerTeam, the exit stint gate, and the bench-rest floor and
+     *  swaps up to this many. The reset is a planned lineup restore, not a
+     *  stint judgment. STAGED 0 = off */
+    waveHalfResetMax: number;
+    /** 1 = a rested behind-pace minutes target re-enters proactively at the
+     *  next legal stoppage (one per side per pass) instead of waiting
+     *  inside another player's pull. Needed once postMakeSubWindow 0 thins
+     *  the window supply: the passive eager return alone left 35-target
+     *  stars at ~29-32 min/g (ffit-rotations §3.4). STAGED 0 = off */
+    eagerReturnProactive: number;
   };
 
   /**
@@ -1926,7 +1960,13 @@ export const defaultParams: SimParams = {
     subMinBenchSec: 0, // STAGED off; flip: 150 (2.5 min of pine before any return)
     ftroublePersonalOffset: 99, // STAGED unreachable; flip: 1 (the classic period+1 bar)
     ftroubleIgnoreClockSec: 120, // FEEL: a last-2:00 foul rides to the break
-    timeoutSubRelaxPts: 0 // STAGED off; flip: 8 (≈ half the starter/bench leash gap)
+    timeoutSubRelaxPts: 0, // STAGED off; flip: 8 (≈ half the starter/bench leash gap)
+    // fit-identified hooks (ffit-rotations §3), staged inert:
+    postMakeSubWindow: 1, // STAGED legacy; flip: 0 (real rule; G8c live-ball subs 31.3 -> 0.0/g)
+    ftGapSubMode: 0, // STAGED off; flip: 3 (trip entry urgentOnly + full pass in the gap; G8a 0 -> 14-19/g)
+    ftGapRelaxPts: 0, // STAGED off; flip: 3 (FEEL: the FT-line planned window, smaller than the huddle's 8)
+    waveHalfResetMax: 0, // STAGED off; flip: 5 (halftime restores the five; Q3-start starter share 0.86-0.89 vs gate 0.85)
+    eagerReturnProactive: 0 // STAGED off; flip: 1 (35-target stars back to ~34.5-35.5 min/g under the real-rule windows)
   },
 
   endgame: {

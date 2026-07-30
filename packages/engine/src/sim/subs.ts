@@ -2,9 +2,10 @@
  * Substitutions: swapping players in/out of the lineup, fatigue-driven
  * rotation checks, and fouled-out replacement.
  *
- * `checkSubs` is called only from dead-ball choke points (`deadBall`,
- * `endPeriod` in possession.ts, `enterFreeThrows` in fouls.ts) — never
- * mid-live-play, since real substitutions only happen at stoppages.
+ * `checkSubs` is called only from stoppages (`deadBall`, `endPeriod` in
+ * possession.ts, `enterFreeThrows` and the staged between-FT slot in
+ * fouls.ts), never mid-live-play; real substitutions only happen at
+ * stoppages.
  * `replaceFouledOut` is called synchronously from `recordFoul` the instant a
  * sixth (or rule-pack-defined) personal foul is charged.
  */
@@ -194,26 +195,44 @@ function quarterWave(s: GameState): void {
       const p = minutesPace(s, side, b);
       return p !== null && p < P.eagerReturnPace;
     };
+    // With the halfReset override live the bench-rest floor must not gate
+    // H2-boundary entries: halftime is 15 real minutes of rest, but s.t is
+    // the live-clock axis and never advances through the break, so a
+    // starter pulled late in Q2 would otherwise be blocked from opening Q3
+    // (the real Q3-start starter share is 96.2%). STAGED off at
+    // waveHalfResetMax 0.
+    const skipBenchFloor = halfReset && P.waveHalfResetMax > 0;
     const entries = team.players.map((p) => agent(s, p.id)).filter((b) =>
       !b.onCourt && !b.fouledOut && !inFoulTrouble(s, b) &&
       // the scratch contract is total (audit M-13/M-14): a DNP scratch is
       // not in uniform, so the wave never inserts him either
       !isScratched(s, side, b.p.id) &&
       b.energy >= P.readyThreshold - P.waveReadyRelief &&
-      s.t - b.lastSwapT >= P.subMinBenchSec);
+      // minutes targets are exempt from the bench floor (design OQ4
+      // scoping; same rule as the fatigue-rotation filter below)
+      (skipBenchFloor || minutesPace(s, side, b) !== null ||
+        s.t - b.lastSwapT >= P.subMinBenchSec));
     entries.sort((x, y) =>
       Number(behindPace(y)) - Number(behindPace(x)) ||
       (halfReset ? Number(starters.has(y.p.id)) - Number(starters.has(x.p.id)) : 0) ||
       y.energy - x.energy);
+    // The halftime reset is a planned lineup restore, not a stint judgment
+    // (ffit-rotations §3.3): with waveHalfResetMax > 0 the H2 boundary
+    // ignores the exit stint gate (a late-Q2 bench entrant re-sits so a
+    // starter opens Q3) and swaps up to the override cap instead of
+    // waveMaxPerTeam. STAGED 0 keeps the plain wave.
+    const resetOverride = halfReset && P.waveHalfResetMax > 0;
     const exits = [...s.lineup[side]].map((id) => agent(s, id)).filter((a) =>
       !a.fouledOut &&
-      s.t - a.lastSwapT >= P.waveStintMinSec &&
+      (resetOverride || s.t - a.lastSwapT >= P.waveStintMinSec) &&
       !(halfReset && starters.has(a.p.id))); // never wave a starter out at the H2 reset
     exits.sort((x, y) =>
       Number(inFoulTrouble(s, y)) - Number(inFoulTrouble(s, x)) || // troubled first
       (s.t - y.lastSwapT) - (s.t - x.lastSwapT) ||                 // longest stint next
       x.energy - y.energy);
-    const n = Math.min(P.waveMaxPerTeam, exits.length, entries.length);
+    const n = Math.min(
+      resetOverride ? P.waveHalfResetMax : P.waveMaxPerTeam,
+      exits.length, entries.length);
     for (let i = 0; i < n; i++) {
       const out = exits[i]!;
       // same-position preference among remaining entries (Number(bool)
@@ -238,9 +257,9 @@ export function checkSubs(
     /** period-opening stoppage: run the quarter-break wave first (possession.ts endPeriod) */
     wave?: boolean;
     /** run only the urgent branches (foul-trouble pull + concede): no wave,
-     *  no fatigue rotation. STAGED surface: its caller is the officiating
-     *  wave's between-FT-attempts hook (fouls.ts tickFreeThrows,
-     *  fdesign-rotations §2.5); rng-free, so an idle call is a no-op. */
+     *  no fatigue rotation, no proactive return. Callers: the between-FT
+     *  slot and the mode-3 trip entry (fouls.ts, sub.ftGapSubMode, STAGED
+     *  0 = never called); rng-free, so an idle call is a no-op. */
     urgentOnly?: boolean;
   }
 ): void {
@@ -278,6 +297,12 @@ export function checkSubs(
   const huddle =
     (s.phase.kind === 'dead' || s.phase.kind === 'freethrows') &&
     s.phase.timeout !== undefined;
+  // FT administration is itself a planned sub window (ffit-rotations §3.2):
+  // the coach uses the dead seconds at the line the way he uses a huddle,
+  // just less aggressively (own magnitude; FT windows host 33.8% of corpus
+  // subs). A timeout at the line keeps the larger huddle relaxation.
+  // STAGED 0 = read-only.
+  const ftAdmin = s.phase.kind === 'freethrows' && !huddle;
 
   for (const side of [0, 1] as TeamSide[]) {
     const team = s.teams[side];
@@ -368,6 +393,8 @@ export function checkSubs(
       let tiredAt = starters.has(id) ? P.tiredThreshold : P.tiredThreshold + P.benchTiredBonus;
       // a huddle loosens the leash for this stoppage only (STAGED 0 = no-op)
       if (huddle) tiredAt += P.timeoutSubRelaxPts;
+      // the FT-line planned window: a smaller relaxation (STAGED 0 = no-op)
+      if (ftAdmin) tiredAt += P.ftGapRelaxPts;
       // minutes-aware leash: with a coach's target (Team.rotationMinutes) a
       // behind-pace player is ridden deeper into fatigue and an ahead-of-pace
       // one rests earlier. Teams without targets are byte-identical to the
@@ -401,8 +428,16 @@ export function checkSubs(
             if (inFoulTrouble(s, b)) return false;
             // churn floor: nobody returns after less than subMinBenchSec of
             // pine (STAGED 0 = off; crunch exempt by construction, its
-            // branch above has its own filter)
-            if (s.t - b.lastSwapT < P.subMinBenchSec) return false;
+            // branch above has its own filter). Scoped to untargeted
+            // players (design OQ4): a minutes target's returns belong to
+            // the controller (the eager-return and ahead-hold brackets),
+            // and the floor exists for the untargeted rank-and-file
+            // oscillation. Un-scoped at 300 the floor forced every star
+            // spell to outlast the pace decay (35-target stars read ~29
+            // min/g, the design §4.2 tripwire); behind-pace-only scoping
+            // still ran ~5-min spells, since an on-pace star had to decay
+            // below the eager gate before the floor released him.
+            if (minutesPace(s, side, b) === null && s.t - b.lastSwapT < P.subMinBenchSec) return false;
             // the controller's other half: a target player AHEAD of pace is
             // HELD BACK even when rested — without this, most-rested sorting
             // returned the star at every dead ball and targets read 44 min
@@ -420,6 +455,59 @@ export function checkSubs(
           y.energy - x.energy
         );
         swapPlayers(s, side, a, bench[0]!);
+      }
+    }
+    // Proactive eager return (ffit-rotations §3.4, STAGED off at
+    // eagerReturnProactive 0): a rested behind-pace minutes target
+    // re-enters at the next legal stoppage even when nobody on the floor
+    // reads tired. The eager-return path above is passive: it fires only
+    // inside another player's pull, which the legacy engine hit every ~30 s
+    // (checkSubs at every made-basket dead ball). With the real-rule
+    // windows (postMakeSubWindow 0) on-court players hover above their bars
+    // for minutes and a 35-target star settled at ~29-32 min/g. The real
+    // coach re-inserts his star when the rest is done; he does not wait for
+    // a teammate to collapse. One proactive return per side per pass. The
+    // out-swap is the lowest pull-margin (energy minus bar) untargeted
+    // on-court player; ahead-hold and the pull leash still bracket the
+    // equilibrium, so targets settle near target minutes by the same math.
+    // No-op for rosters without rotationMinutes, by construction.
+    if (P.eagerReturnProactive > 0 && !crunch && !s.conceded[side] && !opts?.urgentOnly) {
+      const rot = team.rotationMinutes;
+      if (rot) {
+        const cands = Object.keys(rot)
+          .map((id) => agent(s, id))
+          .filter((b) => {
+            if (b.onCourt || b.fouledOut || inFoulTrouble(s, b)) return false;
+            const bp = minutesPace(s, side, b);
+            // full ready bar: a proactive return is a planned one, the
+            // coach waits out real rest (entry at ~88 keeps the star's
+            // on-court energy at the calibrated shooting baseline; the
+            // opportunistic in-pull path above keeps the relief bar)
+            return bp !== null && bp < P.eagerReturnPace &&
+              b.energy >= P.readyThreshold;
+          })
+          .sort((x, y) => {
+            const px = minutesPace(s, side, x) ?? 1;
+            const py = minutesPace(s, side, y) ?? 1;
+            return px - py; // most behind first
+          });
+        if (cands.length > 0) {
+          const into = cands[0]!;
+          const margin = (x: Agent): number => {
+            let bar = starters.has(x.p.id) ? P.tiredThreshold : P.tiredThreshold + P.benchTiredBonus;
+            const xp = minutesPace(s, side, x);
+            if (xp !== null) bar += clamp((xp - 1) * P.rotationLeashScale, -P.rotationLeashMax, P.rotationLeashMax);
+            return x.energy - bar;
+          };
+          const outs = [...s.lineup[side]]
+            .filter((id) => id !== protect)
+            .map((id) => agent(s, id))
+            .filter((x) => !x.fouledOut && minutesPace(s, side, x) === null)
+            .sort((x, y) =>
+              Number(y.p.pos === into.p.pos) - Number(x.p.pos === into.p.pos) ||
+              margin(x) - margin(y));
+          if (outs.length > 0) swapPlayers(s, side, outs[0]!, into);
+        }
       }
     }
   }

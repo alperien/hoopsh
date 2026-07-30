@@ -189,7 +189,18 @@ export function enterFreeThrows(
     ...(tech?.pre ? { pre: { shooterId: tech.pre } } : {}),
     ...(tech?.resume ? { resume: tech.resume } : {})
   };
-  checkSubs(s, shooter.p.id); // never sub out the man headed to the line
+  // Between-FT sub grammar (ffit-rotations §3.2): at ftGapSubMode 3 the
+  // trip-entry pass is urgent-only (a fouler in trouble still leaves at the
+  // whistle) and the routine rotation moves to the between-attempts slot in
+  // tickFreeThrows, where real logs place FT-window subs (14.2/g strictly
+  // between attempts). Left here, trip entry harvests every pending swap
+  // before the first free_throw row and the gap slot has nothing to host.
+  // Legacy modes (STAGED 0-2) keep the full pass at entry.
+  if (s.params.sub.ftGapSubMode >= 3) {
+    checkSubs(s, shooter.p.id, { urgentOnly: true });
+  } else {
+    checkSubs(s, shooter.p.id); // never sub out the man headed to the line
+  }
   // cosmetic positioning around the key — none of this affects the free-throw
   // probability model (that's purely rating-based in resolve.ts), it's just
   // so the replay doesn't show players standing wherever the whistle caught them
@@ -344,6 +355,18 @@ export function tickFreeThrows(s: GameState, dt: number): void {
         x: round1(rim.x),
         y: round1(rim.y)
       });
+    }
+    // The between-attempts sub slot (fdesign-rotations §2.5; subs.ts staged
+    // the urgentOnly option for exactly this caller). Real subs walk in
+    // during FT administration: 33.8% of corpus subs ride FT windows.
+    // Mode 1 = urgentOnly (foul-trouble/concede only, the design default);
+    // modes 2/3 = the full rotation pass (with the post-make window closed
+    // this becomes the routine host). The shooter stays protected. The pass
+    // is rng-free, so a no-sub gap leaves the stream untouched. STAGED 0 =
+    // no call, byte-identical.
+    if (s.params.sub.ftGapSubMode > 0) {
+      checkSubs(s, ph.shooterId,
+        s.params.sub.ftGapSubMode === 1 ? { urgentOnly: true } : undefined);
     }
     // ftBetweenSec between subsequent attempts: shorter than the lead-in
     // since the shooter is already set at the line — just the ritual

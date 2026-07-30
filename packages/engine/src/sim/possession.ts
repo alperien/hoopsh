@@ -317,7 +317,17 @@ export function deadBall(
       ph.resumeIn = Math.max(ph.resumeIn, O.reviewResumeSec);
     }
   }
-  checkSubs(s);
+  // Post-make sub window (ffit-rotations §3.1, the real rule): no
+  // substitutions after a made basket while the clock keeps running; the
+  // ball is live for the inbound, there is no window. A timeout at this
+  // stoppage freezes the clock (callTimeout sets clockRuns=false) and that
+  // IS a legal window; so is any caller that stops it. Legacy at
+  // postMakeSubWindow 1 (STAGED): every dead ball hosts the pass, the ~30
+  // live-ball subs/g tell vs corpus 1.16 (the #1 census component).
+  const phSub = s.phase;
+  const liveInbound =
+    s.params.sub.postMakeSubWindow <= 0 && phSub.kind === 'dead' && phSub.clockRuns;
+  if (!liveInbound) checkSubs(s);
   setupDeadTargets(s, nextTeam);
 }
 

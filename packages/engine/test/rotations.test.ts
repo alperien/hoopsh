@@ -247,6 +247,48 @@ describe('quarter-break wave (constructed boundary stoppage, forced live)', () =
     checkSubs(f.s, undefined, { wave: true }); // waveMaxPerTeam 0; guard returns
     expect(subsOf(f.s, 0).length).toBe(0);
   });
+
+  it('halfReset override: the H2 boundary restores the five past every wave gate', () => {
+    // Q3 boundary, four starters benched late in Q2 (short rests, short
+    // bench-entrant stints): the plain cap-2 wave with the 150s floor gets
+    // at most a partial reset; the override ignores the exit stint gate,
+    // the bench floor, and waveMaxPerTeam, and swaps up to its own cap.
+    const RESET = withParams({
+      sub: {
+        waveMaxPerTeam: 2, waveStintMinSec: 300, subMinBenchSec: 150,
+        waveHalfResetMax: 5
+      }
+    });
+    const f = rotState(RESET, { period: 3, clock: 720, t: 1440 });
+    floor(f, [f.st[0]!, ...f.bn.slice(0, 4)]);
+    // bench entrants came on 60s ago: below the 300s exit stint gate
+    for (const id of f.bn.slice(0, 4)) f.a(id).lastSwapT = 1380;
+    // starters sat only 60s (below the 150s bench floor), rested enough
+    for (const id of [f.st[1]!, f.st[2]!, f.st[3]!, f.st[4]!]) {
+      f.a(id).energy = 90;
+      f.a(id).lastSwapT = 1380;
+    }
+    checkSubs(f.s, undefined, { wave: true });
+    const subs = subsOf(f.s, 0);
+    expect(subs.length).toBe(4); // all four benched starters return
+    for (const sub of subs) {
+      expect(f.st.includes(sub.in)).toBe(true);
+      expect(f.st.includes(sub.out)).toBe(false);
+    }
+    // the same boundary at waveHalfResetMax 0 keeps the plain wave's gates:
+    // no exits are stint-eligible and no entries clear the bench floor
+    const off = rotState(withParams({
+      sub: { waveMaxPerTeam: 2, waveStintMinSec: 300, subMinBenchSec: 150 }
+    }), { period: 3, clock: 720, t: 1440 });
+    floor(off, [off.st[0]!, ...off.bn.slice(0, 4)]);
+    for (const id of off.bn.slice(0, 4)) off.a(id).lastSwapT = 1380;
+    for (const id of [off.st[1]!, off.st[2]!, off.st[3]!, off.st[4]!]) {
+      off.a(id).energy = 90;
+      off.a(id).lastSwapT = 1380;
+    }
+    checkSubs(off.s, undefined, { wave: true });
+    expect(subsOf(off.s, 0).length).toBe(0);
+  });
 });
 
 /** home floor ids helper (current lineup snapshot) */
@@ -437,6 +479,151 @@ describe('urgentOnly: the staged between-FT-attempts semantics', () => {
   });
 });
 
+// ------------------------------- fit-identified hooks (ffit-rotations §3)
+
+describe('FT-line planned window (ftGapRelaxPts, forced live)', () => {
+  const prep = (f: Fixture): void => {
+    f.a(f.st[0]!).energy = 65; // above the 62 bar, inside a +8 relax band
+    f.a(f.bn[0]!).energy = 92;
+    for (const id of f.bn.slice(1)) f.a(id).energy = 50;
+  };
+  const ftPhase = (f: Fixture): void => {
+    f.s.phase = {
+      kind: 'freethrows', shooterId: f.st[4]!, side: 0, taken: 1, of: 2,
+      nextIn: 0.9, lastMade: true, oneAndOne: false
+    } as GameState['phase'];
+  };
+
+  it('relaxes the pull leash during FT administration only', () => {
+    const f = rotState(withParams({ sub: { ftGapRelaxPts: 8 } }), { period: 2, clock: 300, t: 800 });
+    prep(f);
+    ftPhase(f);
+    checkSubs(f.s, f.st[4]!);
+    expect(subsOf(f.s, 0)).toEqual([{ out: f.st[0]!, in: f.bn[0]! }]);
+    // the same relaxation never reaches a plain dead ball (window-only)
+    const dead = rotState(withParams({ sub: { ftGapRelaxPts: 8 } }), { period: 2, clock: 300, t: 800 });
+    prep(dead);
+    checkSubs(dead.s);
+    expect(subsOf(dead.s, 0).length).toBe(0);
+  });
+
+  it('INERT default: the FT window relaxes nothing (dormancy pin)', () => {
+    const f = rotState(withParams(), { period: 2, clock: 300, t: 800 });
+    prep(f);
+    ftPhase(f);
+    checkSubs(f.s, f.st[4]!);
+    expect(subsOf(f.s, 0).length).toBe(0); // relax 0: 65 >= 62 stays quiet
+  });
+});
+
+describe('proactive eager return (eagerReturnProactive, forced live)', () => {
+  /** a benched 36-min target at pace 0.65, rested past the full ready bar,
+   *  with an untargeted five on the floor and nobody reading tired */
+  const prep = (f: Fixture): void => {
+    f.home.rotationMinutes = { [f.st[0]!]: 36 };
+    floor(f, f.bn.slice(0, 5));
+    f.a(f.st[0]!).secondsPlayed = 700; // 700 / (36*60*0.5) = 0.65, behind 0.97
+    f.a(f.st[0]!).energy = 90;         // >= readyThreshold 88: rest is done
+    for (const id of f.bn) f.a(id).energy = 90; // nobody tired (bar 74)
+  };
+
+  it('a rested behind-pace target re-enters at the stoppage, position-first out-swap', () => {
+    const f = rotState(withParams({ sub: { eagerReturnProactive: 1 } }), { period: 3, clock: 300, t: 1440 });
+    prep(f);
+    checkSubs(f.s);
+    // bn0 mirrors the target's PG slot: position preference picks him
+    expect(subsOf(f.s, 0)).toEqual([{ out: f.bn[0]!, in: f.st[0]! }]);
+  });
+
+  it('the urgent-only pass and the concede branch both gate it', () => {
+    const urgent = rotState(withParams({ sub: { eagerReturnProactive: 1 } }), { period: 3, clock: 300, t: 1440 });
+    prep(urgent);
+    checkSubs(urgent.s, undefined, { urgentOnly: true });
+    expect(subsOf(urgent.s, 0).length).toBe(0);
+    // conceded side: the target stays benched (the concede/return trap)
+    const conc = rotState(withParams({ sub: { eagerReturnProactive: 1 } }),
+      { period: 4, clock: 300, t: 2580, score: [110, 70] });
+    prep(conc);
+    checkSubs(conc.s);
+    expect(subsOf(conc.s, 0).length).toBe(0);
+  });
+
+  it('INERT default: the same state swaps nobody (dormancy pin)', () => {
+    const f = rotState(withParams(), { period: 3, clock: 300, t: 1440 });
+    prep(f);
+    checkSubs(f.s);
+    expect(subsOf(f.s, 0).length).toBe(0);
+  });
+});
+
+describe('post-make sub window + between-FT slot (event-stream shape, forced live)', () => {
+  /** preceding non-sub event, walking over the sub burst itself */
+  const prevNonSub = (ev: GameResult['events'], k: number): GameResult['events'][number] => {
+    let j = k - 1;
+    while (j >= 0 && ev[j]!.type === 'substitution') j -= 1;
+    return ev[j]!;
+  };
+  /** subs hosted by a running-clock made-FG dead ball: preceding chain is
+   *  possession_end <- made shot, no timeout between, outside the
+   *  final-period last-2:00 clock stop */
+  const postMakeSubs = (r: GameResult): number => {
+    const ev = r.events;
+    let count = 0;
+    for (let k = 0; k < ev.length; k++) {
+      if (ev[k]!.type !== 'substitution') continue;
+      const prev = prevNonSub(ev, k);
+      if (prev.type !== 'possession_end') continue;
+      const i = ev.indexOf(prev);
+      const before = ev[i - 1];
+      if (
+        before && before.type === 'shot' && before.made &&
+        !(before.period >= 4 && before.clock <= 120)
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  };
+
+  const games = (params: object): GameResult[] => {
+    const out: GameResult[] = [];
+    for (const i of [0, 1]) {
+      const { home, away } = sampleMatchup();
+      out.push(simulateGame({
+        seed: `rot-hook-${i}`, home, away, collectFrames: false, params
+      }));
+    }
+    return out;
+  };
+
+  it('postMakeSubWindow 0 removes the live-ball sub tell; the legacy default hosts it', () => {
+    // legacy (default window 1): the made-FG dead ball is the engine's main
+    // sub host (probed ~30/g, the G8c tell)
+    let legacy = 0;
+    for (const r of games({})) legacy += postMakeSubs(r);
+    expect(legacy).toBeGreaterThan(10);
+    // real rule: no subs on the running-clock make-inbound
+    let real = 0;
+    for (const r of games({ sub: { postMakeSubWindow: 0 } })) real += postMakeSubs(r);
+    expect(real).toBe(0);
+  });
+
+  it('ftGapSubMode 3 hosts routine subs strictly between attempts', () => {
+    // with the post-make window closed the rotation re-routes to the FT gap
+    // (fitted config reads 14-19/g; floor set well under)
+    let gap = 0;
+    for (const r of games({ sub: { postMakeSubWindow: 0, ftGapSubMode: 3, ftGapRelaxPts: 3 } })) {
+      const ev = r.events;
+      for (let k = 0; k < ev.length; k++) {
+        if (ev[k]!.type !== 'substitution') continue;
+        const prev = prevNonSub(ev, k);
+        if (prev.type === 'free_throw' && prev.n < prev.of) gap += 1;
+      }
+    }
+    expect(gap).toBeGreaterThanOrEqual(2);
+  });
+});
+
 // ------------------------------------------------------- forced-live pool
 
 describe('forced-live pool (existence floors; corpus-fit bands are the flip gate)', () => {
@@ -532,5 +719,12 @@ describe('STAGED dormancy (retire at the rotation fit-wave flip)', () => {
     expect(S.waveStintMinSec).toBe(300);
     expect(S.waveReadyRelief).toBe(10);
     expect(S.ftroubleIgnoreClockSec).toBe(120);
+    // fit-identified hooks (ffit-rotations §3) ship at legacy/never-fire
+    // values; flips per the params.ts comments
+    expect(S.postMakeSubWindow).toBe(1);
+    expect(S.ftGapSubMode).toBe(0);
+    expect(S.ftGapRelaxPts).toBe(0);
+    expect(S.waveHalfResetMax).toBe(0);
+    expect(S.eagerReturnProactive).toBe(0);
   });
 });
