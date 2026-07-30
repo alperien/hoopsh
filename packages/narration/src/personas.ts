@@ -509,7 +509,7 @@ export const BOONE: VoicePack = {
     {
       id: 'dagger',
       text: [
-        '{Player}… and THAT, folks, is the dagger!'
+        '{Player}… and THAT is the dagger!'
       ],
       when: { kinds: ['shot_made'], tags: ['dagger'], minHeat: 0.72 },
       perGame: 1

@@ -623,9 +623,14 @@ endgame.ts branch that still reads it go together when removed.
 
 Consumers: `stats/box.ts` (events → box score, exact minutes/±; official-convention
 FGA — no attempt charged on a shooting-foul miss, `5d9671f`), `data/` (schemas,
-validation, archetypes, sample packs), `narration/` (template PBP + broadcast
-scripts; `shotcall.ts` classifies which basketball NAME an attempt gets —
-layup/dunk/hook/tip-in/jump shot — from ShotEvent data alone),
+validation, archetypes, sample packs), `narration/` (template PBP + the booth
+— a two-voice broadcast pipeline: `sense.ts` GameSense fold → `beats.ts`
+tags/heat/registers → `booth.ts` turn-taking director → `voice.ts` +
+`personas.ts` voice packs (Corbin/Tremaine/Boone; design doc
+docs/BROADCAST.md); speaks the full flow vocabulary incl. mandatory
+timeouts and held-ball jumps; `shotcall.ts` classifies which basketball
+NAME an attempt gets — layup/dunk/hook/tip-in/jump shot — from ShotEvent
+data alone),
 `packages/viewer/` (frozen prototype).
 
 Harness map — `packages/harness/src/` (measurement and tooling; rows for the
@@ -751,9 +756,9 @@ when no substitute exists — reachable only with short/foul-storm rosters; the
 no-fouled-out-actors invariant applies whenever replacements exist, and every
 lineup-consuming site falls back consistently rather than crashing — hardened
 after the Stage 2 adversarial audit) ·
-narration is a maintained template layer (wave-1 polish: shot-call
-classification, bbref-register turing renderer); the viewer is a frozen
-prototype.
+narration is a maintained layer (wave-1 polish: shot-call
+classification, bbref-register turing renderer; the booth landed as its
+second pipeline — docs/BROADCAST.md); the viewer is a frozen prototype.
 
 
 ---
