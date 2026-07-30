@@ -121,7 +121,8 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
     // anti-vacuity floor: measured 10 eligible-bench foul-outs per game on
     // these seeds (20 across the pool). A reshuffle that zeroed this would
     // reduce the pin to an unexecuted branch — fail loudly instead so the
-    // pool gets re-scouted deliberately.
+    // pool gets re-scouted deliberately. 2: FEEL, the anti-vacuity floor
+    // (any smaller and one lucky draw could carry the gate).
     expect(withBench).toBeGreaterThanOrEqual(2);
   });
 
@@ -142,7 +143,8 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
       }
       disqualified += fouledOut.size;
     }
-    // existence floor: measured 18 + 19 disqualified players on these seeds
+    // existence floor: measured 18 + 19 disqualified players on these
+    // seeds. 2: FEEL, the anti-vacuity floor, far under the measurement.
     expect(disqualified).toBeGreaterThanOrEqual(2);
   });
 });

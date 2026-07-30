@@ -101,6 +101,8 @@ describe('withParams merge semantics (params.ts:1827-1859)', () => {
     // M-17): deepMerge (params.ts:2247-2259) now requires plain-object
     // overrides for GROUP keys — null, arrays, and scalars are rejected at
     // the boundary with the same fail-loud doctrine as the key/value checks.
+    // 5 and [0.5] below: FEEL, test-only sentinels — any non-object works;
+    // the values are arbitrary, only the TYPE is under test
     expect(() => withParams({ shot: 5 } as never))
       .toThrow(/SimParams group "shot" must be a plain-object override, got number/);
     expect(() => withParams({ shot: null } as never))
