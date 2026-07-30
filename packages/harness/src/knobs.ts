@@ -164,11 +164,25 @@ export const SWEEPABLE: Knob[] = [
   // patience (14s-clock continuation ≈ 1.36 vs a contested second-chance
   // look), which belongs to the decide-tier knobs.
   { path: 'reb.putbackChance', lo: 0.35, hi: 0.8 },
+  // …and the saturation wall named above, now reachable (audit H-01 hoist
+  // from possession.ts): the putback-eligibility radius is the
+  // mutation-proven volume lever (6 → 0 dropped putbacks 199 → 96 over 40
+  // games) and it binds putbackChance's upward range — expect the pair to
+  // move together. The rail brackets the paint: 4 ft (restricted-area grabs
+  // only) to 9 ft (the whole lane).
+  { path: 'reb.putbackRadiusFt', lo: 4, hi: 9 },
   { path: 'ai.driveTransitionMult', lo: 1.0, hi: 2.4 },
   { path: 'ai.transitionPullUpBonus', lo: 0.2, hi: 0.8 },
   { path: 'ai.holdHalfcourt', lo: -0.08, hi: 0.05 },
   { path: 'ai.contestBrakeBase', lo: 0.3, hi: 0.75 },
   { path: 'ai.crashBase', lo: 0.15, hi: 0.4 },
+  // crashBase's geometry sibling (audit H-01 hoist from ai/offense.ts): how
+  // wide crashers spread around the rim shapes second-chance POSITIONING —
+  // tight (2 ft) piles everyone into the restricted area, wide (8 ft)
+  // covers long caroms. A rebound-path magnitude ("how well does the crash
+  // work"), not a window/threshold, so it belongs on the surface with the
+  // crash rate itself.
+  { path: 'ai.crashScatterFt', lo: 2, hi: 8 },
   { path: 'ai.cutRateScale', lo: 0.003, hi: 0.011 },
   // Mid-range restoration (wave2/midrange): the demand term's magnitude and
   // the supply line's pop rate are the two calibration levers on mid-range
