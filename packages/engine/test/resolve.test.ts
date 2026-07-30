@@ -10,8 +10,10 @@
  *
  * States are hand-built with ONLY the fields resolve.ts reads (the
  * concede.test.ts doctrine): params, rules, court, period, t, rng,
- * agents/lineup; agents carry p/side/pos/vel/energy/fouledOut/
- * catchQuality/screenStunUntil.
+ * agents/lineup; agents carry p/side/pos/vel/energy/load/fouledOut/
+ * catchQuality/screenStunUntil. (load joined the read set when the flow
+ * landing armed the cumulative-load pool: movement.ts effectiveEnergy and
+ * shootingFoulP's legs factor both consume it.)
  */
 
 import { describe, expect, it } from 'vitest';
@@ -43,6 +45,7 @@ interface AgentSpec {
   heightIn?: number;
   wingspanIn?: number;
   energy?: number;
+  load?: number;
   fouledOut?: boolean;
   catchQuality?: number;
   stunUntil?: number;
@@ -58,6 +61,7 @@ function mkAgent(o: AgentSpec): Agent {
     pos: { x: o.x ?? 20, y: o.y ?? 25 },
     vel: { x: o.vx ?? 0, y: o.vy ?? 0 },
     energy: o.energy ?? 100,
+    load: o.load ?? 0, // fresh legs — the load pool's neutral point (state.ts Agent.load)
     onCourt: true,
     fouledOut: o.fouledOut ?? false,
     catchQuality: o.catchQuality ?? 0,
@@ -167,10 +171,11 @@ describe('blockP (resolve.ts:232-244)', () => {
 
 // ------------------------------------------------------------- shootingFoulP
 
-describe('shootingFoulP (resolve.ts:248-274)', () => {
+describe('shootingFoulP (resolve.ts:278-311)', () => {
   it('hard-capped at shootFoulCap: hack-a-Shaq still leaves a clean-play chance', () => {
-    // resolve.ts:273-274 — extreme finite drawFoul drives the product far
-    // over the cap; the clamp must return exactly params.foul.shootFoulCap
+    // resolve.ts:309-310 — extreme finite drawFoul drives the product far
+    // over the cap (the flow legs factor is ≥ 1 and only pushes it further);
+    // the clamp must return exactly params.foul.shootFoulCap
     const hacker = mkAgent({ id: 'hack', side: 1, tend: { foulAggr: 100 } });
     const s = mkState(P, [hacker]);
     const magnet = mkAgent({ id: 'mag', side: 0, attr: { drawFoul: 100000 } });
@@ -186,8 +191,8 @@ describe('shootingFoulP (resolve.ts:248-274)', () => {
   });
 
   it('all-neutral inputs land exactly on the zone base — the zone routing is live', () => {
-    // resolve.ts:254-258 zone lookup; contest 0 => contestMult 1, drawFoul 50
-    // => draw 1, no contester => aggr 1. Expected value read back through the
+    // resolve.ts:285-288 zone lookup; contest 0 => contestMult 1, drawFoul 50
+    // => draw 1, no contester => aggr 1 AND legs 1. Expected value read back through the
     // same clamp so a re-sweep that pushes a base past the cap cannot break it.
     const s = mkState(P, []);
     const avg = mkAgent({ id: 'avg', side: 0, attr: { drawFoul: 50 } });
@@ -198,7 +203,7 @@ describe('shootingFoulP (resolve.ts:248-274)', () => {
   });
 
   it('tight contests mean contact: a smothered shot draws more whistles than an open one', () => {
-    // resolve.ts:260-267 contestMult 1.0 -> contestFactor
+    // resolve.ts:289-297 contestMult 1.0 -> contestFactor
     const d = mkAgent({ id: 'd', side: 1, tend: { foulAggr: 50 } });
     const s = mkState(P, [d]);
     const avg = mkAgent({ id: 'avg', side: 0, attr: { drawFoul: 50 } });
@@ -208,7 +213,7 @@ describe('shootingFoulP (resolve.ts:248-274)', () => {
   });
 
   it("hackers foul more: the DEFENDER's foulAggr tendency scales the rate", () => {
-    // resolve.ts:262-271 — "hackers foul ~50% more"
+    // resolve.ts:299-306 — "hackers foul ~50% more"
     const hacker = mkAgent({ id: 'h', side: 1, tend: { foulAggr: 100 } });
     const saint = mkAgent({ id: 's', side: 1, tend: { foulAggr: 0 } });
     const s = mkState(P, [hacker, saint]);
@@ -217,16 +222,35 @@ describe('shootingFoulP (resolve.ts:248-274)', () => {
     const vsSaint = shootingFoulP(s, avg, 'rim', { level: 0.5, by: 's', heightAdvFt: 0 });
     expect(vsHacker).toBeGreaterThan(vsSaint);
   });
+
+  it("heavy legs foul: the contester's cumulative load scales the rate by exactly 1 + loadShootSwing·load/100", () => {
+    // resolve.ts:300-307 — "a late closeout arrives in the shooter's body";
+    // armed since the flow landing (params.ts foul.loadShootSwing, live at
+    // fatigue.loadPerSec 0.011). drawFoul 50 / foulAggr 50 hold draw and
+    // aggr at exactly 1 (n(50) = 0), so both values are recomputable from
+    // params through the same clamp — no swept magnitude is pinned.
+    const freshD = mkAgent({ id: 'fd', side: 1, tend: { foulAggr: 50 } }); // load 0
+    const heavyD = mkAgent({ id: 'hd', side: 1, tend: { foulAggr: 50 }, load: 80 });
+    const s = mkState(P, [freshD, heavyD]);
+    const avg = mkAgent({ id: 'avg', side: 0, attr: { drawFoul: 50 } });
+    const vsFresh = shootingFoulP(s, avg, 'mid', { level: 0.5, by: 'fd', heightAdvFt: 0 });
+    const vsHeavy = shootingFoulP(s, avg, 'mid', { level: 0.5, by: 'hd', heightAdvFt: 0 });
+    expect(vsHeavy).toBeGreaterThan(vsFresh);
+    // fresh legs are the neutral point: legs = 1 leaves base × contestMult
+    expect(vsFresh).toBe(clamp(P.foul.shootMid * (1 + (P.foul.contestFactor - 1) * 0.5), 0, P.foul.shootFoulCap));
+    // and the legs multiplier is the documented form, bit-exact
+    expect(vsHeavy).toBe(clamp(vsFresh * (1 + P.foul.loadShootSwing * (80 / 100)), 0, P.foul.shootFoulCap));
+  });
 });
 
 // ----------------------------------------------------------------- shotMakeP
 
-describe('shotMakeP (resolve.ts:117-186)', () => {
+describe('shotMakeP (resolve.ts:131-215)', () => {
   const s = mkState(P, []);
   const avg = mkAgent({ id: 'sh', side: 0 });
 
   it('is a probability: strict (0,1) across the rating book, [0,1] even at absurd extremes', () => {
-    // resolve.ts:185 / params.ts header — P = sigmoid(logit). Strictly inside
+    // resolve.ts:214 / params.ts header — P = sigmoid(logit). Strictly inside
     // (0,1) for legal 0-100 ratings; at extreme finite ratings the float
     // sigmoid may saturate but never escapes [0,1].
     const best = mkAgent({ id: 'b', side: 0, attr: { three: 100 } });
@@ -250,7 +274,7 @@ describe('shotMakeP (resolve.ts:117-186)', () => {
   });
 
   it('at the rim the reach edge is clamped to ±rimHeightAdvClampFt (forced magnitudes)', () => {
-    // resolve.ts:162-166 — forced coef/clamp per the coupling.test.ts pattern
+    // resolve.ts:188-192 — forced coef/clamp per the coupling.test.ts pattern
     // so the pin survives any re-sweep of the shipped FEEL values
     const forced = withParams({ shot: { rimHeightCoef: 0.5, rimHeightAdvClampFt: 2 } });
     const fs = mkState(forced, []);
@@ -262,7 +286,7 @@ describe('shotMakeP (resolve.ts:117-186)', () => {
   });
 
   it('delivery quality rides ONLY the catch-and-shoot; self-created shots get zero', () => {
-    // resolve.ts:170-183 — passQ is moveType-gated
+    // resolve.ts:199-212 — passQ is moveType-gated
     const pull = (q: number) => shotMakeP(s, avg, 'mid', 15, 'pull_up', OPEN, q);
     expect(pull(1)).toBe(pull(-1));
     const forced = withParams({ shot: { passQualityCoef: 0.5, passQualityCenter: 0 } });
@@ -280,9 +304,9 @@ describe('shotMakeP (resolve.ts:117-186)', () => {
   });
 
   it('threes are penalized only beyond distPenaltyThreeFt (23 ft, REAL); deeper is worse', () => {
-    // resolve.ts:149-158 — max(0, dist − threshold) is exactly 0 at or below
+    // resolve.ts:162-172 — max(0, dist − threshold) is exactly 0 at or below
     // the line, so a 20-footer and a 23-footer share one make chance.
-    // (distPenaltyThreeFt = 23 is a REAL rule-book pin per params.ts:804.)
+    // (distPenaltyThreeFt = 23 is a REAL rule-book pin per params.ts:1324.)
     const at = (d: number) => shotMakeP(s, avg, 'three', d, 'catch_shoot', OPEN);
     expect(P.shot.distPenaltyThreeFt).toBe(23);
     expect(at(20)).toBe(at(23));
@@ -291,24 +315,35 @@ describe('shotMakeP (resolve.ts:117-186)', () => {
   });
 
   it('rim shots get harder away from point-blank: a dunk beats a 4-foot floater', () => {
-    // resolve.ts:155-159 distPenaltyRimPerFt from 0 ft out
+    // resolve.ts:170-172 distPenaltyRimPerFt from 0 ft out
     const at = (d: number) => shotMakeP(s, avg, 'rim', d, 'drive', OPEN);
     expect(at(0)).toBeGreaterThan(at(4));
   });
 
   it('contested shots are harder — the core probabilistic-resolution bet', () => {
-    // resolve.ts:139 contestTerm; events.ts:243 contest 0 = open, 1 = smothered
+    // resolve.ts:152 contestTerm; events.ts:269 contest 0 = open, 1 = smothered
     const at = (level: number) => shotMakeP(s, avg, 'mid', 15, 'pull_up', { level, by: null, heightAdvFt: 0.5 });
     expect(at(0)).toBeGreaterThan(at(0.5));
     expect(at(0.5)).toBeGreaterThan(at(1));
   });
 
-  it('a gassed shooter shoots worse; a full tank is the neutral point', () => {
-    // resolve.ts:168 fatigue = coef * (1 − energy/100), exactly 0 at 100
+  it('a gassed shooter shoots worse; a full tank on fresh legs is the neutral point', () => {
+    // resolve.ts:194-197 fatigue = coef * (1 − effectiveEnergy/100), where
+    // effectiveEnergy = clamp(energy − load, 0, 100) (movement.ts:174-176 —
+    // the load pool, live since the flow landing at fatigue.loadPerSec
+    // 0.011). At energy 100 / load 0 the term is exactly 0: forcing the
+    // coefficient cannot move a fresh shooter's make chance.
     const fresh = mkAgent({ id: 'f', side: 0, energy: 100 });
     const gassed = mkAgent({ id: 'g', side: 0, energy: 10 });
-    expect(shotMakeP(s, fresh, 'mid', 15, 'pull_up', OPEN))
-      .toBeGreaterThan(shotMakeP(s, gassed, 'mid', 15, 'pull_up', OPEN));
+    const heavy = mkAgent({ id: 'h', side: 0, energy: 100, load: 90 });
+    const at = (st: GameState, a: Agent) => shotMakeP(st, a, 'mid', 15, 'pull_up', OPEN);
+    const forced = mkState(withParams({ shot: { fatigueCoef: -5 } }), []);
+    expect(at(forced, fresh)).toBe(at(s, fresh)); // the neutral point is coef-independent
+    expect(at(s, fresh)).toBeGreaterThan(at(s, gassed));
+    // heavy legs cost the jumper the way an empty tank does…
+    expect(at(s, fresh)).toBeGreaterThan(at(s, heavy));
+    // …and the fold is exact: energy 10 on fresh legs IS energy 100 under 90 load
+    expect(at(s, heavy)).toBe(at(s, gassed));
   });
 });
 
@@ -354,7 +389,7 @@ describe('zoneSkill (resolve.ts:109-122)', () => {
 
 // -------------------------------------------------------------------- shotEV
 
-describe('shotEV self-consistency (resolve.ts:188-218, AGENTS.md §6)', () => {
+describe('shotEV self-consistency (resolve.ts:218-247, AGENTS.md §6)', () => {
   // a real contester in the map so shootingFoulP's aggr branch is exercised
   const defender = mkAgent({ id: 'dEV', side: 1, tend: { foulAggr: 65 } });
   const s = mkState(P, [defender]);
@@ -400,7 +435,7 @@ describe('shotEV self-consistency (resolve.ts:188-218, AGENTS.md §6)', () => {
   });
 
   it('the whistle is priced in: a contested rim attempt is worth more than its raw make EV', () => {
-    // resolve.ts:203-216 — foul EV is additive on top of p*pts
+    // resolve.ts:232-246 — foul EV is additive on top of p*pts
     const r = shotEV(s, shooter, spots[0]!.pos, 'drive', contest);
     expect(r.ev).toBeGreaterThan(r.p * 2);
   });
@@ -778,9 +813,11 @@ describe('defendersBack (resolve.ts:442-449)', () => {
   });
 });
 
-describe('currentMaxSpeed (resolve.ts:491-496)', () => {
+describe('currentMaxSpeed (resolve.ts:586-590)', () => {
   it('full tank runs the full rating-derived sprint speed; an empty tank runs minSpeedMult of it', () => {
-    // resolve.ts:493-495 — energyMult = min + (1−min)·(energy/100)
+    // resolve.ts:587-589 — energyMult = min + (1−min)·(effectiveEnergy/100),
+    // with effectiveEnergy = clamp(energy − load, 0, 100) (movement.ts:174-176;
+    // the load pool is live since the flow landing, fatigue.loadPerSec 0.011)
     const f = P.fatigue;
     const fast = mkAgent({ id: 'f', side: 0, attr: { speed: 80 }, energy: 100 });
     const dead = mkAgent({ id: 'd', side: 0, attr: { speed: 80 }, energy: 0 });
@@ -792,5 +829,12 @@ describe('currentMaxSpeed (resolve.ts:491-496)', () => {
     const mid = mkAgent({ id: 'm', side: 0, attr: { speed: 80 }, energy: 40 });
     expect(currentMaxSpeed(s, mid)).toBeLessThan(currentMaxSpeed(s, fast));
     expect(currentMaxSpeed(s, mid)).toBeGreaterThan(currentMaxSpeed(s, dead));
+    // heavy legs move slower: a full tank under full load runs the SAME
+    // minSpeedMult floor as an empty tank…
+    const legs = mkAgent({ id: 'l', side: 0, attr: { speed: 80 }, energy: 100, load: 100 });
+    expect(currentMaxSpeed(s, legs)).toBe(sprintSpeed(legs.p.attr) * f.minSpeedMult);
+    // …and the fold is exact: energy 40 on fresh legs IS energy 100 under 60 load
+    const laden = mkAgent({ id: 'n', side: 0, attr: { speed: 80 }, energy: 100, load: 60 });
+    expect(currentMaxSpeed(s, laden)).toBe(currentMaxSpeed(s, mid));
   });
 });
