@@ -95,13 +95,15 @@ describe('crunch covers the OT tip stoppage (audit H-02)', () => {
     // going OUT there is the bug.
     //
     // Seeds probed to reach OT on the current rng stream (6/6 at anchor —
-    // re-anchored once already within the audit-fix branch itself when the
-    // L-11/M-02 stream reshuffle moved the original five). An rng-reordering
-    // change may reshuffle which seeds go to OT — if the vacuity floor below
-    // trips, re-scan for OT seeds and re-anchor the list; do not weaken the
-    // starter assertion.
+    // re-anchored once within the audit-fix branch when the L-11/M-02
+    // stream reshuffle moved the original five, and again at the post-audit
+    // FLOW rebase, whose flips reshuffle every stream: the old six indices
+    // and everything under 140 read regulation-only on the landed stream).
+    // An rng-reordering change may reshuffle which seeds go to OT — if the
+    // vacuity floor below trips, re-scan for OT seeds and re-anchor the
+    // list; do not weaken the starter assertion.
     let otGames = 0;
-    for (const i of [18, 33, 74, 92, 99, 103]) {
+    for (const i of [163, 265, 301, 342, 432, 523]) {
       const { home, away } = sampleMatchup();
       const r = simulateGame({ seed: `otseek-${i}`, home, away, collectFrames: false });
       if (!r.events.some((e) => e.period > r.rules.periods)) continue;

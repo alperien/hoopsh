@@ -478,6 +478,8 @@ function midConcedeState(
     wallT: 2880 - o.clock,
     score: o.score,
     conceded: [true, false],
+    // the huddle handshake: checkSubs reads phase.timeout (inert here)
+    phase: { kind: 'dead', resumeIn: 1, clockRuns: false, nextTeam: 0, possKind: 'inbound' },
     teams: [home, away],
     agents,
     lineup: [

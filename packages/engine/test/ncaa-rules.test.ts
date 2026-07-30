@@ -165,7 +165,14 @@ describe('one-and-one sequencing in NCAA games (R1)', () => {
   let games = 0;
   for (; games < 12; games++) {
     trips.push(...collectBonusTrips(playEvents(`oao-${games}`, NCAA)));
-    if (trips.filter((t) => t.attempts[0]!.oneAndOne && !t.attempts[0]!.made).length >= 2) {
+    // stop only once BOTH tiers are sampled (the describe's whole point) —
+    // the old missed-front-ends-only condition could break before any
+    // double-bonus trip appeared (it did, on the post-rebase stream: game
+    // one alone held 3 one-and-ones with 2 misses and no double)
+    if (
+      trips.filter((t) => t.attempts[0]!.oneAndOne && !t.attempts[0]!.made).length >= 2 &&
+      trips.some((t) => t.teamCount >= 10)
+    ) {
       games++;
       break;
     }

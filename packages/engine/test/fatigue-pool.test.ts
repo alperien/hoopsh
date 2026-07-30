@@ -87,17 +87,28 @@ describe('the load pool (movement.ts applyFatigue, forced live)', () => {
     expect(on.load).toBeGreaterThan(still.load * 2);
   });
 
-  it('clamps: load never leaves [0, 100]; a fouled-out body freezes', () => {
+  it('clamps: load never leaves [0, 100]; a fouled-out BENCH body freezes', () => {
     const { s, on, off } = fatigueState(LIVE);
     on.load = 99.999;
     applyFatigue(s, 10_000);
     expect(on.load).toBe(100);
     expect(off.load).toBe(0); // recovery clamps at the floor
-    const { s: s2, on: out } = fatigueState(LIVE);
-    out.fouledOut = true;
-    out.load = 40;
+    // a fouled-out player on the BENCH can never return: his pools freeze
+    // (the read-by-nothing skip applyFatigue keeps byte-identical)
+    const { s: s2, off: benched } = fatigueState(LIVE);
+    benched.fouledOut = true;
+    benched.load = 40;
     applyFatigue(s2, 10);
-    expect(out.load).toBe(40);
+    expect(benched.load).toBe(40);
+    // ...but a fouled-out body still ON the floor (bench exhausted — the
+    // subs.ts play-on edge) plays real minutes and tires like anyone else
+    // (audit L-06); the load pool rides the same effort chain, so it
+    // accrues there too. The pre-L-06 version of this pin froze him.
+    const { s: s3, on: playOn } = fatigueState(LIVE);
+    playOn.fouledOut = true;
+    playOn.load = 40;
+    applyFatigue(s3, 10);
+    expect(playOn.load).toBeGreaterThan(40);
   });
 
   it('THE STAGE SWITCH: at loadPerSec 0 (pinned override; the pre-flip staged default) the pool provably stays 0', () => {

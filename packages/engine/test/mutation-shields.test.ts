@@ -60,24 +60,27 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
   //   check point (shot / turnover): elapsed since last reset must be
   //     ≤ budget + END_SLOP.
   //
-  // The two allowances make the bound safely one-sided (never a false red):
-  // FROZEN_ALLOW covers time the game clock runs but the shot clock is
-  // FROZEN (a released shot's flight plus the rebound scramble window —
-  // game.ts only decrements the shot clock on live/pass-flight ticks), so
-  // remainingUpper always ≥ the engine's true remaining. END_SLOP covers
-  // the terminating event stamping ball ARRIVAL, not release (shot flight),
-  // plus tick granularity. Free-throw flows reshape possession timing, so
-  // accounting abandons a possession at the first free_throw (conservative:
-  // fewer checks, never a wrong one).
+  // The allowances make the bound safely one-sided (never a false red):
+  // scramble time — the shot clock frozen while the ball is loose — is
+  // measured EXACTLY from the stream (the missed shot's arrival stamp to
+  // the rebound's secure stamp) and subtracted per segment; this went from
+  // a constant sub-second allowance to measured time at the FLOW rebase,
+  // where the live rebound cadence (reb.cadenceOn 1) legitimately holds
+  // scrambles open for up to cadenceFgMaxSec 8.0 s of running game clock.
+  // FLIGHT_ALLOW covers the remaining frozen window the stream cannot
+  // localize (a released shot's flight; game.ts only decrements the shot
+  // clock on live/pass-flight ticks), so remainingUpper always ≥ the
+  // engine's true remaining. END_SLOP covers the terminating event stamping
+  // ball ARRIVAL, not release (shot flight), plus tick granularity.
+  // Free-throw flows reshape possession timing, so accounting abandons a
+  // possession at the first free_throw (conservative: fewer checks, never
+  // a wrong one).
   //
-  // Measured on this pool: max observed consumption sits 2.0s BELOW the
-  // bound (maxOver −2.0 at END_SLOP 3.0); the full-reset mutant produces 27
-  // violations reaching 7.6s over. The floor-EXISTENCE counters below pin
-  // the other direction (floor deleted → offense never outruns its carried
-  // remainder): late resets (remainingUpper < 11) whose post-reset
-  // consumption exceeds that remainder by > 2s can only exist because the
-  // floor granted time.
-  const FROZEN_ALLOW = 2.5; // max shot flight + scramble resolve window, seconds
+  // The floor-EXISTENCE counters below pin the other direction (floor
+  // deleted → offense never outruns its carried remainder): late resets
+  // (remainingUpper < 11) whose post-reset consumption exceeds that
+  // remainder by > 2s can only exist because the floor granted time.
+  const FLIGHT_ALLOW = 2.5; // max shot flight, seconds (scrambles are measured, see above)
   const END_SLOP = 3.0;     // arrival-vs-release stamp + tick granularity, seconds
   const FULL = 24;          // NBA shotClockSec — the pool is default-config NBA
   const FLOOR = 14;         // NBA shotClockOffRebSec
@@ -97,11 +100,19 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
       let lastRemaining = FULL;
       let lastWasLate = false;
       let lastKind: 'playerOreb' | 'sideOut' = 'playerOreb';
+      let frozen = 0;          // measured scramble time inside this segment
+      let shotT: number | null = null; // pending miss whose scramble is open
       for (let j = i + 1; j < evs.length; j++) {
         const e = evs[j]!;
         if (e.type === 'possession_end') break;
         if (e.type === 'free_throw') break; // abandon: FT flow reshapes the clock
-        const elapsed = e.t - resetT;
+        // a rebound closes the open scramble: the whole miss→secure gap ran
+        // with the shot clock frozen (tickScramble never decrements it)
+        if (e.type === 'rebound' && shotT !== null) {
+          frozen += e.t - shotT;
+          shotT = null;
+        }
+        const elapsed = e.t - resetT - frozen;
         if (e.type === 'shot' || e.type === 'turnover') {
           checks++;
           if (elapsed > budget + END_SLOP) ceilingViolations++;
@@ -110,24 +121,32 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
             else sideOutGrants++;
             lastWasLate = false; // count each granted reset once
           }
+          if (e.type === 'shot' && !e.made) shotT = e.t; // scramble may open
         }
         const orebReset = e.type === 'rebound' && e.offensive;
         // a foul with no free throws = non-bonus side-out continuation
         // (loose-ball in the scramble, reach-in on the holder): same
         // max(remaining, 14) floor as the OREB reset
         const foulReset = e.type === 'foul' && evs[j + 1]?.type !== 'free_throw';
-        if (orebReset || foulReset) {
-          const remainingUpper = budget - Math.max(0, elapsed - FROZEN_ALLOW);
+        // a kicked ball (officiating vocabulary, live since the FLOW flip)
+        // is a same-possession side-out too: the offense retains with the
+        // shot clock floored at rules.shotClockOffRebSec (events.ts doc) —
+        // same max(remaining, 14) arithmetic as the other side-out sites
+        const kickReset = e.type === 'violation' && e.kind === 'kicked_ball';
+        if (orebReset || foulReset || kickReset) {
+          const remainingUpper = budget - Math.max(0, elapsed - FLIGHT_ALLOW);
           lastRemaining = Math.max(0, remainingUpper);
           lastWasLate = remainingUpper < 11;
           if (lastWasLate) lateResets++;
           lastKind = orebReset && e.player ? 'playerOreb' : 'sideOut';
           // Foul resets budget FULL: L-11 (this audit wave) grants backcourt
           // retention fouls a fresh 24, frontcourt max(remaining, 14) — FULL
-          // is the sound ceiling for both. OREB resets keep the 14-s floor
-          // budget, so the fresh-24 OREB mutant stays lethal below.
+          // is the sound ceiling for both. OREB and kicked-ball resets keep
+          // the 14-s floor budget, so the fresh-24 OREB mutant stays lethal.
           budget = foulReset ? FULL : Math.max(remainingUpper, FLOOR);
           resetT = e.t;
+          frozen = 0;
+          shotT = null;
         }
       }
     }
