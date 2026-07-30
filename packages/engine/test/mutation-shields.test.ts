@@ -122,7 +122,11 @@ describe('M-46: post-OREB shot clock resets to the 14s floor, not a fresh 24', (
           lastWasLate = remainingUpper < 11;
           if (lastWasLate) lateResets++;
           lastKind = orebReset && e.player ? 'playerOreb' : 'sideOut';
-          budget = Math.max(remainingUpper, FLOOR);
+          // Foul resets budget FULL: L-11 (this audit wave) grants backcourt
+          // retention fouls a fresh 24, frontcourt max(remaining, 14) — FULL
+          // is the sound ceiling for both. OREB resets keep the 14-s floor
+          // budget, so the fresh-24 OREB mutant stays lethal below.
+          budget = foulReset ? FULL : Math.max(remainingUpper, FLOOR);
           resetT = e.t;
         }
       }
@@ -212,17 +216,32 @@ describe('M-19: foulMaxDeficit — a team down 13+ has stopped hunting fouls', (
       params: defaultParams // read-only in foulHuntSide — sharing the object is safe
     } as unknown as GameState);
 
-  it('inside the window (down 3-12, late) the trailing defense hunts', () => {
+  it('inside the window (down 3-12, late, ALIVE) the trailing defense hunts', () => {
     expect(foulHuntSide(huntState({ deficit: 8 }))).toBe(1);
-    expect(foulHuntSide(huntState({ deficit: 12 }))).toBe(1); // ceiling is inclusive
+    // deficit 12 is dead at clock 30 under the shared aliveness definition
+    // ((30/12+1)*1.6 reachable < 12−6); at clock 35 it is barely alive
+    // (0.045) and still inside the 35 s window — the real hunt boundary
+    // after M-09 wired aliveness into this gate.
+    expect(foulHuntSide(huntState({ deficit: 12, clock: 35 }))).toBe(1); // ceiling is inclusive
+    // and the M-09 side: the same deficit at clock 30 is DEAD — no parade
+    expect(foulHuntSide(huntState({ deficit: 12, clock: 30 }))).toBe(null);
   });
 
   it('down 13 the hunt is over — and down 20 it must STAY over (ceiling-deletion mutant fails here)', () => {
     expect(foulHuntSide(huntState({ deficit: 13 }))).toBe(null);
-    // the audit's shape: a 20-down endgame team must not parade fouls.
-    // With the ceiling deleted, deficit 20 needs 7 possessions → window
-    // min(35, 7×24) = 35 ≥ clock 30 → the mutant returns the defense side.
-    expect(foulHuntSide(huntState({ deficit: 20 }))).toBe(null);
+    // After M-09 wired aliveness into this gate, no 13+ deficit is both
+    // alive and inside the window at default params, so the ceiling's
+    // mutant is only observable with aliveness made generous. Pin the
+    // ceiling as the SOLE barrier under a huge chaseFadePts: everything is
+    // alive, the window holds (min(35, 7x24) >= clock 30), and only the
+    // deficit ceiling can say no. Ceiling deleted -> the mutant hunts here.
+    const generous = {
+      ...defaultParams,
+      endgame: { ...defaultParams.endgame, chaseFadePts: 1000 }
+    };
+    expect(foulHuntSide({ ...huntState({ deficit: 20 }), params: generous } as unknown as GameState)).toBe(null);
+    // aliveness-bypassed sanity: the same generous params DO hunt inside the window
+    expect(foulHuntSide({ ...huntState({ deficit: 12 }), params: generous } as unknown as GameState)).toBe(1);
   });
 
   it('the other gates hold: down 1-2 a stop wins, dead shot clock plays out, flag off never hunts', () => {
