@@ -821,7 +821,7 @@ export function openerSet(s: GameState, shotClockShare: number): { shoot: number
  *
  * No possession-level state: context keys off the holder's existing
  * acquiredBy/catchT stamps and dies when the ball moves on, matching the
- * corpus scan's stop-at-next-event semantics. The supply half (re-filling
- * getback perimeter teammates behind the grab, spec M2a) is offense.ts
- * positioning with no magnitude to stage; it lands with the fit wave.
+ * corpus scan's stop-at-next-event semantics. The supply half (M2a,
+ * ai/offense.ts onOrebSecured: the perimeter re-fill behind the grab) is
+ * wired from possession.ts tickScramble, STAGED off at ai.orebRefillSec 0.
  */

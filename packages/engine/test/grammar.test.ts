@@ -30,6 +30,7 @@ import {
 import { sampleMatchup } from '@hoopsh/data';
 import { decideBall, type BallAction } from '../src/sim/ai/decide.js';
 import { decisiveness, openerSet } from '../src/sim/ai/concepts.js';
+import { onOrebSecured } from '../src/sim/ai/offense.js';
 import { endPeriod, startPossession } from '../src/sim/possession.js';
 import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
 
@@ -332,6 +333,66 @@ describe('concept 10 — scramble economy (staged wiring)', () => {
     const seq = (params?: ParamOverrides) =>
       sample(mkState({ params, acquiredBy: 'pass', sinceCatch: 0.3, holderFt: 4, seed: 'putback-gate' }).s, N);
     expect(seq({ ai: { orebPutbackBonus: 6 } })).toEqual(seq());
+  });
+});
+
+// ----------------------------- M2a: OREB perimeter refill (supply half)
+
+describe('M2a — OREB perimeter refill (staged wiring)', () => {
+  /** post-OREB scene: the holder just grabbed the board; off-2 is a wing
+   *  shooter caught retreating, off-3 sits at his corner spot, off-4 is a
+   *  dunker also retreating (never refilled), off-5 has no spot */
+  function orebScene(params?: ParamOverrides): { s: GameState; grab: Agent } {
+    const { s } = mkState({ params, acquiredBy: 'rebound', sinceCatch: 0.3, holderFt: 4 });
+    const a = (id: string): Agent => s.agents.get(id)!;
+    s.poss.spots.set('wing_l', { x: s.court.midX, y: 8 });
+    s.poss.spots.set('corner_l', { ...a('off-3').pos });
+    s.poss.spots.set('dunker', { x: s.court.midX, y: 40 });
+    a('off-2').spotKey = 'wing_l';
+    a('off-2').intent = 'getback';
+    a('off-2').sprinting = false;
+    a('off-3').spotKey = 'corner_l'; // already home: within the 8 ft band
+    a('off-4').spotKey = 'dunker';
+    a('off-4').intent = 'getback';
+    return { s, grab: a('off-1') };
+  }
+
+  it('forced live: getback arc teammates sprint back to their spots and hold the window', () => {
+    const { s, grab } = orebScene({ ai: { orebRefillSec: 1.8 } });
+    onOrebSecured(s, grab);
+    const wing = s.agents.get('off-2')!;
+    expect(wing.intent).toBe('spot');
+    expect(wing.sprinting).toBe(true);
+    expect(wing.target).toEqual(s.poss.spots.get('wing_l'));
+    expect(wing.relocUntil).toBe(s.t + 1.8);
+    // a spotted corner body is already a receiver: untouched
+    const corner = s.agents.get('off-3')!;
+    expect(corner.relocUntil).toBe(-99);
+    // the dunker stays in the scrum economy even while retreating
+    const dunker = s.agents.get('off-4')!;
+    expect(dunker.intent).toBe('getback');
+    expect(dunker.relocUntil).toBe(-99);
+    // the rebounder himself is never repositioned
+    expect(grab.relocUntil).toBe(-99);
+  });
+
+  it('STAGED default: the refill touches no positioning state', () => {
+    const { s, grab } = orebScene();
+    onOrebSecured(s, grab);
+    const wing = s.agents.get('off-2')!;
+    expect(wing.intent).toBe('getback');
+    expect(wing.sprinting).toBe(false);
+    expect(wing.relocUntil).toBe(-99);
+  });
+
+  it('the tickScramble call site is live: a forced refill diverges a full game', () => {
+    const { home, away } = sampleMatchup();
+    const base = simulateGame({ seed: 'refill-live-0', home, away, collectFrames: false });
+    const live = simulateGame({
+      seed: 'refill-live-0', home, away, collectFrames: false,
+      params: { ai: { orebRefillSec: 1.8 } }
+    });
+    expect(JSON.stringify(live.events)).not.toBe(JSON.stringify(base.events));
   });
 });
 

@@ -1195,6 +1195,12 @@ export interface SimParams {
     orebKickBonus: number;       // pass-utility term to arc teammates inside the kick window (0 = STAGED dark)
     orebKickWindowSec: number;   // rebounder's kick-out read window after the grab, sec (0 = STAGED
                                  // dark: the context is never true, keeping the kickout taxonomy inert too)
+    /** relocation-hold window (sec) for the perimeter re-fill behind a
+     *  secured OREB (ai/offense.ts onOrebSecured, the fdesign-grammar M2a
+     *  supply half): getback/off-spot arc teammates sprint back to their
+     *  spots so the kick-out read has a receiver. STAGED 0 = off (no
+     *  positioning state touched) */
+    orebRefillSec: number;
   };
 }
 
@@ -2762,14 +2768,14 @@ export const defaultParams: SimParams = {
     // team FGA inside 6s (sim 49.9%), and 28.2% of those quick shots are
     // threes (sim 5.5%); the missing loop is overwhelmingly the kick-out
     // three over the collapsed crash, not the tip-back (flow-grammar §2b).
-    // These are the demand half only: the putback shoot term and the
-    // kick-out pass term. (The supply half, re-filling getback perimeter
-    // teammates behind the grab, spec M2a, is offense.ts positioning, a
-    // structural change with no magnitude to stage; it lands with the fit
-    // wave.) STAGED at 0/0/0: both utility terms are exactly 0 and the zero
+    // Demand half: the putback shoot term and the kick-out pass term. The
+    // supply half (M2a, re-filling getback perimeter teammates behind the
+    // grab) is ai/offense.ts onOrebSecured, staged off behind orebRefillSec
+    // below. STAGED at 0/0/0/0: both utility terms are exactly 0, the zero
     // window keeps the kick context (including the 'kickout' passKind
-    // taxonomy, which is event-visible) dark, so default event streams
-    // stay byte-identical. The fit wave flips: orebPutbackBonus ~0.35 ×
+    // taxonomy, which is event-visible) dark, and the zero refill touches
+    // no positioning state, so default event streams stay byte-identical.
+    // The fit wave flips: orebPutbackBonus ~0.35 ×
     // orebKickBonus ~0.30 (joint ladder {0.2,0.35}×{0.2,0.3,0.45}),
     // orebKickWindowSec 4.0 (FEEL: the rebounder's half of the corpus 6s
     // window; pass flight + catch + windup consume the rest), alongside
@@ -2782,7 +2788,12 @@ export const defaultParams: SimParams = {
     // a real designed outlet, not the primary read.
     orebKickBonus: 0,
     // stage switch (flip to 4.0); window shape, off the sweep surface.
-    orebKickWindowSec: 0
+    orebKickWindowSec: 0,
+    // M2a stage switch (flip: 1.8, FEEL — one hard relocation, ~20 ft at
+    // sprint). ffit-grammar §2.3: without the refill the kick read pays a
+    // bonus to arc teammates who are not there (quick-3 share saturated at
+    // ~10% vs the 20% floor); re-fit orebKickBonus at {0.2, 0.3} once live.
+    orebRefillSec: 0
   }
 };
 

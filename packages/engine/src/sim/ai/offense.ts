@@ -9,7 +9,7 @@ import { dist, lerp, norm, scale, sub, add } from '../../core/vec.js';
 import { clamp } from '../../core/rng.js';
 import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
-import { agent, attackedRim, liveOnCourt, onCourt, other, type GameState } from '../state.js';
+import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
 import { gravity } from '../resolve.js';
 import { assignedDefender, midGreenLight } from './shared.js';
 import { actionTick } from './actions.js';
@@ -60,6 +60,49 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
     d.target = man && dist(man.pos, rim) < s.params.ai.defCrashPerimeterFt
       ? lerp(man.pos, rim, s.params.ai.boxoutManShare) // box out between man and rim
       : lerp(d.pos, rim, s.params.ai.boxoutSelfShare);
+  }
+}
+
+/**
+ * Perimeter re-fill behind a secured offensive rebound (fdesign-grammar
+ * M2a, the scramble economy's supply half). Non-crashing teammates were
+ * sent into getback retreat at the shot (onShotReleased above) and walk
+ * back to spots at offBallWalkMult (~2.5-3 ft/s, 8-10s to re-fill), so the
+ * arc is empty exactly when the kick-out read (concept 10, decide.ts)
+ * wants a receiver: the corpus kick-3 share is unreachable without it
+ * (ffit-grammar §2.3 measured the kick dose saturating receiver-poor).
+ * "Fill behind": every live off-ball teammate on a perimeter spot who is
+ * retreating, or badly off his spot, sprints back to it and holds the
+ * ground through the relocation-hold window (the offenseOffBallTick
+ * machinery reused verbatim: relocUntil holds the target and preserves the
+ * sprint flag, the baseline-escape rule). Defenders need no code: they
+ * crashed to the rim, which IS the collapsed defense the kick attacks.
+ *
+ * Called from possession.ts tickScramble at the grab, before the putback
+ * roll (a putback releases in ~0.25s and the refill is what the NEXT beat
+ * needs either way). Deterministic, no rng. STAGED off at ai.orebRefillSec
+ * 0: returns before touching any positioning state.
+ */
+export function onOrebSecured(s: GameState, winner: Agent): void {
+  const A = s.params.ai;
+  if (A.orebRefillSec <= 0) return; // STAGED off
+  for (const a of liveOnCourt(s, winner.side)) {
+    if (a.p.id === winner.p.id) continue;
+    if (
+      a.spotKey !== 'top' && a.spotKey !== 'wing_l' && a.spotKey !== 'wing_r' &&
+      a.spotKey !== 'corner_l' && a.spotKey !== 'corner_r'
+    ) {
+      continue; // dunker/elbow bodies stay in the scrum economy
+    }
+    const spot = s.poss.spots.get(a.spotKey);
+    if (!spot) continue;
+    // 8 ft: FEEL — beyond a body-and-a-step of his spot the spacing is
+    // gone and the fill is worth a sprint; closer, he is already a receiver
+    if (a.intent !== 'getback' && dist(a.pos, spot) <= 8) continue;
+    a.intent = 'spot';
+    a.target = { ...spot };
+    a.sprinting = true;
+    a.relocUntil = s.t + A.orebRefillSec;
   }
 }
 

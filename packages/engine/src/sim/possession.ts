@@ -18,7 +18,7 @@ import {
   attackedRim, emit, liveOnCourt, onCourt, other, round1,
   type Agent, type GameState, type Phase
 } from './state.js';
-import { assignMatchups, assignSpots } from './ai.js';
+import { assignMatchups, assignSpots, onOrebSecured } from './ai.js';
 import { resolveRebound, resolveTeamReboundSide } from './resolve.js';
 import { checkSubs } from './subs.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
@@ -667,6 +667,11 @@ export function tickScramble(s: GameState, dt: number): void {
     s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
     s.poss.phase = 'halfcourt';
     giveBall(s, winner, 'rebound');
+    // perimeter re-fill behind the grab (fdesign-grammar M2a, STAGED off at
+    // ai.orebRefillSec 0): the kick-out read needs a receiver on the arc.
+    // Before the putback roll on purpose: a putback releases in ~0.25s and
+    // the refill serves the next beat either way. Rng-free.
+    onOrebSecured(s, winner);
     const rim = attackedRim(s, winner.side);
     // putback eligibility: within reb.putbackRadiusFt of the rim (still
     // right under the basket) and the clock has more than two hundredths of
