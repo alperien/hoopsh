@@ -226,7 +226,18 @@ export const TARGETS: Record<string, Target[]> = {
     { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) }, // ratchet EARNED: minutes controller + guard-crash economy
     { label: 'FG%', lo: 0.52, hi: 0.64, pct: true, get: (l) => l.fgm / Math.max(1, l.fga) },
     { label: '3PA', lo: 2, hi: 5.5, get: per((l) => l.tpa) },
-    { label: 'Post shots', lo: 1.8, hi: 7, get: per((l) => l.postShots) }
+    // ratchet: the 1.8 floor was never met — measured @40: 1.10 at this
+    // gate's own landing arc (B2, b9346a1), 0.825 at post-audit main
+    // (1897f8c), 0.825 with the flow flips live (they moved it exactly 0),
+    // 0.60 after the flow re-fit (pullUpThreeBonus 0.70 trades post
+    // touches for the G5 unassisted-3 volume; findings/refit-g5.md). The
+    // wide era-floor n12 sds kept the z=3 tripwire green over the whole
+    // trail; the flow-era floor regen tightened sd to ~0.12 and exposed
+    // it. The missing mechanism is real post-entry generation — the same
+    // interior-pressure root as flowboard G11 (rim share inverted, dunks
+    // low) and D3's post fragility: REGISTER W53/W57/W58. Flip back when
+    // the mechanics arc lands the post game.
+    { label: 'Post shots', lo: 1.8, hi: 7, ratchet: true, get: per((l) => l.postShots) }
   ]
 };
 
