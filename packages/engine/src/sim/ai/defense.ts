@@ -7,7 +7,7 @@
 import { clamp } from '../../core/rng.js';
 import { dist, lerp, norm, scale, sub, add, type V2 } from '../../core/vec.js';
 import type { TeamSide } from '../../core/events.js';
-import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
+import { agent, defendedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
 import { gravity, midRespect } from '../resolve.js';
 import { foulHuntSide } from '../endgame.js';
 import { scorePressureDefMult } from './concepts.js';
@@ -50,7 +50,7 @@ export function assignMatchups(s: GameState, defSide: TeamSide): void {
  */
 export function defenseTick(s: GameState): void {
   const defSide = other(s.poss.team);
-  const rim = defendedRimOf(s, defSide);
+  const rim = defendedRim(s, defSide);
   const holderId = s.ball.holderId;
   const holder = holderId ? agent(s, holderId) : null;
   const helpAggr = s.teams[defSide].tactics.helpAggr / 100;
@@ -258,8 +258,4 @@ function positionOffBall(s: GameState, d: Agent, man: Agent, rim: V2, helpAggr: 
   // shuffling after a moving pixel (denial and on-ball work stay live;
   // this only quiets settled off-ball positioning)
   d.target = dist(d.pos, ideal) < s.params.move.defDeadbandFt ? d.pos : ideal;
-}
-
-function defendedRimOf(s: GameState, defSide: TeamSide): V2 {
-  return attackedRim(s, other(defSide));
 }
