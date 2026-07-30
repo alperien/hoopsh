@@ -871,6 +871,62 @@ the committed shards. Positions at the landing, measured 2026-07-30:
   B2-era (docs/history/calibration-eras.md); two waves of engine
   change sit between them and HEAD.
 
+**FLOW RE-FIT — measured 2026-07-30 on `flow/rebased`** (addendum to the
+release-audit block above, whose positions predate the flow flips; the
+landing record is REGISTER W56/W57, the program verdict `npm run flowboard
+-- --games 48`). The flow program's flips are live and band-locked —
+**17/17 at n=48 with every flip on** (`6c109d2`) — and two fitted
+magnitudes were re-fitted on the post-audit engine: three landed waves had
+moved the shot economics under the shipped doses. Re-fit etiquette per
+AGENTS §4.4 / the noise-floor doctrine above: no dose was adjudicated from
+a single draw (each row states its adjudication).
+
+- **`ai.openerShootMalus` 0.32 → 0.55** (flowboard G3, quarter-opener
+  deliberateness). At 0.32 the opener attack-≤8s share read 9.0% pooled vs
+  the ≤6% gate. First-pass single-base verdicts flipped between bases
+  (n=144 openers/base, se ≈ 1.8%), so every ladder dose was re-measured on
+  three seed bases and adjudicated pooled (n=432/dose, se ≈ 1.0%). 0.55 is
+  the only rung that clears on every base individually: pooled 4.2%,
+  median 17 s (band 14-18; corpus 2.7%, 16.0 s) — and it sits near the top
+  of the usable window (one base touched the 18.0 s median ceiling); do
+  not ladder higher without watching the median. Bands held at every dose.
+  Full ladder: findings/refit-g3.md.
+- **`ai.pullUpThreeBonus` 0.35 → 0.70** (flowboard G5, unassisted made
+  3s). 2.50/g at the fitted 0.35 vs the 3.0 floor; the dose-response is
+  convex and only 0.70 buys the gate — 3.81/g at 86% assisted (corpus
+  3.87/g, 85.4%; three-base center ≈ 3.60/g). The mid-ladder band
+  excursions (14-15/17 at n=24 for 0.45/0.55) were adjudicated draw noise
+  by paired five-base centers at 0.35 vs 0.70 (FG% Δ ±0.0, tpPct +0.3,
+  tpaShare +1.6 with ~5 pp ceiling clearance). The real dose cost is
+  astdShare: paired −1.4 pp, center 54.4-54.7 against its 54.0 floor with
+  1 of 6 draws below — recorded per the center-on-edge rule above; trb
+  center 46.4 vs ceiling 47 is a soft watch. The sturdier fix remains the
+  params comment's own prescription — a joint re-fit with the
+  reach/riskBase mix (knot-combo §5.5). Full record: findings/refit-g5.md.
+- **G6 gate correction** (`harness/src/scoreboard.ts`, same commit): the
+  heave makes-clause gates only at ≥180 attempts and reports below. At a
+  realistic ~3% heave FG% and ≤0.3 logged heaves/g, a 48-game batch
+  expects ~0.4 makes — asserting made > 0 there was a coin flip that fails
+  honest engines. The rate (≤0.3/g) and decided-share clauses stay gated
+  at any n.
+- **G11 (shot diet): dial surface exhausted — mechanism gap, no dial point
+  baked.** Ten dose points (drive appetite, putback chance, finish spot,
+  windup, recheck cadence, drive speed, range gates, and combinations)
+  moved rim share only within 8.8-10.3% (gate ≥13.5), dunks 1.67-2.88/g
+  (band 7-13), and never flipped the rim>paint order — with nothing bought
+  by bending fga/fgPct. Measured cause: interior finishes release behind
+  the rim plane (the committed drive targets the rim center; 76% of
+  paint-bucket makes are behind-plane). Pre-existing engine-era, verified
+  at the pre-flow base — not a flow regression. Registered W57; fix shape
+  and counterfactual sizing: findings/refit-g11.md.
+- **Noise floor regenerated at the re-fit stream in its own commit**
+  (`33c65e4` — its diff is the drift record, per the workflow above). Read
+  floor centers from `noise-floor.gen.ts` / `npm run noisefloor`, not from
+  this file: the release-audit block's floor centers above predate the
+  flow flips and the re-fit. The goldens were re-baselined at the
+  flow-live streams (`26ee714`) and three seed-luck pins re-anchored after
+  the re-fit (`8f0cb81`).
+
 ## Endgame layer status
 
 Implemented AND default-ON. The historical diagnosis (the review's sharpest
