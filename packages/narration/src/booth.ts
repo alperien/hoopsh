@@ -427,13 +427,19 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
       case 'rebound': {
         const e = b.event.type === 'rebound' ? b.event : null;
         if (!e) break;
-        push(b, 'pbp', booth.pbp, 'rebound', dealFrom(booth.pbp, 'rebound', [e.offensive ? 'off' : 'def'], b.register, ctx));
+        // playerless boards (flow contract: optional player) take the
+        // team-credited pool; a player board keeps the off/def split
+        const variants = e.player
+          ? [e.offensive ? 'off' : 'def']
+          : ['team', e.offensive ? 'off' : 'def'];
+        push(b, 'pbp', booth.pbp, 'rebound', dealFrom(booth.pbp, 'rebound', variants, b.register, ctx));
         break;
       }
       case 'turnover': {
         const variant =
           b.tags.includes('steal') ? 'steal' :
           b.tags.includes('charge') ? 'charge' :
+          b.tags.includes('travel') ? 'travel' :
           b.tags.includes('shot_clock') ? 'shot_clock' : 'oob';
         push(b, 'pbp', booth.pbp, 'turnover', dealFrom(booth.pbp, 'turnover', [variant], b.register, ctx));
         break;
@@ -448,17 +454,55 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
         const prevShotFoul = prev?.event.type === 'shot' && prev.event.foul?.andOne && prev.event.shooter === e.drawnBy;
         const prevCharge = e.kind === 'offensive' && prev?.event.type === 'turnover' && prev.event.kind === 'off_foul' && prev.event.player === e.on;
         const extras: string[] = [];
-        if (e.personalCount >= 3) extras.push(`That’s ${e.personalCount} on ${ctx.player}.`);
+        const technical = e.kind === 'technical';
+        // a technical repeats the pre-whistle personal count (the tech is
+        // not a personal): citing it would read as if the tech counted
+        if (e.personalCount >= 3 && !technical) extras.push(`That’s ${e.personalCount} on ${ctx.player}.`);
         if (b.tags.includes('bonus')) extras.push(`${nickname(teams[e.team === 0 ? 1 : 0])} are in the bonus.`);
         if (e.fouledOut) extras.push(`That’s his ${ordinal(e.personalCount)} — he’s fouled out.`);
         if (prevShotFoul || prevCharge) {
           if (extras.length > 0) push(b, 'pbp', booth.pbp, 'foul', extras.join(' '));
           break;
         }
-        const variant = e.kind === 'shooting' ? 'shooting' : e.kind === 'reach' ? 'reach' : e.kind === 'loose_ball' ? 'loose_ball' : 'offensive';
+        const variant =
+          technical ? 'technical' :
+          e.kind === 'take' ? 'take' :
+          e.kind === 'shooting' ? 'shooting' :
+          e.kind === 'reach' ? 'reach' :
+          e.kind === 'loose_ball' ? 'loose_ball' : 'offensive';
         let text = dealFrom(booth.pbp, 'foul', [variant], b.register, ctx);
         if (extras.length > 0) text += ` ${extras.join(' ')}`;
         push(b, 'pbp', booth.pbp, 'foul', text);
+        break;
+      }
+      case 'timeout': {
+        const reason = b.tags.includes('mandatory') ? 'mandatory' : null;
+        const line = dealFrom(booth.pbp, 'timeout', [reason], b.register, ctx);
+        if (line) push(b, 'pbp', booth.pbp, 'timeout', line);
+        // a coach stopping play is the analyst's natural moment; the TV
+        // break is not
+        if (b.tags.includes('stop_run') || b.tags.includes('regroup')) {
+          const note = dealFrom(booth.color, 'timeout', [null], b.register, ctx);
+          if (note) push(b, 'color', booth.color, 'timeout', note);
+        }
+        break;
+      }
+      case 'jump_ball': {
+        const line = dealFrom(booth.pbp, 'jump_ball', [null], b.register, ctx);
+        if (line) push(b, 'pbp', booth.pbp, 'jump_ball', line);
+        break;
+      }
+      case 'violation': {
+        const variant = b.tags.includes('def_goaltend') ? 'def_goaltend' : 'kicked_ball';
+        const line = dealFrom(booth.pbp, 'violation', [variant], b.register, ctx);
+        if (line) push(b, 'pbp', booth.pbp, 'violation', line);
+        break;
+      }
+      case 'review': {
+        const line = dealFrom(booth.pbp, 'review', [null], b.register, ctx);
+        if (line) push(b, 'pbp', booth.pbp, 'review', line);
+        const note = dealFrom(booth.color, 'review', [null], b.register, ctx);
+        if (note) push(b, 'color', booth.color, 'review', note);
         break;
       }
       case 'substitution': {

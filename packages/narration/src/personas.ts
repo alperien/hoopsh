@@ -296,6 +296,49 @@ export const CORBIN: VoicePack = {
     'foul.offensive': [
       'Offensive foul on {player}.'
     ],
+    // ---- flow vocabulary (officiating + timeout economy) ----
+    timeout: [
+      'Timeout, {team}.',
+      'And {team} will take one — timeout on the floor.',
+      '{team} want to talk it over.'
+    ],
+    'timeout.mandatory': [
+      'That’s the mandatory — we’ll step aside.',
+      'We’ve reached the mandatory timeout.'
+    ],
+    jump_ball: [
+      'Held ball — they’ll jump it… {Player} comes away with it.',
+      'Tied up! The jump… controlled by {Player}.'
+    ],
+    'violation.kicked_ball': [
+      'Kicked ball — we’ll reset, {team} keep it.',
+      'Off the foot — kicked-ball violation.'
+    ],
+    'violation.def_goaltend': [
+      'Goaltending — the basket counts.',
+      'Too late getting there — goaltending. Count it.'
+    ],
+    review: [
+      'The officials want another look — we’ll go to the monitor.',
+      'Hold on — they’re going to review it.'
+    ],
+    'foul.technical': [
+      'Technical foul.',
+      'Whistle away from the play — that’s a technical.'
+    ],
+    'foul.take': [
+      '{player} takes the foul — no run-out.',
+      'They give the take foul to stop the break.'
+    ],
+    'turnover.travel': [
+      'Traveling — {victim} walked.',
+      'They got him for the travel.',
+      'Too many steps — that’s a travel.'
+    ],
+    'rebound.team': [
+      'Batted loose — {team} ball.',
+      'Nobody controls it — it stays with the {team}.'
+    ],
     substitution: [
       '{in} checks in for {out}.',
       '{team} substitution: {in} in for {out}.'
@@ -331,6 +374,16 @@ export const TREMAINE: VoicePack = {
     }
   ],
   pools: {
+    // ---- flow vocabulary: the analyst's stoppage moments ----
+    timeout: [
+      'Good timeout. You get organized before this becomes a wave.',
+      'That’s the right call — you never let the other bench feel three good possessions in a row.',
+      'Take the minute. Draw something up, get an easy two, and breathe.'
+    ],
+    review: [
+      'Take the extra minute — at this stage you must get the call right.',
+      'This is what the monitor is for. Get it right; nobody remembers the delay.'
+    ],
     'note.run': [
       'Now you’re looking at a {run} run. If you’re the {opp}, you must get a stop, and then you must take care of the basketball at the other end.',
       'That’s {runPts} unanswered. Somebody on the {opp} has to step up and make a play right now, okay?',
@@ -638,6 +691,43 @@ export const BOONE: VoicePack = {
     ],
     'foul.offensive': [
       'Offensive foul on {player}.'
+    ],
+    // ---- flow vocabulary (officiating + timeout economy) ----
+    timeout: [
+      'Timeout, {team} — and they need it!',
+      '{team} say stop — timeout on the floor!'
+    ],
+    'timeout.mandatory': [
+      'We’ll hit the mandatory — don’t go far!'
+    ],
+    jump_ball: [
+      'Tied UP! Jump ball — and it’s {Player} coming away with it!',
+      'Wrestled to a standstill — held ball, we’ll have a jump!'
+    ],
+    'violation.kicked_ball': [
+      'Kicked it! We reset over here.'
+    ],
+    'violation.def_goaltend': [
+      'GOALTENDING! Count it!'
+    ],
+    review: [
+      'To the monitor we go!',
+      'The officials want a look — don’t move!'
+    ],
+    'foul.technical': [
+      'And that is a TECHNICAL! Tempers are up!',
+      'Whistle — technical foul!'
+    ],
+    'foul.take': [
+      'Smart take — no free run-out tonight.'
+    ],
+    'turnover.travel': [
+      'He WALKED — and everybody saw it!',
+      'Traveling! The feet got ahead of the ball!'
+    ],
+    'rebound.team': [
+      'Scramble — {team} come up with it!',
+      'Punched loose — {team} ball!'
     ],
     substitution: [
       '{in} checks in for {out}.',

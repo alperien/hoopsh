@@ -41,6 +41,8 @@ export interface TeamSense {
   /** game-clock time of this team's last point (for drought phrasing); -1 = none yet */
   lastScoreT: number;
   foulsThisPeriod: number;
+  /** timeouts this team has been charged (coach calls + mandatory) */
+  timeoutsTaken: number;
   /** true when the OPPONENT's fouling has put this team's offense in the bonus */
   offenseInBonus: boolean;
   biggestLead: number;
@@ -92,7 +94,7 @@ function emptyLine(): PlayerLine {
 
 function emptyTeam(): TeamSense {
   return {
-    run: 0, lastScoreT: -1, foulsThisPeriod: 0, offenseInBonus: false,
+    run: 0, lastScoreT: -1, foulsThisPeriod: 0, timeoutsTaken: 0, offenseInBonus: false,
     biggestLead: 0, fastbreakPts: 0, secondChancePts: 0, paintPts: 0,
     tpm: 0, tpa: 0, tov: 0
   };
@@ -312,6 +314,16 @@ export class GameSense {
         }
         break;
       }
+      case 'timeout': {
+        this.team[e.team].timeoutsTaken += 1;
+        break;
+      }
+      case 'jump_ball':
+      case 'violation':
+      case 'replay_review':
+        // flow-vocabulary stoppages: narrated from beats.ts directly; no
+        // box-line or team-truth to fold here
+        break;
       case 'substitution': {
         for (let i = 0; i < e.out.length; i++) {
           this.onCourt[e.team].delete(e.out[i]!);

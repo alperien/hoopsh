@@ -26,6 +26,7 @@ export type BeatKind =
   | 'game_start' | 'tip' | 'period_start' | 'period_end' | 'game_end'
   | 'shot_made' | 'shot_missed' | 'shot_blocked'
   | 'free_throw' | 'rebound' | 'turnover' | 'foul' | 'substitution'
+  | 'timeout' | 'jump_ball' | 'violation' | 'review'
   | 'note';
 
 export type NoteKind = 'run' | 'milestone' | 'drought_break' | 'foul_trouble' | 'double_double' | 'clutch';
@@ -36,7 +37,11 @@ export type BeatTag =
   | 'transition' | 'kickout' | 'extra_pass' | 'second_chance'
   | 'go_ahead' | 'tie' | 'dagger' | 'late_close' | 'garbage'
   | 'hot' | 'cold' | 'drought_break' | 'milestone' | 'big_run'
-  | 'steal' | 'charge' | 'shot_clock' | 'bonus' | 'fouled_out';
+  | 'steal' | 'charge' | 'shot_clock' | 'bonus' | 'fouled_out'
+  // flow vocabulary (officiating + timeout economy, live since the flow arc)
+  | 'technical' | 'take' | 'travel' | 'team_board'
+  | 'stop_run' | 'mandatory' | 'regroup' | 'advance'
+  | 'kicked_ball' | 'def_goaltend';
 
 /** numbers frozen at beat time so templates cite the same truth the booth saw */
 export interface SenseSnapshot {
@@ -138,7 +143,12 @@ function spectacle(kind: BeatKind, e: GameEvent, tags: BeatTag[]): number {
     case 'rebound': return (e.type === 'rebound' && e.offensive) ? 0.15 : 0.06;
     case 'turnover':
       return has('steal') ? 0.3 : has('charge') ? 0.22 : has('shot_clock') ? 0.15 : 0.1;
-    case 'foul': return has('fouled_out') ? 0.35 : 0.08;
+    case 'foul': return has('fouled_out') ? 0.35 : has('technical') ? 0.3 : 0.08;
+    // a coach stopping a run is a moment; the TV break is furniture
+    case 'timeout': return has('stop_run') || has('regroup') ? 0.28 : 0.12;
+    case 'jump_ball': return 0.15;
+    case 'violation': return has('def_goaltend') ? 0.3 : 0.08;
+    case 'review': return 0.1;
     case 'note': return 0.3;
     case 'tip': return 0.15;
     case 'game_end': {
@@ -341,23 +351,41 @@ function makeBeat(
       }
       return finish('free_throw', { team: e.team, primary: e.shooter, tags });
     }
-    case 'rebound':
-      return finish('rebound', { team: e.team, primary: e.player, tags: e.offensive ? ['second_chance'] : [] });
+    case 'rebound': {
+      const tags: BeatTag[] = e.offensive ? ['second_chance'] : [];
+      // playerless boards (team caroms, dead-ball formalities) carry no
+      // actor since the flow contract made `player` optional
+      if (!e.player) tags.push('team_board');
+      return finish('rebound', { team: e.team, primary: e.player, tags });
+    }
     case 'turnover': {
       const tags: BeatTag[] =
         e.stolenBy ? ['steal'] :
         e.kind === 'off_foul' ? ['charge'] :
+        e.kind === 'travel' ? ['travel'] :
         e.kind === 'shot_clock' ? ['shot_clock'] : [];
       return finish('turnover', { team: e.team, primary: e.player, secondary: e.stolenBy, tags });
     }
     case 'foul': {
       const tags: BeatTag[] = [];
       if (e.fouledOut) tags.push('fouled_out');
+      if (e.kind === 'technical') tags.push('technical');
+      if (e.kind === 'take') tags.push('take');
       if (e.inBonus && e.kind !== 'offensive') tags.push('bonus');
       return finish('foul', { team: e.team, primary: e.on, secondary: e.drawnBy, tags });
     }
     case 'substitution':
       return finish('substitution', { team: e.team, primary: e.out[0], secondary: e.in[0] });
+    case 'timeout':
+      return finish('timeout', { team: e.team, tags: [e.reason] });
+    case 'jump_ball':
+      // primary = whoever controls the tap; team = the side that won it
+      return finish('jump_ball', { team: e.winner, primary: e.gainedBy, tags: [] });
+    case 'violation':
+      return finish('violation', { team: e.team, primary: e.player, tags: [e.kind] });
+    case 'replay_review':
+      // wallT-only stoppage; the game clock never moves during one
+      return finish('review', { tags: [] });
     case 'possession_start':
     case 'possession_end':
       return null; // pure sense food — the booth never narrates these directly
