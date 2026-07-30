@@ -31,13 +31,16 @@ import { cloneTeamWithIds, makeLeague, scaleTeam } from '../src/league.js';
 
 const LEAGUE = makeLeague(4, 'season-test');
 const SCHEDULE = roundRobin(LEAGUE.map((t) => t.id), 1); // 6 games
-// seedBase 's2' re-anchored after the scan-wave re-center: the old 'det'
-// draw came out 3-0/2-1/1-2/0-3 at the corrected params (zero winPct ties),
-// which un-exercised the diff-tiebreak tier and tripped the ranked-order
-// test's non-vacuity guard. 's2' measured: two 2-1 and two 1-2 teams, both
-// tie pairs diff-decided (probed over 16 candidate bases, 2026-07-29).
-const seasonA = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's2' });
-const seasonB = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's2' });
+// seedBase re-anchored twice, same non-vacuity mechanism both times: the
+// draw must contain winPct ties or the diff-tiebreak tier of the ranked-
+// order test goes unexercised (its guard trips loudly by design). 'det' ->
+// 's2' after the scan-wave re-center; 's2' -> 's3' after the release-audit
+// engine fixes (H-02/M-02/M-09..M-11/L-11 et al.) reshuffled the streams
+// and 's2' came out 3-0/2-1/1-2/0-3 (zero ties). 's3' measured: two 2-1
+// and two 1-2 teams, both tie pairs diff-decided (probed over 10 candidate
+// bases, 2026-07-30). Assertions unchanged.
+const seasonA = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's3' });
+const seasonB = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's3' });
 
 const BASE = cascadiaBreakers();
 const TWIN = cloneTeamWithIds(cascadiaBreakers(), 'twin');
@@ -122,7 +125,7 @@ describe('season determinism', () => {
 
   it('per-game seeds derive from base + schedule position + matchup', () => {
     expect(gameSeed('s', 3, 'h', 'a')).toBe('s:g3:a@h');
-    const tasks = buildTasks(LEAGUE, SCHEDULE, 's2'); // matches the fixture's seedBase
+    const tasks = buildTasks(LEAGUE, SCHEDULE, 's3'); // matches the fixture's seedBase
     expect(new Set(tasks.map((t) => t.seed)).size).toBe(tasks.length);
     expect(tasks.map((t) => t.seed)).toEqual(seasonA.outcomes.map((o) => o.seed));
   });
