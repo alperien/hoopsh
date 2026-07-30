@@ -134,18 +134,31 @@ describe('advanceClock (movement.ts:22-41, AGENTS.md §1.5)', () => {
   });
 });
 
-describe('applyFatigue (movement.ts:121-147)', () => {
-  it('on-court players drain, bench players recover, the fouled-out are untouched', () => {
+describe('applyFatigue (movement.ts:127-153)', () => {
+  it('on-court players drain, bench players recover; fouled-out splits by location — a floor ghost tires like anyone else, a benched ghost freezes', () => {
+    // movement.ts:130-136 (audit L-06, commit 96f76db): the skip narrowed
+    // from `fouledOut` to `fouledOut && !onCourt`. A fouled-out player still
+    // ON the floor (subs.ts replaceFouledOut's bench-exhausted play-on edge)
+    // "drains energy like anyone else" — the old blanket skip froze his
+    // energy mid-game. A fouled-out player on the BENCH can never return, so
+    // his recovery stays skipped and his energy holds (kept byte-identical
+    // for the common case).
     const worker = mkAgent({ id: 'w', side: 0, energy: 80 });
     const rester = mkAgent({ id: 'r', side: 0, energy: 50, onCourt: false });
-    const ghost = mkAgent({ id: 'g', side: 1, energy: 42, fouledOut: true });
-    const s = mkState([worker, rester, ghost]);
+    // identical spec to the worker, but fouled out and still on the floor
+    const floorGhost = mkAgent({ id: 'g', side: 1, energy: 80, fouledOut: true });
+    const benchGhost = mkAgent({ id: 'bg', side: 1, energy: 42, fouledOut: true, onCourt: false });
+    const s = mkState([worker, rester, floorGhost, benchGhost]);
     applyFatigue(s, 0.5);
     expect(worker.energy).toBeLessThan(80);
     expect(worker.energy).toBeGreaterThanOrEqual(0);
     // bench recovery is the exact documented rate, clamped into [0,100]
     expect(rester.energy).toBe(clamp(50 + P.fatigue.recoverPerSecBench * 0.5, 0, 100));
-    expect(ghost.energy).toBe(42);
+    // "like anyone else", pinned exactly: an identical body drains identically
+    expect(floorGhost.energy).toBe(worker.energy);
+    expect(floorGhost.energy).toBeLessThan(80);
+    // the benched arm stays byte-identical: recovery skipped, energy frozen
+    expect(benchGhost.energy).toBe(42);
   });
 
   it('energy clamps at both rails: an empty tank stops at 0, a full bench player holds 100', () => {

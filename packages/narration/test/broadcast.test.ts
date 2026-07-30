@@ -4,15 +4,19 @@
  * narration/provider.ts (CommentaryWindow payload, TemplateColorProvider
  * moment dispatch).
  *
- * Expectations come from the modules' own JSDoc: a window flushes at the
- * FIRST of size (windowEvents, default 24) / period_end / detected moment,
- * and the trailing buffer always flushes; at a shared timestamp the pbp cue
- * sorts before the color cue; storylines is the UNWIRED continuity channel
- * and stays [] for the whole script. TemplateColorProvider: empty window
- * yields nothing; run/milestone/clutch_start each yield one templated line;
- * lead_change/tie yield no color (pbp renders those). Cross-checked against
- * the reference implementation in examples/05-commentary-provider.ts.
- * Narration is a FROZEN prototype — these pin current behavior.
+ * Expectations come from the modules' own JSDoc (post release-audit): a
+ * window flushes at the FIRST of size (windowEvents, default 24) /
+ * period_end / detected moment, and the trailing buffer always flushes; at
+ * a shared timestamp the pbp cue sorts before the color cue; storylines is
+ * the UNWIRED continuity channel and stays [] for the whole script; the pbp
+ * layer is generated WITH pbp.ts's moment lines (audit M-37 — lead_change/
+ * tie beats ride the pbp voice, since the color provider deliberately
+ * renders none for them; includeMoments: false used to orphan them).
+ * TemplateColorProvider: empty window yields nothing; run/milestone/
+ * clutch_start each yield one templated line; lead_change/tie yield no
+ * color (pbp renders those). Cross-checked against the reference
+ * implementation in examples/05-commentary-provider.ts. Narration is the
+ * maintained template layer (audit L-33 — the frozen label was the viewer's).
  *
  * OT period labels are already covered by pbp.test.ts and are deliberately
  * not re-pinned here (findings/map.md MEDIUM-6).
@@ -191,6 +195,20 @@ describe('formatScript rendering (spec: broadcast.ts formatScript — "[label m:
     ]);
   });
 
+  it('a 2-period ruleset labels the bracket H1/H2, not Q', () => {
+    // spec: formatScript label comment — "A 2-period ruleset plays halves:
+    // the bracket uses the compact H1/H2" (audit M-39's broadcast-side
+    // sibling; regulation halves used to print "[Q2 …]").
+    const cues: BroadcastCue[] = [
+      { t: 0, period: 1, clock: 1200, speaker: 'pbp', text: 'Tip.' },
+      { t: 1900, period: 2, clock: 65, speaker: 'color', text: 'Notes.' }
+    ];
+    expect(formatScript(cues, 2).split('\n')).toEqual([
+      '[H1 20:00] PBP: Tip.',
+      '[H2 1:05] COLOR: Notes.'
+    ]);
+  });
+
   it('formats an empty cue list as the empty string', () => {
     expect(formatScript([])).toBe('');
   });
@@ -285,11 +303,27 @@ describe('buildBroadcastScript over a real game (windowing invariants at scale)'
     // continuity channel — a future wiring must update this deliberately)
     expect(received.every((w) => w.storylines.length === 0)).toBe(true);
 
-    // with no color lines, the cue list is exactly the pbp layer
+    // with no color lines, the cue list is exactly the pbp layer AS THE
+    // BUILDER GENERATES IT — WITH pbp.ts's moment lines (spec: broadcast.ts
+    // generation comment, audit M-37: "Passing includeMoments: false here
+    // used to orphan lead_change/tie entirely" — pbp's moment renderer was
+    // disabled while the color provider deferred to it)
     expect(cues.every((c) => c.speaker === 'pbp')).toBe(true);
     const pbp = generatePlayByPlay(result.events, teams, {
-      seed: 'bcast-real-1', includeMoments: false, periods: result.rules.periods
+      seed: 'bcast-real-1', periods: result.rules.periods
     });
     expect(cues.length).toBe(pbp.length);
+    // the moment beats ride along: exactly one extra pbp cue per detected
+    // moment (renderMoment renders every taxonomy kind) on top of the
+    // play-call-only layer the retired includeMoments: false call produced
+    const playCallsOnly = generatePlayByPlay(result.events, teams, {
+      seed: 'bcast-real-1', includeMoments: false, periods: result.rules.periods
+    });
+    expect(cues.length - playCallsOnly.length).toBe(all.length);
+    // and the formerly-orphaned beats are narrated: this seeded game has
+    // lead_change/tie moments, and they surface as pbp voice lines
+    // (provider.ts renders no color for them by design)
+    expect(all.some((m) => m.kind === 'lead_change' || m.kind === 'tie')).toBe(true); // vacuity floor
+    expect(cues.some((c) => c.text.endsWith('take the lead.') || c.text.startsWith("We're tied at"))).toBe(true);
   });
 });

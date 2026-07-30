@@ -13,11 +13,14 @@
  * period pairing, start/end INTERLEAVING, per-event running score, per-type
  * field completeness, personal-foul chains, and the wt/t axis promises.
  *
- * Budget: exactly TWO game sims, frames OFF (~1s). Seeds scouted 2026-07-30:
- *   evstream-1 — regulation; 1245 events, 17 blocks, 5 and-ones, 13 fouled
- *                misses, 2 charges, 18 steal-starts, 19 multi-FT trips.
- *   evstream-3 — reaches OVERTIME (period 5): 2 tip_offs, 2 'tip' possession
- *                starts, a tied Q4 period_end; 6 charges, 4 and-ones.
+ * Budget: exactly TWO game sims, frames OFF (~1s). Seeds re-scouted
+ * 2026-07-30 against the audited engine (the release-audit SimParams hoist,
+ * PR #11, reshuffled the rng streams and dropped the original evstream-3 OT
+ * seed back to regulation — exactly the failure mode predicted below):
+ *   evstream-1  — regulation; 1229 events, 9 blocks, 4 and-ones, 11 fouled
+ *                 misses, 3 charges, 18 steal-starts, 15 multi-FT trips.
+ *   evstream-19 — reaches OVERTIME (period 5): 2 tip_offs, 2 'tip' possession
+ *                 starts, a tied Q4 period_end; 3 charges, 5 and-ones.
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
@@ -34,7 +37,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-1', 'evstream-3'].map((seed) => {
+const pool: GameResult[] = ['evstream-1', 'evstream-19'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -170,12 +173,12 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
         }
       }
     }
-    // Vacuity floor: the evstream-3 OT game contributes its tied Q4 horn.
+    // Vacuity floor: the evstream-19 OT game contributes its tied Q4 horn.
     expect(tiedEndsSeen).toBeGreaterThanOrEqual(1);
   });
 
   // Existence floor for every OT-conditional assert in this file. Scouted:
-  // evstream-3 plays period 5. If an rng-sequence change reshuffles this
+  // evstream-19 plays period 5. If an rng-sequence change reshuffles this
   // seed back to regulation, re-scout a fresh OT seed (see file header).
   it('the pool reaches overtime (existence floor for the OT legs)', () => {
     const otPeriods = pool.reduce(
@@ -202,11 +205,10 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
   });
 
   // events.ts:149 — "`winner` gets the ball first." And the possession kind:
-  // possession.ts:526-535 stamps every jump-ball opener (game AND each OT)
-  // kind 'tip'. DOC CONFLICT (AGENTS §2.10 — trust the newer code comment):
-  // events.ts:170 still claims OT openers are labeled 'inbound'; the
-  // possession.ts comment identifies that old stamp as the bug it fixed.
-  // Asserting the code contract; events.ts:170 needs a docs-only fix.
+  // possession.ts endPeriod (:561-571) stamps every jump-ball opener (game
+  // AND each OT) kind 'tip', and events.ts:170 now documents exactly that
+  // for every OT period — docs and code agree since audit M-01 corrected the
+  // stale 'inbound' sentence.
   it("every tip_off hands the first possession to its winner, kind 'tip'", () => {
     for (const g of pool) {
       for (let i = 0; i < g.events.length; i++) {
@@ -226,11 +228,10 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     }
   });
 
-  // events.ts:170 doc conflict flagged above — kept visible until the stale
-  // sentence ("'tip': the GAME-opening possession ... and only that one; [OT
-  // openers are] labeled 'inbound'") is corrected to match
-  // possession.ts:526-535. Docs-only fix; the behavior is pinned above.
-  it.todo("events.ts:170 PossessionStartEvent doc still says OT openers are 'inbound' — stale vs possession.ts endPeriod (docs fix needed)");
+  // RESOLVED doc conflict (was an it.todo): events.ts:170 used to claim OT
+  // openers were labeled 'inbound' while endPeriod stamps 'tip'. Audit M-01
+  // fixed the doc — it now reads 'tip' for every OT jump ball — so nothing
+  // is left to track; the 'tip' behavior stays pinned by the test above.
 
   // events.ts:149 — "Regulation Q2/Q3 open with the ball going to the
   // game-opening tip's LOSER and Q4 to its winner — the real NBA rule
@@ -315,7 +316,7 @@ describe('possession pairing', () => {
         expect(e.team).toBe(1 - to.team);
       }
     }
-    expect(checked).toBeGreaterThanOrEqual(5); // scouted 37 across the pool
+    expect(checked).toBeGreaterThanOrEqual(5); // re-scouted 37 across the pool
   });
 });
 
@@ -399,7 +400,7 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
       }
       expect(bad).toEqual([]);
     }
-    expect(multiTrips).toBeGreaterThanOrEqual(10); // scouted 34 across the pool
+    expect(multiTrips).toBeGreaterThanOrEqual(10); // re-scouted 42 across the pool
   });
 
   // §1.5 / events.ts:109-112 — the axes genuinely diverge: stoppages occupy
@@ -590,7 +591,7 @@ describe('shot event invariants (events.ts:213-231)', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(blocked).toBeGreaterThanOrEqual(5); // scouted 27 across the pool
+    expect(blocked).toBeGreaterThanOrEqual(5); // re-scouted 23 across the pool
   });
 
   // events.ts:229-231 / :243 — contest is "0 wide open .. 1 smothered".
@@ -631,7 +632,7 @@ describe('shot event invariants (events.ts:213-231)', () => {
       }
     }
     expect(bad).toEqual([]);
-    expect(fouled).toBeGreaterThanOrEqual(5); // scouted 31 (9 and-ones)
+    expect(fouled).toBeGreaterThanOrEqual(5); // re-scouted 32 (9 and-ones)
     expect(andOnes).toBeGreaterThanOrEqual(1);
   });
 
@@ -673,8 +674,8 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(lost).toBeGreaterThanOrEqual(5); // scouted 21
-    expect(never).toBeGreaterThanOrEqual(5); // scouted 27
+    expect(lost).toBeGreaterThanOrEqual(5); // re-scouted 21
+    expect(never).toBeGreaterThanOrEqual(5); // re-scouted 21
   });
 
   // events.ts:48-50 — 'off_foul' is "always immediately followed by a `foul`
@@ -694,7 +695,7 @@ describe('turnover and foul bookkeeping', () => {
         expect(next.on).toBe(e.player);
       }
     }
-    expect(charges).toBeGreaterThanOrEqual(2); // scouted 8 across the pool
+    expect(charges).toBeGreaterThanOrEqual(2); // re-scouted 6 across the pool
   });
 
   // events.ts:329-331 — personalCount is "the fouler's running total for the
@@ -753,7 +754,7 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(offensives).toBeGreaterThanOrEqual(2); // scouted 8
+    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 6
   });
 
   // events.ts:268-270 — oneAndOne "is stamped on every attempt of such a
@@ -772,6 +773,6 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(stamped).toBe(0);
-    expect(fts).toBeGreaterThan(30); // scouted 78 across the pool
+    expect(fts).toBeGreaterThan(30); // re-scouted 95 across the pool
   });
 });

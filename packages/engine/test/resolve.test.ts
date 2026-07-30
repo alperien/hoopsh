@@ -312,23 +312,43 @@ describe('shotMakeP (resolve.ts:117-186)', () => {
   });
 });
 
-describe('zoneSkill (resolve.ts:105-115)', () => {
+describe('zoneSkill (resolve.ts:109-122)', () => {
   it('routes each zone to its own rating: rim=finishing, mid=midRange, three=three', () => {
+    // resolve.ts:109-120 — zoneSkill now takes GameState (its only caller is
+    // shotMakeP) because the paint blend reads params.shot (commit e296ae1,
+    // audit H-01); the pure-rating zones route exactly as before.
+    const s = mkState(P, []);
     const a = mkAgent({ id: 'z', side: 0, attr: { finishing: 77, midRange: 61, three: 43 } });
-    expect(zoneSkill(a, 'rim')).toBe(77);
-    expect(zoneSkill(a, 'mid')).toBe(61);
-    expect(zoneSkill(a, 'three')).toBe(43);
+    expect(zoneSkill(s, a, 'rim')).toBe(77);
+    expect(zoneSkill(s, a, 'mid')).toBe(61);
+    expect(zoneSkill(s, a, 'three')).toBe(43);
   });
 
   it('the paint blend is touch, not power: midRange dominates finishing', () => {
-    // resolve.ts:108-111 — WHY sagging off non-shooters works: a rim-runner's
-    // open 9-foot floater is a win for the defense
+    // resolve.ts:112-118 — WHY sagging off non-shooters works: a rim-runner's
+    // open 9-foot floater is a win for the defense. The blend weights were
+    // hoisted at identical values to params.shot.paintBlendFinishing/
+    // .paintBlendMidRange (commit e296ae1, audit H-01) — tagged FEEL at
+    // params.ts:877-884 and NOT registered on the harness SWEEPABLE surface
+    // (d5a8b13 added no shot.paintBlend* knob), so the documented defaults
+    // are exact-pinnable.
+    const s = mkState(P, []);
     const touch = mkAgent({ id: 't', side: 0, attr: { finishing: 0, midRange: 100 } });
     const power = mkAgent({ id: 'p', side: 0, attr: { finishing: 100, midRange: 0 } });
-    expect(zoneSkill(touch, 'paint')).toBeGreaterThan(zoneSkill(power, 'paint'));
+    // the basketball point, params-free: touch beats power in the paint
+    expect(zoneSkill(s, touch, 'paint')).toBeGreaterThan(zoneSkill(s, power, 'paint'));
+    // touch-dominance now lives on the params surface itself
+    expect(P.shot.paintBlendMidRange).toBeGreaterThan(P.shot.paintBlendFinishing);
+    // the documented FEEL defaults, pinned exactly with their new provenance
+    expect(P.shot.paintBlendFinishing).toBe(0.35);
+    expect(P.shot.paintBlendMidRange).toBe(0.65);
+    // and zoneSkill IS that params blend — wiring recomputed from the same
+    // params instance (single-attr extremes keep the float products exact)
+    expect(zoneSkill(s, touch, 'paint')).toBe(100 * P.shot.paintBlendMidRange);
+    expect(zoneSkill(s, power, 'paint')).toBe(100 * P.shot.paintBlendFinishing);
     // the blend is a weighted mean: it stays inside [0, 100]
-    expect(zoneSkill(power, 'paint')).toBeGreaterThan(0);
-    expect(zoneSkill(power, 'paint')).toBeLessThan(50);
+    expect(zoneSkill(s, power, 'paint')).toBeGreaterThan(0);
+    expect(zoneSkill(s, power, 'paint')).toBeLessThan(50);
   });
 });
 

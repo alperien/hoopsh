@@ -94,15 +94,24 @@ describe('withParams merge semantics (params.ts:1827-1859)', () => {
     expect(defaultParams).toEqual(snapshot);
   });
 
-  it.todo(
-    'DISAGREEMENT (fail-loud doctrine vs behavior): replacing an entire block with a scalar is ' +
-    'silently accepted — withParams({ shot: 5 } as never) does not throw today; it sets ' +
-    'params.shot = 5 and the game detonates far from the boundary. The value guard ' +
-    '(params.ts:1852) fires only when the BASE node is a number, so an object node accepts any ' +
-    'non-undefined scalar. params.ts:1832-1854 promises dynamic callers (sweep/solve/era packs) ' +
-    'loud failures at this boundary; a dynamically-built override of the shape {block: scalar} ' +
-    'is exactly such a typo. Observed 2026-07-30 on swarm/d2.'
-  );
+  it('replacing an entire GROUP with a non-object fails loudly, naming the group', () => {
+    // Formerly the DISAGREEMENT todo (pre-audit params.ts:1852 guard gap):
+    // withParams({ shot: 5 }) silently set params.shot = 5 and detonated far
+    // from the boundary. The release audit closed it (commit 503ab7d, audit
+    // M-17): deepMerge (params.ts:2247-2259) now requires plain-object
+    // overrides for GROUP keys — null, arrays, and scalars are rejected at
+    // the boundary with the same fail-loud doctrine as the key/value checks.
+    expect(() => withParams({ shot: 5 } as never))
+      .toThrow(/SimParams group "shot" must be a plain-object override, got number/);
+    expect(() => withParams({ shot: null } as never))
+      .toThrow(/SimParams group "shot" must be a plain-object override, got null/);
+    expect(() => withParams({ shot: [0.5] } as never))
+      .toThrow(/SimParams group "shot" must be a plain-object override, got an array/);
+    // the still-legal neighbor: an undefined GROUP means "no override"
+    expect(withParams({ shot: undefined }).shot).toEqual(snapshot.shot);
+    // and the rejected merges were validated on a discarded clone
+    expect(defaultParams).toEqual(snapshot);
+  });
 });
 
 describe('defaultParams integrity (params.ts:1847-1849)', () => {
