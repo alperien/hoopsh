@@ -432,7 +432,8 @@ export interface SimParams {
     eagerReturnPace: number;
     /** minutes-pace above which a rested targeted player is held back */
     aheadHoldPace: number;
-    /** crunch time: final period, under this many clock seconds, close game */
+    /** crunch time: final period under this many clock seconds (every OT
+     *  stoppage qualifies regardless of clock — subs.ts checkSubs), close game */
     crunchClockSec: number;
     /** crunch margin: absolute score gap at/under which crunch rotation applies */
     crunchMarginPts: number;
@@ -1490,9 +1491,10 @@ export const defaultParams: SimParams = {
     readyReliefBonus: 8,
     eagerReturnPace: 0.97,
     aheadHoldPace: 1.08,
-    // FEEL — crunch time: the final scheduled period (or OT), inside 5:00,
-    // within 10 points; coaches ride starters who can still stand (energy
-    // > 35) regardless of the normal fatigue read. Were inline in checkSubs.
+    // FEEL — crunch time: the final scheduled period inside 5:00 (or ANY
+    // point of OT — the tip stoppage included, audit H-02), within 10
+    // points; coaches ride starters who can still stand (energy > 35)
+    // regardless of the normal fatigue read. Were inline in checkSubs.
     crunchClockSec: 300,
     crunchMarginPts: 10,
     crunchEnergyMin: 35,

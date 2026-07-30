@@ -121,12 +121,20 @@ export function updateConcede(s: GameState): void {
  */
 export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
-  // crunch-time definition: final scheduled period (or OT), under 5 minutes
-  // (300s) left, and a one-possession-ish game (10 points or fewer) — this is
-  // when coaches ride their best five regardless of the clock's fatigue read
+  // crunch-time definition: final scheduled period under 5 minutes (300s)
+  // left — or ANY overtime stoppage — and a one-possession-ish game (10
+  // points or fewer): this is when coaches ride their best five regardless
+  // of the clock's fatigue read. The OT arm is load-bearing, not redundant:
+  // overtime exists because the game is close and late, and its opening
+  // stoppage arrives with clock set to exactly otMinutes*60 — a clock-only
+  // strict `<` excluded that one dead ball, so the fatigue rotation benched
+  // gassed starters at every OT tip and the first in-OT whistle pulled them
+  // straight back (audit H-02: 12/12 OT games affected, 39 players benched
+  // at exactly 300.0). It also keeps a custom pack whose otMinutes exceeds
+  // crunchClockSec/60 riding starters through the whole extra period.
   const crunch =
     s.period >= s.rules.periods &&
-    s.clock < P.crunchClockSec &&
+    (s.clock < P.crunchClockSec || s.period > s.rules.periods) &&
     Math.abs(s.score[0] - s.score[1]) <= P.crunchMarginPts;
   // GARBAGE-TIME CONCEDE, hysteresis update (once per pass, before the
   // player loop). The order is the contract: crunch clears concede

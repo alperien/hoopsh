@@ -13,6 +13,8 @@
  * off-court body.
  */
 import { describe, expect, it } from 'vitest';
+import { simulateGame } from '@hoopsh/engine';
+import { sampleMatchup } from '@hoopsh/data';
 import { swapPlayers } from '../src/sim/subs.js';
 import type { Agent, GameState } from '../src/sim/state.js';
 
@@ -75,5 +77,41 @@ describe('swapPlayers matchup hand-off (scan a5)', () => {
     // exactly one substitution event, stamped for the right team
     const subs = s.events.filter((e) => e.type === 'substitution');
     expect(subs.length).toBe(1);
+  });
+});
+
+// ------------------------------------------------------------------ audit H-02
+
+describe('crunch covers the OT tip stoppage (audit H-02)', () => {
+  it('the OT tip dead ball never benches starters — they are exactly who crunch rides', () => {
+    // endPeriod resets the clock to otMinutes*60 and immediately runs a
+    // checkSubs pass. The old crunch predicate (`clock < crunchClockSec`,
+    // strict) read that one stoppage — the only OT moment with the clock at
+    // exactly 300 — as non-crunch, so the fatigue rotation benched gassed
+    // starters at the tip of every overtime and the first in-OT whistle
+    // pulled them straight back (audit H-02: 12/12 OT games affected, 1-4
+    // starters benched per tip on these very seeds). Subs AT the tip
+    // stoppage may only flow starter-IN (the crunch return); a starter
+    // going OUT there is the bug.
+    //
+    // Seeds probed to reach OT on the current rng stream (5/5 at anchor).
+    // An rng-reordering change may reshuffle which seeds go to OT — if the
+    // vacuity floor below trips, re-scan for OT seeds and re-anchor the
+    // list; do not weaken the starter assertion.
+    let otGames = 0;
+    for (const i of [6, 26, 130, 146, 150]) {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({ seed: `otseek-${i}`, home, away, collectFrames: false });
+      if (!r.events.some((e) => e.period > r.rules.periods)) continue;
+      otGames++;
+      const starters = [new Set(home.starters), new Set(away.starters)] as const;
+      const otTipClock = r.rules.otMinutes * 60;
+      for (const e of r.events) {
+        if (e.type !== 'substitution') continue;
+        if (e.period <= r.rules.periods || e.clock !== otTipClock) continue;
+        expect(starters[e.team].has(e.out[0]!)).toBe(false);
+      }
+    }
+    expect(otGames).toBeGreaterThanOrEqual(2);
   });
 });
