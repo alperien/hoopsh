@@ -24,7 +24,9 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
     );
     if (crash) {
       a.intent = 'crash';
-      a.target = { x: rim.x + s.rng.range(-5, 5), y: rim.y + s.rng.range(-5, 5) };
+      // attack a seeded spot in the carom zone, not the rim's center
+      const j = s.params.ai.crashScatterFt;
+      a.target = { x: rim.x + s.rng.range(-j, j), y: rim.y + s.rng.range(-j, j) };
       a.sprinting = true;
     } else {
       a.intent = 'getback';
@@ -38,7 +40,7 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
   }
   for (const d of liveOnCourt(s, other(offSide))) {
     const man = d.manId ? s.agents.get(d.manId) : null;
-    if (man && dist(man.pos, rim) >= 20) {
+    if (man && dist(man.pos, rim) >= s.params.ai.defCrashPerimeterFt) {
       // guard-crash economy: a defender guarding the PERIMETER mostly holds
       // rather than sprinting into the scrum — unconditional crashing had
       // guards poaching long boards from the bigs who carved the position
@@ -55,9 +57,9 @@ export function onShotReleased(s: GameState, offSide: TeamSide): void {
       }
     }
     d.intent = 'crash';
-    d.target = man && dist(man.pos, rim) < 20
-      ? lerp(man.pos, rim, 0.45) // box out between man and rim
-      : lerp(d.pos, rim, 0.5);
+    d.target = man && dist(man.pos, rim) < s.params.ai.defCrashPerimeterFt
+      ? lerp(man.pos, rim, s.params.ai.boxoutManShare) // box out between man and rim
+      : lerp(d.pos, rim, s.params.ai.boxoutSelfShare);
   }
 }
 

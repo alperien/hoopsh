@@ -642,6 +642,16 @@ export interface SimParams {
 
     // crash thresholds
     crashNearFt: number;         // offensive player must be within this to be eligible to crash
+    /** crash-target scatter half-width, ft: crashers attack a seeded spot
+     *  around the rim, not the rim's center */
+    crashScatterFt: number;
+    /** the guard-crash economy's perimeter line, ft from the rim: a defender
+     *  whose man is at/beyond it mostly holds instead of crashing */
+    defCrashPerimeterFt: number;
+    /** box-out positioning: share of the way from MAN toward rim (sealing),
+     *  and from SELF toward rim when there is no near man to seal */
+    boxoutManShare: number;
+    boxoutSelfShare: number;
     // pick-and-roll roll timing (in cut machinery)
     pnrRollCutSec: number;       // how long the screener's cut grant lasts after the screen sets
     // post mechanics
@@ -1669,6 +1679,23 @@ export const defaultParams: SimParams = {
     // Crash eligibility: offensive player must be within crashNearFt of the rim
     // to be considered for a crash. Approximately the paint edge. FEEL.
     crashNearFt: 22,            // FEEL — max crash-eligible distance from rim, ft
+    // FEEL — crashers attack a seeded spot within ±5 ft of the rim, not the
+    // rim's center: the scatter spreads offensive rebounders across the
+    // carom zone (two rng draws per crasher, x and y). Was inline in
+    // ai/offense.ts onShotReleased (audit H-01).
+    crashScatterFt: 5,
+    // FEEL — the guard-crash economy's perimeter line (was inline in
+    // ai/offense.ts, twice; audit H-01): a defender whose man stands 20+ ft
+    // out mostly holds rather than sprinting into the scrum — unconditional
+    // crashing had guards poaching long boards from the bigs who carved out
+    // the position (hub benchmark ~2 boards short).
+    defCrashPerimeterFt: 20,
+    // FEEL — box-out positioning (were inline in ai/offense.ts; audit H-01):
+    // seal 45% of the way from your man toward the rim (body between man and
+    // ball); with no near man to seal, work halfway from where you stand
+    // toward the rim.
+    boxoutManShare: 0.45,
+    boxoutSelfShare: 0.5,
     // PnR roll timing: after the screen sets, the screener becomes a cutter
     // for this many seconds. Reuses cut machinery so the pocket pass emerges
     // without special-casing it. FEEL.
