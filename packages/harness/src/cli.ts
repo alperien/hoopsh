@@ -40,7 +40,7 @@
  */
 
 import { accumulate, emptyAcc, finalize, evaluate, formatReport } from './aggregate.js';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 import { resolveLeague } from './leagues.js';
 import { resolveWorkerCount, runGames } from './parallel.js';
 
@@ -70,6 +70,9 @@ import { resolveWorkerCount, runGames } from './parallel.js';
 const RATCHET_FLOOR = 16;
 const GATE_MIN_GAMES = 24;
 
+// declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
+// silently grading the defaults (args.ts checkFlags, audit H-03)
+checkFlags(process.argv, ['--games', '--seed', '--league', '--workers', '--endgame', '--no-endgame', '--min-bands']);
 const games = flagNumber(process.argv, '--games', 50);
 // Red-team MINOR-4 (docs/history/redteam-wave2.md; docs/REGISTER.md W13): `--games 0` used
 // to print an all-FAIL report of zeros and exit 0 (the gate below is

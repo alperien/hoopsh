@@ -26,13 +26,15 @@ import {
   postAnchor, rimRunner, scoringWing, stretchBig, threeAndD
 } from '@hoopsh/data';
 import { accumulate, emptyAcc, evaluate, finalize, formatReport } from './aggregate.js';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 import { NBA_BANDS } from './bands.js';
 
 // args.ts's loud parsers, not a local bare argOf: `oos --games` (value
 // forgotten) used to become NaN, run ZERO games, and print an all-NaN
 // distribution report with exit 0 — the exact incident class args.ts exists
-// to prevent (scan finding b4-8)
+// to prevent (scan finding b4-8). checkFlags rejects typo'd / `=`-spelled /
+// repeated flags the same way (audit H-03).
+checkFlags(process.argv, ['--teams', '--games', '--jitter', '--seed']);
 const TEAMS = flagNumber(process.argv, '--teams', 12);
 const GAMES = flagNumber(process.argv, '--games', 60);
 const JITTER = flagNumber(process.argv, '--jitter', 8);

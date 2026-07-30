@@ -102,8 +102,9 @@ incorrectly start with a clean foul slate — OTs are exactly where real
 college games live at the FT line. Also note the NBA's own OT bonus threshold
 differs (not this pack's problem, but the reset code is league-blind).
 
-**R5 — Missing-rule inventory (engine models none of these; list for the
-league-expansion milestone, not necessarily to build):**
+**R5 — Missing-rule inventory (engine models none of these beyond the flat
+timeout budget noted below; list for the league-expansion milestone, not
+necessarily to build):**
 
 - 10-second backcourt count (NBA: 8 seconds). Engine models no backcourt count.
 - Closely-guarded 5-second count **while holding** (men's; the dribbling
@@ -114,7 +115,12 @@ league-expansion milestone, not necessarily to build):**
   already "NCAA-legal" here — the gap is that its defensive AI never *uses*
   the freedom (see §4 zone).
 - Timeouts: men get three 60s + two 30s (non-media games); one 60s + three
-  30s in media-timeout games. Engine models no timeouts.
+  30s in media-timeout games. The engine now models a flat per-game timeout
+  budget (`timeoutsPerGame`, NCAA pack = 4) spent by the endgame layer
+  (stop-run + advance-the-ball usage); the 60s/30s class structure and
+  media-timeout variants remain unmodeled, and the NBA-style
+  advance-the-ball timeout is currently granted to NCAA men, who have no
+  such rule (release-audit M-11, engine-side).
 - Restricted arc is 4 ft in both leagues (NCAA men moved to 4 ft; diagram
   marks it MEN ONLY). Engine's charge model (`foul.chargePerDrive`) has no
   spatial component; fine at current fidelity.

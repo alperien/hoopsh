@@ -97,6 +97,17 @@ export function slugify(name) {
  * something to hand the user.
  */
 export function buildRoster({ name, abbrev, id, slots, tactics }) {
+  // Author-controlled identity fields fail HERE, naming the author's own
+  // input — an empty --abbrev used to surface as "scaffold bug — generated
+  // pack failed validation", blaming this file for the author's flag
+  // (release-audit L-59). The scaffold-bug throw below keeps meaning what it
+  // says: OUR generated numbers failed validation.
+  if (typeof name !== 'string' || name.trim() === '') {
+    throw new Error('team name must be non-empty — pass --name "Full Name", or drop the flag for the default');
+  }
+  if (typeof abbrev !== 'string' || abbrev.trim() === '') {
+    throw new Error('abbrev must be a non-empty scoreboard tag — pass --abbrev XYZ, or drop the flag to derive it from the name');
+  }
   const teamId = id ?? slugify(name);
   const seen = new Map(); // archetype label -> count, for "Bench Big 2" disambiguation
   const players = slots.map((slug, i) => {
@@ -155,6 +166,34 @@ function printCatalog() {
     console.log(`  ${''.padEnd(13)} best: ${r.top}`);
   }
   console.log(`\npick per-slot with --slots a,b,c,... (first ${STARTERS_COUNT} are the starters)`);
+}
+
+// The full flag table, used by the loud argv check below: value flags consume
+// the NEXT token; booleans stand alone.
+const VALUE_FLAGS = ['--name', '--abbrev', '--id', '--size', '--slots', '--pace', '--three-bias', '--help-aggr', '--out'];
+const BOOL_FLAGS = ['--force', '--yes', '--interactive', '--list', '--help'];
+
+/**
+ * Reject unknown flags, =-joined values, and stray positionals up front —
+ * the loud policy of packages/harness/src/args.ts applied to the whole argv,
+ * not just to flags this run happens to read: a typo'd `--sixe 12` used to
+ * scaffold silently with the DEFAULT size and exit 0 (release-audit L-58).
+ * Values themselves are still validated by tools/args.mjs's flagValue.
+ */
+function checkArgv(argv) {
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith('-')) {
+      throw new Error(`unexpected positional "${a}" — roster:new takes flags only (--help lists them)`);
+    }
+    if (VALUE_FLAGS.includes(a)) { i++; continue; } // next token is the value
+    if (BOOL_FLAGS.includes(a)) continue;
+    const bare = a.includes('=') ? a.slice(0, a.indexOf('=')) : a;
+    if (VALUE_FLAGS.includes(bare)) {
+      throw new Error(`${bare} takes its value as the next argument — write "${bare} ${a.slice(a.indexOf('=') + 1)}", not "${a}"`);
+    }
+    throw new Error(`unknown flag "${a}" — known: ${[...VALUE_FLAGS, ...BOOL_FLAGS].join(' ')}`);
+  }
 }
 
 const HELP = `roster:new — scaffold a valid hoopsh team pack from archetypes
@@ -280,6 +319,7 @@ async function main() {
   // out-of-range tactic) exits 2 with the message and no stack trace —
   // stacks are for scaffold bugs, not typos
   try {
+    checkArgv(process.argv.slice(2));
     if (process.argv.includes('--interactive') || (!hasFlags && process.stdin.isTTY)) {
       opts = await interactive();
     } else {

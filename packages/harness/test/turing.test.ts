@@ -78,4 +78,20 @@ describe('turing dry renderer: bbref shot grammar', () => {
     const player = { type: 'rebound', team: 0, player: 'sh', offensive: true, x: 5, y: 25, ...base } as GameEvent;
     expect(renderEvent(player, name)).toBe('Offensive rebound by A. Carver');
   });
+
+  it('a fouled miss prints NO miss line — the foul + FT rows are the play (release-audit H-07)', () => {
+    // 0 of 3,876 corpus shooting fouls carry a miss line; the sim printed
+    // 5.65/game, a deterministic tell. The paired foul event still renders.
+    expect(renderEvent(
+      shot({ made: false, points: 0, foul: { by: 'p2', ftAwarded: 2, andOne: false } }), name, grounded
+    )).toBe(null);
+    // blocked AND fouled stays suppressed too — no line variant survives
+    expect(renderEvent(
+      shot({ made: false, points: 0, blockedBy: 'p2', foul: { by: 'p2', ftAwarded: 2, andOne: false } }), name, grounded
+    )).toBe(null);
+    // made and-one keeps its make line (bbref prints make + foul there)
+    expect(renderEvent(
+      shot({ distFt: 1.8, foul: { by: 'p2', ftAwarded: 1, andOne: true } }), name, grounded
+    )).toBe('A. Carver makes 2-pt layup from 2 ft');
+  });
 });

@@ -35,9 +35,16 @@ import {
   scoringWing, threeAndD
 } from '@hoopsh/data';
 import { runBenchmark, type AggLine } from './fidelity.js';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 // -------------------------------------------------------------------- args
+
+// The complete flag vocabulary, in one place so the has/flag/num readers and
+// the checkFlags rejection below can't drift apart (args.ts, audit H-03).
+const KNOWN_FLAGS = [
+  '--pos', '--pts', '--ast', '--trb', '--tpa', '--tppct', '--ftpct',
+  '--height', '--weight', '--iters', '--cands', '--games', '--name'
+];
 
 // Optional flags (absent = undefined), but a PRESENT flag parses through
 // args.ts's loud validators — a dangling `--pts` or `--pts abc` used to
@@ -177,8 +184,11 @@ function hostTeam(star: Player): Team {
   };
 }
 
-function evaluate(p: Player, games: number): { score: number; line: Achieved } {
-  const agg = runBenchmark(hostTeam(p), p.id, games);
+// `seedBase` defaults to runBenchmark's 'fid' so every TRAINING evaluation
+// replays identical game seeds (common random numbers — candidates compare
+// fairly); the final verify passes its own base to get a held-out slate.
+function evaluate(p: Player, games: number, seedBase = 'fid'): { score: number; line: Achieved } {
+  const agg = runBenchmark(hostTeam(p), p.id, games, seedBase);
   const line = lineOf(agg);
   return { score: scoreLine(line), line };
 }
@@ -221,6 +231,9 @@ const fmtA = (a: Achieved) =>
 // FORK hostTeam precisely because importing this file used to execute its
 // script body. Running `npm run solve` is unchanged.
 if (import.meta.main) {
+  // unknown / `=`-spelled / repeated flags die before any simulation — a
+  // typo'd target flag used to silently vanish from the objective (H-03)
+  checkFlags(process.argv, KNOWN_FLAGS);
   // an empty objective is a no-op, not a solve: without this, a bare
   // `npm run solve` reported err 0.00 "convergence" on nothing and printed an
   // unoptimized profile as a success (independent-review finding)
@@ -228,6 +241,16 @@ if (import.meta.main) {
     console.error('solve: no targets given — pass at least one of --pts --ast --trb --tpa --tppct --ftpct');
     console.error('example: npm run solve -- --pos PG --pts 27 --ast 7 --trb 5 --tpa 9 --tppct 0.39');
     process.exit(1);
+  }
+  // Percentages are fractions (audit L-43): `--tppct 39` used to reach the
+  // 3P% logit inversion as log(39/(1-39)) = NaN, round to a NaN rating, and
+  // crash far downstream with the ROSTER blamed. Reject percent form here,
+  // where the mistake was made.
+  for (const [name, v] of [['--tppct', targets.tpPct], ['--ftpct', targets.ftPct]] as const) {
+    if (v !== undefined && (v <= 0 || v >= 1)) {
+      console.error(`solve: ${name} is a fraction in (0, 1) — write ${name} 0.39, not ${name} ${v}`);
+      process.exit(1);
+    }
   }
 
   const rng = new Rng('inverse-solver');
@@ -249,8 +272,14 @@ if (import.meta.main) {
     step = Math.max(4, step * 0.85);
   }
 
-  const final = evaluate(best, Math.max(20, GAMES * 2));
-  console.log(`\nverify (${Math.max(20, GAMES * 2)} games)  err ${final.score.toFixed(2)}   ${fmtA(final.line)}`);
+  // HELD-OUT verify (audit M-26): runBenchmark seeds games from i=0, so a
+  // verify on the training base replayed every training game inside the
+  // "verification" slate and understated acceptance error ~22%. A distinct
+  // seed base gives entirely fresh games; the fitter's refineFit uses the
+  // same `-verify` convention.
+  const VERIFY_GAMES = Math.max(20, GAMES * 2);
+  const final = evaluate(best, VERIFY_GAMES, 'fid-verify');
+  console.log(`\nverify (${VERIFY_GAMES} games, held-out seeds)  err ${final.score.toFixed(2)}   ${fmtA(final.line)}`);
   console.log('targets              ' + Object.entries(targets).filter(([, v]) => v !== undefined)
     .map(([k, v]) => `${k} ${v}`).join('  '));
   console.log('\n— solved profile (roster-ready JSON) —');

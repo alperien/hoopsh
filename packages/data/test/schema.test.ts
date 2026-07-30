@@ -106,4 +106,31 @@ describe('data pack schema', () => {
     expect(issues.some((i) => i.path === '$.team.players[1].wingspanIn')).toBe(true);
     expect(issues.some((i) => i.path === '$.team.rotationMinutes.brk-mercer')).toBe(true);
   });
+
+  it('rejects player ids that collide with Object.prototype keys (audit M-13)', () => {
+    // ids key plain JSON objects downstream (rotationMinutes): an inherited
+    // read of "constructor"/"toString"/"__proto__" returns a FUNCTION, not
+    // undefined — the engine incident this pins was a "constructor" player
+    // whose minutes-pace went NaN and who was silently never substituted.
+    for (const evil of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+      const bad = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
+        team: { players: { id: string }[] };
+      };
+      bad.team.players[6]!.id = evil;
+      const issues = validateTeamPack(bad);
+      expect(issues.some((i) =>
+        i.path === '$.team.players[6].id' && i.message.includes('Object.prototype'))).toBe(true);
+    }
+    // ordinary ids stay accepted (the check must not over-reach)
+    expect(validateTeamPack(JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))))).toEqual([]);
+  });
+
+  it('a rotationMinutes target of exactly 0 stays valid: it is the documented DNP scratch (audit M-14)', () => {
+    const pack = JSON.parse(JSON.stringify(toTeamPack(cascadiaBreakers()))) as {
+      team: { players: { id: string }[]; rotationMinutes?: Record<string, number> };
+    };
+    const benchId = pack.team.players[7]!.id;
+    pack.team.rotationMinutes = { [benchId]: 0 };
+    expect(validateTeamPack(pack)).toEqual([]);
+  });
 });

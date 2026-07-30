@@ -58,15 +58,50 @@ export function swapPlayers(s: GameState, side: TeamSide, out: Agent, into: Agen
  * free-throw shooter mid-sequence) — skipped entirely by this pass.
  */
 /**
+ * Own-property read of a coach's minutes target (Team.rotationMinutes).
+ * rotationMinutes is a plain JSON object keyed by player id, and a roster id
+ * that collides with an Object.prototype key ("constructor", "toString", …)
+ * made the bare index read return the INHERITED FUNCTION instead of
+ * undefined — the NaN pace that followed poisoned the leash clamp and that
+ * player was simply never substituted, with strict validation green (audit
+ * M-13; the data-pack validator now also rejects such ids at load time, but
+ * the engine boundary accepts raw Team objects from any caller).
+ */
+function rotationTarget(s: GameState, teamIdx: TeamSide, id: string): number | undefined {
+  const rot = s.teams[teamIdx].rotationMinutes;
+  if (rot === undefined || !Object.prototype.hasOwnProperty.call(rot, id)) return undefined;
+  return rot[id];
+}
+
+/** an explicit rotationMinutes target of 0 is a DNP scratch — see minutesPace */
+function isScratched(s: GameState, teamIdx: TeamSide, id: string): boolean {
+  return rotationTarget(s, teamIdx, id) === 0;
+}
+
+/**
  * Minutes pace vs a coach's target (Team.rotationMinutes): <1 behind, >1
  * ahead, null when the player has no target or the game just started.
  * Consumed by checkSubs on BOTH sides of the rotation — the pull leash and
  * the eager return — so a targeted star both stays out longer and comes back
  * sooner.
+ *
+ * A target of 0 is an explicit DNP SCRATCH — the controller's own limit
+ * semantics: any second played against a 0 target is infinitely ahead of
+ * pace, so the pace reads Infinity (held back by the aheadHoldPace filter
+ * forever; pulled at the full leash if somehow on court). The old
+ * Math.max(1, …) division floor inverted exactly the not-yet-played case —
+ * 0 seconds / floor 1 read pace 0, "maximally behind", and the scratch
+ * jumped the entire bench queue as the TOP-priority eager return (audit
+ * M-14). The concede fill and the fouled-out replacement below honor the
+ * scratch explicitly (isScratched): a healthy scratch is not in uniform,
+ * so he does not mop up garbage time and cannot be an emergency body —
+ * bench-exhausted games play on shorthanded, the same play-on rule as a
+ * fully fouled-out bench.
  */
 function minutesPace(s: GameState, teamIdx: TeamSide, a: Agent): number | null {
-  const target = s.teams[teamIdx].rotationMinutes?.[a.p.id];
+  const target = rotationTarget(s, teamIdx, a.p.id);
   if (target === undefined) return null;
+  if (target === 0) return Infinity; // DNP scratch: permanently ahead of pace
   const gameSec = s.rules.periods * s.rules.periodMinutes * 60;
   const elapsed = Math.min(1, s.t / gameSec);
   if (elapsed <= 0.02) return null;
@@ -121,12 +156,20 @@ export function updateConcede(s: GameState): void {
  */
 export function checkSubs(s: GameState, protect?: string): void {
   const P = s.params.sub;
-  // crunch-time definition: final scheduled period (or OT), under 5 minutes
-  // (300s) left, and a one-possession-ish game (10 points or fewer) — this is
-  // when coaches ride their best five regardless of the clock's fatigue read
+  // crunch-time definition: final scheduled period under 5 minutes (300s)
+  // left — or ANY overtime stoppage — and a one-possession-ish game (10
+  // points or fewer): this is when coaches ride their best five regardless
+  // of the clock's fatigue read. The OT arm is load-bearing, not redundant:
+  // overtime exists because the game is close and late, and its opening
+  // stoppage arrives with clock set to exactly otMinutes*60 — a clock-only
+  // strict `<` excluded that one dead ball, so the fatigue rotation benched
+  // gassed starters at every OT tip and the first in-OT whistle pulled them
+  // straight back (audit H-02: 12/12 OT games affected, 39 players benched
+  // at exactly 300.0). It also keeps a custom pack whose otMinutes exceeds
+  // crunchClockSec/60 riding starters through the whole extra period.
   const crunch =
     s.period >= s.rules.periods &&
-    s.clock < P.crunchClockSec &&
+    (s.clock < P.crunchClockSec || s.period > s.rules.periods) &&
     Math.abs(s.score[0] - s.score[1]) <= P.crunchMarginPts;
   // GARBAGE-TIME CONCEDE, hysteresis update (once per pass, before the
   // player loop). The order is the contract: crunch clears concede
@@ -152,7 +195,11 @@ export function checkSubs(s: GameState, protect?: string): void {
         if (!starters.has(id)) {
           const starter = team.starters
             .map((sid) => agent(s, sid))
-            .find((x) => !x.onCourt && !x.fouledOut && x.energy > P.crunchEnergyMin);
+            .find((x) =>
+              !x.onCourt && !x.fouledOut && x.energy > P.crunchEnergyMin &&
+              // a scratched starter is contradictory input, but the scratch
+              // contract is total: 0-target players are never auto-inserted
+              !isScratched(s, side, x.p.id));
           if (starter) swapPlayers(s, side, a, starter);
         }
         continue;
@@ -170,6 +217,9 @@ export function checkSubs(s: GameState, protect?: string): void {
             .map((p) => agent(s, p.id))
             .filter((b) =>
               !b.onCourt && !b.fouledOut && !starters.has(b.p.id) &&
+              // a DNP scratch (rotationMinutes 0) is not in uniform — even
+              // garbage time doesn't activate him (see minutesPace)
+              !isScratched(s, side, b.p.id) &&
               b.energy > P.concedeEnergyMin);
           if (bench.length > 0) {
             // same-position preference, then most-rested (the same
@@ -244,7 +294,10 @@ export function replaceFouledOut(s: GameState, out: Agent): void {
   const side = out.side;
   const bench = s.teams[side].players
     .map((p) => agent(s, p.id))
-    .filter((a) => !a.onCourt && !a.fouledOut);
+    // a DNP scratch (rotationMinutes 0, see minutesPace) is not in uniform:
+    // he cannot be the emergency body either — a team that scratched its
+    // whole bench plays on shorthanded, same as a fully fouled-out bench
+    .filter((a) => !a.onCourt && !a.fouledOut && !isScratched(s, side, a.p.id));
   if (bench.length === 0) return; // nobody left — play on (edge case)
   // same-position preference first (see the identical trick in checkSubs),
   // then most-rested — a foul-out replacement isn't fatigue-triggered, so

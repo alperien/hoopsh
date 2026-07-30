@@ -123,6 +123,23 @@ function validatePlayer(p: unknown, path: string, issues: ValidationIssue[]): vo
   }
   const pl = p as Partial<Player>;
   if (!pl.id || typeof pl.id !== 'string') issues.push({ path: `${path}.id`, message: 'missing id' });
+  // Player ids become PLAIN-OBJECT KEYS downstream: Team.rotationMinutes is
+  // { playerId: minutes }, and tooling builds similar id-keyed tables. An id
+  // that collides with an Object.prototype member ("constructor",
+  // "toString", "__proto__", …) makes a bare indexed read on such an object
+  // return the INHERITED value instead of undefined — engine incident: a
+  // "constructor"-named player read Object's constructor FUNCTION as his
+  // minutes target, the pace math went NaN, and he was silently never
+  // substituted, with strict validation green (audit M-13; the engine-side
+  // read is now hasOwnProperty-guarded, but an id like this remains a
+  // landmine for every consumer). Same silent-corruption class this
+  // validator exists to reject.
+  else if (pl.id in Object.prototype) {
+    issues.push({
+      path: `${path}.id`,
+      message: `id "${pl.id}" collides with an Object.prototype key — ids are used as plain-object keys, pick another id`
+    });
+  }
   if (!pl.name || typeof pl.name !== 'string') issues.push({ path: `${path}.name`, message: 'missing name' });
   // weightLb is not cosmetic: defense.ts matchup-sorting reads it every game
   // and simulateGame() hard-throws on a non-finite body measurement — a pack
@@ -296,7 +313,10 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
   // nothing like what the pack says, the exact failure mode this validator
   // exists to prevent). Keys pointing at ids not on the roster are ignored
   // harmlessly by the engine, so those are a roster-validate warning rather
-  // than a rejection here.
+  // than a rejection here. A target of EXACTLY 0 is legal and means a DNP
+  // scratch: the engine never auto-inserts that player (sim/subs.ts
+  // minutesPace — audit M-14 defined this; before, a 0 target inverted into
+  // the TOP-priority substitute).
   if (team.rotationMinutes !== undefined) {
     const rot = team.rotationMinutes as Record<string, unknown>;
     if (typeof rot !== 'object' || rot === null || Array.isArray(rot)) {

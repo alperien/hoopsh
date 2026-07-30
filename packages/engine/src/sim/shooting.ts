@@ -187,7 +187,12 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
     endPossession(s, 'made_fg');
     if (periodOver) { endPeriod(s); return; }
     const lastTwoMin = s.period >= s.rules.periods && s.clock <= 120;
-    deadBall(s, other(shot.side), { clockRuns: !lastTwoMin, resumeIn: 2.2 });
+    deadBall(s, other(shot.side), {
+      clockRuns: !lastTwoMin,
+      // made-basket inbound time (move.madeBasketResumeSec) — the clock
+      // runs through it outside the final two minutes
+      resumeIn: s.params.move.madeBasketResumeSec
+    });
     return;
   }
 
@@ -199,11 +204,18 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
   if (periodOver) { endPeriod(s); return; }
 
   const rim = attackedRim(s, shot.side);
+  // a blocked shot's carom starts partway back toward the rim and sprays in
+  // the vicinity (reb.blockCaromShare/blockScatterFt); a clean miss lands
+  // per the distance-shaped landing model
+  const R = s.params.reb;
   const origin = blockedBy
-    ? lerp({ x: shot.x, y: shot.y }, rim, 0.35)
+    ? lerp({ x: shot.x, y: shot.y }, rim, R.blockCaromShare)
     : rim;
   const landAt = blockedBy
-    ? { x: origin.x + s.rng.range(-6, 6), y: origin.y + s.rng.range(-6, 6) }
+    ? {
+        x: origin.x + s.rng.range(-R.blockScatterFt, R.blockScatterFt),
+        y: origin.y + s.rng.range(-R.blockScatterFt, R.blockScatterFt)
+      }
     : sampleMissLanding(s, rim, shot.distFt);
   s.ball.flight = null;
   s.ball.holderId = null;
@@ -211,7 +223,7 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
   enterScramble(
     s,
     clampRect(landAt, s.court.length, s.court.width, 1.5),
-    s.rng.range(0.5, 0.95),
+    s.rng.range(R.scrambleResolveLoSec, R.scrambleResolveHiSec),
     shot.side
   );
 }

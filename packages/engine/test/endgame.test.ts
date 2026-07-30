@@ -24,9 +24,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { simulateGame, type GameEvent, type GameResult, type TimeoutEvent } from '@hoopsh/engine';
+import {
+  NBA, NCAA, defaultParams, simulateGame,
+  type GameEvent, type GameResult, type RulePack, type TimeoutEvent
+} from '@hoopsh/engine';
 import { boxScore } from '@hoopsh/stats';
 import { sampleMatchup } from '@hoopsh/data';
+import { foulHuntSide, maybeTimeout } from '../src/sim/endgame.js';
+import type { GameState } from '../src/sim/state.js';
 
 // 16, not 8: the FT-parade assertion below keys on games that are still
 // within 12 at the 1:00 mark, and only ~half of any pool qualifies. At 8
@@ -114,24 +119,32 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
       expect(used[0]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
       expect(used[1]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
     }
-    // probed: ~1.5-2/game across this pool — assert well under that
-    expect(total).toBeGreaterThanOrEqual(3);
+    // measured on this exact pool at the audit-shield wave: 35 total
+    // (2.2/game, per-game spread 0-9; the audit's independent re-measure
+    // band was 24-32). The old floor of 3 was so far under measurement
+    // that a 90% collapse of the timeout brain still passed (audit
+    // Section 5 weak-test list) — 12 trips a ~50% regression from the
+    // measured band's low end while sitting ~2.5 sd under the mean, so an
+    // rng reshuffle that merely redistributes close finishes survives.
+    expect(total).toBeGreaterThanOrEqual(12);
   });
 
-  it('the advance timeout belongs to the TRAILING team — never the leader', () => {
-    // maybeTimeout's advance trigger requires the caller's margin < 0: the
-    // point of burning a timeout to advance the ball is that the TRAILING
-    // team buys its chase possession a frontcourt start. A sign flip hands
-    // the mechanic to the winning team and every budget/countdown assertion
-    // above stays green (mutation probe) — so pin the side here. Timeout
-    // events don't move the score, so the stamped margin IS the margin
-    // maybeTimeout decided on.
+  it('the advance timeout belongs to a TRAILING or TIED team — never the leader', () => {
+    // maybeTimeout's advance trigger requires the caller's margin <= 0: the
+    // point of burning a timeout to advance the ball is that the side that
+    // NEEDS the last shot buys its possession a frontcourt start — trailing,
+    // or tied and playing for the win (the strictly-trailing version of this
+    // pin was corrected with audit M-10: a tied team could call no timeout
+    // at all inside the window). A sign flip hands the mechanic to the
+    // winning team and every budget/countdown assertion above stays green
+    // (mutation probe) — so pin the side here. Timeout events don't move the
+    // score, so the stamped margin IS the margin maybeTimeout decided on.
     let advances = 0;
     for (const r of on) {
       for (const to of timeouts(r)) {
         if (to.reason !== 'advance') continue;
         advances++;
-        expect(marginFor(to, to.team)).toBeLessThan(0);
+        expect(marginFor(to, to.team)).toBeLessThanOrEqual(0);
       }
     }
     // existence floor so the loop above can never pass vacuously — probed:
@@ -253,6 +266,117 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
       }
     }
     expect(early / GAMES).toBeGreaterThanOrEqual(1.2);
+  });
+});
+
+// -------------------------------------------- gate unit pins (M-09/M-10/M-11)
+
+/**
+ * Hand-built minimal states, the concede.test.ts pattern. foulHuntSide reads
+ * exactly: endgame, period, rules, poss.team/shotClock, score, clock,
+ * params.endgame. maybeTimeout additionally reads phase, timeoutsLeft,
+ * runPts, and emits (t/wallT/events for the stamp).
+ */
+function egState(o: {
+  rules?: RulePack;
+  clock: number;
+  score: [number, number];
+  shotClock?: number;
+  possTeam?: 0 | 1;
+  runPts?: [number, number];
+  continuation?: boolean;
+}): GameState {
+  return {
+    endgame: true,
+    params: defaultParams,
+    rules: o.rules ?? NBA,
+    period: (o.rules ?? NBA).periods,
+    clock: o.clock,
+    score: o.score,
+    poss: { team: o.possTeam ?? 0, shotClock: o.shotClock ?? 20 },
+    phase: {
+      kind: 'dead', resumeIn: 1.2, clockRuns: false,
+      nextTeam: 0, possKind: 'inbound',
+      ...(o.continuation ? { continuation: true } : {})
+    },
+    timeoutsLeft: [7, 7],
+    runPts: o.runPts ?? [0, 0],
+    t: 2850,
+    wallT: 4000,
+    events: []
+  } as unknown as GameState;
+}
+
+describe('foulHuntSide dies with the chase (audit M-09)', () => {
+  it('hunts a live deficit: down 6, 0:30 — inside the window, chase alive', () => {
+    // offense (side 0) leads by 6; the trailing defense (side 1) hunts.
+    // aliveness: (30/12 + 1) × 1.6 + 6 − 6 = 5.6 > 0 — fully alive.
+    const s = egState({ clock: 30, score: [80, 74] });
+    expect(foulHuntSide(s)).toBe(1);
+  });
+
+  it('never hunts a DEAD deficit inside the flat ceiling: down 12, 0:20', () => {
+    // deficit 12 sits inside foulMaxDeficit (12) and the clock window
+    // (min(35, 4×24)), so the flat gates alone would hunt — but
+    // chaseAliveness reads (20/12 + 1) × 1.6 + 6 − 12 = −1.7 ⇒ 0: the game
+    // is decided and the parade must not happen (audit M-09: 87 hunted
+    // fouls in dead games vs 6 flag-off). Red on the pre-fix gate.
+    const s = egState({ clock: 20, score: [92, 80] });
+    expect(foulHuntSide(s)).toBe(null);
+  });
+});
+
+describe('the timeout brain at the gate level (audits M-10/M-11)', () => {
+  it('a TIED team inside the advance window calls the advance timeout (M-10)', () => {
+    // tied at 0:30 of Q4, fresh inbound: the classic advance-for-the-win.
+    // Pre-fix this state could call NO timeout at all — advance required
+    // strictly trailing, and stop_run was suppressed inside the window for
+    // any non-leader. Red on the old gate composition.
+    const s = egState({ clock: 30, score: [90, 90] });
+    maybeTimeout(s);
+    const tos = s.events.filter((e): e is TimeoutEvent => e.type === 'timeout');
+    expect(tos.length).toBe(1);
+    expect(tos[0]!.reason).toBe('advance');
+    // the mechanical payoff is staged on the phase for setupDeadTargets
+    expect((s.phase as { advanceInbound?: boolean }).advanceInbound).toBe(true);
+    expect(s.timeoutsLeft[0]).toBe(6);
+  });
+
+  it('a LEADING team still never advances — it regroups on a run instead', () => {
+    const lead = egState({ clock: 30, score: [95, 90] });
+    maybeTimeout(lead);
+    expect(lead.events.length).toBe(0); // no run, nothing to call
+    const run = egState({ clock: 30, score: [95, 90], runPts: [0, 10] });
+    maybeTimeout(run);
+    const tos = run.events.filter((e): e is TimeoutEvent => e.type === 'timeout');
+    expect(tos.length).toBe(1);
+    expect(tos[0]!.reason).toBe('stop_run');
+  });
+
+  it('NCAA has no advance-the-ball timeout: the RulePack field gates it (M-11)', () => {
+    // same tied-at-0:30 state under NCAA rules: no advance exists in the
+    // NCAA men's book, so no timeout fires here (nothing to advance, no run
+    // to stop). Pre-fix this emitted reason 'advance' — red.
+    const s = egState({ rules: NCAA, clock: 30, score: [90, 90] });
+    maybeTimeout(s);
+    expect(s.events.length).toBe(0);
+  });
+
+  it('...and with no advance to save for, an NCAA team being run on may stop the run inside the window', () => {
+    // trailing NCAA side, inside what would be the NBA advance window, run
+    // 10-0: the save-for-the-advance suppression must not bite in a league
+    // without the rule (the other half of M-11's blast radius).
+    const s = egState({ rules: NCAA, clock: 30, score: [84, 90], runPts: [0, 10] });
+    maybeTimeout(s);
+    const tos = s.events.filter((e): e is TimeoutEvent => e.type === 'timeout');
+    expect(tos.length).toBe(1);
+    expect(tos[0]!.reason).toBe('stop_run');
+  });
+
+  it('the advance is never spent on a continuation dead ball', () => {
+    const s = egState({ clock: 30, score: [88, 90], possTeam: 0, continuation: true });
+    maybeTimeout(s);
+    expect(s.events.filter((e) => e.type === 'timeout').length).toBe(0);
   });
 });
 

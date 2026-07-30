@@ -2,11 +2,12 @@
  * Broadcast script builder: merges play-by-play and color commentary into a
  * two-voice script — ready for text display or TTS rendering.
  *
- * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
- * §6): the reference example of wiring pbp.ts + a CommentaryProvider
- * (provider.ts) together into one merged script. The engine never depends on
- * this file — it only consumes `GameEvent`s already produced by a finished
- * sim (AGENTS.md §1.3/§6).
+ * Maintained template layer (docs/INTERNALS.md "Consumers" note,
+ * ARCHITECTURE.md §6; the FROZEN PROTOTYPE label an earlier header carried
+ * belongs to the viewer, not narration — audit L-33): the reference example
+ * of wiring pbp.ts + a CommentaryProvider (provider.ts) together into one
+ * merged script. The engine never depends on this file — it only consumes
+ * `GameEvent`s already produced by a finished sim (AGENTS.md §1.3/§6).
  */
 
 import type { GameEvent, Team } from '@hoopsh/engine';
@@ -28,10 +29,16 @@ export async function buildBroadcastScript(
   provider: CommentaryProvider,
   opts?: { seed?: string; windowEvents?: number; periods?: number }
 ): Promise<BroadcastCue[]> {
-  // PBP is generated in one pass up front via pbp.ts's own generator, with
-  // `includeMoments: false` because moment TEXT ("X are on a run") is a PBP-
-  // layer concern already handled by renderMoment() there — this function
-  // only needs pbp.ts's play-call lines, and detects moments itself below
+  // PBP is generated in one pass up front via pbp.ts's own generator, WITH
+  // its moment lines: renderMoment()'s beats ride the play-by-play voice
+  // ("X take the lead.", "We're tied at N.", runs/milestones/clutch), and
+  // the color provider layers its reaction on top for run/milestone/
+  // clutch_start windows only — provider.ts documents that split, and
+  // deliberately renders no lead_change/tie color precisely because the
+  // pbp voice owns those calls. Passing `includeMoments: false` here used
+  // to orphan lead_change/tie entirely: pbp's moment renderer was disabled
+  // while the provider deferred to it, so ~12 beats/game were narrated by
+  // nobody (audit M-37). This function still detects moments itself below
   // (via its own separate ContextTracker) to decide window boundaries.
   // `periods` (regulation period count; default 4) is forwarded to BOTH
   // consumers that need it — pbp's period labels and this function's own
@@ -39,7 +46,7 @@ export async function buildBroadcastScript(
   // this: a non-4-period ruleset that can't pass its count mis-renders
   // (scan finding B6-2: the broadcast pipeline made opts.periods
   // unreachable, so an NCAA script labeled OT "Q3").
-  const pbp = generatePlayByPlay(events, teams, { seed: opts?.seed, includeMoments: false, periods: opts?.periods });
+  const pbp = generatePlayByPlay(events, teams, { seed: opts?.seed, periods: opts?.periods });
   const cues: BroadcastCue[] = pbp.map((l: NarrationLine) => ({
     t: l.t, period: l.period, clock: l.clock, speaker: 'pbp' as const, text: l.text
   }));
@@ -69,7 +76,7 @@ export async function buildBroadcastScript(
   // written) that extracts storyline notes from a provider's output.
   // UNWIRED — the continuity channel exists in the CommentaryProvider contract
   // but nothing populates it yet; wire it when an LLM provider starts carrying
-  // narratives across windows (narration is frozen, so this waits with it)
+  // narratives across windows
   const storylines: string[] = [];
   let buffer: GameEvent[] = [];
   let bufferMoments = [];
@@ -130,9 +137,11 @@ export function formatScript(cues: BroadcastCue[], periods = 4): string {
   // overtime labels, same convention as pbp.ts periodName and the viewer:
   // the old hardcoded `Q${period}` printed "[Q5 5:00] PBP: OT under way." —
   // the bracket contradicting the pbp text in the same line (scan finding
-  // B6-6). `periods` is the regulation count (default 4, NBA).
+  // B6-6). `periods` is the regulation count (default 4, NBA). A 2-period
+  // ruleset plays halves: the bracket uses the compact "H1"/"H2" (audit
+  // M-39's broadcast-side sibling — regulation halves printed "[Q2 ...]").
   const label = (p: number): string =>
-    p > periods ? `OT${p - periods > 1 ? p - periods : ''}` : `Q${p}`;
+    p > periods ? `OT${p - periods > 1 ? p - periods : ''}` : periods === 2 ? `H${p}` : `Q${p}`;
   return cues
     .map((c) => `[${label(c.period)} ${fmtClock(c.clock)}] ${c.speaker === 'pbp' ? 'PBP' : 'COLOR'}: ${c.text}`)
     .join('\n');

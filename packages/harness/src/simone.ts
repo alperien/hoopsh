@@ -19,13 +19,15 @@ import { buildReplay, simulateGame, type Team } from '@hoopsh/engine';
 import { boxScore, tsPct, type PlayerLine } from '@hoopsh/stats';
 import { loadTeamPack, sampleMatchup } from '@hoopsh/data';
 import { generatePlayByPlay } from '@hoopsh/narration';
-import { flagValue } from './args.js';
+import { checkFlags, flagValue } from './args.js';
 
 // args.ts's loud parser, not a local bare argOf: `--seed` with a forgotten
 // value used to seed the game with the literal next flag (or undefined) —
 // the exact broadcast-demo incident args.ts's header records (scan finding
 // b4-8). Optional flags (--home/--away) stay absent-able but validate
-// loudly when present.
+// loudly when present. checkFlags rejects typo'd / `=`-spelled / repeated
+// flags the exact-token reads cannot see (audit H-03).
+checkFlags(process.argv, ['--seed', '--home', '--away']);
 const optValue = (flag: string): string | undefined =>
   process.argv.includes(flag) ? flagValue(process.argv, flag, '') : undefined;
 

@@ -18,11 +18,14 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { simulateGame } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { buildBroadcastScript, formatScript, TemplateColorProvider } from '@hoopsh/narration';
-import { flagValue } from './args.js';
+import { checkFlags, flagValue } from './args.js';
 
 // flagValue fails loudly on a bare `--seed` — the old inline read here used a
 // non-null assertion and silently seeded the sim with the string "undefined"
-// (see args.ts's header for the incident)
+// (see args.ts's header for the incident). checkFlags closes the sibling
+// hole: `--seed=x` and typo'd flags used to run the default seed silently
+// (audit H-03).
+checkFlags(process.argv, ['--seed']);
 const seed = flagValue(process.argv, '--seed', 'showcase-v2');
 
 const { home, away } = sampleMatchup();

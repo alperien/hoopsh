@@ -31,7 +31,10 @@
  *      operations in the same order as a single-process run. JSON number
  *      round-trips are exact for finite doubles, so worker-count N and
  *      worker-count 1 produce bit-identical reports.
- *   Enforced by test/parallel.test.ts (worker-count invariance).
+ *   Worker-count invariance is enforced by test/parallel.test.ts for the
+ *   'batch' and 'flow' tasks only; the four forced-endgame variants ride
+ *   the identical slicing/ordering machinery but are not directly exercised
+ *   (a prior comment claimed blanket enforcement — audit L-40).
  *
  * FAILURE POLICY: any worker failing — nonzero exit, unparsable stdout, or a
  * result envelope that doesn't match the job — aborts the sibling workers
@@ -166,10 +169,15 @@ export function runGamesInProcess<K extends GameTaskName>(
   onGame?: (globalIndex: number) => void,
   leagueId = 'nba'
 ): GameTaskResults[K][] {
-  const fn = GAME_TASKS[task];
-  if (fn === undefined) {
+  // Object.hasOwn, not a bare index: GAME_TASKS is a plain object, so a
+  // prototype key ('toString', 'constructor') indexes to an INHERITED
+  // function that passes an undefined-check and then produces garbage rows
+  // in-process with workers=1 (audit L-39; the worker path already failed
+  // on the envelope).
+  if (!Object.hasOwn(GAME_TASKS, task)) {
     throw new Error(`unknown game task "${String(task)}" (valid: ${GAME_TASK_NAMES.join(', ')})`);
   }
+  const fn = GAME_TASKS[task];
   const league = resolveLeague(leagueId); // throws loudly on a typo'd league
   const out: GameTaskResults[K][] = [];
   for (let i = start; i < start + count; i++) {

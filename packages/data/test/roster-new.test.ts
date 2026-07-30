@@ -41,6 +41,14 @@ describe('roster:new scaffold', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
+  it('empty name/abbrev fail as AUTHOR input, never as a scaffold bug (L-59)', () => {
+    for (const opts of [{ abbrev: '' }, { abbrev: '   ' }, { name: '' }] as const) {
+      const attempt = () => scaffold(opts as any);
+      expect(attempt).toThrow(/must be a non-empty|must be non-empty/);
+      expect(attempt).not.toThrow(/scaffold bug/);
+    }
+  });
+
   it('rejects bad sizes and unknown archetypes with readable errors', () => {
     expect(() => defaultSlots(7)).toThrow();
     expect(() => defaultSlots(16)).toThrow();
@@ -97,5 +105,31 @@ describe('roster:new scaffold', () => {
     const second = spawnSync(process.execPath, args, { encoding: 'utf8' });
     expect(second.status).toBe(2);
     expect(second.stderr).toContain('--force');
+  });
+
+  it('CLI: unknown flags, =-joined values, and positionals are loud usage errors (L-58)', () => {
+    const run = (...cliArgs: string[]) => spawnSync(process.execPath, [
+      '--disable-warning=ExperimentalWarning',
+      '--import', path.join(ROOT, 'tools', 'register.mjs'),
+      path.join(ROOT, 'tools', 'roster-new.mjs'),
+      ...cliArgs
+    ], { encoding: 'utf8' });
+
+    const typo = run('--sixe', '12'); // used to scaffold the DEFAULT size, exit 0
+    expect(typo.status).toBe(2);
+    expect(typo.stderr).toContain('--sixe');
+
+    const joined = run('--name=Owls');
+    expect(joined.status).toBe(2);
+    expect(joined.stderr).toContain('--name Owls');
+
+    const stray = run('stray.json');
+    expect(stray.status).toBe(2);
+    expect(stray.stderr).toContain('stray.json');
+
+    const emptyAbbrev = run('--abbrev', '', '--out', path.join(mkdtempSync(path.join(tmpdir(), 'hoopsh-rn-')), 'x.json'));
+    expect(emptyAbbrev.status).toBe(2);
+    expect(emptyAbbrev.stderr).toContain('--abbrev XYZ');
+    expect(emptyAbbrev.stderr).not.toContain('scaffold bug');
   });
 });

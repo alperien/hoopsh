@@ -124,8 +124,17 @@ describe('box score arithmetic on a known stream', () => {
   it('minutes accrue only while on the floor and use game-clock time', () => {
     // every starter was on the floor for the whole 44s of game-clock time;
     // box.ts folds exact seconds then quantizes to 0.1-minute display
-    // granularity, so 44s -> round(44/60 * 10)/10 = 0.7 min
-    expect(p('h0').min).toBe(0.7);
+    // granularity SUM-PRESERVINGLY per team (largest-remainder; audit M-21):
+    // five players at 44s = 7.33 tenths each floor to 0.7; the team's true
+    // total 220s = 36.67 tenths rounds to 37, so two remaining tenths go to
+    // the largest fractional remainders — all tied here, so fold order gives
+    // them to h0 and h1. The team sum is 3.7, the true total to one tenth
+    // (the old independent rounding pinned 0.7 here and summed 3.5 — 12s of
+    // team time missing from the display).
+    expect(p('h0').min).toBe(0.8);
+    expect(p('h2').min).toBe(0.7);
+    const teamSum = box.players.filter((x) => x.team === 0).reduce((a, x) => a + x.min, 0);
+    expect(Math.abs(teamSum - 3.7)).toBeLessThan(1e-9);
   });
 
   it('points identity holds per team: PTS = 2·(FGM−3PM) + 3·3PM + FTM', () => {

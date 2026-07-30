@@ -114,22 +114,38 @@ const cached = (path) => existsSync(path) && statSync(path).size > 5_000;
 mkdirSync(cacheDir, { recursive: true });
 
 // 1) index pages -> game ids
+const extractGameIds = (html) =>
+  [...new Set([...html.matchAll(/\/boxscores\/pbp\/(\d{8}0[A-Z]{3})\.html/g)].map((m2) => m2[1]))];
+
 async function gameIdsForDate(date) {
   const [y, m, d] = date.split('-').map(Number);
   const idxPath = join(cacheDir, `idx-${date}.html`);
-  let html;
+  let ids;
   if (cached(idxPath)) {
-    html = readFileSync(idxPath, 'utf8');
+    ids = extractGameIds(readFileSync(idxPath, 'utf8'));
+    if (ids.length === 0) {
+      // a poisoned cache from before validation landed — say exactly how to heal it
+      console.warn(`  WARN ${date}: cached index has ZERO game links — corrupt page cached earlier? delete ${idxPath} to refetch`);
+    }
   } else if (dryRun) {
     console.log(`[dry-run] would fetch index ${date}`);
     return [];
   } else {
     const url = `${BASE}/boxscores/?month=${m}&day=${d}&year=${y}`;
     console.log(`index  ${date}  ${url}`);
-    html = await politeFetch(url);
-    writeFileSync(idxPath, html);
+    const html = await politeFetch(url);
+    ids = extractGameIds(html);
+    // Validate BEFORE caching, like fetchGame's no-pbp guard: cached() trusts
+    // any >5KB file FOREVER, so a truncated/error page with zero game links
+    // would permanently report the date gameless (release-audit L-57). Cost
+    // of not caching a genuine off-day: one polite refetch per run, stated
+    // over silently wrong corpus composition.
+    if (ids.length > 0) {
+      writeFileSync(idxPath, html);
+    } else {
+      console.warn(`  WARN ${date}: index page has no game links — NOT cached (off-day, or a corrupt/rate-limited page; inspect manually)`);
+    }
   }
-  const ids = [...new Set([...html.matchAll(/\/boxscores\/pbp\/(\d{8}0[A-Z]{3})\.html/g)].map((m2) => m2[1]))];
   console.log(`  ${date}: ${ids.length} games`);
   return ids;
 }

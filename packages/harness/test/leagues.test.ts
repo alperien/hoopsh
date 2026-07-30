@@ -87,17 +87,23 @@ describe('league-aware pace normalization', () => {
 });
 
 describe('league flows through the game-runner', () => {
-  it('an ncaa batch game is simulated under NCAA rules (pace lands in the poss/40 world, far below the same seed under nba)', () => {
-    const [ncaa] = runGamesInProcess('batch', 'lg-runner', 0, 1, undefined, 'ncaa');
-    const [nba] = runGamesInProcess('batch', 'lg-runner', 0, 1, undefined, 'nba');
-    // same seed, different league: the NCAA game is 40 minutes of 30-second
-    // clocks reported on a 40-minute basis — its pace number must sit well
-    // below the NBA run's poss/48 number for the identical seed
-    expect(ncaa!.pace).toBeLessThan(nba!.pace - 10);
+  it('ncaa batch games are simulated under NCAA rules (pace lands in the poss/40 world, far below the same seeds under nba)', () => {
+    // two games per league, compared on the mean (audit L-53): the old
+    // single-game margin bar rested on one seed's draw of a ~±4-poss
+    // per-game spread — n=2 halves the variance on a structural gap of
+    // ~30 possessions, so the -10 bar is seed-proof without weakening what
+    // is asserted
+    const ncaa = runGamesInProcess('batch', 'lg-runner', 0, 2, undefined, 'ncaa');
+    const nba = runGamesInProcess('batch', 'lg-runner', 0, 2, undefined, 'nba');
+    const mean = (xs: { pace: number }[]) => xs.reduce((s, x) => s + x.pace, 0) / xs.length;
+    // same seeds, different league: the NCAA games are 40 minutes of
+    // 30-second clocks reported on a 40-minute basis — their pace must sit
+    // well below the NBA runs' poss/48 numbers for the identical seeds
+    expect(mean(ncaa)).toBeLessThan(mean(nba) - 10);
     // and the runner is deterministic per (seedBase, league, i)
     const [again] = runGamesInProcess('batch', 'lg-runner', 0, 1, undefined, 'ncaa');
-    expect(again!.pace).toBe(ncaa!.pace);
-    expect(again!.teams[0].pts).toBe(ncaa!.teams[0].pts);
+    expect(again!.pace).toBe(ncaa[0]!.pace);
+    expect(again!.teams[0].pts).toBe(ncaa[0]!.teams[0].pts);
   });
 
   it('omitting the league is exactly the nba path (default-parameter regression guard)', () => {

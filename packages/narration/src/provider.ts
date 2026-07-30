@@ -3,15 +3,19 @@
  *
  * The engine emits facts; providers turn stretches of facts into voice.
  * `TemplateColorProvider` is the zero-cost deterministic fallback.
- * LLM-backed providers implement the same interface: they receive a window of
- * events + narrative context + box-score snapshot and return color lines.
- * (Keeping this async and stateless per-window makes it trivial to swap a
- * real LLM in — see the CommentaryProvider interface docs below.)
+ * LLM-backed providers implement the same interface: they receive a window
+ * of events + narrative context (detected moments, running score/clock,
+ * full rosters, storyline notes — the CommentaryWindow fields below; a
+ * box-score snapshot is NOT among them, despite what an earlier version of
+ * this header promised — audit L-32) and return color lines. (Keeping this
+ * async and stateless per-window makes it trivial to swap a real LLM in —
+ * see the CommentaryProvider interface docs below.)
  *
- * FROZEN PROTOTYPE per project decision (docs/INTERNALS.md, ARCHITECTURE.md
- * §6): this is the reference shape for a commentary integration point, not a
- * shipped product. The engine never depends on this file — it only ever
- * consumes `GameEvent`s produced elsewhere (AGENTS.md §1.3/§6).
+ * Maintained template layer (docs/INTERNALS.md "Consumers" note,
+ * ARCHITECTURE.md §6): this is the reference shape for a commentary
+ * integration point, not a shipped product. The engine never depends on
+ * this file — it only ever consumes `GameEvent`s produced elsewhere
+ * (AGENTS.md §1.3/§6).
  */
 
 import type { GameEvent, Team } from '@hoopsh/engine';
@@ -85,10 +89,13 @@ export class TemplateColorProvider implements CommentaryProvider {
 
     // dispatch on moment kind — one hardcoded color-commentary template per
     // kind, but only for run/milestone/clutch_start: lead_change and tie
-    // moments produce no color line here (renderMoment() in pbp.ts already
-    // renders a PBP line for those — "X take the lead." / "We're tied at
-    // N." — so this provider only adds color commentary on top of the three
-    // kinds that most benefit from extra texture beyond the bare PBP call).
+    // moments produce no color line here (renderMoment() in pbp.ts renders
+    // the PBP line for those — "X take the lead." / "We're tied at N." —
+    // so this provider only adds color commentary on top of the three kinds
+    // that most benefit from extra texture beyond the bare PBP call). The
+    // deferral is real: buildBroadcastScript carries pbp's moment lines
+    // into the script — it once suppressed them with includeMoments: false,
+    // leaving lead_change/tie narrated by nobody (audit M-37).
     for (const m of w.moments) {
       if (m.kind === 'run' && m.team !== undefined) {
         lines.push({

@@ -95,11 +95,20 @@ describe(`game-flow gates over ${GAMES} games`, () => {
     // Only the 0.25 ceiling enforces anything (b9-F4): comebackRate is a
     // guarded count ratio, so the >= 0 leg cannot fail today — it stays as
     // a NaN tripwire (NaN >= 0 is false) in case the led10.length guard in
-    // reduceFlows is ever lost. At the pinned seed the measured rate IS 0;
-    // gating "comebacks exist" waits on the endgame comeback texture (M4,
-    // header known-gaps list) — this test never enforced it.
+    // reduceFlows is ever lost; the isFinite pin makes the tripwire
+    // explicit (and adds the Infinity direction). At the pinned seed the
+    // measured rate IS 0 — a real existence floor here would land the
+    // suite red on documented debt, which the header ratchet policy
+    // forbids. Gating "comebacks exist" waits on the endgame comeback
+    // texture (M4, header known-gaps list) — this test never enforced it,
+    // and the audit-shield wave re-registered the gap rather than faking a
+    // bound (release-audit Section 5 weak-test list). The report line
+    // keeps the current value visible in every test log so the day the
+    // texture lands, the ratchet has its measurement.
+    expect(Number.isFinite(m.comebackRate)).toBe(true);
     expect(m.comebackRate).toBeGreaterThanOrEqual(0);
     expect(m.comebackRate).toBeLessThanOrEqual(0.25);
+    console.log(`    [flow report] comebackRate at n=${GAMES} (seed "flowgate"): ${m.comebackRate.toFixed(3)} — existence unratcheted (M4 debt)`);
   });
 
   it('steals convert into quick scores at a real rate (transition urgency lives)', () => {

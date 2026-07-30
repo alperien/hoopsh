@@ -41,7 +41,10 @@ const ANNOTATIONS = new Set(['$schema', '$id', 'title', 'description', '$defs', 
 function typeOf(x) {
   if (x === null) return 'null';
   if (Array.isArray(x)) return 'array';
-  return typeof x; // 'object' | 'string' | 'number' | 'boolean' (JSON.parse never yields NaN/Infinity/undefined)
+  // 'object' | 'string' | 'number' | 'boolean'. JSON.parse never yields NaN/undefined —
+  // but an overflowing literal (1e999) parses to Infinity, which reads 'number' here;
+  // callers needing finiteness must check it themselves (release-audit L-62).
+  return typeof x;
 }
 
 /** Resolve an internal '#/...' JSON-pointer $ref against the root schema. */

@@ -86,11 +86,12 @@ export function onBallDefender(s: GameState, holder: Agent): Agent | null {
 export function moveSpeed(s: GameState, a: Agent): number {
   const max = currentMaxSpeed(s, a);
   if (a.intent === 'defend') {
-    // in his stance a defender SHUFFLES (stanceSpeedMult); sprints (1.15x)
-    // belong to closeouts, help rotations, and blitzes. Capped by LATERAL
-    // speed, which is why quick-footed guards contain drives better than
-    // fast straight-line runners.
-    const lat = lateralSpeed(a.p.attr) * (a.sprinting ? 1.15 : s.params.move.stanceSpeedMult);
+    // in his stance a defender SHUFFLES (stanceSpeedMult); sprints
+    // (defSprintMult) belong to closeouts, help rotations, and blitzes.
+    // Capped by LATERAL speed, which is why quick-footed guards contain
+    // drives better than fast straight-line runners.
+    const lat = lateralSpeed(a.p.attr)
+      * (a.sprinting ? s.params.move.defSprintMult : s.params.move.stanceSpeedMult);
     return Math.min(max, lat);
   }
   // Offense: sprint only when the situation demands it (transition, cuts,

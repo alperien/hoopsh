@@ -19,7 +19,7 @@
 
 import { simulateGame, type Player, type Team } from '@hoopsh/engine';
 import { boxScore, type PlayerLine } from '@hoopsh/stats';
-import { flagNumber } from './args.js';
+import { checkFlags, flagNumber } from './args.js';
 import {
   benchBig, benchScorer, comboGuard, glueForward, rimRunner, sampleMatchup,
   scoringWing, stretchBig, threeAndD
@@ -293,7 +293,9 @@ if (import.meta.main) {
   // args.ts's loud parser, not a bare Number(): `--games` dangling or typo'd
   // used to become NaN, skip every benchmark loop, and crash at the report
   // with an opaque null-property TypeError (scan finding B3-1 — the exact
-  // incident class args.ts's header documents)
+  // incident class args.ts's header documents). checkFlags rejects unknown
+  // and `=`-spelled flags the exact-token parser cannot see (audit H-03).
+  checkFlags(process.argv, ['--games']);
   const games = flagNumber(process.argv, '--games', 40); // shorter reads swing +-3 pts
   if (!Number.isInteger(games) || games < 1) {
     console.error(`--games requires an integer >= 1, got ${games} — refusing to grade a run that simulates nothing`);

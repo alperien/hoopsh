@@ -72,6 +72,17 @@ describe('rule pack constants match the research doc (data/ncaa/README.md §1.1)
     expect(EUROLEAGUE.teamFoulsCarryToOT).toBe(true); // FIBA Art. 41
     expect(EUROLEAGUE.foulOutAt).toBe(5);
   });
+
+  it('advance-the-ball timeout is pack DATA: NBA and FIBA/EuroLeague have it, NCAA men do not (audit M-11)', () => {
+    // NBA: the last-two-minutes advance. FIBA: frontcourt throw-in line
+    // after a late timeout, Art. 17.2.4 (2018 rules) — EuroLeague plays
+    // FIBA rules. NCAA men: no such rule, the throw-in stays where play
+    // stopped — sim/endgame.ts maybeTimeout gates the 'advance' reason on
+    // this field, so an NCAA stream can never contain one.
+    expect(NBA.advanceAfterTimeout).toBe(true);
+    expect(EUROLEAGUE.advanceAfterTimeout).toBe(true);
+    expect(NCAA.advanceAfterTimeout).toBe(false);
+  });
 });
 
 describe('bonusFreeThrowAward (pure rules arithmetic)', () => {

@@ -121,7 +121,7 @@ import {
   scoringWing, threeAndD, toTeamPack, validateTeamPack, type TeamPack
 } from '@hoopsh/data';
 import { runBenchmark, BENCHMARKS, type AggLine } from './fidelity.js';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 
 // ───────────────────────────────────────────────────────────── input schema
 
@@ -215,6 +215,20 @@ export function validateSeasonLines(raw: unknown): { file: SeasonLinesFile | nul
         issues.push({ path: `${at}.${k}`, message: 'percentages are decimals in 0..1 (write 0.454, not 45.4)' });
       }
     }
+    // Optional numerics validate when PRESENT (audit M-29): they were exempt
+    // from the loud pass entirely, so a STRING orb sailed through validation
+    // and crashed mid-fit deep in the rate math, and a negative orb silently
+    // skewed the rebounding profile — the exact silent-default class this
+    // validator exists to reject.
+    for (const k of ['wingspanIn', 'orb', 'pf'] as const) {
+      const v = pl[k];
+      if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v) || v < 0)) {
+        issues.push({ path: `${at}.${k}`, message: 'optional, but when present must be a finite number >= 0' });
+      }
+    }
+    if (pl.fixtureId !== undefined && typeof pl.fixtureId !== 'string') {
+      issues.push({ path: `${at}.fixtureId`, message: 'optional, but when present must be a fidelity benchmark id string' });
+    }
     if (typeof pl.tpa === 'number' && typeof pl.fga === 'number' && pl.tpa > pl.fga) {
       issues.push({ path: `${at}.tpa`, message: '3PA cannot exceed FGA' });
     }
@@ -227,6 +241,27 @@ export function validateSeasonLines(raw: unknown): { file: SeasonLinesFile | nul
       if (bad(z.rimShare2) || bad(z.midShare2) || (z.rimShare2 as number) + (z.midShare2 as number) > 1) {
         issues.push({ path: `${at}.shotZones`, message: 'rimShare2/midShare2 must be 0..1 and sum to <= 1 (paint gets the remainder)' });
       }
+    }
+  });
+  // Fitted ids are `fit-${slug(name)}` (analyticFit); names that slug empty
+  // or identically produce broken/duplicate player ids that only explode
+  // LATE — pack validation or merged box-score lines (audit L-46). Reject
+  // here, where the fix (rename a player) is obvious.
+  const slugAt = new Map<string, number>();
+  f.players.forEach((p, i) => {
+    if (typeof p !== 'object' || p === null) return;
+    const name = (p as Partial<SeasonLine>).name;
+    if (!name || typeof name !== 'string') return; // missing-name issue already filed
+    const s = slug(name);
+    if (s === '') {
+      issues.push({ path: `$.players[${i}].name`, message: `"${name}" slugs to an empty player id — the name needs at least one letter or digit` });
+      return;
+    }
+    const prev = slugAt.get(s);
+    if (prev !== undefined) {
+      issues.push({ path: `$.players[${i}].name`, message: `"${name}" slugs to "fit-${s}", colliding with players[${prev}] — player ids must be unique; rename one` });
+    } else {
+      slugAt.set(s, i);
     }
   });
   return { file: issues.length === 0 ? (raw as SeasonLinesFile) : null, issues };
@@ -924,6 +959,17 @@ export function evaluateAgainstLine(
 }
 
 export function refineFit(seedPlayer: Player, line: SeasonLine, opts: FitOptions): RefineResult {
+  // Integer floors BEFORE the budget arithmetic (audit M-30, L-47): the cap
+  // below multiplies user-typed numbers, so fractional counts slipped under
+  // it while the loops ran MORE work than the product claims (--cands 2.5
+  // --games 3 = "7.5" budget, but `c < 2.5` executes 3 candidates = 9 games
+  // per iteration, past the cap of 8); and the LOWER bounds were never
+  // checked at all — negative or zero counts quietly fit nothing.
+  for (const [name, v] of [['iters', opts.iters], ['cands', opts.cands], ['games', opts.games]] as const) {
+    if (!Number.isInteger(v) || v < 1) {
+      throw new Error(`fit-roster: ${name} must be an integer >= 1, got ${v}`);
+    }
+  }
   if (opts.iters > MAX_ITERS) {
     throw new Error(`--iters ${opts.iters} exceeds the hard budget of ${MAX_ITERS} iterations`);
   }
@@ -1112,6 +1158,9 @@ function printSources(sources: DialSource[]): void {
 
 if (import.meta.main) {
   const argv = process.argv.slice(2);
+  // declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
+  // silently fitting with the defaults (args.ts checkFlags, audit H-03)
+  checkFlags(argv, ['--benchmarks', '--in', '--out', '--no-refine', '--compare-fixtures', '--iters', '--cands', '--games', '--seed']);
   const benchmarks = argv.includes('--benchmarks');
   const inPath = flagValue(argv, '--in', benchmarks ? 'data/nba/example-stars.season.json' : '');
   const outDir = flagValue(argv, '--out', 'out/fitted');
@@ -1130,7 +1179,16 @@ if (import.meta.main) {
     process.exit(1);
   }
 
-  const raw: unknown = JSON.parse(readFileSync(inPath, 'utf8'));
+  // one-line diagnosis for an unreadable/unparsable input — not a raw
+  // ENOENT or SyntaxError stack out of node internals (simone.ts's c4-F3
+  // convention; audit L-48)
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(inPath, 'utf8'));
+  } catch (err) {
+    console.error(`fit-roster: cannot read ${inPath}: ${(err as Error).message}`);
+    process.exit(1);
+  }
   const { file, issues } = validateSeasonLines(raw);
   if (!file) {
     console.error(`fit-roster: ${inPath} failed season-line validation:`);

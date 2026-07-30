@@ -75,8 +75,12 @@ type ShotMove = ShotMoveType;
 // ------------------------------------------------- 1. DECISIVENESS (shoot)
 
 /**
- * Drilled green-light shots. At most one term fires (the contexts are
- * mutually exclusive by shotMove), so this returns a single addition.
+ * Drilled green-light shots. At most one term fires, but that is enforced
+ * by the if/else-if LADDER, not by the contexts themselves — a mid-zone
+ * catch-and-shoot satisfies both the elbow-station term and the generic
+ * mid term, and the ladder's ordering (station outranks generic) is the
+ * tiebreak (an earlier "mutually exclusive by shotMove" claim here was
+ * wrong; audit L-18). The function still returns a single addition.
  *
  * catch-and-shoot: a genuinely OPEN three off the catch is the payoff of
  * ball movement — letting it fly is drilled behavior, and without this term
@@ -134,9 +138,12 @@ export function decisiveness(
   const A = s.params.ai;
   let term = 0;
   if (shotMove === 'catch_shoot' && zone === 'three') {
-    term = A.catchShootBonus * clamp((0.5 - contestLevel) / 0.5, 0, 1) * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+    term = A.catchShootBonus
+      * clamp((A.catchShootContestCeil - contestLevel) / A.catchShootContestCeil, 0, 1)
+      * clamp((h.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1);
   } else if (s.poss.phase === 'transition' && shotMove === 'pull_up' && zone === 'three') {
-    term = A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+    term = A.transitionPullUpBonus
+      * clamp((h.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1);
   } else if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     term = A.postShotBonus;
   } else if (
@@ -211,15 +218,25 @@ export function commitmentPass(
   const A = s.params.ai;
   const entryTarget =
     act0?.kind === 'post' && act0.phase === 'posting' &&
-    m.p.id === act0.posterId && dist(m.pos, m.target) < 4;
+    m.p.id === act0.posterId && dist(m.pos, m.target) < A.feedArrivalFt;
   const dhoTarget =
     act0?.kind === 'dho' && act0.hubId === h.p.id &&
     m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
+  // arrival measured against the SPOT TABLE, not m.target: a ROLLING
+  // screener's target is the rim while his cut is live, and if his spacing
+  // spot happened to be an elbow (exactly the mid-pop-big population), the
+  // old dist(m.pos, m.target) read fired at the RIM and handed the roller
+  // the pop throwback bonus (audit L-16). A popper standing at his elbow
+  // measures identically either way (his target IS the spot).
+  const popSpot =
+    m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r'
+      ? s.poss.spots.get(m.spotKey)
+      : undefined;
   const popTarget =
     act0?.kind === 'pnr' && act0.phase === 'finishing' &&
     m.p.id === act0.screenerId &&
-    (m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r') &&
-    dist(m.pos, m.target) < 4;
+    popSpot !== undefined &&
+    dist(m.pos, popSpot) < A.feedArrivalFt;
   return {
     entryTarget,
     dhoTarget,
@@ -254,7 +271,7 @@ export function commitmentDrive(s: GameState, holderId: string, act0: Action): n
  * is still maturing while the dribble is live — without this, hold falls to
  * the halfcourt baseline one tick after launch and every drive ends in an
  * instant kick before the help ever commits. Scaled by remaining drive
- * seconds (capped at 1s): strong at launch, gone by the terminal decision —
+ * seconds (capped at driveHoldRampSec): strong at launch, gone by the terminal decision —
  * penetrate first, THEN finish or spray. A flat boost instead suppresses the
  * kick outright and drives die at the rim in contested junk.
  *
@@ -275,7 +292,7 @@ export function commitmentHold(
   s: GameState, h: Agent, act0: Action, postingUp: boolean, driving: boolean
 ): { driveHold: number; wait: number; postWork: number } {
   const A = s.params.ai;
-  const driveHold = driving ? A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, 1) : 0;
+  const driveHold = driving ? A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, A.driveHoldRampSec) : 0;
   let wait = 0;
   if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase === 'coming') {
     wait = A.pnrWaitBoost;
@@ -346,8 +363,11 @@ export function advantagePass(
 // ------------------------------------- 6. GAME-STATE URGENCY (continuation)
 
 /**
- * The endgame layer's ball-handler half (GameConfig.endgame only — decide.ts
- * never calls this on the default path, so flag-off is byte-identical).
+ * The endgame layer's ball-handler half (gated on GameConfig.endgame, which
+ * ships ON — decide.ts calls this on every default-path decision since the
+ * n=1260/arm flag flip, ~3.5k calls/game; an earlier "never called on the
+ * default path" claim here predated the flip, audit L-17. Only an explicit
+ * endgame:false run skips it, which is what keeps flag-off byte-identical).
  *
  * The base continuation curve assumes an endless game: "what the remaining
  * shot-clock seconds are worth" with no scoreboard and no horn. Real late-

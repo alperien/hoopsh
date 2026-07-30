@@ -98,6 +98,13 @@ export class Rng {
       }
       total += Math.max(0, w);
     }
+    // the per-weight guard above cannot catch a SUM that overflows: finite
+    // huge weights (two 1e308s) total Infinity, roll becomes Infinity, and
+    // the subtraction loop falls through to the last index silently — the
+    // exact fall-through the per-weight guard exists to prevent (audit L-04)
+    if (!Number.isFinite(total)) {
+      throw new Error(`Rng.weighted: non-finite total ${String(total)} (weights sum overflowed)`);
+    }
     if (total <= 0) return this.int(weights.length);
     let roll = this.float() * total;
     for (let i = 0; i < weights.length; i++) {

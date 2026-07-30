@@ -72,10 +72,14 @@ function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number)
       bestReach = reachFt(d.p);
     }
   }
-  // 0.5 ft uncontested height advantage: shooting over nobody is like shooting
-  // over someone slightly shorter — a mild positive that prevents the height
-  // term from swinging negative on unguarded makes (geometry, not behavioral).
-  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5;
+  // Uncontested height advantage (params.shot.rimHeightUncontestedFt):
+  // shooting over nobody is like shooting over someone slightly shorter — a
+  // mild positive that prevents the height term from swinging negative on
+  // unguarded makes. The same value is the blend BASELINE inside shotMakeP's
+  // height term, so a defender at the contest-radius edge (level → 0)
+  // contributes exactly the uncontested number — no discontinuity when `by`
+  // flips (audit M-02).
+  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : s.params.shot.rimHeightUncontestedFt;
   return { level: clamp(best, 0, 1), by, heightAdvFt };
 }
 
@@ -102,13 +106,16 @@ export function anticipatedContest(
 
 // ---------- shooting ----------
 
-export function zoneSkill(a: Agent, zone: ShotZone): number {
+export function zoneSkill(s: GameState, a: Agent, zone: ShotZone): number {
   switch (zone) {
     case 'rim': return a.p.attr.finishing;
     // the in-between game is touch, not power: midRange-dominant blend.
     // This is WHY sagging off non-shooters works — a rim-runner's open
     // 9-foot floater is a win for the defense, not the offense.
-    case 'paint': return a.p.attr.finishing * 0.35 + a.p.attr.midRange * 0.65;
+    // (blend weights live in params.shot.paintBlend* — a make-model input)
+    case 'paint':
+      return a.p.attr.finishing * s.params.shot.paintBlendFinishing
+        + a.p.attr.midRange * s.params.shot.paintBlendMidRange;
     case 'mid': return a.p.attr.midRange;
     case 'three': return a.p.attr.three;
   }
@@ -134,7 +141,7 @@ export function shotMakeP(
     zone === 'mid' ? P.baseMid : P.baseThree;
 
   const skillCoef = zone === 'three' ? P.skillCoefThree : P.skillCoef;
-  const skill = skillCoef * n(zoneSkill(shooter, zone));
+  const skill = skillCoef * n(zoneSkill(s, shooter, zone));
 
   const contestTerm = P.contestCoef * (contest.level - P.contestMidpoint);
 
@@ -160,9 +167,22 @@ export function shotMakeP(
 
   // Size only matters at the rim (a 7-footer's reach is irrelevant on a
   // jumper). Clamped to ±rimHeightAdvClampFt of standing-reach advantage so
-  // extreme mismatches stay believable rather than automatic.
+  // extreme mismatches stay believable rather than automatic — and the
+  // matchup edge is scaled by CONTEST LEVEL, blending from the uncontested
+  // baseline (rimHeightUncontestedFt): you only finish "over" a defender to
+  // the degree he is actually in the play. Pre-blend, the full reach
+  // difference applied at ANY nonzero contest, so a grazing contest by a
+  // much SHORTER defender out-valued wide open (+6.1pp worst case) and the
+  // rim logit jumped the instant a defender crossed the contest radius
+  // (audit M-02). With the blend, level 0 equals uncontested by
+  // construction, level 1 prices the full clamped edge exactly as before,
+  // and the rim logit is strictly decreasing in contest for any matchup at
+  // the shipped coefficients: d/dlevel = contestCoef + rimHeightCoef·(adv −
+  // baseline) ≤ −1.1325 + 0.35·(1.5 − 0.5) < 0.
   const heightTerm = zone === 'rim'
-    ? P.rimHeightCoef * clamp(contest.heightAdvFt, -P.rimHeightAdvClampFt, P.rimHeightAdvClampFt)
+    ? P.rimHeightCoef * (P.rimHeightUncontestedFt +
+        (clamp(contest.heightAdvFt, -P.rimHeightAdvClampFt, P.rimHeightAdvClampFt) -
+          P.rimHeightUncontestedFt) * contest.level)
     : 0;
 
   const fatigue = P.fatigueCoef * (1 - shooter.energy / 100);
@@ -219,13 +239,14 @@ export function shotEV(
 
 export function freeThrowP(s: GameState, shooter: Agent): number {
   const P = s.params.shot;
-  // linear base + swing, plus an elite kick above rating 80 (n > 0.6): a
-  // purely linear model provably cannot express the league mean (~78%) and
-  // the elite tail (88-91%) at once — the volume-weighted league shooter is
-  // already rating ~85+, so the tail needs its own curvature (fidelity
-  // incident: a 99-rated benchmark capped at 83%).
+  // linear base + swing, plus an elite kick above rating 80 (the knee/ramp
+  // live in params.shot.ftEliteKneeN/ftEliteRampN): a purely linear model
+  // provably cannot express the league mean (~78%) and the elite tail
+  // (88-91%) at once — the volume-weighted league shooter is already rating
+  // ~85+, so the tail needs its own curvature (fidelity incident: a 99-rated
+  // benchmark capped at 83%).
   const nv = n(shooter.p.attr.freeThrow);
-  const elite = Math.max(0, (nv - 0.6) / 0.4) * P.ftEliteKick;
+  const elite = Math.max(0, (nv - P.ftEliteKneeN) / P.ftEliteRampN) * P.ftEliteKick;
   return clamp(P.ftBasePct + P.ftSkillSwing * nv + elite, 0.3, 0.98);
 }
 

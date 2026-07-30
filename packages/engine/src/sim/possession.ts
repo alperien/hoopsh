@@ -51,6 +51,29 @@ export function tipWeightedWinner(s: GameState): TeamSide {
   return s.rng.weighted([h, a]) as TeamSide;
 }
 
+/**
+ * Shot clock after a defensive foul with the offense RETAINING the ball
+ * (a reach-in outside the bonus, a loose-ball side-out): the real rule has
+ * two arms keyed on where play resumes —
+ *  - FRONTcourt: remaining time floored at the rule pack's short reset
+ *    (NBA 14 s), never lowered;
+ *  - BACKcourt: a full fresh clock (NBA 24 s) — the offense still has the
+ *    whole floor to travel.
+ * The backcourt arm was missing (audit L-11): a backcourt whistle with 19 s
+ * left kept 19 instead of resetting to 24. `ballPos` is where the whistle
+ * caught the ball (the holder for a reach-in, the carom spot for a
+ * loose-ball scramble) — the sim's proxy for the resume spot. A ball ON the
+ * division line has not attained frontcourt status, so exactly-midcourt
+ * counts as backcourt, matching the rule book.
+ */
+export function retentionFoulShotClock(s: GameState, side: TeamSide, ballPos: V2): number {
+  const rim = attackedRim(s, side);
+  const front = rim.x > s.court.midX ? ballPos.x > s.court.midX : ballPos.x < s.court.midX;
+  return front
+    ? Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec)
+    : s.rules.shotClockSec;
+}
+
 /** Ball-handler picked to bring the ball up / receive the inbound: highest ballHandle rating on the floor. */
 export function bestHandler(s: GameState, side: TeamSide): Agent {
   const eligible = liveOnCourt(s, side);
@@ -113,10 +136,10 @@ export function startPossession(
   // hand the ball over at a dead ball (an inbound catch is not a live PASS —
   // the sim doesn't fly an inbound pass, it grants the touch)
   giveBall(s, h, kind === 'steal' ? 'steal' : kind === 'live_rebound' ? 'rebound' : 'deadball');
-  // 0.25s: the new holder needs at least one tick of "look around" before the
-  // AI is allowed to shoot/pass/drive off the inbound — prevents an
-  // instant no-look heave the moment the ball touches his hands
-  s.decisionAt = s.t + 0.25;
+  // delayNewPossSec: the new holder needs at least one tick of "look around"
+  // before the AI is allowed to shoot/pass/drive off the inbound — prevents
+  // an instant no-look heave the moment the ball touches his hands
+  s.decisionAt = s.t + s.params.decide.delayNewPossSec;
 }
 
 /**
@@ -192,9 +215,10 @@ export function deadBall(
   s.pendingRelease = null; // abandon any windup — the play is dead
   s.phase = {
     kind: 'dead',
-    // 1.8s default dead-ball delay: long enough to read the whistle/basket on
-    // a replay viewer, short enough not to visibly slow the game's pace
-    resumeIn: opts.resumeIn ?? 1.8,
+    // default dead-ball delay (move.deadBallResumeSec): long enough to read
+    // the whistle/basket on a replay viewer, short enough not to visibly
+    // slow the game's pace
+    resumeIn: opts.resumeIn ?? s.params.move.deadBallResumeSec,
     clockRuns: opts.clockRuns,
     nextTeam,
     possKind: 'inbound',
@@ -318,10 +342,11 @@ export function tickDead(s: GameState, dt: number): void {
     // not a pass: the whistle broke whatever play the last pass created
     s.phase = { kind: 'live' };
     giveBall(s, bestHandler(s, ph.nextTeam), 'deadball');
-    // 0.3s: slightly longer than startPossession's 0.25s "look around" beat —
-    // this is a possession that was already flowing before the whistle, so
-    // give the offense a beat longer to re-set rather than snap back to speed
-    s.decisionAt = s.t + 0.3;
+    // delayResumeSec: slightly longer than startPossession's "look around"
+    // beat — this is a possession that was already flowing before the
+    // whistle, so give the offense a beat longer to re-set rather than snap
+    // back to speed
+    s.decisionAt = s.t + s.params.decide.delayResumeSec;
     return;
   }
   s.phase = { kind: 'live' };
@@ -346,12 +371,12 @@ export function tickScramble(s: GameState, dt: number): void {
   // at 10Hz this reaches the spot in well under a second)
   s.ball.pos = lerp(s.ball.pos, ph.landAt, 0.25);
 
-  // nearby players converge on the ball — 18ft is roughly "anyone who could
-  // plausibly be a rebounder on this carom" without pulling in players still
-  // way out on the perimeter
+  // nearby players converge on the ball — reb.scrambleConvergeFt is roughly
+  // "anyone who could plausibly be a rebounder on this carom" without
+  // pulling in players still way out on the perimeter
   for (const side of [0, 1] as TeamSide[]) {
     for (const a of liveOnCourt(s, side)) {
-      if (dist(a.pos, ph.landAt) < 18) {
+      if (dist(a.pos, ph.landAt) < s.params.reb.scrambleConvergeFt) {
         a.target = ph.landAt;
         a.sprinting = true;
       }
@@ -388,15 +413,19 @@ export function tickScramble(s: GameState, dt: number): void {
         // flat rules.bonusFreeThrows read — see fouls.ts FoulOutcome
         enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne);
       } else {
-        // side out, offense keeps it: shot clock is floored at the rule
-        // pack's short-clock reset (NBA 14s) off a loose-ball whistle —
-        // mirrors the real shot-clock-reset rule for a defensive foul with
-        // the offense retaining the ball
-        s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
-        // 1.2s: shorter than the standard 1.8s dead-ball delay — this is a
-        // continuation of the SAME possession (no team change), so the pause
-        // just needs to cover the whistle, not a full re-set
-        deadBall(s, ph.offSide, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+        // side out, offense keeps it: the defensive-foul retention reset —
+        // frontcourt floors at the short reset (NBA 14s), a backcourt
+        // whistle grants a full fresh clock (retentionFoulShotClock; the
+        // carom spot stands in for where play resumes — for a rebound
+        // scramble that is essentially always the frontcourt)
+        s.poss.shotClock = retentionFoulShotClock(s, ph.offSide, ph.landAt);
+        // deadBallSideOutSec: shorter than the standard dead-ball delay —
+        // this is a continuation of the SAME possession (no team change), so
+        // the pause just needs to cover the whistle, not a full re-set
+        deadBall(s, ph.offSide, {
+          clockRuns: false, continuation: true,
+          resumeIn: s.params.move.deadBallSideOutSec
+        });
       }
       return;
     }
@@ -425,7 +454,10 @@ export function tickScramble(s: GameState, dt: number): void {
       // short-clock reset and the SAME possession continues — mirrors the
       // loose-ball-foul side-out branch above
       s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
-      deadBall(s, ph.offSide, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+      deadBall(s, ph.offSide, {
+        clockRuns: false, continuation: true,
+        resumeIn: s.params.move.deadBallSideOutSec
+      });
     } else {
       // defense is awarded the ball out of bounds: the possession ended in a
       // defensive rebound, but the next one starts from a dead-ball INBOUND
@@ -456,17 +488,21 @@ export function tickScramble(s: GameState, dt: number): void {
     s.poss.phase = 'halfcourt';
     giveBall(s, winner, 'rebound');
     const rim = attackedRim(s, winner.side);
-    // putback eligibility: within 6ft of the rim (still right under the
-    // basket) and the clock has more than two hundredths of a second left —
-    // putbacks must be released before the buzzer (clock guard)
-    if (s.clock > 0.02 && dist(winner.pos, rim) < 6 && s.rng.chance(s.params.reb.putbackChance)) {
+    // putback eligibility: within reb.putbackRadiusFt of the rim (still
+    // right under the basket) and the clock has more than two hundredths of
+    // a second left — putbacks must be released before the buzzer (clock guard)
+    if (
+      s.clock > 0.02 &&
+      dist(winner.pos, rim) < s.params.reb.putbackRadiusFt &&
+      s.rng.chance(s.params.reb.putbackChance)
+    ) {
       startShot(s, winner, 'putback');
       return;
     }
-    // 0.35s: a beat longer than a normal possession's 0.25s decision delay —
-    // an offensive rebounder just fought for the ball and needs a moment to
-    // survey before the AI can act on it
-    s.decisionAt = s.t + 0.35;
+    // delayOrebSec: a beat longer than a normal possession's decision delay
+    // — an offensive rebounder just fought for the ball and needs a moment
+    // to survey before the AI can act on it
+    s.decisionAt = s.t + s.params.decide.delayOrebSec;
   } else {
     endPossession(s, 'def_rebound');
     startPossession(s, winner.side, 'live_rebound', winner);

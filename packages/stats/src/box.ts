@@ -393,15 +393,31 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
   // Display rounding: minutes are folded in exact seconds (`line.min` above
   // is a running seconds total) and only quantized to 0.1-minute granularity
   // here, once, at the end — matching how a broadcast box score prints
-  // minutes. Rounding EACH player independently means the team's five
-  // players' minutes can sum to up to ±0.3 away from the true
-  // gameMinutes × 5 (five independent roundings to the nearest 0.1 min can
-  // each drift up to 0.05 min, i.e. 3 seconds, before summing) — this is WHY
-  // the invariant test asserts minutes conservation with a 0.3-minute
-  // tolerance (packages/engine/test/invariants.test.ts) instead of exact
-  // equality. It's a display artifact of independent per-player rounding,
-  // not a bookkeeping leak — the pre-rounding seconds always sum exactly.
-  for (const line of lines.values()) line.min = Math.round((line.min / 60) * 10) / 10;
+  // minutes. SUM-PRESERVING per team (largest-remainder): floor every line
+  // to tenths, then hand the remaining tenths of the team's own rounded
+  // total to the largest fractional remainders (ties broken by fold order,
+  // which is event order — deterministic). The old independent
+  // nearest-rounding drifted the team sum by up to ±0.05 min PER PLAYER WHO
+  // LOGGED MINUTES — that's ±0.4-0.5 for a real 8-10 man rotation, not the
+  // ±0.3 a prior comment derived from "five players", and ~1 game in 740
+  // actually crossed the invariant suite's 0.3-minute conservation
+  // tolerance with zero engine change (audit M-21). Now the displayed team
+  // sum equals the team's true minutes rounded to one tenth (|error| <=
+  // 0.05 min, quantization of the total itself), so the invariant holds by
+  // construction. Cost, stated honestly: two players with identical seconds
+  // can display 0.1 min apart when the remainder runs out between them —
+  // the pre-rounding seconds still sum exactly, nothing is re-estimated.
+  for (const side of [0, 1] as const) {
+    const sideLines = [...lines.values()].filter((l) => l.team === side);
+    const tenths = sideLines.map((l) => (l.min / 60) * 10);
+    const floors = tenths.map(Math.floor);
+    let extra = Math.round(tenths.reduce((s, x) => s + x, 0)) - floors.reduce((s, x) => s + x, 0);
+    const byFrac = tenths
+      .map((x, i) => ({ i, frac: x - floors[i]! }))
+      .sort((a, b) => b.frac - a.frac || a.i - b.i);
+    for (let k = 0; k < byFrac.length && extra > 0; k++, extra--) floors[byFrac[k]!.i]! += 1;
+    sideLines.forEach((l, i) => { l.min = floors[i]! / 10; });
+  }
 
   const totalPoss = totals[0].poss + totals[1].poss;
   const gameMinutes = Math.max(1, lastT / 60);

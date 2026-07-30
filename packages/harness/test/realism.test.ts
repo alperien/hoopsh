@@ -13,9 +13,12 @@
  * each band edge extends by z·sd of the 24-game sampling distribution under
  * the null. At z=3 a failure means "the sim changed", not "the seed
  * changed" — the distinction feel-widened percentages could never make
- * (third external review). Where the sim's true center sits ON a band edge
- * (measured: pace at the 95 floor, ORtg at the 121 ceiling), that is a
- * standing calibration finding for INTERNALS, not gate noise.
+ * (third external review). Where a measured center sits ON a band edge,
+ * that is a standing calibration finding for INTERNALS, not gate noise —
+ * compare noise-floor.gen.ts means against bands.ts edges for the current
+ * list; the two examples a prior header named (pace at the 95 floor, ORtg
+ * at the 121 ceiling) had drifted back inside their bands and gone stale
+ * (audit L-52; today's floor measures pace ~99.2, ORtg ~115.9).
  */
 
 import { describe, expect, it } from 'vitest';

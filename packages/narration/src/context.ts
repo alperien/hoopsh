@@ -2,22 +2,28 @@
  * Narrative context tracker: scoring runs, lead changes, milestones, clutch.
  * Both the template layer and LLM commentary providers feed on this.
  *
- * FROZEN PROTOTYPE per project decision (see docs/INTERNALS.md's "frozen
- * demo layer" note and ARCHITECTURE.md §6): kept as the reference consumer
- * of the event stream, showing what a narration/commentary experience built
- * on hoopsh's events looks like. The engine never depends on this package or
- * anything it decides — narration purely reads `GameEvent`s and never
- * influences game logic (AGENTS.md §1.3, §6). Frozen means: no new moment
- * kinds or threshold tuning is in scope here without a project-level
- * decision to unfreeze it; bugs found while reading this file are reported,
- * not silently fixed.
+ * Maintained template layer (docs/INTERNALS.md "Consumers" note — it is the
+ * VIEWER that is the frozen prototype; an earlier version of this header
+ * claimed FROZEN PROTOTYPE for narration citing the same doc, audit L-33):
+ * the reference consumer of the event stream, showing what a narration/
+ * commentary experience built on hoopsh's events looks like. The engine
+ * never depends on this package or anything it decides — narration purely
+ * reads `GameEvent`s and never influences game logic (AGENTS.md §1.3, §6).
+ * New moment kinds or threshold re-tuning remain design decisions to raise
+ * with the project owner, not drive-bys — the thresholds are narration-
+ * pacing FEEL choices (see the note at the end of this header).
  *
  * Moment taxonomy (the `NarrativeMoment['kind']` union below), each fired at
  * most where noted:
- *  - `run`: one team scores 8, then 12, then 16 UNANSWERED points (any score
- *    by the other side resets the counter to 0 — see `runPts` below). Each
- *    threshold fires once per run, so an 8-0 run that continues to 16-0
- *    produces two moments (at 8 and at 12... and a third at 16), not one.
+ *  - `run`: one team's UNANSWERED points reach or cross the 8, 12, then 16
+ *    bars (any score by the other side resets the counter to 0 — see
+ *    `runPts` below). Detection is a >= crossing with a fired-bar memory
+ *    (`runBarHit`), not an exact landing: a three can jump a bar outright
+ *    (6 -> 9 never equals 8), and exact-equality checks fired nothing on
+ *    36% of crossings (audit M-36). Each bar fires once per run, so an
+ *    8-0 run that continues to 16-0 produces three moments (one per bar),
+ *    and `detail` reports the TRUE unanswered total at the crossing
+ *    ("9-0 run" for the 6 -> 9 jump), which is what a broadcaster says.
  *  - `milestone`: a player crosses 20/30/40/50 total points for the game,
  *    each threshold firing once per game per player (`milestonesHit` below
  *    guards against re-firing on every subsequent basket past the bar).
@@ -70,6 +76,11 @@ export class ContextTracker {
   // per-team UNANSWERED points since the other side last scored — see the
   // reset-on-opponent-score line in update() below.
   private runPts: [number, number] = [0, 0];
+  // highest run bar (8/12/16) already announced for each side's CURRENT run
+  // — reset together with the run itself when the opponent scores. This is
+  // the fired-bar memory that makes each bar fire once per run under the
+  // >= crossing check in update() (audit M-36).
+  private runBarHit: [number, number] = [0, 0];
   // -1 means "no leader yet" (tied, or game hasn't started scoring) — the
   // lead_change/tie logic below treats -1 as a sentinel distinct from either
   // real team side, not as "team -1".
@@ -104,19 +115,29 @@ export class ContextTracker {
       // in that order, so a team's own basket never clears its own tally
       // (only being scored ON by the opponent breaks a run). This is why
       // it's `runPts[opponent] = 0` and not `runPts = [0, 0]` reset-both.
+      // The opponent's fired-bar memory resets with their run: their next
+      // run starts announcing from the 8 bar again.
+      const opponent = scored.team === 0 ? 1 : 0;
       this.runPts[scored.team] += scored.pts;
-      this.runPts[scored.team === 0 ? 1 : 0] = 0;
+      this.runPts[opponent] = 0;
+      this.runBarHit[opponent] = 0;
       const run = this.runPts[scored.team];
-      // exact-equality checks (not >=) so a run that jumps straight from 6
-      // to 9 via a three (skipping 8 outright) never fires the 8-run moment
-      // it technically passed through — see the taxonomy note above on each
-      // bar firing "once per run", which implicitly assumes the run lands
-      // exactly on a bar at some point; a 3-point make can jump past one.
-      if (run === 8 || run === 12 || run === 16) {
-        push({
-          kind: 'run', t: e.t, period: e.period, clock: e.clock, team: scored.team,
-          detail: `${run}-0 run`
-        });
+      // >= crossing with the fired-bar memory, NOT exact equality: a three
+      // jumps a bar outright (6 -> 9 passes 8 without ever equaling it), so
+      // `run === 8` fired nothing on 36% of bar crossings (audit M-36).
+      // `runBarHit` keeps each bar to one announcement per run; `detail`
+      // states the true unanswered total at the crossing (the broadcaster's
+      // "a 9-0 run", not the bar it happened to cross). Bars sit 4 apart
+      // and no scoring event is worth more than 3, so one event crosses at
+      // most one bar; the loop stays correct even if that ever changed.
+      for (const bar of [8, 12, 16]) {
+        if (run >= bar && this.runBarHit[scored.team] < bar) {
+          this.runBarHit[scored.team] = bar;
+          push({
+            kind: 'run', t: e.t, period: e.period, clock: e.clock, team: scored.team,
+            detail: `${run}-0 run`
+          });
+        }
       }
 
       // player milestones: same exact-vs-threshold subtlety doesn't apply

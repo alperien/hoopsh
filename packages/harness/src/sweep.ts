@@ -35,7 +35,7 @@ import { execFile } from 'node:child_process';
 import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { defaultParams } from '@hoopsh/engine';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 import { NBA_BANDS } from './bands.js';
 import { evaluate, type LeagueAverages } from './aggregate.js';
 // Reads use getPath (defaults, the candidate diff); writes go through
@@ -64,6 +64,10 @@ const execFileP = promisify(execFile);
 // requiring a candidate to pass bands on ALL three independently seeded
 // samples (not just one lucky sample) is what makes "locked" mean something
 // (AGENTS.md §4.4) rather than overfitting to a single seed's noise.
+// declared vocabulary first — a typo'd or `=`-spelled flag must die before a
+// calibration budget is spent measuring the wrong thing (args.ts checkFlags,
+// audit H-03; same incident family as the NaN `--iters` note above)
+checkFlags(process.argv, ['--iters', '--cands', '--games', '--workers', '--verify', '--seeds', '--objective', '--endgame']);
 const ITERS = flagNumber(process.argv, '--iters', 28);
 const CANDS = flagNumber(process.argv, '--cands', 4);
 const GAMES = flagNumber(process.argv, '--games', 16);
@@ -123,7 +127,11 @@ let jobCounter = 0;
  * concurrent evaluateCandidate calls (see evalBatch below) never collide on
  * the same temp file, even across multiple sweep runs sharing /tmp.
  */
-async function evaluateCandidate(cand: Candidate, games: number): Promise<{ score: number; seedResults: SeedResult[] }> {
+async function evaluateCandidate(
+  cand: Candidate,
+  games: number,
+  seedBases: readonly string[] = SEED_BASES
+): Promise<{ score: number; seedResults: SeedResult[] }> {
   const overrides: Record<string, unknown> = {};
   for (const [path, value] of Object.entries(cand)) {
     // build nested override object
@@ -135,7 +143,7 @@ async function evaluateCandidate(cand: Candidate, games: number): Promise<{ scor
     cur[parts[parts.length - 1]!] = value;
   }
   const jobPath = `/tmp/hoopsh-sweep-job-${process.pid}-${jobCounter++}.json`;
-  writeFileSync(jobPath, JSON.stringify({ overrides, games, seedBases: SEED_BASES, endgame: ENDGAME }));
+  writeFileSync(jobPath, JSON.stringify({ overrides, games, seedBases, endgame: ENDGAME }));
   // Same keep-on-failure / unlink-on-success policy as parallel.ts's runner
   // jobs: a failed evaluation keeps its job file so the candidate can be
   // re-run by hand (node --import ./tools/register.mjs
@@ -223,10 +231,12 @@ function scoreResults(seedResults: SeedResult[]): number {
       const v = sr.avgs[band.metric] ?? NaN;
       const width = band.hi - band.lo;
       // A metric that failed to resolve at all (see aggregate.ts#evaluate's
-      // NaN-on-missing-key note) is scored as a flat, large 10 — much worse
-      // than any real out-of-band distance can produce — rather than
-      // silently skipped, so a broken metric wiring can never look like a
-      // free win to the search.
+      // NaN-on-missing-key note) is scored as a flat 10 per (seed base ×
+      // band) rather than silently skipped, so a broken metric wiring can
+      // never look like a free win to the search. 10 ≈ 2.4 band-widths past
+      // an edge under the margin objective — a real violation CAN exceed it
+      // (the claim here used to say it couldn't; audit L-42), but a metric
+      // that far gone dominates the score either way.
       if (Number.isNaN(v)) { score += 10; continue; }
       // out-of-band cost includes the max in-band centering cost so the score
       // is CONTINUOUS at the band edge (a value just outside can never score
@@ -409,7 +419,15 @@ async function main(): Promise<void> {
   // a human should be measured at a sample size large enough that the
   // ~1% noise floor (AGENTS.md §4.4) is actually small relative to the
   // band widths, not the search's own fast-but-noisier evaluation size.
-  const verify = await evaluateCandidate(current, VERIFY_GAMES);
+  // DISJOINT verify sample (audit M-23): the worker seeds games
+  // `${seedBase}-${i}` from i=0, so verifying on the search's own seed bases
+  // replayed every search game — games 0..GAMES-1 of the "verification" WERE
+  // the sample the winning candidate was selected on, and the verify score
+  // partially re-measured selection noise as if it were held-out signal.
+  // A `-verify` suffix on each base yields entirely fresh game seeds while
+  // keeping the same three-independent-bases structure the lock is defined
+  // on.
+  const verify = await evaluateCandidate(current, VERIFY_GAMES, SEED_BASES.map((b) => `${b}-verify`));
   console.log(`\nVERIFY (${VERIFY_GAMES} games × ${SEED_BASES.length} seeds): score ${verify.score.toFixed(3)}, band-fails ${failCount(verify.seedResults)}`);
   for (const sr of verify.seedResults) {
     const fails = evaluate(sr.avgs, NBA_BANDS).filter((r) => !r.pass);
@@ -435,6 +453,23 @@ async function main(): Promise<void> {
     }
   }
 
+  // Rail-pinned convergence report (audit M-25): a final value sitting ON a
+  // knob's declared lo/hi rail means the search wanted to go further and the
+  // rail — not the bands — chose the value. Silent rail-pinning is how six
+  // shipped defaults came to sit exactly on their rails with nobody knowing
+  // whether that was calibration or clamping. One line, every run: either
+  // widen the range (knobs.ts) deliberately or accept the edge deliberately.
+  const pinned: string[] = [];
+  for (const knob of SWEEPABLE) {
+    const v = current[knob.path] ?? getPath(defaultParams as unknown as Record<string, unknown>, knob.path);
+    if (Math.abs(v - knob.lo) <= 1e-9 || Math.abs(v - knob.hi) <= 1e-9) {
+      pinned.push(`${knob.path}=${v} [${knob.lo}..${knob.hi}]`);
+    }
+  }
+  if (pinned.length > 0) {
+    console.log(`\nWARNING rail-pinned knobs (value ON its declared search rail — widen the knobs.ts range or accept the edge deliberately): ${pinned.join(', ')}`);
+  }
+
   mkdirSync('out', { recursive: true });
   writeFileSync('out/sweep-best.json', JSON.stringify({
     score: verify.score,
@@ -447,6 +482,17 @@ async function main(): Promise<void> {
     verify: verify.seedResults
   }, null, 2));
   console.log('\nwrote out/sweep-best.json');
+
+  // Verify-rung exit code (audit M-24): `--iters 0 --verify N` is AGENTS.md
+  // §4.2's 3-seed band-verification rung — a gate, and a gate's exit code IS
+  // its verdict. It used to exit 0 with 21 band-fails, so scripted ladders
+  // saw green on a failing verification. A TUNING run (--iters > 0) keeps
+  // exit 0 regardless: its contract is "search, then write the best found";
+  // the printed fail count and sweep-best.json carry the verdict there.
+  if (ITERS === 0 && failCount(verify.seedResults) > 0) {
+    console.error(`\nVERIFY FAILED: ${failCount(verify.seedResults)} band-fails on the verification rung (--iters 0) — exiting nonzero`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {

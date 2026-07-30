@@ -88,7 +88,9 @@ export function hurriedness(s: GameState, side: TeamSide): number {
  * The activation is the real coaching calculus, not a script:
  *  - final period or OT only, and only while the LEADING team has the ball;
  *  - deficit within [foulMinDeficit, foulMaxDeficit]: down 1-2 a stop wins
- *    (never foul), down 13+ it's over;
+ *    (never foul), down 13+ it's over — and the deficit must still be ALIVE
+ *    per chaseAliveness (the shared definition above): a paper-recoverable
+ *    deficit with no clock left is over too, and nobody parades a dead game;
  *  - clock inside min(foulTrailMaxClockSec, one full shot clock per
  *    possession still needed): a team down two scores must foul earlier
  *    than a team down one, because the opponent can otherwise milk a full
@@ -105,6 +107,15 @@ export function foulHuntSide(s: GameState): TeamSide | null {
   const deficit = s.score[off] - s.score[def]; // defense trails by this
   const E = s.params.endgame;
   if (deficit < E.foulMinDeficit || deficit > E.foulMaxDeficit) return null;
+  // the shared aliveness read (chaseAliveness above): a deficit the
+  // remaining clock can no longer recover is walk-off territory, and fouling
+  // there is a parade in a decided game — trading FTs for possessions only
+  // makes sense while the possessions can still add up. The flat deficit
+  // ceiling alone missed this (down 12 with 0:20 left sits inside
+  // foulMaxDeficit but is dead: 87 hunted fouls in dead games, audit M-09);
+  // the header's one-definition doctrine says the foul gate reads the SAME
+  // "when do we stop trying" the hurry and the advance timeout read.
+  if (chaseAliveness(s, deficit) <= 0) return null;
   // one full shot clock of defense per possession the chase still needs —
   // the 3 is a rules fact (a possession scores at most one three-pointer's
   // 3 points), the same inline shot-value arithmetic shooting.ts uses
@@ -122,13 +133,22 @@ export function foulHuntSide(s: GameState): TeamSide | null {
  * about to inbound may call one (the possession requirement). Two real
  * triggers, in priority order:
  *
- *  1. ADVANCE — trailing, final period, inside timeoutAdvanceClockSec, game
- *     still alive: burn a timeout so the inbound sets up in the FRONTcourt
- *     (the real advance-the-ball rule). The payoff is mechanical, not
- *     scripted: setupDeadTargets reads phase.advanceInbound and stages the
- *     offense up-court, so the possession simply starts ~20 ft closer with
- *     the backcourt walk-up cost deleted. Never spent on a continuation
- *     dead ball (play resumes in place — nothing to advance).
+ *  1. ADVANCE — trailing OR TIED, final period, inside
+ *     timeoutAdvanceClockSec, game still alive: burn a timeout so the
+ *     inbound sets up in the FRONTcourt (the real advance-the-ball rule).
+ *     The rule itself is league data — rules.advanceAfterTimeout: the NBA
+ *     and FIBA/EuroLeague have it, NCAA men do not (rules/rulepack.ts) —
+ *     and it is score-independent; what this trigger models is the coach's
+ *     USE of it (the side that needs the last shot sets up frontcourt; a
+ *     leader lets the clock run instead, so margin > 0 never calls it).
+ *     Tied qualifies: the tied-at-0:30 advance for the win is the classic
+ *     use (the old strictly-trailing gate combined with the stop-run
+ *     suppression below locked a tied team out of EVERY timeout inside the
+ *     window — audit M-10). The payoff is mechanical, not scripted:
+ *     setupDeadTargets reads phase.advanceInbound and stages the offense
+ *     up-court, so the possession simply starts ~20 ft closer with the
+ *     backcourt walk-up cost deleted. Never spent on a continuation dead
+ *     ball (play resumes in place — nothing to advance).
  *
  *  2. STOP THE RUN — the opponent has timeoutRunPts unanswered: call time,
  *     regroup. Resets the run counter (that's the model of "regroup"; it
@@ -156,11 +176,20 @@ export function maybeTimeout(s: GameState): void {
   const finalPeriod = s.period >= s.rules.periods;
 
   let reason: 'stop_run' | 'advance' | null = null;
-  const advanceWindow = finalPeriod && s.clock <= E.timeoutAdvanceClockSec && s.clock > 0;
+  // no advance rule in this league (rules.advanceAfterTimeout false — NCAA
+  // men) ⇒ no advance window at all: the advance arm never fires AND the
+  // save-for-the-advance suppression below never bites, so stop_run stays
+  // available to everyone all the way in (audit M-11: NCAA was getting the
+  // NBA's advance-the-ball timeout)
+  const advanceWindow = finalPeriod && s.rules.advanceAfterTimeout &&
+    s.clock <= E.timeoutAdvanceClockSec && s.clock > 0;
   if (
-    advanceWindow && margin < 0 && -margin <= E.timeoutAdvanceDeficitMax &&
+    advanceWindow && margin <= 0 && -margin <= E.timeoutAdvanceDeficitMax &&
     chaseAliveness(s, -margin) > 0 && !ph.continuation
   ) {
+    // margin <= 0: trailing or TIED — the tied team wants the last shot in
+    // the frontcourt just as much (audit M-10; a tied deficit of 0 passes
+    // the deficit/aliveness gates trivially)
     reason = 'advance';
   } else if (
     // save-for-the-advance suppression applies only while this side might

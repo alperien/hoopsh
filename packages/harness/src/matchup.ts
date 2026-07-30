@@ -23,9 +23,11 @@
  *   one-sample binomial power formula (`simsToResolveEdge`) gives
  *     n = (z_a*sqrt(p0*q0) + z_b*sqrt(p1*q1))^2 / (p1-p0)^2
  *   ≈ 783 sims for 95% confidence / 80% power. Rules of thumb this
- *   implies (all at 95% confidence, 80% power, vs p0=0.5):
- *     55% vs 50%  ->  ~783 sims        60% vs 50%  ->  ~194 sims
- *     52% vs 50%  ->  ~4,895 sims      70% vs 50%  ->   ~47 sims
+ *   implies (all at 95% confidence, 80% power, vs p0=0.5; each value is
+ *   what simsToResolveEdge returns — pinned in test/matchup.test.ts, and
+ *   the old "~4,895" quoted here never reproduced, audit L-38):
+ *     55% vs 50%  ->  783 sims         60% vs 50%  ->  194 sims
+ *     52% vs 50%  ->  4,904 sims       70% vs 50%  ->   47 sims
  *   Equivalently by CI width: the 95% CI half-width is ~0.98/sqrt(n)
  *   (worst case p=0.5): n=100 -> ±9.8pp, n=400 -> ±4.9pp, n=1600 -> ±2.5pp.
  *   A 5-point edge is EXPENSIVE to resolve; the API reports the CI so a

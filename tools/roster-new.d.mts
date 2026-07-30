@@ -71,9 +71,11 @@ export interface RosterOptions {
 
 /**
  * Build a complete, validated TeamPack from scaffold options (pure — no
- * I/O). Throws on unknown archetype slugs, and throws if the generated pack
- * would not satisfy validateTeamPack() — a scaffold that can emit an invalid
- * pack is a bug in roster-new.mjs, never something handed to the user.
+ * I/O). Throws on empty name/abbrev (author input, named as such — never
+ * blamed on the scaffold), on unknown archetype slugs, and if the generated
+ * pack would not satisfy validateTeamPack() — a scaffold that can emit an
+ * invalid pack is a bug in roster-new.mjs, never something handed to the
+ * user.
  */
 export function buildRoster(opts: RosterOptions): TeamPack;
 
