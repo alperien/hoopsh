@@ -234,13 +234,15 @@ else {
 /* ================= viewer ================= */
 function boot(R) {
   /* ---- format version gate ---- */
-  // Replay.version (engine replay/replay.ts — version history lives there).
-  // This viewer understands formats 1 and 2. A replay declaring a NEWER
-  // version still renders — best effort beats a blank page — but must say
+  // Replay.version (engine replay/replay.ts; version history lives there).
+  // This viewer understands formats 1 through 3 (v3 added the officiating
+  // events: jump_ball / violation / replay_review, plus the widened
+  // turnover/foul/timeout vocabularies). A replay declaring a NEWER
+  // version still renders (best effort beats a blank page) but must say
   // so visibly: silently mis-rendering a shape this file predates is the
   // failure AGENTS.md DO-NOT #8 exists to prevent (v1 viewers drew
   // "rebound undefined" from v2's playerless team rebounds).
-  const KNOWN_REPLAY_VERSION = 2; // newest format this viewer was written against
+  const KNOWN_REPLAY_VERSION = 3; // newest format this viewer was written against
   if (typeof R.version === 'number' && R.version > KNOWN_REPLAY_VERSION) {
     const warn = document.createElement('div');
     warn.textContent = `replay version ${R.version} is newer than this viewer — rendering may be incomplete`;
@@ -823,19 +825,32 @@ function buildFeed(R, lastNames) {
       }
       // one-and-one front end: `of` is the POTENTIAL 2 — a missed front end
       // forfeits the second attempt, so "1/2 ✗" promised a throw that never
-      // comes (same convention fix as narration/src/pbp.ts)
-      case 'free_throw': push(e, e.team, `${nm(e.shooter)} free throw ${e.oneAndOne && e.n === 1 ? 'front end of 1-and-1' : `${e.n}/${e.of}`} ${e.made ? '✓' : '✗'}`); break;
+      // comes (same convention fix as narration/src/pbp.ts); a technical
+      // single reads as its own label, not 1-of-2 bookkeeping
+      case 'free_throw': push(e, e.team, `${nm(e.shooter)} ${e.technical ? 'technical free throw' : `free throw ${e.oneAndOne && e.n === 1 ? 'front end of 1-and-1' : `${e.n}/${e.of}`}`} ${e.made ? '✓' : '✗'}`); break;
       case 'rebound': push(e, e.team, `${e.offensive ? 'Offensive' : 'Defensive'} rebound ${e.player ? nm(e.player) : 'by Team'}${e.deadBall ? ' (dead ball)' : ''}`); break;
       case 'turnover': {
         const k = e.kind === 'bad_pass' ? (e.stolenBy ? `pass stolen by ${nm(e.stolenBy)}` : 'throws it away')
           : e.kind === 'lost_ball' ? (e.stolenBy ? `stripped by ${nm(e.stolenBy)}` : 'loses the ball')
-          : e.kind === 'off_foul' ? 'charge' : e.kind === 'shot_clock' ? 'shot-clock violation' : 'out of bounds';
+          : e.kind === 'off_foul' ? 'charge' : e.kind === 'shot_clock' ? 'shot-clock violation'
+          : e.kind === 'travel' ? 'traveling'
+          : e.kind === 'off_goaltend' ? 'offensive goaltending' : 'out of bounds';
         push(e, e.team, `Turnover — ${nm(e.player)}, ${k}`);
         break;
       }
-      case 'foul': push(e, e.team, `${e.kind.replace('_', ' ')} foul on ${nm(e.on)} (${e.personalCount})${e.fouledOut ? ' — FOULED OUT' : ''}`); break;
+      // a technical's stamped personalCount is the fouler's unchanged total
+      // (techs aren't personals; engine core/events.ts FoulKind), so the
+      // usual "(n)" suffix would print a stale-looking count; suppress it
+      case 'foul': push(e, e.team, e.kind === 'technical'
+        ? `technical foul on ${nm(e.on)}`
+        : `${e.kind.replace('_', ' ')} foul on ${nm(e.on)} (${e.personalCount})${e.fouledOut ? ' — FOULED OUT' : ''}`); break;
       case 'timeout': push(e, e.team, `Timeout ${R.teams[e.team].abbrev}${e.reason === 'advance' ? ' — ball advances' : ''} (${e.remaining} left)`); break;
       case 'substitution': push(e, e.team, `Sub: ${e.in.map(nm).join(', ')} in for ${e.out.map(nm).join(', ')}`); break;
+      case 'jump_ball': push(e, e.winner, `Held ball — jump won by ${R.teams[e.winner].abbrev}, ${nm(e.gainedBy)} comes up with it`); break;
+      case 'violation': push(e, e.team, e.kind === 'def_goaltend'
+        ? `Goaltending on ${e.player ? nm(e.player) : R.teams[e.team].abbrev} — basket counts`
+        : `Kicked ball on ${e.player ? nm(e.player) : R.teams[e.team].abbrev} — offense retains`); break;
+      case 'replay_review': push(e, -1, `Replay review (${e.trigger === 'period_end' ? 'before the break' : e.trigger === 'late_make' ? 'late basket' : 'out of bounds'}) — call stands`); break;
     }
   }
   return items;

@@ -374,6 +374,12 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
         break;
       }
       case 'foul': {
+        // Technical fouls are not personal fouls in a real box score; pf
+        // counts personals only (the tech's cost is the opponent's technical
+        // FT, which the free_throw case above already credits like any other
+        // attempt). The engine stamps a tech's counts as unchanged snapshots
+        // for the same reason (core/events.ts FoulKind).
+        if (e.kind === 'technical') break;
         const line = lines.get(e.on)!;
         line.pf += 1;
         totals[e.team].pf += 1;
@@ -386,6 +392,20 @@ export function boxScore(events: GameEvent[], teams: [Team, Team], opts: BoxScor
         totals[e.team].timeouts += 1;
         break;
       }
+      // The officiating vocabulary folds to nothing here, on purpose. Each
+      // case is explicit (not defaulted) so the convention is stated:
+      case 'jump_ball':
+        // a jump ball is possession plumbing, not a counting stat; the
+        // rebound/possession events around it carry all the box weight
+        break;
+      case 'violation':
+        // def goaltending's points ride the made shot event (a normal FGM to
+        // the shooter, real scoring convention); a kicked ball changes no
+        // total. The violation row is play-by-play texture only.
+        break;
+      case 'replay_review':
+        // pure stoppage theater; reviews never touch a box score
+        break;
       default: break;
     }
   }
