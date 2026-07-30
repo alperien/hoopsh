@@ -108,7 +108,8 @@ export class GameSense {
   ties = 0;
 
   /** score/period team-level checkpoints for quarter recaps */
-  private periodStart = { score: [0, 0] as [number, number], tpm: [0, 0], tov: [0, 0], paint: [0, 0], fb: [0, 0] };
+  private periodStart: { score: [number, number]; tpm: [number, number]; tov: [number, number]; paint: [number, number]; fb: [number, number] } =
+    { score: [0, 0], tpm: [0, 0], tov: [0, 0], paint: [0, 0], fb: [0, 0] };
   private lastScore: [number, number] = [0, 0];
   private lastLeader: TeamSide | -1 = -1;
   private milestonesHit = new Map<string, number>();
@@ -270,14 +271,18 @@ export class GameSense {
         break;
       }
       case 'rebound': {
-        const l = this.line(e.player);
-        if (e.offensive) {
-          l.oreb += 1;
-          if (this.poss) this.poss.orebs += 1;
-        } else {
-          l.dreb += 1;
+        // playerless boards (team caroms, dead-ball formalities) carry no
+        // actor since the flow contract made `player` optional: no line to
+        // credit, but a live offensive team board still extends the
+        // possession, matching the box-score fold's team-only crediting.
+        // stage-2: vocabulary — give the booth a team-credited call here.
+        if (e.player !== undefined) {
+          const l = this.line(e.player);
+          if (e.offensive) l.oreb += 1;
+          else l.dreb += 1;
+          this.checkDoubleDouble(e.player, d);
         }
-        this.checkDoubleDouble(e.player, d);
+        if (e.offensive && !e.deadBall && this.poss) this.poss.orebs += 1;
         break;
       }
       case 'turnover': {
