@@ -17,7 +17,7 @@ import { checkSubs, replaceFouledOut } from './subs.js';
 import { applyFatigue, integrateMovement } from './movement.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
-import { noteScore } from './endgame.js';
+import { maybeFtTimeout, noteScore } from './endgame.js';
 
 export interface FoulOutcome {
   fouledOut: boolean;
@@ -189,6 +189,12 @@ export function enterFreeThrows(
     ...(tech?.pre ? { pre: { shooterId: tech.pre } } : {}),
     ...(tech?.resume ? { resume: tech.resume } : {})
   };
+  // FT-whistle timeout site (fdesign-timeouts §1.2.2; the structural miss
+  // ffit-timeouts §5.1 names): 17.5% of real timeouts ride foul whistles,
+  // logged before the FTs. One evaluation per trip, at entry, before the
+  // sub pass (checkSubs reads phase.timeout, the §4 handshake). STAGED:
+  // at the shipped to* values the site decides null and draws nothing.
+  maybeFtTimeout(s);
   // Between-FT sub grammar (ffit-rotations §3.2): at ftGapSubMode 3 the
   // trip-entry pass is urgent-only (a fouler in trouble still leaves at the
   // whistle) and the routine rotation moves to the between-attempts slot in

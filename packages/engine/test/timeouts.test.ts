@@ -21,7 +21,7 @@ import {
   type GameEvent, type GameResult, type Player, type Team, type TeamSide, type SimParams
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
-import { decideLiveTimeout } from '../src/sim/endgame.js';
+import { decideLiveTimeout, maybeFtTimeout } from '../src/sim/endgame.js';
 import { endPeriod } from '../src/sim/possession.js';
 import type { Agent, GameState, TimeoutReason } from '../src/sim/state.js';
 
@@ -393,6 +393,93 @@ describe('decision units (hand-built states)', () => {
   it('the stop-run label rides the opponent run size', () => {
     const run = liveState(CERTAIN, { period: 2, clock: 400, score: [40, 48], runPts: [0, 8] });
     expect(decideLiveTimeout(run, 0)).toEqual({ team: 0, reason: 'stop_run' });
+  });
+});
+
+// ------------------------------------------- the FT-whistle site (fouls.ts)
+
+describe('FT-whistle timeout site (fdesign-timeouts §1.2.2)', () => {
+  /** a freethrows-phase state on top of the liveState skeleton */
+  function ftState(params: SimParams, o: {
+    period: number; clock: number; score: [number, number];
+    t?: number; side?: TeamSide; runPts?: [number, number];
+  }): GameState {
+    const s = liveState(params, o);
+    (s as { endgame: boolean }).endgame = true;
+    (s as { events: unknown[] }).events = [];
+    (s as { wallT: number }).wallT = s.t;
+    s.phase = {
+      kind: 'freethrows', shooterId: 'ft-shooter', side: o.side ?? 0,
+      taken: 0, of: 2, nextIn: 1.4, lastMade: false, oneAndOne: false
+    } as GameState['phase'];
+    return s;
+  }
+
+  it('staged defaults decide null WITHOUT consuming rng (the fingerprint switch)', () => {
+    const s = ftState(withParams(), { period: 2, clock: 400, score: [50, 55] });
+    const t = ftState(withParams(), { period: 2, clock: 400, score: [50, 55] });
+    s.rng.chance(0.5);
+    t.rng.chance(0.5);
+    maybeFtTimeout(s);
+    expect(s.events.length).toBe(0);
+    // identical next draw on both streams proves the site drew nothing
+    expect(s.rng.chance(0.5)).toBe(t.rng.chance(0.5));
+  });
+
+  it('a forced-certain hazard calls time for the shooting team: freethrows-branch effects', () => {
+    const s = ftState(CERTAIN, { period: 2, clock: 400, score: [50, 55], side: 1 });
+    maybeFtTimeout(s);
+    const ev = s.events as { type: string; team: TeamSide; reason: TimeoutReason }[];
+    expect(ev.length).toBe(1);
+    expect(ev[0]!.type).toBe('timeout');
+    expect(ev[0]!.team).toBe(1); // the shooter's team holds the ball at the line
+    const ph = s.phase as Extract<GameState['phase'], { kind: 'freethrows' }>;
+    // wall-time huddle: nextIn stretched, phase stamped for the sub handshake
+    expect(ph.timeout).toEqual({ team: 1, reason: ev[0]!.reason });
+    expect(ph.nextIn).toBeGreaterThanOrEqual(defaultParams.endgame.timeoutResumeSec);
+    expect(s.timeoutsLeft[1]).toBe(3);
+  });
+
+  it('the mandatory anchor rides the whistle (forced live), charged by convention', () => {
+    const s = ftState(withParams(MAND), { period: 1, clock: 300, score: [20, 22] });
+    maybeFtTimeout(s);
+    const ev = s.events as { type: string; team: TeamSide; reason: TimeoutReason }[];
+    expect(ev.length).toBe(1);
+    expect(ev[0]!.reason).toBe('mandatory');
+    expect(ev[0]!.team).toBe(0); // first anchor charged to the home side
+  });
+
+  it('no advance from the line (a whistle is not an inbound)', () => {
+    // trailing, final period, inside the advance window: at a dead-ball
+    // inbound this is a deterministic advance; at the line the reserve
+    // gate holds instead (advanceWindow && margin <= 0 blocks voluntary)
+    const s = ftState(CERTAIN, { period: 4, clock: 20, score: [80, 84] });
+    maybeFtTimeout(s);
+    expect(s.events.length).toBe(0);
+  });
+
+  it('forced-live pool: timeouts land on foul whistles, logged before the FTs', () => {
+    // the corpus grammar the site exists for (17.5% of real timeouts;
+    // madeFT-preceded skew 13.7% vs real 4.4% without it). Scan: a timeout
+    // whose preceding non-sub event is the foul and whose next non-sub
+    // event is a free_throw row.
+    let onWhistle = 0;
+    for (const r of haz) {
+      const ev = r.events;
+      for (let k = 0; k < ev.length; k++) {
+        if (ev[k]!.type !== 'timeout') continue;
+        let j = k - 1;
+        while (j >= 0 && ev[j]!.type === 'substitution') j -= 1;
+        let m = k + 1;
+        while (m < ev.length && ev[m]!.type === 'substitution') m += 1;
+        if (j >= 0 && m < ev.length && ev[j]!.type === 'foul' && ev[m]!.type === 'free_throw') {
+          onWhistle += 1;
+        }
+      }
+    }
+    // probed 6 across the 6-game pool (1 of them a mandatory anchor);
+    // floor set well under per the suite doctrine
+    expect(onWhistle).toBeGreaterThanOrEqual(2);
   });
 });
 

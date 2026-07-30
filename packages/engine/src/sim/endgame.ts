@@ -189,6 +189,38 @@ export interface TimeoutCall {
 }
 
 /**
+ * The FT-whistle timeout site (fdesign-timeouts §1.2.2), called from
+ * fouls.ts enterFreeThrows after the freethrows phase is set and before
+ * the sub pass (ordering is the §4 handshake: checkSubs reads
+ * phase.timeout). Real grammar needs the site: 17.5% of all corpus
+ * timeouts and 44.8% of anchor timeouts sit on foul whistles, logged
+ * before the FTs; without it, anchors over-land on made baskets
+ * (ffit-timeouts §5.1). Decision order matches deadBall's brain minus the
+ * advance (a whistle is not an inbound, there is nothing to advance):
+ * mandatory first (a rule), then the coach hazard for the shooting team
+ * (the possession holder at the line). The legacy deterministic stop_run
+ * trigger deliberately does not evaluate here: it is live at shipped
+ * params and this site must stay dark until the fit-wave flip. STAGED:
+ * mandatory ships −1 and the hazard magnitudes 0, so the site decides
+ * null, draws nothing, and the shipped stream is byte-identical.
+ * Effects on a call are callTimeout's freethrows branch (wall-time huddle
+ * stretch on nextIn; the whistle already stopped the game clock).
+ */
+export function maybeFtTimeout(s: GameState): void {
+  if (!s.endgame) return;
+  const ph = s.phase;
+  if (ph.kind !== 'freethrows') return;
+  const team = ph.side;
+  const E = s.params.endgame;
+  const margin = s.score[team] - s.score[other(team)];
+  const finalPeriod = s.period >= s.rules.periods;
+  const advanceWindow = finalPeriod && s.clock <= E.timeoutAdvanceClockSec && s.clock > 0;
+  const call = decideMandatory(s) ?? decideCoachHazard(s, team, margin, advanceWindow);
+  if (!call) return;
+  callTimeout(s, call.team, call.reason);
+}
+
+/**
  * The pure decision at a dead-ball stoppage, in priority order: advance
  * (deterministic; near-universal correct coaching, unchanged), mandatory
  * (deterministic; it's a rule, STAGED off), the deterministic legacy
@@ -369,9 +401,9 @@ export function decideLiveTimeout(s: GameState, team: TeamSide): TimeoutCall | n
  * phase's `timeout` field, the sub-window handshake (checkSubs runs after
  * this at every site, so the rotation layer can read it). Wall-time only:
  * the huddle stretches resumeIn/nextIn while the game clock stays frozen
- * (two-axes discipline). The freethrows branch is STAGED surface; its
- * caller is the officiating wave's FT-whistle hook (fouls.ts, fdesign-
- * timeouts §1.2.2); nothing reaches it today.
+ * (two-axes discipline). The freethrows branch is reached from the
+ * FT-whistle site (maybeFtTimeout above, called by fouls.ts
+ * enterFreeThrows), STAGED dark at the shipped to* values.
  */
 function callTimeout(s: GameState, team: TeamSide, reason: TimeoutReason): void {
   const E = s.params.endgame;
