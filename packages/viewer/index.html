@@ -141,6 +141,7 @@
     cursor: pointer; transition: border-color .2s, background .2s;
   }
   #drop .zone.over, #drop .zone:hover { border-color: var(--home); background: rgba(45,212,191,.05); }
+  #drop .droperr { color: #f87171; font-size: 13px; max-width: 460px; text-align: center; min-height: 1em; }
   #drop input { display: none; }
   .hidden { display: none !important; }
 
@@ -187,6 +188,7 @@
     <span style="font-size:12px">generate one with <code>npm run sim</code> → <code>out/replay-*.json</code></span>
     <input type="file" id="file" accept=".json,application/json">
   </label>
+  <div class="droperr" id="dropErr"></div>
 </div>
 
 <script>
@@ -207,8 +209,12 @@ function bootOnce(data) {
   // boot() wires listeners and starts a render loop — a second boot would
   // double every handler and run two loops on one canvas
   if (BOOTED) { alert('Refresh the page to load a different replay.'); return; }
-  BOOTED = true;
+  // latch AFTER boot succeeds, not before: boot() rejects a degenerate
+  // replay (frames: []) by throwing before it wires anything — latching
+  // first left BOOTED stuck true after that throw, and every subsequent
+  // VALID drop was refused until a page reload.
   boot(data);
+  BOOTED = true;
 }
 // Embedded path: embed.mjs spliced a real Replay literal in place of `null`
 // above, so this branch boots immediately with no user interaction — that's
@@ -222,7 +228,19 @@ else {
   const zone = $('zone');
   const read = (file) => {
     const r = new FileReader();
-    r.onload = () => { try { bootOnce(JSON.parse(r.result)); $('drop').classList.add('hidden'); } catch (e) { alert('Not a valid replay JSON: ' + e); } };
+    // Failures land on the page, not in an alert(): both a JSON parse error
+    // and boot()'s degenerate-replay throw (e.g. frames: []) leave the
+    // dropzone up with the reason shown, and — because bootOnce only latches
+    // after a successful boot — a later valid drop still boots normally.
+    r.onload = () => {
+      try {
+        bootOnce(JSON.parse(r.result));
+        $('drop').classList.add('hidden');
+        $('dropErr').textContent = '';
+      } catch (e) {
+        $('dropErr').textContent = 'Could not load replay: ' + (e && e.message ? e.message : e);
+      }
+    };
     r.readAsText(file);
   };
   $('file').addEventListener('change', (e) => e.target.files[0] && read(e.target.files[0]));
@@ -233,6 +251,15 @@ else {
 
 /* ================= viewer ================= */
 function boot(R) {
+  /* ---- degenerate replay gate ---- */
+  // A structurally-valid replay can still be unrenderable: with frames []
+  // (or missing) the duration read below (`frames[frames.length - 1][0]`)
+  // threw mid-boot. Reject it up front, BEFORE any listener/DOM wiring, so
+  // the throw is clean and bootOnce never latches on a failed boot.
+  if (!Array.isArray(R.frames) || R.frames.length === 0) {
+    throw new Error('replay has no frames to render (empty or missing `frames` array)');
+  }
+
   /* ---- format version gate ---- */
   // Replay.version (engine replay/replay.ts; version history lives there).
   // This viewer understands formats 1 through 3 (v3 added the officiating
