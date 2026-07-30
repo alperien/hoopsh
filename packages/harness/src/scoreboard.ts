@@ -44,7 +44,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Rng } from '@hoopsh/engine';
-import { flagNumber, flagValue } from './args.js';
+import { checkFlags, flagNumber, flagValue } from './args.js';
 import {
   anonymizeWindow, coreFilter, cutWindows, loadCorpus, realToNeutral, simNeutralGames,
   type NeutralGame, type NeutralRow, type WindowKind, type WindowSpec
@@ -861,9 +861,28 @@ export function gateTable(real: GateValues, sim: GateValues, t1: JudgeReport, t2
 
 // ------------------------------------------------------------------- main
 
+/** every flag this CLI reads — the checkFlags vocabulary below. Exported so
+ *  the flag-guard test can pin that the allow-list stays in sync with the
+ *  reads (this CLI once had no checkFlags at all: a typo'd flag silently
+ *  graded the defaults). */
+export const FLOWBOARD_CLI_FLAGS: readonly string[] =
+  ['--games', '--seed', '--corpus', '--out', '--real-cap'];
+
 const isMain = process.argv[1]?.endsWith('scoreboard.ts');
 if (isMain) {
+  // declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
+  // silently grading the defaults (args.ts checkFlags, audit H-03)
+  checkFlags(process.argv, FLOWBOARD_CLI_FLAGS);
   const games = flagNumber(process.argv, '--games', 20);
+  // Mirrors cli.ts's REGISTER W13 guard: `--games 0` used to print an
+  // all-NaN gate table and exit 0, so a scripted caller checking exit codes
+  // saw success on a run that simulated NOTHING. A scoreboard over zero
+  // games is a misconfiguration, never a pass — die loudly before
+  // simulating anything.
+  if (!Number.isInteger(games) || games < 1) {
+    console.error(`--games requires an integer >= 1, got ${games} — refusing to grade a run that simulates nothing`);
+    process.exit(1);
+  }
   const seed = flagValue(process.argv, '--seed', 'flowboard');
   const corpusDir = flagValue(process.argv, '--corpus', 'data/nba/pbp-plays');
   const outFile = flagValue(process.argv, '--out', 'out/scoreboard.json');

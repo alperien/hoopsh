@@ -1158,11 +1158,21 @@ function emitNeutralPack(opts: {
   }
 }
 
+/** every flag this CLI reads — the checkFlags vocabulary below. Exported so
+ *  the flag-guard test can pin that the allow-list stays in sync with the
+ *  reads: it once omitted --repr/--windows/--variant/--strat/--cap-per-game
+ *  (all read a few lines down), so the file's own documented `--variant core`
+ *  invocation died as "unknown flag --variant". */
+export const TURING_CLI_FLAGS: readonly string[] = [
+  '--sim', '--window', '--out', '--real', '--seed', '--strip-timeouts',
+  '--repr', '--windows', '--variant', '--strat', '--cap-per-game'
+];
+
 const isMain = process.argv[1]?.endsWith('turing.ts');
 if (isMain) {
   // declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
   // silently building a default pack (args.ts checkFlags, audit H-03)
-  checkFlags(process.argv, ['--sim', '--window', '--out', '--real', '--seed', '--strip-timeouts']);
+  checkFlags(process.argv, TURING_CLI_FLAGS);
   const simCount = flagNumber(process.argv, '--sim', 15);
   const winLen = flagNumber(process.argv, '--window', 14);
   const outDir = flagValue(process.argv, '--out', 'out/turing');
