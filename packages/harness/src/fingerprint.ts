@@ -18,6 +18,19 @@
  * CI determinism/band steps are anchored to the same baseline, plus 22
  * mirrored sampleMatchup games for coverage of both playing styles.
  *
+ * NON-DEFAULT-CONFIG ENTRIES (audit H-04): the default-config seeds above
+ * only pin the flag-ON NBA engine — a change that leaks into the
+ * `endgame: false` legacy path or into the NCAA/EuroLeague rule-pack paths
+ * was invisible to the corpus (mutation M16, which unconditionally applied
+ * the endgame continuation reshape, kept all default seeds AND the whole
+ * suite green while flipping a flag-off game's winner). Four entries close
+ * that hole: two explicit `endgame: false` games (one per home/away
+ * orientation — the legacy path is a byte-identity CONTRACT, see
+ * GameConfig.endgame), one NCAA game and one EuroLeague game (the shipped
+ * non-NBA packs: different clocks, periods, bonus rules). A cheap in-suite
+ * twin of the flag-off pin lives in harness/test/fingerprint.test.ts so
+ * `npm test` alone catches a flag-off leak between CI corpus runs.
+ *
  * Frames are included deliberately: several "cosmetic" constants (dead-ball
  * spots, free-throw lane positions) only surface in frames, and the corpus
  * must catch an accidental change to those too.
@@ -27,7 +40,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { simulateGame } from '@hoopsh/engine';
+import { EUROLEAGUE, NCAA, simulateGame, type RulePack } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +51,41 @@ const CORPUS_SEEDS: string[] = [
   'ci-fp',        // the CI determinism-fingerprint seed (simone.ts)
   'acceptance-0', // the first seed of the CI band-smoke batch (cli.ts)
   ...Array.from({ length: 22 }, (_, i) => `golden-${i}`)
+];
+
+/**
+ * One corpus game: its golden-file key (the seed string — keys and seeds
+ * stay 1:1 so the golden file needs no format change), the home/away
+ * mirror, and any non-default GameConfig axes it exists to pin.
+ */
+interface CorpusEntry {
+  seed: string;
+  /** mirror home/away (legacy entries: odd corpus index, run.ts convention) */
+  flip: boolean;
+  /** explicit GameConfig.endgame; omitted = engine default (ON) */
+  endgame?: boolean;
+  /** non-NBA rule pack; omitted = engine default (NBA) */
+  rules?: RulePack;
+}
+
+/**
+ * The full corpus, in a fixed order (order is part of the format). The
+ * legacy 24 default-config entries come first, byte-for-byte the corpus
+ * that existed before the H-04 extension (their `flip` reproduces the old
+ * `index % 2` convention); the four non-default-config entries append
+ * after them so the extension's golden diff is additions only.
+ */
+const CORPUS_ENTRIES: CorpusEntry[] = [
+  ...CORPUS_SEEDS.map((seed, i) => ({ seed, flip: i % 2 === 1 })),
+  // the endgame:false legacy path — pinned in BOTH orientations because the
+  // layer's decision points key on which side leads (a leak that only
+  // reshapes one side's decisions must still change at least one entry)
+  { seed: 'flagoff-legacy-0', flip: false, endgame: false },
+  { seed: 'flagoff-legacy-1', flip: true, endgame: false },
+  // the shipped non-NBA packs: 20-minute halves / 30s clock / one-and-one
+  // bonus (NCAA), 10-minute quarters / FIBA fouls-carry-to-OT (EuroLeague)
+  { seed: 'ncaa-0', flip: false, rules: NCAA },
+  { seed: 'euro-0', flip: false, rules: EUROLEAGUE }
 ];
 
 interface SeedFingerprint {
@@ -52,16 +100,20 @@ function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
 
-function fingerprintSeed(seed: string, index: number): SeedFingerprint {
-  // mirror home/away on odd corpus indices, same convention as run.ts's
-  // runBatch, so both styles get exercised from both sides
+function fingerprintEntry(entry: CorpusEntry): SeedFingerprint {
+  // mirror home/away per the entry (legacy: odd corpus indices, same
+  // convention as run.ts's runBatch), so both styles get exercised from
+  // both sides
   const { home, away } = sampleMatchup();
-  const flip = index % 2 === 1;
   const r = simulateGame({
-    seed,
-    home: flip ? away : home,
-    away: flip ? home : away,
-    collectFrames: true
+    seed: entry.seed,
+    home: entry.flip ? away : home,
+    away: entry.flip ? home : away,
+    collectFrames: true,
+    // spread-omit, never `endgame: undefined`: the pin must exercise the
+    // exact config shape a caller would write (explicit false vs omitted)
+    ...(entry.endgame === undefined ? {} : { endgame: entry.endgame }),
+    ...(entry.rules === undefined ? {} : { rules: entry.rules })
   });
   return {
     events: sha256(JSON.stringify(r.events)),
@@ -72,9 +124,9 @@ function fingerprintSeed(seed: string, index: number): SeedFingerprint {
 
 function buildCorpus(): Corpus {
   const corpus: Corpus = {};
-  CORPUS_SEEDS.forEach((seed, i) => {
-    corpus[seed] = fingerprintSeed(seed, i);
-    process.stdout.write(`  ${i + 1}/${CORPUS_SEEDS.length}\r`);
+  CORPUS_ENTRIES.forEach((entry, i) => {
+    corpus[entry.seed] = fingerprintEntry(entry);
+    process.stdout.write(`  ${i + 1}/${CORPUS_ENTRIES.length}\r`);
   });
   process.stdout.write('\n');
   return corpus;
@@ -87,7 +139,7 @@ if (write) {
   const corpus = buildCorpus();
   mkdirSync(path.dirname(GOLDEN_PATH), { recursive: true });
   writeFileSync(GOLDEN_PATH, JSON.stringify(corpus, null, 2) + '\n');
-  console.log(`wrote ${CORPUS_SEEDS.length} fingerprints to ${path.relative(process.cwd(), GOLDEN_PATH)}`);
+  console.log(`wrote ${CORPUS_ENTRIES.length} fingerprints to ${path.relative(process.cwd(), GOLDEN_PATH)}`);
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)}s)`);
 } else {
   if (!existsSync(GOLDEN_PATH)) {
@@ -97,7 +149,7 @@ if (write) {
   const expected = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as Corpus;
   const actual = buildCorpus();
   const failures: string[] = [];
-  for (const seed of CORPUS_SEEDS) {
+  for (const { seed } of CORPUS_ENTRIES) {
     const e = expected[seed];
     const a = actual[seed];
     if (!e) { failures.push(`${seed}: missing from golden file (corpus seeds changed without --write?)`); continue; }
@@ -119,5 +171,5 @@ if (write) {
     );
     process.exit(1);
   }
-  console.log(`fingerprints OK — ${CORPUS_SEEDS.length} seeds byte-identical (${secs}s)`);
+  console.log(`fingerprints OK — ${CORPUS_ENTRIES.length} seeds byte-identical (${secs}s)`);
 }

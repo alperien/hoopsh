@@ -190,5 +190,37 @@
       109,
       86
     ]
+  },
+  "flagoff-legacy-0": {
+    "events": "9225ffd1932d2aa43902dc033876eb0cf62521fe028ed95931ab53d123c5dc05",
+    "frames": "8f88f1b3821145e8093b8a37e1f37dc2de72450cd3ba1dbb7ae00a140aa30f36",
+    "finalScore": [
+      84,
+      115
+    ]
+  },
+  "flagoff-legacy-1": {
+    "events": "0dd5d82c8a76ef663e476cafe4e4e38e6c5421277d70bdff0fbcf8cd35ff6466",
+    "frames": "e7a02f48d7771338144ffdff3f4c754fdf3a7223d513cf5bb0b71b3b7ae43f9e",
+    "finalScore": [
+      105,
+      116
+    ]
+  },
+  "ncaa-0": {
+    "events": "8acce052eeb210244497948d180dd65a61efe04f81a4d58c2e747cb6179106ee",
+    "frames": "92efa2fb91e6cd3f479c4c1349391c437f8733d140b8c0b44b18c8982a0e8cdb",
+    "finalScore": [
+      85,
+      84
+    ]
+  },
+  "euro-0": {
+    "events": "44a050f21249f770582d92a53174e68f393dc787902a275777a834753bbf2663",
+    "frames": "8c6ac4cb56267dbd11d212b3df19ed46fa35b72d20821207458c5084fd60776e",
+    "finalScore": [
+      121,
+      116
+    ]
   }
 }

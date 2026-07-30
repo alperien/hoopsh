@@ -18,7 +18,7 @@
     "202512150DEN"
    ]
   },
-  "generatedAt": "2026-07-27",
+  "generatedAt": "2026-07-30",
   "generatedBy": "tools/parse-nba.mjs --write-reference",
   "definitions": {
    "leadChange": "scoreboard leader flips sign between two scoring events; tie interludes are not changes; a tie is counted once when entered from a led state",
@@ -26,12 +26,13 @@
    "drought": "one team's longest gap between its own scoring events on the game clock, regulation only, tip and final horn as endpoints",
    "clutch": "Q4, game clock <= 2:00, margin within 5 BEFORE the scoring event; clutchFTShare = FT points / all points inside the window, averaged per qualifying game",
    "q4Comeback": "a side's margin reaches >= 10 at a scoring event in Q4 and that side loses the game (mirrors flow.ts: evaluated at scoring events, so a 10+ lead carried into Q4 registers at the first Q4 scoring event that keeps it >= 10)",
-   "possession": "boundaries = made FG (and-1 trips end at the made final FT), defensive rebound (player or team), turnover, made final FT of a plain N-of-N trip, period end; length = game-clock seconds between boundaries (FT sequences freeze the clock); technical/flagrant/clear-path FTs do not end possessions",
+   "possession": "boundaries = made FG (and-1 trips end at the made final FT), defensive rebound (player or team — except the dead-ball \"by Team\" row directly after a missed technical FT, which closes nothing because the pre-foul possession resumes), turnover, made final FT of a plain N-of-N trip, period end; length = game-clock seconds between boundaries (FT sequences freeze the clock); technical/flagrant/clear-path FTs do not end possessions",
    "putback": "any FGA by the rebounding team within 6s (game clock) of a PLAYER offensive rebound; forward scan stops at the next rebound/turnover",
    "stealToScore": "made FG (FTs excluded) by the stealing team within 6s of the steal; scan stops at rebound/turnover",
-   "andOne": "made FG with a shooting-foul row within 1s of the same game clock",
+   "andOne": "made FG with a shooting-foul row within 1s of the same game clock, in the shooter's column (bbref prints foul rows in the fouled team's column) and naming the shooter as the drawn-by player — without the side/player checks, unrelated shooting fouls inside the window read as cross-possession and-ones",
+   "secondChance": "possession contains >= 1 LIVE offensive rebound; \"Offensive rebound by Team\" rows that are dead-ball scorer bookkeeping never mark: after a missed non-final numbered FT, after a missed technical FT, and at the period horn (clock < 1s with nothing but subs/timeouts/replay/End-of-period rows before the period rolls, incl. after desperation heaves)",
    "ambiguitiesResolved": [
-    "OREB denominator: bbref logs \"Offensive rebound by Team\" bookkeeping rows (mostly dead-ball after missed non-final FTs) — excluded from the putback denominator and from second-chance marking; the sim has no team-rebound events so player rebounds are the comparable base. Anchor-definition values are preserved in dist.legacyAnchorDefinition.",
+    "OREB denominator: bbref logs \"Offensive rebound by Team\" bookkeeping rows (dead-ball after missed non-final FTs and missed technical FTs, unsecured misses at the period horn) — excluded from the putback denominator and from second-chance marking; the sim has no team-rebound events so player rebounds are the comparable base. Anchor-definition values are preserved in dist.legacyAnchorDefinition. The shipped corpus originally excluded only the missed-non-final-FT class, inflating secondChanceShareOfPoss ~8% (0.132 -> 0.122 re-baked); release-audit H-06.",
     "putback numerator: meta scholarship says \"any next shot\" and flow.ts counts any FGA, but the anchor implementation counted only 2-pt layup/dunk/hook/jump and also stopped at fouls — corpus uses any-FGA/stop-at-rebound-or-turnover to mirror flow.ts.",
     "steal conversion: anchor implementation counted any \"makes\" by either side including FTs; corpus requires a made FG by the stealing side (mirrors flow.ts).",
     "drought: anchor implementation let OT scoring events extend droughts in OT games despite the regulation-only definition; corpus enforces regulation-only strictly.",
@@ -114,14 +115,14 @@
    },
    "andOnesPerGame": {
     "anchor": 4.8,
-    "corpus": 4.69,
-    "relChange": -0.023,
+    "corpus": 4.67,
+    "relChange": -0.027,
     "material": false
    },
    "secondChanceShareOfPoss": {
     "anchor": 0.13,
-    "corpus": 0.132,
-    "relChange": 0.015,
+    "corpus": 0.122,
+    "relChange": -0.062,
     "material": false
    },
    "quarterPtsProfile": {
@@ -463,41 +464,41 @@
    "basis": "corpus: 925 of 3157 steals converted to a made FG by the stealing team within 6s (mirrors flow.ts: FTs excluded, scan stops at rebound/turnover). DEFINITION FIX vs the n=6 anchor implementation, which counted any 'makes' by either side incl. FTs; that legacy definition yields 0.292 on this corpus (anchor said 0.29)."
   },
   "andOnesPerGame": {
-   "value": 4.69,
+   "value": 4.67,
    "range": [
     0,
     11
    ],
    "dist": {
     "n": 184,
-    "mean": 4.69,
-    "stddev": 2.24,
+    "mean": 4.67,
+    "stddev": 2.25,
     "p10": 2,
     "p50": 4,
     "p90": 8,
     "unit": "per game"
    },
    "grade": "A",
-   "basis": "corpus n=184, both teams: made FG with a shooting-foul row within 1s of game clock"
+   "basis": "corpus n=184, both teams: made FG with a shooting-foul row within 1s of game clock, same column as the make and naming the shooter as drawn-by (meta.definitions.andOne)"
   },
   "secondChanceShareOfPoss": {
-   "value": 0.132,
+   "value": 0.122,
    "range": [
-    0.058,
-    0.23
+    0.053,
+    0.219
    ],
    "dist": {
-    "pooled": 0.132,
+    "pooled": 0.122,
     "n": 184,
-    "mean": 0.132,
-    "stddev": 0.028,
-    "p10": 0.099,
-    "p50": 0.13,
-    "p90": 0.166,
+    "mean": 0.123,
+    "stddev": 0.027,
+    "p10": 0.091,
+    "p50": 0.122,
+    "p90": 0.156,
     "unit": "per game share; value = pooled"
    },
    "grade": "A",
-   "basis": "corpus: share of ALL possessions (both teams pooled) containing >= 1 live offensive rebound (team-rebound rows directly after missed non-final FTs excluded as dead-ball bookkeeping). NOTE for flow.ts: its report divides both-team second-chance possessions by poss/2 (a per-team denominator), which reads ~2x this definition — reconcile before gating."
+   "basis": "corpus: share of ALL possessions (both teams pooled) containing >= 1 LIVE offensive rebound — dead-ball team-rebound bookkeeping never marks (missed non-final FTs, missed technical FTs, period-horn rows; meta.definitions.secondChance, release-audit H-06). NOTE for flow.ts: its report divides both-team second-chance possessions by poss/2 (a per-team denominator), which reads ~2x this definition — reconcile before gating."
   }
  }
 }

@@ -23,6 +23,9 @@ code += grab('function possessionMetrics', '// ---------------------------------
 code += 'const round = (x, d = 2) => Number(x.toFixed(d));\n';
 const pi = src.indexOf('function percentile');
 code += src.slice(pi, src.indexOf('\n}', pi) + 2);
+// parse-nba.mjs exports its pure functions for tests; `export` is illegal
+// inside a Function body, so strip the keyword — the code stays verbatim.
+code = code.replace(/^export (?=function|const)/gm, '');
 const fns = new Function(`${code}; return { validateGame, flowMetrics, grammarMetrics, possessionMetrics, percentile };`)();
 const round = (x, d = 2) => Number(x.toFixed(d));
 

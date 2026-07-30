@@ -40,7 +40,18 @@ play stream fits in git; only the raw HTML stays out.
 ```
 npm run nba:fetch -- --season 2025-26        # polite fetch -> data/nba/raw/ (resumable)
 npm run nba:parse -- --write-reference       # raw HTML -> shards + corpus + flow-reference.json
+
+npm run nba:parse -- --from-shards --write-reference
+    # metric/definition RE-BAKE from the committed shards — no raw cache
+    # needed (the shards are the verbatim play streams; the mode round-trips
+    # them byte-identically and refuses to write if any committed game stops
+    # validating). This is how definition fixes reach pbp-corpus.json and
+    # flow-reference.json without refetching (release-audit H-06 shipped so).
 ```
+
+Debugging subsets (`--games id1,id2`) must be pointed at a scratch
+`--out-dir`; the parser refuses to overwrite the committed corpus with a
+subset and refuses `--games --write-reference` outright.
 
 - `tools/fetch-nba.mjs` — strictly sequential, >=2s between requests (default
   3.5s ≈ 17 req/min, under basketball-reference's 20 req/min crawl ceiling),

@@ -119,8 +119,14 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
       expect(used[0]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
       expect(used[1]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
     }
-    // probed: ~1.5-2/game across this pool — assert well under that
-    expect(total).toBeGreaterThanOrEqual(3);
+    // measured on this exact pool at the audit-shield wave: 35 total
+    // (2.2/game, per-game spread 0-9; the audit's independent re-measure
+    // band was 24-32). The old floor of 3 was so far under measurement
+    // that a 90% collapse of the timeout brain still passed (audit
+    // Section 5 weak-test list) — 12 trips a ~50% regression from the
+    // measured band's low end while sitting ~2.5 sd under the mean, so an
+    // rng reshuffle that merely redistributes close finishes survives.
+    expect(total).toBeGreaterThanOrEqual(12);
   });
 
   it('the advance timeout belongs to a TRAILING or TIED team — never the leader', () => {
