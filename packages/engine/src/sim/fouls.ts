@@ -106,10 +106,10 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
     side: shooter.side,
     taken: 0,
     of: count,
-    // 1.4s before the first attempt: time to walk to the line and get set —
-    // slightly quicker than a full dead-ball delay since the whistle already
-    // stopped the action
-    nextIn: 1.4,
+    // ftSetupSec before the first attempt: time to walk to the line and get
+    // set — slightly quicker than a full dead-ball delay since the whistle
+    // already stopped the action
+    nextIn: s.params.move.ftSetupSec,
     oneAndOne
   };
   checkSubs(s, shooter.p.id); // never sub out the man headed to the line
@@ -216,9 +216,10 @@ export function tickFreeThrows(s: GameState, dt: number): void {
         y: round1(rim.y)
       });
     }
-    // 0.9s between subsequent attempts: shorter than the 1.4s lead-in since
-    // the shooter is already set at the line — just the ritual dribble/pause
-    ph.nextIn = 0.9;
+    // ftBetweenSec between subsequent attempts: shorter than the lead-in
+    // since the shooter is already set at the line — just the ritual
+    // dribble/pause
+    ph.nextIn = s.params.move.ftBetweenSec;
     return;
   }
 
@@ -228,9 +229,9 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   if (made) {
     endPossession(s, 'made_ft');
     if (s.clock < 1e-6) { endPeriod(s); return; }
-    // 1.6s: matches the period-opening delay — a made final FT is a clean
-    // possession change, no live-ball scramble to resolve first
-    deadBall(s, other(ph.side), { clockRuns: false, resumeIn: 1.6 });
+    // ftMadeResumeSec: matches the period-opening delay — a made final FT is
+    // a clean possession change, no live-ball scramble to resolve first
+    deadBall(s, other(ph.side), { clockRuns: false, resumeIn: s.params.move.ftMadeResumeSec });
   } else {
     if (s.clock < 1e-6) { endPeriod(s); return; }
     // live rebound off the miss: ball starts exactly at the rim and lands per
@@ -242,13 +243,14 @@ export function tickFreeThrows(s: GameState, dt: number): void {
     // whose FT line isn't NBA's (EuroLeague: 13.85).
     const rim = attackedRim(s, ph.side);
     s.ball.pos = { ...rim };
-    // 0.45-0.8s scramble window: a free-throw miss is a shorter, more
-    // contained scrum than a live-shot rebound (everyone's already boxed out
-    // in the lane) so it resolves a bit faster than a typical miss scramble
+    // ftScramble window (reb.ftScrambleLoSec/HiSec): a free-throw miss is a
+    // shorter, more contained scrum than a live-shot rebound (everyone's
+    // already boxed out in the lane) so it resolves a bit faster than a
+    // typical miss scramble
     enterScramble(
       s,
       sampleMissLanding(s, rim, s.rules.ftLineFt - s.rules.rimInsetFt),
-      s.rng.range(0.45, 0.8),
+      s.rng.range(s.params.reb.ftScrambleLoSec, s.params.reb.ftScrambleHiSec),
       ph.side
     );
     onShotReleased(s, ph.side); // trigger crash/get-back off-ball reactions, same as any missed shot

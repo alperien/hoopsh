@@ -38,21 +38,23 @@ export function startPass(
   const to = agent(s, toId);
   const risk = passRisk(s, from, to);
   const fails = s.rng.chance(risk.turnoverP);
-  // lead the receiver by a quarter-second of his current velocity — a pass
+  // lead the receiver by pass.leadSec of his current velocity — a pass
   // thrown to where a moving teammate WILL be, not where he currently stands
-  // (scale 0.25 ~= "lead like you'd expect a decent passer to", not a
-  // real reaction-time constant)
-  const lead = add(to.pos, scale(to.vel, 0.25));
+  // ("lead like you'd expect a decent passer to", not a real reaction-time
+  // constant)
+  const lead = add(to.pos, scale(to.vel, s.params.pass.leadSec));
   // a failing pass doesn't necessarily go somewhere absurd — it's undercooked,
-  // landing somewhere between the passer and the intended target (35-70% of
-  // the way there) rather than reaching the receiver; this is what puts it in
-  // a defender's range without teleporting the ball to him
+  // landing somewhere between the passer and the intended target
+  // (pass.failShortLo/Hi of the way there) rather than reaching the receiver;
+  // this is what puts it in a defender's range without teleporting the ball
+  // to him
   const target = fails
-    ? lerp(from.pos, lead, s.rng.range(0.35, 0.7))
+    ? lerp(from.pos, lead, s.rng.range(s.params.pass.failShortLo, s.params.pass.failShortHi))
     : lead;
-  // floor the flight distance at 3ft so a point-blank pass still takes a
-  // nonzero tick or two to "arrive" instead of resolving instantly
-  const d = Math.max(3, dist(from.pos, target));
+  // floor the flight distance at pass.minFlightFt so a point-blank pass
+  // still takes a nonzero tick or two to "arrive" instead of resolving
+  // instantly
+  const d = Math.max(s.params.pass.minFlightFt, dist(from.pos, target));
   const time = d / s.params.pass.speedFtS; // speedFtS is a flat ball speed (SimParams), not player-dependent
   s.ball.holderId = null;
   s.ball.flight = {
@@ -257,11 +259,14 @@ export function attemptReachIn(s: GameState, dt: number): void {
     } else {
       // not in the bonus: no free throws, offense just keeps the ball —
       // shot clock is floored at the rule pack's short-clock reset (NBA 14s,
-      // defensive-foul reset) and never lowered, then a short 1.2s
-      // continuation delay (same possession, no team change) lets the
-      // whistle register before play resumes
+      // defensive-foul reset) and never lowered, then the short side-out
+      // continuation delay (move.deadBallSideOutSec — same possession, no
+      // team change) lets the whistle register before play resumes
       s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
-      deadBall(s, h.side, { clockRuns: false, continuation: true, resumeIn: 1.2 });
+      deadBall(s, h.side, {
+        clockRuns: false, continuation: true,
+        resumeIn: s.params.move.deadBallSideOutSec
+      });
     }
   }
 }

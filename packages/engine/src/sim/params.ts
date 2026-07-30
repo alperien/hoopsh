@@ -217,6 +217,16 @@ export interface SimParams {
     longPassFt: number;
     /** logit risk added per 10 ft of pass length beyond longPassFt */
     longPassPer10Ft: number;
+    /** receiver lead: the pass targets where a moving receiver WILL be,
+     *  this many seconds of his current velocity ahead */
+    leadSec: number;
+    /** a failing pass is undercooked: it dies this uniform share of the way
+     *  from passer to lead target (in a defender's range, not teleported) */
+    failShortLo: number;
+    failShortHi: number;
+    /** flight-distance floor, ft: a point-blank pass still takes a tick or
+     *  two to arrive */
+    minFlightFt: number;
   };
 
   reb: {
@@ -237,6 +247,18 @@ export interface SimParams {
     /** scramble convergence radius: players within this of the landing spot
      *  chase the loose ball, ft */
     scrambleConvergeFt: number;
+    /** scramble resolution window off a missed shot, seconds (uniform draw
+     *  so scrambles don't all resolve on the same beat) */
+    scrambleResolveLoSec: number;
+    scrambleResolveHiSec: number;
+    /** the shorter, more contained free-throw-miss scramble window, seconds */
+    ftScrambleLoSec: number;
+    ftScrambleHiSec: number;
+    /** blocked-shot carom: the loose ball starts this share of the way from
+     *  the release point back toward the rim… */
+    blockCaromShare: number;
+    /** …then scatters up to this many ft per axis (uniform) */
+    blockScatterFt: number;
     /** relative spread of miss-landing samples around the mean: std = mean × this factor */
     reboundSpreadFactor: number;
     /** share of live-rebound scrambles whose carom dies (out of bounds /
@@ -377,6 +399,14 @@ export interface SimParams {
      *  same-possession side-out resume (no team change) */
     deadBallResumeSec: number;
     deadBallSideOutSec: number;
+    /** made-basket dead time before the inbound (the game clock RUNS
+     *  through it outside the final two minutes — real inbound time) */
+    madeBasketResumeSec: number;
+    /** free-throw trip cadence: walk-to-the-line lead-in, the between-
+     *  attempts ritual, and the made-final-FT resume before the inbound */
+    ftSetupSec: number;
+    ftBetweenSec: number;
+    ftMadeResumeSec: number;
   };
 
   fatigue: {
@@ -1053,7 +1083,22 @@ export const defaultParams: SimParams = {
     // Long-pass risk: a skip pass hangs in the air, buying defenders time.
     //   Beyond 25 ft each extra 10 ft adds 0.12 logits (~3 pp TO rate). FEEL.
     longPassFt: 25,            // FEEL — cross-court skip distance threshold
-    longPassPer10Ft: 0.12      // FEEL — logit per 10 ft beyond longPassFt
+    longPassPer10Ft: 0.12,     // FEEL — logit per 10 ft beyond longPassFt
+    // Delivery geometry (were inline in passing.ts startPass, audit H-01 —
+    // they shape flight time and where failed passes land, so they feed the
+    // turnover/steal path):
+    //   leadSec — throw to where a moving receiver WILL be: a quarter second
+    //     of his current velocity ("lead like you'd expect a decent passer
+    //     to", not a measured reaction-time constant). FEEL.
+    //   failShortLo/Hi — an undercooked pass dies 35-70% of the way from the
+    //     passer to the lead target: in a defender's range without
+    //     teleporting the ball to him. FEEL.
+    //   minFlightFt — a point-blank pass still flies ≥ 3 ft so it takes a
+    //     tick or two to arrive instead of resolving instantly. FEEL.
+    leadSec: 0.25,
+    failShortLo: 0.35,
+    failShortHi: 0.7,
+    minFlightFt: 3
   },
 
   reb: {
@@ -1095,6 +1140,24 @@ export const defaultParams: SimParams = {
     //   the mean. 0.45 × mean gives a Gaussian std; floor at 1 ft prevents
     //   on-the-rim degenerate samples. Tracking-data validated. FEEL.
     reboundSpreadFactor: 0.45,  // FEEL — relative spread of miss-landing distribution
+    // FEEL — scramble resolution windows, uniform draws so scrambles don't
+    // all resolve on the same beat (were inline; audit H-01): a missed-shot
+    // scramble plays out over 0.5-0.95 s (shooting.ts), while a free-throw
+    // miss is a shorter, more contained scrum — everyone is already boxed
+    // out in the lane — at 0.45-0.8 s (fouls.ts; the window burns a mean
+    // ~0.67 s of game clock per miss).
+    scrambleResolveLoSec: 0.5,
+    scrambleResolveHiSec: 0.95,
+    ftScrambleLoSec: 0.45,
+    ftScrambleHiSec: 0.8,
+    // FEEL — the blocked-shot carom (were inline in shooting.ts, audit
+    // H-01): the swatted ball starts 35% of the way from the release point
+    // back toward the rim, then scatters up to ±6 ft per axis — a block
+    // sprays anywhere in the vicinity, unlike a rim miss's distance-shaped
+    // landing model. Both feed the scramble's landing spot, i.e. WHO
+    // recovers the block.
+    blockCaromShare: 0.35,
+    blockScatterFt: 6,
     // TEAM rebounds: real missed-FG caroms die out of bounds (tipped OOB,
     // long skips) at a measured 15.4% of misses in the six-game reference
     // corpus (14.3/game, 59% awarded to the offense) — and the Turing
@@ -1370,7 +1433,22 @@ export const defaultParams: SimParams = {
     //     whistle, team-carom award, non-bonus reach-in): no team change, so
     //     the pause covers the whistle, not a full re-set.
     deadBallResumeSec: 1.8,
-    deadBallSideOutSec: 1.2
+    deadBallSideOutSec: 1.2,
+    // FEEL — made-basket dead time (was inline in shooting.ts, audit H-01):
+    // the scoring team retreats and the inbound comes in over ~2.2 s with
+    // the game clock RUNNING outside the final two minutes — the real
+    // between-baskets inbound time, and a genuine pace lever (~40 makes a
+    // game burn it).
+    madeBasketResumeSec: 2.2,
+    // FEEL — the free-throw trip cadence (were inline in fouls.ts, audit
+    // H-01; fatigue accrues through the whole ritual): 1.4 s to walk to the
+    // line and get set (quicker than a full dead-ball read — the whistle
+    // already stopped play), 0.9 s of ritual dribble between attempts (the
+    // shooter is already set), and a 1.6 s resume after a made final FT (a
+    // clean possession change, same length as the period-opening delay).
+    ftSetupSec: 1.4,
+    ftBetweenSec: 0.9,
+    ftMadeResumeSec: 1.6
   },
 
   fatigue: {
