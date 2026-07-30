@@ -167,7 +167,7 @@ export interface GameEndEvent extends Base {
   type: 'game_end';
 }
 
-/** Marks the start of a new possession for `team`. Pairs 1:1 with a later `possession_end` for the same possession. `kind` — 'inbound': dead-ball inbound (make/miss-and-FT/OOB/violation aftermath); 'live_rebound': defense grabbed a live-ball defensive rebound and plays on without a stoppage; 'steal': a takeaway (bad pass or reach-in) starts the new team's possession immediately, ball-in-hand; 'tip': the GAME-opening possession off the opening jump ball — and only that one. Every OT period also opens with a jump ball (`tip_off` fires), but its first possession is queued through the dead-ball machinery and is labeled 'inbound' (sim/possession.ts endPeriod), so consumers keying "off the tip" must read the preceding `tip_off`, not this kind. */
+/** Marks the start of a new possession for `team`. Pairs 1:1 with a later `possession_end` for the same possession. `kind` — 'inbound': dead-ball inbound (make/miss-and-FT/OOB/violation aftermath); 'live_rebound': defense grabbed a live-ball defensive rebound and plays on without a stoppage; 'steal': a takeaway (bad pass or reach-in) starts the new team's possession immediately, ball-in-hand; 'tip': the opening possession of a period that starts with a jump ball — the game opener AND every overtime period (each OT re-flips a fresh `tip_off`, and its first possession is stamped 'tip' by sim/possession.ts endPeriod even though it is queued through the dead-ball machinery). Regulation Q2-Q4 openers are ordinary 'inbound's. (An earlier revision of this doc said OT openers were labeled 'inbound' — true before W38 fixed the stamp, stale after; audit M-01.) */
 export interface PossessionStartEvent extends Base {
   type: 'possession_start';
   team: TeamSide;
@@ -190,8 +190,10 @@ export interface PossessionEndEvent extends Base {
 
 /**
  * A completed pass between two on-court teammates (failed passes are
- * `turnover` events instead, kind `bad_pass` or `lost_ball` — a failed pass
- * never produces a `pass` event). `kind` — 'normal': a standard halfcourt
+ * `turnover` events instead — kind `bad_pass` when picked off, or
+ * `out_of_bounds` when nobody touches it; a failed pass never produces a
+ * `pass` event, and `lost_ball` is the HOLDER being stripped, not a pass —
+ * see TurnoverKind above; audit L-13). `kind` — 'normal': a standard halfcourt
  * pass; 'kickout': a pass out of a live drive (sim/ai.ts decideBall labels
  * any pass while `driving` a kickout); 'outlet': a pass during transition
  * phase (fast break ball movement); 'entry': the feed to a posted big
@@ -328,9 +330,12 @@ export interface TurnoverEvent extends Base {
 /**
  * A personal foul. `personalCount` is the fouler's running total for the
  * game (not the period); `teamCountInPeriod` is the fouling TEAM's count for
- * the current period only, resetting each period (drives `inBonus`, per
- * rules.teamFoulBonusAt — note per FoulKind that 'offensive' fouls do NOT
- * increment this team count). `fouledOut: true` exactly when
+ * the current period only, resetting each period — EXCEPT into overtime
+ * under a rules.teamFoulsCarryToOT pack (NCAA men, FIBA/EuroLeague), where
+ * every OT inherits the prior period's running count and the stamped value
+ * keeps climbing (sim/possession.ts endPeriod; audit L-14). Drives
+ * `inBonus`, per rules.teamFoulBonusAt — note per FoulKind that 'offensive'
+ * fouls do NOT increment this team count. `fouledOut: true` exactly when
  * `personalCount >= rules.foulOutAt`; when that happens the engine
  * immediately attempts a replacement (sim/fouls.ts recordFoul ->
  * sim/subs.ts replaceFouledOut), so a `fouledOut: true` foul is followed by

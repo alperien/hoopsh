@@ -142,9 +142,13 @@ export function enterFreeThrows(s: GameState, shooter: Agent, count: number, one
       // lane's centerline — roughly where the low/mid box spots sit on an NBA
       // free-throw lane
       ? { x: rim.x + dir * (4 + Math.floor(lane / 2) * 3.5), y: s.court.centerY + side * 9.5 }
-      // anyone left over (shouldn't happen with 10 players on court, but
-      // covers short-roster edge cases) gets pushed out past the arc, 26ft
-      // out, fanned wider per extra lane index so they don't overlap
+      // the OTHER THREE non-shooters (a full-strength floor is 9 of them for
+      // 6 lane spots, so this branch fires on EVERY trip — it is the normal
+      // formation, not an edge case; audit L-15 flagged the old "shouldn't
+      // happen" note here) wait out past the arc like the real rule requires
+      // (only six lane spots may be occupied; everyone else stays behind the
+      // three-point line / FT line extended), 26 ft out, fanned wider per
+      // extra lane index so they don't overlap
       : { x: rim.x + dir * 26, y: s.court.centerY + side * (6 + lane) };
   }
 }

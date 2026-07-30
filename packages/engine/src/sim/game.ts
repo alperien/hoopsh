@@ -219,7 +219,11 @@ function initState(cfg: GameConfig): GameState {
       action: null,
       ended: false
     },
-    phase: { kind: 'dead', resumeIn: 0.6, clockRuns: false, nextTeam: 0, possKind: 'tip' },
+    // PLACEHOLDER phase — simulateGame replaces it wholesale (with the real
+    // opening delay and the actual tip winner) before the first tick ever
+    // runs, so the values here are never ticked; the field just cannot be
+    // null (audit L-02: the old 0.6 here read like a tuned opening delay)
+    phase: { kind: 'dead', resumeIn: 0, clockRuns: false, nextTeam: 0, possKind: 'tip' },
     events: [],
     frames: [],
     collectFrames: cfg.collectFrames ?? true,
