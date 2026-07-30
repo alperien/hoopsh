@@ -369,6 +369,55 @@ describe('concept-1 flavor — drilled halfcourt pull-up three (staged wiring)',
   });
 });
 
+// ------------------------------------- M4: heave discipline (desperation bypass)
+
+describe('heave discipline (staged wiring at the desperation bypass)', () => {
+  const HEAVE: BallAction = { kind: 'shoot', moveType: 'heave' };
+  const FLIPPED: ParamOverrides = { decide: { heaveLaunchChance: 0 } };
+  const horn = (over: Partial<StateOpts>) => mkState({
+    period: 2, clock: 1.0, shotClock: 24, holderFt: 45, sinceCatch: 2, ...over
+  }).s;
+
+  it('flipped: a hopeless Q2-horn heave is held instead of launched (beyond 32 ft)', () => {
+    // leading by 5 at a non-final horn: protect the percentages
+    expect(decideBall(horn({ params: FLIPPED, score: [55, 50] }))).toEqual({ kind: 'hold' });
+    // trailing big at a non-final horn still holds; the heave can't tie it
+    expect(decideBall(horn({ params: FLIPPED, score: [42, 50] }))).toEqual({ kind: 'hold' });
+    // leading at the final horn holds too: the dribble-out
+    expect(decideBall(horn({ params: FLIPPED, period: 4, score: [51, 50] }))).toEqual({ kind: 'hold' });
+  });
+
+  it('flipped: the mattering heave still flies (final period/OT, tied or down ≤3)', () => {
+    expect(decideBall(horn({ params: FLIPPED, period: 4, score: [50, 50] }))).toEqual(HEAVE);
+    expect(decideBall(horn({ params: FLIPPED, period: 4, score: [50, 53] }))).toEqual(HEAVE);
+    expect(decideBall(horn({ params: FLIPPED, period: 5, score: [88, 88] }))).toEqual(HEAVE);
+    // down 4 is a two-possession game: the heave cannot tie it, so hold
+    expect(decideBall(horn({ params: FLIPPED, period: 4, score: [50, 54] }))).toEqual({ kind: 'hold' });
+  });
+
+  it('flipped: shot-clock-forced heaves are untouched (a violation is worse)', () => {
+    // mid-period, shot clock binding
+    expect(decideBall(horn({ params: FLIPPED, clock: 300, shotClock: 0.9, score: [55, 50] }))).toEqual(HEAVE);
+    // sc === clock exactly: the shot clock still binds (sc ≤ clock regime)
+    expect(decideBall(horn({ params: FLIPPED, clock: 0.9, shotClock: 0.9, score: [55, 50] }))).toEqual(HEAVE);
+  });
+
+  it('staged default preserves the legacy launch in every period-expiring case', () => {
+    expect(decideBall(horn({ score: [55, 50] }))).toEqual(HEAVE);
+    expect(decideBall(horn({ score: [42, 50] }))).toEqual(HEAVE);
+    // the regime-split boundary: sc < 1.2 with the game clock binding
+    // (old code's sc-branch, now covered by the period-expiring branch)
+    expect(decideBall(horn({ clock: 0.5, shotClock: 0.9, score: [70, 50] }))).toEqual(HEAVE);
+  });
+
+  it('inside 32 ft the bypass never fires and no heave row is produced', () => {
+    const s = horn({ params: FLIPPED, holderFt: 30, score: [55, 50] });
+    for (const a of sample(s, 20)) {
+      if (a.kind === 'shoot') expect(a.moveType).not.toBe('heave');
+    }
+  });
+});
+
 // ----------------------------------------------------- staged-inert pinning
 
 describe('staged-inert: shape dials alone change nothing', () => {
@@ -386,6 +435,9 @@ describe('staged-inert: shape dials alone change nothing', () => {
         openerRampFloorShare: 0.55,
         scrambleScale: 1.22,
         pullUpThreeMaxFt: 25
+      },
+      decide: {
+        heaveKeepDeficitMax: 10 // unread while heaveLaunchChance stays ≥ 1
       }
     });
     expect(staged.finalScore).toEqual(base.finalScore);

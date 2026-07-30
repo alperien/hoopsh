@@ -77,13 +77,45 @@ export function decideBall(s: GameState): BallAction {
   // Doctrine in ai/concepts.ts; flag off never reaches this call.
   if (s.endgame) continuation = endgameContinuation(s, h.side, continuation);
 
-  // Desperation heave (trigger constants: params.decide.heave*): with the
-  // shot clock nearly gone (or a period horn expiring first) and no chance
-  // to get closer than the heave range, just launch it. Bypasses the whole
-  // utility comparison — no shot is "good", but a violation is worse.
+  // Desperation heave (trigger constants: params.decide.heave*): two
+  // regimes at the same heaveMinDistFt radius, both bypassing
+  // the utility comparison. (The regime split preserves the old
+  // `(sc < heaveShotClockSec || periodExpiring)` coverage exactly: a forced
+  //    shot clock with the game
+  // clock the binding clock implies periodExpiring, so no case is lost.)
+  //  - Shot-clock-forced (sc < heaveShotClockSec and the shot clock
+  //    binds): launch,
+  //    unchanged. A violation is strictly worse, and real players do
+  //    launch those.
+  //  - Period-expiring: real players protect their percentages. The
+  //    hopeless end-quarter heave is held and released after the buzzer,
+  //    never logged as an FGA (sim logged 1.97/g at 0/218 made vs the real
+  //    0.05/g with 7 of 9 made, the grammar corpus's #1 tell), unless the
+  //    shot matters: final period/OT, tied or down <= heaveKeepDeficitMax
+  //    (one make ties/wins), or the occasional careless launch
+  //    (heaveLaunchChance). A leading team at any horn holds: the
+  //    dribble-out. Holding via the same early-return path is deliberate:
+  //    with the horn collapsing the continuation toward 0, the normal
+  //    softmax would fire a 33-40 ft pull_up instead, the same logged row
+  //    the discipline exists to remove.
   const periodExpiring = s.clock < D.heavePeriodClockSec && s.clock < sc;
-  if ((sc < D.heaveShotClockSec || periodExpiring) && distToRim > D.heaveMinDistFt) {
+  if (sc < D.heaveShotClockSec && sc <= s.clock && distToRim > D.heaveMinDistFt) {
     return { kind: 'shoot', moveType: 'heave' };
+  }
+  if (periodExpiring && distToRim > D.heaveMinDistFt) {
+    const margin = s.score[h.side] - s.score[other(h.side)];
+    const itMatters =
+      s.period >= s.rules.periods && margin <= 0 && -margin <= D.heaveKeepDeficitMax;
+    // STAGED: heaveLaunchChance 1 short-circuits before the rng draw, so
+    // every period-expiring case launches (the legacy behavior, draw-free
+    // and byte-identical). Flipping below 1 arms the discipline and adds one
+    // draw at gated horn evaluations (~2-3/game): mechanics tier,
+    // fingerprint invalidation expected (AGENTS §1.2), noisefloor regen.
+    if (D.heaveLaunchChance >= 1 || itMatters || s.rng.chance(D.heaveLaunchChance)) {
+      return { kind: 'shoot', moveType: 'heave' };
+    }
+    // protect the percentages: hold, release after the buzzer
+    return { kind: 'hold' };
   }
 
   // Which KIND of shot this would be — drives the difficulty adjustment and

@@ -342,6 +342,13 @@ export interface SimParams {
     delayNewPossSec: number;
     delayResumeSec: number;
     delayOrebSec: number;
+    /** heave discipline (decide.ts desperation bypass): final-period/OT
+     *  deficit within which the period-horn heave is genuinely let fly —
+     *  one make ties/wins */
+    heaveKeepDeficitMax: number;
+    /** chance a NON-mattering period-horn heave is launched anyway (the
+     *  texture residue); ≥ 1 = STAGED legacy always-launch (draw-free) */
+    heaveLaunchChance: number;
   };
 
   move: {
@@ -1488,7 +1495,32 @@ export const defaultParams: SimParams = {
     // fires, so all three shape early-possession texture.
     delayNewPossSec: 0.25,
     delayResumeSec: 0.3,
-    delayOrebSec: 0.35
+    delayOrebSec: 0.35,
+    // ---- heave discipline (the desperation-bypass guard, decide.ts) ----
+    // Real players protect their percentages: the hopeless end-quarter
+    // heave is held or released after the buzzer, never logged as an FGA.
+    // The sim logged 1.97 heaves/g (FGA ≥35 ft, last 4s of a period; 0/218
+    // made) vs the real 0.05/g, the grammar corpus's top-ranked tell
+    // (flow-grammar §2d). Shot-clock-forced heaves are untouched (a
+    // violation is worse; real players launch those).
+    // REAL: one-possession game: tied or down ≤3 at a final-period/OT horn,
+    // the heave can tie or win, so it genuinely flies. Mirrors
+    // endgame.lastShotDeficitMax (same coaching orthodoxy) but is a
+    // separate decide.* param on purpose: this path runs on the always-on
+    // core (endgame:false included), and reading params.endgame from it
+    // would falsify that block's documented flag-off-unread contract.
+    heaveKeepDeficitMax: 3,
+    // Stage switch: at 1 the period-expiring branch launches uncondition-
+    // ally without drawing (the legacy behavior, byte-identical); flipping
+    // below 1 arms the discipline: hold unless the heave matters or the
+    // occasional careless launch fires (real logs are not literally zero;
+    // at ~3 gated horn evaluations/game, 0.06 ⇒ ~0.2 logged heaves/g,
+    // inside the real-shaped 0.05-0.3 target). Fit ladder {0.02, 0.06,
+    // 0.1}. The flip adds one rng draw on a previously draw-free path:
+    // mechanics tier, fingerprint invalidation expected, noisefloor regen
+    // (AGENTS §1.2, §4.4). FEEL; hand-owned, flow-gated, because a sweep
+    // would push it to 0 or max for ±0.2 fga the bands can't attribute.
+    heaveLaunchChance: 1
   },
 
   move: {
