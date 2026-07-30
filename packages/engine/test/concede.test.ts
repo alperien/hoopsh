@@ -556,25 +556,35 @@ describe('LIVE default §5.1: a close game never concedes', () => {
     }
   });
 
-  it('full-game leg: late in a close game the floor is never a full bench unit', () => {
-    // In every pool event inside the last 4:00 with the margin ≤ 8 (crunch
-    // territory: within a possession-swing of the crunch definition), the
-    // side must field at least one starter. A conceded side sits at 0-1
-    // starters (probed), so a concede firing without the margin shows up
-    // here immediately; natural close-game rotations probed ≥2 starters at
-    // every such event across the pool — the ≥1 bar sits below that with
-    // room for future re-tune reshuffles (a gassed-roster crunch can
-    // legally hold starters out, so the bar must stay beneath the
-    // crunchEnergyMin texture).
+  it('full-game leg: late in a close game the floor is never a full bench unit at any legal stoppage', () => {
+    // At every dead-ball MARKER inside the last 4:00 with the margin ≤ 8
+    // (crunch territory: within a possession-swing of the crunch
+    // definition), the side must field at least one starter. A conceded
+    // side sits at 0-1 starters (probed), so a concede firing without the
+    // margin shows up here immediately. The ≥1 bar leaves room for a
+    // gassed-roster crunch, which can legally hold starters out.
+    //
+    // Measurement correction at the FLOW landing (re-adjudicated per
+    // f-assembly §4d, the ffit-rotations diagnosis): this leg used to
+    // assert at EVERY event, which was valid only while postMakeSubWindow 1
+    // hosted a sub window on every made basket (re-insertion latency ~0).
+    // Under the real rule a comeback that cuts a blowout inside the crunch
+    // window mid-live-play waits for the next legal stoppage before the
+    // crunch re-insertion can execute (measured on this pool: one ~21s
+    // possession with the margin freshly cut to 7 and the un-conceded
+    // bench five still out — the coach legally cannot act sooner). The
+    // behavior contract is asserted where a checkSubs pass has actually
+    // run: the dead-ball settlement markers, the same device the
+    // composition pin above uses.
     let sampled = 0;
     for (const g of pool) {
       foldFinalPeriod(g, ({ e, m, count }) => {
-        if (e.clock <= 240 && m <= 8) {
+        if (isDeadBall(e) && e.clock <= 240 && m <= 8) {
           sampled++;
           expect(count).toBeGreaterThanOrEqual(1);
         }
       });
     }
-    expect(sampled).toBeGreaterThan(100); // probed ~1000+: close endings are common
+    expect(sampled).toBeGreaterThan(100); // probed 366 marker events: close endings are common
   });
 });

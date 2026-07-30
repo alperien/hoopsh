@@ -177,7 +177,10 @@ describe(`engine invariants over ${GAMES} games`, () => {
     for (const r of results) {
       const counts = new Map<string, number>(); // `${period}-${team}` -> last count
       for (const e of r.events) {
-        if (e.type !== 'foul' || e.kind === 'offensive') continue;
+        // exempt the two non-team-foul kinds: offensive (NBA rule — no team
+        // foul toward the bonus) and technical (officiating vocabulary —
+        // counts are stamped SNAPSHOTS, never incremented; core/events.ts)
+        if (e.type !== 'foul' || e.kind === 'offensive' || e.kind === 'technical') continue;
         const key = `${e.period}-${e.team}`;
         const prev = counts.get(key) ?? 0;
         expect(e.teamCountInPeriod).toEqual(prev + 1);

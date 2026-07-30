@@ -1,16 +1,14 @@
 /**
- * Officiating vocabulary (fdesign-officiating), STAGED-inert wiring suite.
+ * Officiating vocabulary (fdesign-officiating) — wiring suite, LIVE rates.
  *
- * The mechanism ships dormant: every rate in params.officiating is 0 and
- * every draw site short-circuits before consuming rng, so the default
- * stream is byte-identical to the pre-wiring engine (the golden fingerprint
- * corpus is the authority: npm run fingerprint). This suite therefore
- * exercises the wiring through withParams-forced rates (the timeouts.test.ts
- * idiom): emission pins from fdesign-officiating §6, the consumer chain
- * (box fold / narration / viewer / replay v3), and dormancy pins that the
- * shipped defaults really are the inert ones. When the officiating fit wave
- * flips the rates, the dormancy pins retire and the flow-harness rate gates
- * (§6) take over as the behavioral acceptance.
+ * The mechanism shipped staged-inert and went LIVE at the officiating fit
+ * (ffit-officiating): params.officiating defaults now carry the
+ * corpus-fitted rates, and the old dormancy pins retired in favor of a
+ * fitted-value drift tripwire (below) plus the flow-harness rate gates
+ * (npm run flowboard G2) as the behavioral acceptance. The emission and
+ * consumer-chain pins here still run through withParams-FORCED rates (the
+ * timeouts.test.ts idiom) so a small pool sees every family
+ * deterministically regardless of where the fitted defaults sit.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -63,7 +61,6 @@ function pool(n: number, prefix: string, params?: object): GameResult[] {
 }
 
 const forced = pool(8, 'off-live', FORCED);
-const dormant = pool(2, 'off-dorm');
 
 // ------------------------------------------------------------------ helpers
 
@@ -100,40 +97,30 @@ function possTeamAt(events: GameEvent[], idx: number): TeamSide | -1 {
   return -1;
 }
 
-// ------------------------------------------------------- dormancy (shipped)
+// ---------------------------------------------------- fitted defaults (live)
 
-describe('officiating dormancy (shipped defaults)', () => {
-  it('every params.officiating rate ships at its never-fire zero', () => {
+describe('officiating fitted defaults (ffit-officiating)', () => {
+  // The staged-inert dormancy pins retired at the fit flip (this suite's
+  // header). These are their replacement: a drift tripwire on the fitted
+  // values — the flow-harness rate gates (npm run flowboard G2) own the
+  // behavioral acceptance; these pins only catch a silent default edit.
+  it('every params.officiating rate ships at its corpus-fitted value', () => {
     const O = defaultParams.officiating;
-    expect(O.heldBallPerScramble).toBe(0);
-    expect(O.heldBallPerReach).toBe(0);
-    expect(O.goaltendPerContestedInsideMiss).toBe(0);
-    expect(O.goaltendPerPutback).toBe(0);
-    expect(O.travelPerDriveSec).toBe(0);
-    expect(O.travelPerPostSec).toBe(0);
-    expect(O.techPerFoulWhistle).toBe(0);
-    expect(O.takeRelabelHuntFouls).toBe(0);
-    expect(O.takeHuntRateMult).toBe(0);
-    expect(O.kickedPerPass).toBe(0);
-    expect(O.reviewPerOOB).toBe(0);
-    expect(O.reviewPerLateMake).toBe(0);
-    expect(O.reviewPerPeriodEnd).toBe(0);
-  });
-
-  it('a default-params game emits none of the officiating vocabulary', () => {
-    for (const r of dormant) {
-      for (const e of r.events) {
-        expect(e.type === 'jump_ball' || e.type === 'violation' || e.type === 'replay_review').toBe(false);
-        if (e.type === 'turnover') {
-          expect(e.kind === 'travel' || e.kind === 'off_goaltend').toBe(false);
-        }
-        if (e.type === 'foul') {
-          expect(e.kind === 'take' || e.kind === 'technical').toBe(false);
-        }
-        if (e.type === 'free_throw') expect(e.technical).toBeUndefined();
-        if (e.type === 'possession_end') expect(e.outcome === 'held_ball').toBe(false);
-      }
-    }
+    expect(O.heldBallPerScramble).toBe(0.0095);
+    expect(O.heldBallPerReach).toBe(0.005);
+    expect(O.goaltendPerContestedInsideMiss).toBe(0.0205);
+    expect(O.goaltendPerPutback).toBe(0.024);
+    expect(O.travelPerDriveSec).toBe(0.00265);
+    expect(O.travelPerPostSec).toBe(0.0065);
+    expect(O.techPerFoulWhistle).toBe(0.017);
+    expect(O.takeRelabelHuntFouls).toBe(1);
+    // the fit landed 0.09, rescaled 0.09 → 0.06728 at the FLOW landing to
+    // hold take = reach × mult constant as organic reach rose (knot-combo §1)
+    expect(O.takeHuntRateMult).toBe(0.06728);
+    expect(O.kickedPerPass).toBe(0.00127);
+    expect(O.reviewPerOOB).toBe(0.25);
+    expect(O.reviewPerLateMake).toBe(0.085);
+    expect(O.reviewPerPeriodEnd).toBe(0.09);
   });
 });
 
@@ -402,7 +389,11 @@ describe('officiating consumer chain (forced rates)', () => {
       const gameMin = box.periods <= 4 ? 48 : 48 + (box.periods - 4) * 5;
       for (const s of [0, 1] as TeamSide[]) {
         const mins = box.players.filter((p) => p.team === s).reduce((a, p) => a + p.min, 0);
-        expect(Math.abs(mins - gameMin * 5)).toBeLessThanOrEqual(0.3);
+        // 0.3 is the sub-granularity tolerance; the 1e-9 pad absorbs
+        // accumulated float error in the Σmin fold — one landed stream drew
+        // exactly 0.30000000000001137 (knot-combo test triage; a boundary
+        // correction, the tolerance itself is unchanged)
+        expect(Math.abs(mins - gameMin * 5)).toBeLessThanOrEqual(0.3 + 1e-9);
       }
       const pm = (s: TeamSide) =>
         box.players.filter((p) => p.team === s).reduce((a, p) => a + p.plusMinus, 0);

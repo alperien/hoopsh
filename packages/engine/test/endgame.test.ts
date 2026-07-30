@@ -114,7 +114,9 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
         // remaining is the budget minus what this team has burned so far
         expect(to.remaining).toEqual(r.rules.timeoutsPerGame - used[to.team]);
         expect(to.remaining).toBeGreaterThanOrEqual(0);
-        expect(['stop_run', 'advance']).toContain(to.reason);
+        // the full live vocabulary since the timeout economy flipped
+        // (ffit-timeouts); the retired legacy pin listed stop_run/advance
+        expect(['stop_run', 'advance', 'mandatory', 'regroup']).toContain(to.reason);
       }
       expect(used[0]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
       expect(used[1]).toBeLessThanOrEqual(r.rules.timeoutsPerGame);
@@ -162,8 +164,11 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
   });
 
   it('a trailing team intentionally fouls in the final ~35s of a close game', () => {
-    // qualifying state: final period/OT, clock <= 35, the FOULING team down
-    // 3-12 — exactly foulHuntSide's activation. Count reach fouls there.
+    // qualifying state: final period/OT, clock <= 35, the fouling team down
+    // 3-12, exactly foulHuntSide's activation. Count the hunt's fouls
+    // there — printed as kind 'take' since the officiating fit flipped
+    // takeRelabelHuntFouls (the corpus's Q4-late take-foul vocabulary);
+    // 'reach' stays accepted so a relabel-off config also passes.
     let hunted = 0;
     let qualifyingGames = 0;
     for (const r of on) {
@@ -174,7 +179,7 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
           const deficit = -marginFor(e, side);
           if (deficit >= 3 && deficit <= 12) sawState = true;
         }
-        if (e.type === 'foul' && e.kind === 'reach') {
+        if (e.type === 'foul' && (e.kind === 'reach' || e.kind === 'take')) {
           const deficit = -marginFor(e, e.team);
           if (deficit >= 3 && deficit <= 12) hunted++;
         }

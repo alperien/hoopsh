@@ -1,18 +1,13 @@
 /**
- * Timeout economy (fdesign-timeouts), STAGED-inert wiring suite.
- *
- * The mechanism ships dormant: every stage switch (params.endgame.to*) sits
- * at its never-fire value, so the default stream is byte-identical to the
- * pre-wiring engine (the golden fingerprint corpus is the authority for
- * that: npm run fingerprint). This suite therefore exercises the wiring
- * through withParams-forced live values (the concede.test.ts idiom), plus
- * executable pins that the shipped defaults really are the inert ones.
+ * Timeout economy (fdesign-timeouts) — wiring suite, LIVE since the FLOW
+ * flip: params.endgame.to* ship at the ffit-timeouts corpus fits, and the
+ * flowboard G1 gate owns the behavioral acceptance. The old dormancy pins
+ * retired to a fitted-value drift tripwire; every staged/never-fire arm
+ * stays covered through explicit withParams overrides (fixtures pin their
+ * own dials so they cannot drift with the defaults).
  *
  * Pool thresholds follow the endgame.test.ts doctrine: bars set well under
  * probed values (probes noted inline) so future rng reshuffles survive.
- * When the timeout fit wave flips the defaults, the dormancy pins here are
- * retired and the corpus-fit acceptance study (fdesign-timeouts §7) takes
- * over as the behavioral gate.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -344,22 +339,39 @@ function liveState(params: SimParams, o: {
   } as unknown as GameState;
 }
 
-/** hazard forced certain: every gate that passes must produce a call */
-const CERTAIN = withParams({ endgame: { toCoachBasePerDead: 1, toCoachMaxP: 1 } });
+/** hazard forced certain: every gate that passes must produce a call.
+ *  Mandatory anchors pinned OFF (they ship live since the flip and would
+ *  pre-empt the hazard at the FT site — the f-assembly §4a re-pin). */
+const CERTAIN = withParams({
+  endgame: {
+    toCoachBasePerDead: 1, toCoachMaxP: 1,
+    toMandatoryFirstBelowSec: -1, toMandatorySecondBelowSec: -1
+  }
+});
 
 describe('decision units (hand-built states)', () => {
   it('the live-site advance: trailing, final period, inside the window, game alive', () => {
-    const s = liveState(withParams(), { period: 4, clock: 20, score: [80, 84] });
+    // hazard magnitudes pinned 0 so the leader leg tests the advance gate,
+    // not a live-hazard draw (defaults carry the fitted hazard since the flip)
+    const ZEROS = withParams({
+      endgame: { toCoachBasePerDead: 0, toCoachRunW: 0, toCoachTrailW: 0, toBurnBoost: 0 }
+    });
+    const s = liveState(ZEROS, { period: 4, clock: 20, score: [80, 84] });
     expect(decideLiveTimeout(s, 0)).toEqual({ team: 0, reason: 'advance' });
-    // the leading side gets no advance (and, at zero hazard magnitudes, no
-    // voluntary either: the stage switch)
+    // the leading side gets no advance (and, at the pinned zero hazard
+    // magnitudes, no voluntary either: the stage-switch semantics)
     expect(decideLiveTimeout(s, 1)).toBe(null);
   });
 
-  it('staged-zero magnitudes decide null WITHOUT consuming rng (the fingerprint switch)', () => {
-    const s = liveState(withParams(), { period: 2, clock: 400, score: [50, 55] });
+  it('pinned-zero magnitudes decide null WITHOUT consuming rng (the fingerprint switch)', () => {
+    // the pre-flip staged arm, kept behind an explicit override: p === 0
+    // must return before any draw
+    const ZEROS = withParams({
+      endgame: { toCoachBasePerDead: 0, toCoachRunW: 0, toCoachTrailW: 0, toBurnBoost: 0 }
+    });
+    const s = liveState(ZEROS, { period: 2, clock: 400, score: [50, 55] });
     const before = s.rng.chance(0.5); // advance the stream once, deterministically
-    const t = liveState(withParams(), { period: 2, clock: 400, score: [50, 55] });
+    const t = liveState(ZEROS, { period: 2, clock: 400, score: [50, 55] });
     t.rng.chance(0.5);
     expect(decideLiveTimeout(s, 0)).toBe(null);
     // identical next draw on both streams proves decideLiveTimeout drew nothing
@@ -415,9 +427,17 @@ describe('FT-whistle timeout site (fdesign-timeouts §1.2.2)', () => {
     return s;
   }
 
-  it('staged defaults decide null WITHOUT consuming rng (the fingerprint switch)', () => {
-    const s = ftState(withParams(), { period: 2, clock: 400, score: [50, 55] });
-    const t = ftState(withParams(), { period: 2, clock: 400, score: [50, 55] });
+  it('pinned staged overrides decide null WITHOUT consuming rng (the fingerprint switch)', () => {
+    // the pre-flip staged arm behind explicit overrides: mandatory off,
+    // hazard magnitudes 0 — the site must return before any draw
+    const STAGED = withParams({
+      endgame: {
+        toMandatoryFirstBelowSec: -1, toMandatorySecondBelowSec: -1,
+        toCoachBasePerDead: 0, toCoachRunW: 0, toCoachTrailW: 0, toBurnBoost: 0
+      }
+    });
+    const s = ftState(STAGED, { period: 2, clock: 400, score: [50, 55] });
+    const t = ftState(STAGED, { period: 2, clock: 400, score: [50, 55] });
     s.rng.chance(0.5);
     t.rng.chance(0.5);
     maybeFtTimeout(s);
@@ -533,8 +553,14 @@ describe('endPeriod bookkeeping (hand-built state)', () => {
     } as unknown as GameState;
   }
 
+  // fixture params: these minimal states carry no court, and endPeriod at
+  // the live ai.openerResetOn 1 routes into setupDeadTargets, which reads
+  // s.court.rims (the possession.ts trap comment; f-assembly §4b) — pin the
+  // re-set off, it is orthogonal to timeout bookkeeping
+  const NO_RESET = { ai: { openerResetOn: 0 } };
+
   it('per-period timeout counters reset unconditionally; regulation keeps the budget remainder', () => {
-    const s = periodState(withParams(MAND), { period: 2, score: [50, 48] });
+    const s = periodState(withParams({ ...MAND, ...NO_RESET }), { period: 2, score: [50, 48] });
     endPeriod(s);
     expect(s.period).toBe(3);
     expect(s.timeoutsThisPeriod).toEqual([0, 0]);
@@ -543,37 +569,43 @@ describe('endPeriod bookkeeping (hand-built state)', () => {
     expect(s.timeoutsLeft).toEqual([4, 1]); // untouched, no OT replacement
   });
 
-  it('entering OT REPLACES the remainder with the per-OT budget (forced live)', () => {
-    const s = periodState(withParams(MAND), { period: 4, score: [90, 90] });
+  it('entering OT REPLACES the remainder with the per-OT budget (the live default)', () => {
+    const s = periodState(withParams({ ...MAND, ...NO_RESET }), { period: 4, score: [90, 90] });
     endPeriod(s);
     expect(s.period).toBe(5);
     expect(s.timeoutsLeft).toEqual([2, 2]);
   });
 
-  it('at the shipped −1 the OT budget keeps the remainder (the stage switch)', () => {
-    const s = periodState(withParams(), { period: 4, score: [90, 90] });
+  it('at a pinned −1 the OT budget keeps the remainder (the stage-switch semantics)', () => {
+    const s = periodState(
+      withParams({ endgame: { toOvertimeTimeouts: -1 }, ...NO_RESET }),
+      { period: 4, score: [90, 90] }
+    );
     endPeriod(s);
     expect(s.period).toBe(5);
     expect(s.timeoutsLeft).toEqual([4, 1]);
   });
 });
 
-// ------------------------------------------------------------ inertness pins
+// ---------------------------------------------------------- fitted-value pins
 
-describe('STAGED dormancy (retire at the fit-wave flip)', () => {
-  it('the shipped stage switches are the never-fire values', () => {
+describe('fitted defaults (ffit-timeouts) — drift tripwire', () => {
+  // the dormancy pins retired at the FLOW flip; this is their replacement:
+  // a tripwire on the corpus-fitted values (flowboard G1 owns the
+  // behavioral acceptance) so a silent default edit cannot slip through
+  it('the timeout economy ships at the ffit-timeouts corpus fits', () => {
     const E = defaultParams.endgame;
-    expect(E.toCoachBasePerDead).toBe(0);
-    expect(E.toCoachRunW).toBe(0);
-    expect(E.toCoachTrailW).toBe(0);
-    expect(E.toBurnBoost).toBe(0);
-    expect(E.toMandatoryFirstBelowSec).toBe(-1);
-    expect(E.toMandatorySecondBelowSec).toBe(-1);
-    expect(E.toFinalPeriodMaxTimeouts).toBe(99);
-    expect(E.toFinalPeriodLateMaxTimeouts).toBe(99);
-    expect(E.toOvertimeTimeouts).toBe(-1);
-    expect(E.toLiveSiteOn).toBe(0);
-    expect(E.timeoutRunPts).toBe(10); // the legacy trigger still ships live
+    expect(E.toCoachBasePerDead).toBe(0.02);
+    expect(E.toCoachRunW).toBe(0.195);
+    expect(E.toCoachTrailW).toBe(0.03);
+    expect(E.toBurnBoost).toBe(0.13);
+    expect(E.toMandatoryFirstBelowSec).toBe(419);
+    expect(E.toMandatorySecondBelowSec).toBe(179);
+    expect(E.toFinalPeriodMaxTimeouts).toBe(4);
+    expect(E.toFinalPeriodLateMaxTimeouts).toBe(2);
+    expect(E.toOvertimeTimeouts).toBe(2);
+    expect(E.toLiveSiteOn).toBe(1);
+    expect(E.timeoutRunPts).toBe(999); // legacy trigger retired in place (never fires)
   });
 
   it('flag OFF stays the byte-identical legacy path even with every switch forced live', () => {
@@ -593,14 +625,17 @@ describe('STAGED dormancy (retire at the fit-wave flip)', () => {
     }
   });
 
-  it('a default-config stream carries only the legacy reasons', () => {
-    // 'mandatory'/'regroup' must be unreachable until the flip (they are
-    // also outside TimeoutEvent's contract union until the officiating wave
-    // widens it; sim/endgame.ts callTimeout's staged-contract note)
+  it('a default-config stream carries the live timeout vocabulary', () => {
+    // the legacy-reasons pin, inverted at the flip: mandatory anchors are a
+    // deterministic rule, so every default game carries at least one, and
+    // every reason sits inside the full TimeoutReason union
     const { home, away } = sampleMatchup();
     const r = simulateGame({ seed: 'to-default-0', home, away, collectFrames: false });
-    for (const e of timeouts(r)) {
-      expect(['stop_run', 'advance']).toContain(e.reason);
+    const reasons = timeouts(r).map((e) => e.reason);
+    expect(reasons.length).toBeGreaterThan(0);
+    for (const reason of reasons) {
+      expect(['stop_run', 'advance', 'mandatory', 'regroup']).toContain(reason);
     }
+    expect(reasons).toContain('mandatory');
   });
 });

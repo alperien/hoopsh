@@ -1,18 +1,17 @@
 /**
- * Rotation grammar (fdesign-rotations), STAGED-inert wiring suite:
- * quarter-break waves, the foul-trouble policy, and the timeout-window
- * relaxation, all shipped dormant (sub.waveMaxPerTeam 0 /
- * ftroublePersonalOffset 99 / timeoutSubRelaxPts 0 / subMinBenchSec 0;
- * byte-identity is the golden fingerprint corpus's job).
+ * Rotation grammar (fdesign-rotations) — wiring suite, LIVE since the FLOW
+ * flip: quarter-break waves, the foul-trouble policy, and the timeout-window
+ * relaxation ship at the ffit-rotations corpus fits (see params.ts). The
+ * old dormancy pins inverted at the flip; every staged/legacy arm stays
+ * covered through explicit withParams overrides, so the switch semantics
+ * cannot silently rot.
  *
- * Style per concede.test.ts: designed values forced through withParams,
- * hand-built states for exact-semantics pins, one small forced-live pool
- * (sim once, assert many) with bars well under probed values (probes noted
- * inline). The corpus-fit acceptance bands (design §6: boundary-delta
- * means, Q3-start starter share ≥ 0.85, histogram shapes) are the flip
- * gate, owned by the rotation fit wave, not this wiring commit: the cap-2
- * wave at these dials measures well short of the Q3-share band on the
- * unfitted engine, by design.
+ * Style per concede.test.ts: values forced through withParams (fixtures
+ * stay pinned regardless of where the fitted defaults sit), hand-built
+ * states for exact-semantics pins, one small forced-live pool (sim once,
+ * assert many) with bars well under probed values (probes noted inline).
+ * The corpus-fit acceptance bands (design §6) live on the flow harness
+ * (flowboard G8), not here.
  *
  * Precedence contract under test (design §2.1):
  *   crunch > concede > foul-trouble > quarter-wave > fatigue/minutes.
@@ -27,7 +26,9 @@ import { sampleMatchup } from '@hoopsh/data';
 import { checkSubs } from '../src/sim/subs.js';
 import type { Agent, GameState, TimeoutReason } from '../src/sim/state.js';
 
-/** the designed (flip) values, forced; the shipped defaults stay inert */
+/** the design-seed values, forced explicitly (the fitted defaults sit
+ *  elsewhere — waveStintMinSec 420, waveReadyRelief 35, subMinBenchSec 300,
+ *  ftroubleIgnoreClockSec 420 — so these fixtures pin their own dials) */
 const LIVE = withParams({
   sub: {
     waveMaxPerTeam: 2,
@@ -179,7 +180,11 @@ describe('quarter-break wave (constructed boundary stoppage, forced live)', () =
     f.a(f.bn[4]!).lastSwapT = 1200;
     checkSubs(f.s, undefined, { wave: true });
     const subs = subsOf(f.s, 0);
-    expect(subs.length).toBe(2);
+    // 4, not the old cap-2 wave: waveHalfResetMax 5 went live at the FLOW
+    // flip, so the H2 boundary restores every benched starter past the
+    // plain wave's cap (ffit-rotations §4 sanctioned this exact update; the
+    // starters-in / never-out legs below are the assertions that matter)
+    expect(subs.length).toBe(4);
     for (const sub of subs) {
       expect(f.st.includes(sub.out)).toBe(false); // never wave a starter out at the H2 reset
       expect(f.st.includes(sub.in)).toBe(true);   // starters first among entries
@@ -241,11 +246,18 @@ describe('quarter-break wave (constructed boundary stoppage, forced live)', () =
     expect(subsOf(alive.s, 0).length).toBe(2);
   });
 
-  it('INERT defaults: the same boundary produces zero wave swaps (dormancy pin)', () => {
+  it('live defaults wave at the fitted cap; a pinned waveMaxPerTeam 0 still swaps zero', () => {
+    // the old dormancy pin, inverted at the FLOW flip: the same boundary
+    // now waves 2 (the fitted cap) at defaults
     const f = rotState(withParams(), { period: 2, clock: 720, t: 720 });
     for (const id of f.bn) { f.a(id).energy = 100; f.a(id).lastSwapT = 400; }
-    checkSubs(f.s, undefined, { wave: true }); // waveMaxPerTeam 0; guard returns
-    expect(subsOf(f.s, 0).length).toBe(0);
+    checkSubs(f.s, undefined, { wave: true });
+    expect(subsOf(f.s, 0).length).toBe(2);
+    // the 0-arm semantics survive behind the explicit override
+    const off = rotState(withParams({ sub: { waveMaxPerTeam: 0 } }), { period: 2, clock: 720, t: 720 });
+    for (const id of off.bn) { off.a(id).energy = 100; off.a(id).lastSwapT = 400; }
+    checkSubs(off.s, undefined, { wave: true }); // guard returns
+    expect(subsOf(off.s, 0).length).toBe(0);
   });
 
   it('halfReset override: the H2 boundary restores the five past every wave gate', () => {
@@ -275,10 +287,11 @@ describe('quarter-break wave (constructed boundary stoppage, forced live)', () =
       expect(f.st.includes(sub.in)).toBe(true);
       expect(f.st.includes(sub.out)).toBe(false);
     }
-    // the same boundary at waveHalfResetMax 0 keeps the plain wave's gates:
-    // no exits are stint-eligible and no entries clear the bench floor
+    // the same boundary at waveHalfResetMax 0 (pinned; the pre-flip staged
+    // value) keeps the plain wave's gates: no exits are stint-eligible and
+    // no entries clear the bench floor
     const off = rotState(withParams({
-      sub: { waveMaxPerTeam: 2, waveStintMinSec: 300, subMinBenchSec: 150 }
+      sub: { waveMaxPerTeam: 2, waveStintMinSec: 300, subMinBenchSec: 150, waveHalfResetMax: 0 }
     }), { period: 3, clock: 720, t: 1440 });
     floor(off, [off.st[0]!, ...off.bn.slice(0, 4)]);
     for (const id of off.bn.slice(0, 4)) off.a(id).lastSwapT = 1380;
@@ -372,9 +385,12 @@ describe('foul-trouble policy (constructed, forced live)', () => {
     expect(subs[0]!).toEqual({ out: g.bn[0]!, in: g.st[0]! });
   });
 
-  it('INERT defaults: two fouls in Q1 pull nobody (dormancy pin)', () => {
-    const f = rotState(withParams(), { period: 1, clock: 400, t: 320 });
-    f.a(f.st[0]!).fouls = 2; // bar at the shipped offset 99 is unreachable
+  it('pinned 99-arm: two fouls in Q1 pull nobody when the bar is unreachable', () => {
+    // was green-by-accident at the fitted defaults (offset 1 marks him
+    // troubled, but ftroubleIgnoreClockSec 420 > clock 400 rides the foul
+    // to the break) — pinned to the arm it actually claims to test
+    const f = rotState(withParams({ sub: { ftroublePersonalOffset: 99 } }), { period: 1, clock: 400, t: 320 });
+    f.a(f.st[0]!).fouls = 2; // bar at offset 99 is unreachable
     checkSubs(f.s);
     expect(subsOf(f.s, 0).length).toBe(0);
   });
@@ -420,8 +436,8 @@ describe('timeout-window subs (the fdesign-timeouts §4 handshake, forced live)'
     expect(subsOf(f.s, 0).length).toBe(1);
   });
 
-  it('INERT defaults: the stamped huddle changes nothing (dormancy pin)', () => {
-    const f = rotState(withParams(), { period: 2, clock: 300, t: 800 });
+  it('pinned 0-arm: the stamped huddle changes nothing at timeoutSubRelaxPts 0', () => {
+    const f = rotState(withParams({ sub: { timeoutSubRelaxPts: 0 } }), { period: 2, clock: 300, t: 800 });
     prep(f);
     stamp(f);
     checkSubs(f.s);
@@ -507,8 +523,10 @@ describe('FT-line planned window (ftGapRelaxPts, forced live)', () => {
     expect(subsOf(dead.s, 0).length).toBe(0);
   });
 
-  it('INERT default: the FT window relaxes nothing (dormancy pin)', () => {
-    const f = rotState(withParams(), { period: 2, clock: 300, t: 800 });
+  it('pinned 0-arm: the FT window relaxes nothing at ftGapRelaxPts 0', () => {
+    // was edge-riding at the fitted default (relax 3 puts the 65-energy
+    // starter exactly on the 62+3 bar) — pinned to the arm it claims
+    const f = rotState(withParams({ sub: { ftGapRelaxPts: 0 } }), { period: 2, clock: 300, t: 800 });
     prep(f);
     ftPhase(f);
     checkSubs(f.s, f.st[4]!);
@@ -548,8 +566,8 @@ describe('proactive eager return (eagerReturnProactive, forced live)', () => {
     expect(subsOf(conc.s, 0).length).toBe(0);
   });
 
-  it('INERT default: the same state swaps nobody (dormancy pin)', () => {
-    const f = rotState(withParams(), { period: 3, clock: 300, t: 1440 });
+  it('pinned 0-arm: the same state swaps nobody at eagerReturnProactive 0', () => {
+    const f = rotState(withParams({ sub: { eagerReturnProactive: 0 } }), { period: 3, clock: 300, t: 1440 });
     prep(f);
     checkSubs(f.s);
     expect(subsOf(f.s, 0).length).toBe(0);
@@ -596,15 +614,16 @@ describe('post-make sub window + between-FT slot (event-stream shape, forced liv
     return out;
   };
 
-  it('postMakeSubWindow 0 removes the live-ball sub tell; the legacy default hosts it', () => {
-    // legacy (default window 1): the made-FG dead ball is the engine's main
-    // sub host (probed ~30/g, the G8c tell)
+  it('postMakeSubWindow 0 (the live default) removes the live-ball sub tell; the pinned legacy 1 hosts it', () => {
+    // legacy arm pinned by override since the flip made 0 the default: the
+    // made-FG dead ball was the engine's main sub host (probed ~30/g, the
+    // G8c tell)
     let legacy = 0;
-    for (const r of games({})) legacy += postMakeSubs(r);
+    for (const r of games({ sub: { postMakeSubWindow: 1 } })) legacy += postMakeSubs(r);
     expect(legacy).toBeGreaterThan(10);
-    // real rule: no subs on the running-clock make-inbound
+    // real rule (the live default): no subs on the running-clock make-inbound
     let real = 0;
-    for (const r of games({ sub: { postMakeSubWindow: 0 } })) real += postMakeSubs(r);
+    for (const r of games({})) real += postMakeSubs(r);
     expect(real).toBe(0);
   });
 
@@ -706,25 +725,26 @@ describe('forced-live pool (existence floors; corpus-fit bands are the flip gate
   });
 });
 
-// ------------------------------------------------------------ dormancy pins
+// ------------------------------------------------------ fitted-value pins
 
-describe('STAGED dormancy (retire at the rotation fit-wave flip)', () => {
-  it('the shipped stage switches are the never-fire values', () => {
+describe('fitted defaults (ffit-rotations) — drift tripwire', () => {
+  // the dormancy pins retired at the FLOW flip; this is their replacement:
+  // a tripwire on the corpus-fitted values so a silent default edit cannot
+  // slip through (flowboard G8 owns the behavioral acceptance)
+  it('the rotation grammar ships at the ffit-rotations corpus fits', () => {
     const S = defaultParams.sub;
-    expect(S.waveMaxPerTeam).toBe(0);
-    expect(S.subMinBenchSec).toBe(0);
-    expect(S.ftroublePersonalOffset).toBe(99);
-    expect(S.timeoutSubRelaxPts).toBe(0);
-    // shape dials ship at design values (unread while the switches are off)
-    expect(S.waveStintMinSec).toBe(300);
-    expect(S.waveReadyRelief).toBe(10);
-    expect(S.ftroubleIgnoreClockSec).toBe(120);
-    // fit-identified hooks (ffit-rotations §3) ship at legacy/never-fire
-    // values; flips per the params.ts comments
-    expect(S.postMakeSubWindow).toBe(1);
-    expect(S.ftGapSubMode).toBe(0);
-    expect(S.ftGapRelaxPts).toBe(0);
-    expect(S.waveHalfResetMax).toBe(0);
-    expect(S.eagerReturnProactive).toBe(0);
+    expect(S.waveMaxPerTeam).toBe(2);
+    expect(S.subMinBenchSec).toBe(300);
+    expect(S.ftroublePersonalOffset).toBe(1);
+    expect(S.timeoutSubRelaxPts).toBe(8);
+    expect(S.waveStintMinSec).toBe(420);
+    expect(S.waveReadyRelief).toBe(35);
+    expect(S.ftroubleIgnoreClockSec).toBe(420);
+    // fit-identified hooks (ffit-rotations §3), live
+    expect(S.postMakeSubWindow).toBe(0);
+    expect(S.ftGapSubMode).toBe(3);
+    expect(S.ftGapRelaxPts).toBe(3);
+    expect(S.waveHalfResetMax).toBe(5);
+    expect(S.eagerReturnProactive).toBe(1);
   });
 });

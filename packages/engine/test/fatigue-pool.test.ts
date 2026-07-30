@@ -1,19 +1,19 @@
 /**
  * Cumulative-load fatigue pool ("legs", fdesign-rhythm M1) + the M3
- * deadGameBoost param, STAGED-at-zero wiring suite.
+ * deadGameBoost param — wiring suite, LIVE since the FLOW flip.
  *
- * The pool ships with fatigue.loadPerSec 0: load is provably 0 forever
- * (accrual is 0, bench recovery clamps at the floor), effectiveEnergy
- * equals raw energy, and the engine is byte-identical (the golden
- * fingerprint corpus is the authority). The pool's consumers are wired
- * (ffit-rhythm §8): the resolve.ts shot-fatigue and speed terms read
- * effectiveEnergy, shooting fouls and organic reach-ins scale with the
- * defender's load (foul.loadReachSwing/loadShootSwing, live multipliers
- * that are exactly ×1 at load 0), and concepts.ts endgameContinuation
- * carries the deadGameBoost branch behind its own `> 0` gate. So the
- * staging proof is now split: shape dials alone stay byte-identical, and a
- * forced-live pool DIVERGES. The M1 contract still holds: subs cadence
- * reads RAW energy and cannot move with load.
+ * The pool shipped staged (loadPerSec 0: load provably 0 forever) and now
+ * ships live at the ffit-rhythm fits (loadPerSec 0.011, deadGameBoost
+ * 0.25). The consumers are wired (ffit-rhythm §8): the resolve.ts
+ * shot-fatigue and speed terms read effectiveEnergy, shooting fouls and
+ * organic reach-ins scale with the defender's load
+ * (foul.loadReachSwing/loadShootSwing, exactly ×1 at load 0), and
+ * concepts.ts endgameContinuation carries the deadGameBoost branch behind
+ * its own `> 0` gate. The old dormancy pins inverted at the flip
+ * (ffit-rhythm §1 pre-scheduled): the 0-arm stays covered through
+ * explicit overrides, and the divergence proof runs zero-vs-default.
+ * The M1 contract still holds: subs cadence reads RAW energy and cannot
+ * move with load.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -100,8 +100,8 @@ describe('the load pool (movement.ts applyFatigue, forced live)', () => {
     expect(out.load).toBe(40);
   });
 
-  it('THE STAGE SWITCH: at the shipped loadPerSec 0 the pool provably stays 0', () => {
-    const { s, on, off } = fatigueState(withParams());
+  it('THE STAGE SWITCH: at loadPerSec 0 (pinned override; the pre-flip staged default) the pool provably stays 0', () => {
+    const { s, on, off } = fatigueState(withParams({ fatigue: { loadPerSec: 0 } }));
     applyFatigue(s, 600);
     expect(on.load).toBe(0);
     expect(off.load).toBe(0);
@@ -122,6 +122,11 @@ describe('the load pool (movement.ts applyFatigue, forced live)', () => {
 // -------------------------------------------------------- halftime recovery
 
 describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
+  // fixture params: this minimal state carries no court, and endPeriod at
+  // the live ai.openerResetOn 1 routes into setupDeadTargets, which reads
+  // s.court.rims (the possession.ts trap comment; f-assembly §4b) — pin the
+  // re-set off, it is orthogonal to what this suite measures
+  const NO_RESET = { ai: { openerResetOn: 0 } };
   function periodState(params: SimParams, period: number, score: [number, number]): GameState {
     const { home, away } = sampleMatchup();
     const agents = new Map<string, Agent>();
@@ -176,7 +181,8 @@ describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
   }
 
   it('fires exactly once — at the half boundary, for every body, clamped at 0', () => {
-    const s = periodState(LIVE, 2, [50, 48]); // ending Q2 = floor(4/2): halftime
+    const P = withParams({ fatigue: { loadPerSec: 0.011 }, ...NO_RESET });
+    const s = periodState(P, 2, [50, 48]); // ending Q2 = floor(4/2): halftime
     const someone = [...s.agents.values()][0]!;
     const gassed = [...s.agents.values()][1]!;
     gassed.load = 5; // below the 12-pt lump: clamps to 0
@@ -185,17 +191,17 @@ describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
     expect(someone.load).toBe(18); // 30 − loadHalftimeRecover 12
     expect(gassed.load).toBe(0);
     // Q3→Q4 is NOT a halftime; neither is an OT entry
-    const q3 = periodState(LIVE, 3, [70, 66]);
+    const q3 = periodState(P, 3, [70, 66]);
     endPeriod(q3);
     expect([...q3.agents.values()][0]!.load).toBe(30);
-    const ot = periodState(LIVE, 4, [90, 90]);
+    const ot = periodState(P, 4, [90, 90]);
     endPeriod(ot);
     expect(ot.period).toBe(5);
     expect([...ot.agents.values()][0]!.load).toBe(30);
   });
 
-  it('a staged game has nothing to recover (load 0 in, load 0 out)', () => {
-    const s = periodState(withParams(), 2, [50, 48]);
+  it('a zero-load half has nothing to recover (load 0 in, load 0 out)', () => {
+    const s = periodState(withParams(NO_RESET), 2, [50, 48]);
     for (const a of s.agents.values()) a.load = 0;
     endPeriod(s);
     for (const a of s.agents.values()) expect(a.load).toBe(0);
@@ -263,28 +269,32 @@ describe('load consumers (forced live)', () => {
 
 // ------------------------------------------------- inertness (structural)
 
-describe('STAGED dormancy (the loadPerSec 0 stage switch)', () => {
-  it('the shipped stage switch is zero; couplings ship live but ×1 at load 0', () => {
-    expect(defaultParams.fatigue.loadPerSec).toBe(0);
-    expect(defaultParams.endgame.deadGameBoost).toBe(0);
-    // shape dials ship at design values (unread while load is 0)
+describe('the loadPerSec stage switch (dormancy pins inverted at the FLOW flip)', () => {
+  it('the pool ships live at the ffit-rhythm fits; couplings at the REAL-fit seeds', () => {
+    expect(defaultParams.fatigue.loadPerSec).toBe(0.011);
+    expect(defaultParams.endgame.deadGameBoost).toBe(0.25);
+    // shape dials at design values
     expect(defaultParams.fatigue.loadRecoverPerSecBench).toBe(0.02);
     expect(defaultParams.fatigue.loadHalftimeRecover).toBe(12);
-    // the foul couplings ship at the REAL-fit seeds; their inertness is the
-    // pool's zero, not their own (1 + swing × 0 = 1 exactly)
+    // the foul couplings: 1 + swing × load/100, exactly ×1 at load 0
     expect(defaultParams.foul.loadReachSwing).toBe(1.3);
     expect(defaultParams.foul.loadShootSwing).toBe(0.5);
   });
 
-  it('shape dials alone are byte-identical: swings moved, pool still 0', () => {
+  it('at a pinned pool 0, shape dials alone are byte-identical: the couplings are dead at load 0', () => {
+    // the pre-flip staging proof, preserved under the explicit 0 override:
+    // swings and recovery dials read nothing while the pool never fills
     for (const i of [0, 1]) {
       const { home, away } = sampleMatchup();
-      const base = simulateGame({ seed: `load-inert-${i}`, home, away, collectFrames: true });
+      const base = simulateGame({
+        seed: `load-inert-${i}`, home, away, collectFrames: true,
+        params: { fatigue: { loadPerSec: 0 } }
+      });
       const moved = simulateGame({
         seed: `load-inert-${i}`, home, away, collectFrames: true,
         params: {
           foul: { loadReachSwing: 2.0, loadShootSwing: 0.9 },
-          fatigue: { loadRecoverPerSecBench: 0.5, loadHalftimeRecover: 99 }
+          fatigue: { loadPerSec: 0, loadRecoverPerSecBench: 0.5, loadHalftimeRecover: 99 }
         }
       });
       expect(JSON.stringify(moved.events)).toBe(JSON.stringify(base.events));
@@ -292,16 +302,16 @@ describe('STAGED dormancy (the loadPerSec 0 stage switch)', () => {
     }
   });
 
-  it('a FORCED-LIVE pool now diverges: the consumers are wired', () => {
-    // pre-wiring this exact comparison was pinned byte-identical (the
-    // pre-scheduled dormancy retirement); with the resolve/foul/speed
-    // consumers wired, a live pool must move outcomes
+  it('a FORCED-ZERO pool diverges from the live default: the consumers are wired', () => {
+    // pre-flip this proof ran live-vs-staged-default; with 0.011 the
+    // default, the same wiring proof runs zero-vs-default (ffit-rhythm §1
+    // pre-scheduled inversion)
     const { home, away } = sampleMatchup();
     const base = simulateGame({ seed: 'load-live-0', home, away, collectFrames: false });
-    const live = simulateGame({
+    const zeroed = simulateGame({
       seed: 'load-live-0', home, away, collectFrames: false,
-      params: { fatigue: { loadPerSec: 0.011 } }
+      params: { fatigue: { loadPerSec: 0 } }
     });
-    expect(JSON.stringify(live.events)).not.toBe(JSON.stringify(base.events));
+    expect(JSON.stringify(zeroed.events)).not.toBe(JSON.stringify(base.events));
   });
 });

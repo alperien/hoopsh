@@ -1,13 +1,13 @@
 /**
- * Rebound scramble cadence (G9, fdesign-judge §3), STAGED-inert wiring suite.
+ * Rebound scramble cadence (G9, fdesign-judge §3) — wiring suite, LIVE.
  *
- * The mechanism ships dormant: params.reb.cadenceOn sits at 0, where
- * resolve.ts sampleScrambleSec short-circuits to the legacy sub-second
- * uniform windows with the same single rng draw, so the default stream is
- * byte-identical to the pre-wiring engine (the golden fingerprint corpus is
- * the authority: npm run fingerprint). This suite exercises the wiring
- * through withParams-forced live values (the timeouts.test.ts idiom), plus
- * executable pins of the shipped dormancy.
+ * The mechanism shipped staged-inert (cadenceOn 0 = the legacy sub-second
+ * uniform windows, same single rng draw) and went live at the FLOW flip
+ * (ffit-cadence): params.reb.cadenceOn ships at 1, where resolve.ts
+ * sampleScrambleSec maps the draw through the corpus-fitted CDF. The old
+ * dormancy pins inverted to ship-at-1 pins at the flip (the ffit-cadence
+ * bake checklist); the legacy arm stays covered through an explicit
+ * cadenceOn 0 override.
  *
  * The forced-live distribution checks measure exactly what the judge
  * measures (harness scoreboard rebMissDeltas / tools parse-nba: game-clock
@@ -81,7 +81,8 @@ const p50 = (a: readonly number[]): number =>
 // n=40 games: ~2,000+ FG-miss deltas, share s.e. under 1pp, so the bands
 // below are dominated by model fit, not sampling noise.
 const live = pool(40, 'cadence', LIVE);
-const staged = pool(4, 'cadence-staged');
+// the legacy arm, pinned by explicit override since the flip made 1 the default
+const staged = pool(4, 'cadence-staged', { reb: { cadenceOn: 0 } });
 
 describe('forced-live cadence distribution (n=40 games)', () => {
   const all = live.flatMap((r) => missRebDeltas(r.events));
@@ -168,29 +169,29 @@ describe('forced-live cadence distribution (n=40 games)', () => {
   });
 });
 
-describe('shipped dormancy (STAGED pins — retired at the cadence flip)', () => {
-  it('the stage switch ships at 0', () => {
-    expect(defaultParams.reb.cadenceOn).toBe(0);
+describe('ship-at-1 pins (dormancy pins inverted at the cadence flip, ffit-cadence)', () => {
+  it('the stage switch ships at 1', () => {
+    expect(defaultParams.reb.cadenceOn).toBe(1);
   });
 
-  it('staged streams still carry the legacy tell: every FG-miss rebound lands <=1s after the miss', () => {
-    // pins the LEGACY behavior (the 0.5-0.95s window floors to 0 or 1) so a
-    // silent default flip cannot slip through; byte-level authority for
-    // dormancy is the golden fingerprint corpus (npm run fingerprint)
+  it('the pinned 0-arm still carries the legacy tell: every FG-miss rebound lands <=1s after the miss', () => {
+    // pins the LEGACY behavior of the 0 arm (the 0.5-0.95s window floors to
+    // 0 or 1) so the switch semantics cannot silently rot; the arm only
+    // exists behind the explicit override now
     const fg = staged.flatMap((r) => missRebDeltas(r.events)).filter((x) => x.kind === 'fg');
     expect(fg.length).toBeGreaterThan(100);
     for (const { d } of fg) expect(d).toBeLessThanOrEqual(1);
   });
 
-  it('withParams at the shipped zero reproduces the default stream byte-for-byte', () => {
+  it('withParams at the shipped 1 reproduces the default stream byte-for-byte', () => {
     const { home, away } = sampleMatchup();
     const plain = simulateGame({ seed: 'cadence-inert', home, away, collectFrames: false });
-    const zeroed = simulateGame({
+    const pinned = simulateGame({
       seed: 'cadence-inert', home, away, collectFrames: false,
-      params: { reb: { cadenceOn: 0 } }
+      params: { reb: { cadenceOn: 1 } }
     });
-    expect(JSON.stringify(zeroed.events)).toBe(JSON.stringify(plain.events));
-    expect(zeroed.finalScore).toEqual(plain.finalScore);
+    expect(JSON.stringify(pinned.events)).toBe(JSON.stringify(plain.events));
+    expect(pinned.finalScore).toEqual(plain.finalScore);
   });
 });
 

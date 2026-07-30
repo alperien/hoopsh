@@ -1,25 +1,22 @@
 /**
- * Possession-grammar wiring acceptance (FLOW wave, staged-inert).
+ * Possession-grammar wiring acceptance (FLOW wave) — LIVE since the flip.
  *
  * The four grammar mechanisms (quarter-opener deliberateness, OREB scramble
  * economy, iso/stepback-three creation, heave discipline; see
- * findings/fdesign-grammar.md) land wired but STAGED: every stage switch
- * defaults to its inert value, so default-params behavior is byte-identical
- * to the pre-wiring engine (the golden fingerprint corpus is the tripwire
- * for that; `npm run fingerprint`). These tests do two jobs instead:
+ * findings/fdesign-grammar.md) shipped wired-but-STAGED and went live at
+ * the FLOW flip at the ffit-grammar doses. These tests do two jobs:
  *
- *  1. Live-shape: with the switches forced via withParams overrides, each
- *     mechanism fires exactly in its designed context and nowhere else
- *     (window gates, identity gates, taxonomy gates).
- *  2. Staged-inert: with the switches at rest, the shape dials alone
- *     (ramp geometry, window seconds, drive share, deficit ceiling) change
- *     nothing, proving the zeros/one really are the switches the fit wave
- *     will flip.
+ *  1. Live-shape: each mechanism fires exactly in its designed context and
+ *     nowhere else (window gates, identity gates, taxonomy gates).
+ *  2. Switch semantics: the pre-flip staged arm stays covered through
+ *     explicit overrides (pinned zeros / the legacy heave 1), so the stage
+ *     switches cannot silently rot. The old staged-default pins inverted
+ *     at the flip (ffit-grammar §5a).
  *
  * decideBall is exercised directly on a hand-built GameState (the softmax
  * consumes rng, so repeated calls sample the decision distribution; forced
  * utilities of ±5 EV make the assertions deterministic at temperature
- * 0.0732; weight ratios of e^68 cannot lose a 60-draw sample).
+ * ~0.07; weight ratios of e^68 cannot lose a 60-draw sample).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -177,7 +174,7 @@ const shootCount = (as: BallAction[]) => as.filter((a) => a.kind === 'shoot').le
 
 // ------------------------------------------- M1: quarter-opener (concept 9)
 
-describe('concept 9 — opening set (staged wiring)', () => {
+describe('concept 9 — opening set (live wiring)', () => {
   const stub = (over: {
     opener?: boolean; phase?: string; params?: ParamOverrides;
   }) => ({
@@ -188,10 +185,15 @@ describe('concept 9 — opening set (staged wiring)', () => {
 
   const FORCED: ParamOverrides = { ai: { openerShootMalus: 0.4 } };
 
-  it('staged default is exactly zero even in the opener window', () => {
-    const r = openerSet(stub({}), 1);
-    expect(r.shoot).toBe(0);
-    expect(r.drive).toBe(0);
+  it('the live default fires at the fitted dose; a pinned 0 stays exactly zero', () => {
+    // ship-at-live pin (ffit-grammar: malus 0.32, drive share 0.75)
+    const live = openerSet(stub({}), 1);
+    expect(live.shoot).toBe(0.32);
+    expect(live.drive).toBe(0.32 * 0.75);
+    // the stage-switch semantics still hold behind an explicit override
+    const pinned = openerSet(stub({ params: { ai: { openerShootMalus: 0 } } }), 1);
+    expect(pinned.shoot).toBe(0);
+    expect(pinned.drive).toBe(0);
   });
 
   it('forced malus fires on the period-opening possession, full at possession start', () => {
@@ -256,7 +258,7 @@ describe('concept 9 — opening set (staged wiring)', () => {
 
 // ------------------------------- M1a: opener formation re-set (endPeriod)
 
-describe('M1a — opener formation re-set (endPeriod, staged wiring)', () => {
+describe('M1a — opener formation re-set (endPeriod, live wiring)', () => {
   const runEnd = (params?: ParamOverrides): GameState => {
     const { s } = mkState({ params, period: 2 });
     s.clock = 0; // the horn
@@ -264,16 +266,16 @@ describe('M1a — opener formation re-set (endPeriod, staged wiring)', () => {
     return s;
   };
 
-  it('STAGED default: the break leaves everyone where the horn froze them', () => {
-    const s = runEnd();
+  it('pinned 0-arm: the break leaves everyone where the horn froze them', () => {
+    const s = runEnd({ ai: { openerResetOn: 0 } });
     expect(s.period).toBe(3);
     // mkState parks everyone at intent 'spot'; without the re-set the
     // period break touches no positioning state
     for (const a of s.agents.values()) expect(a.intent).toBe('spot');
   });
 
-  it('forced live: the break stages the inbound formation on the post-sub lineup', () => {
-    const s = runEnd({ ai: { openerResetOn: 1 } });
+  it('live default: the break stages the inbound formation on the post-sub lineup', () => {
+    const s = runEnd();
     expect(s.period).toBe(3);
     // setupDeadTargets froze all ten into the walk-to formation
     for (const a of s.agents.values()) expect(a.intent).toBe('freeze');
@@ -289,7 +291,7 @@ describe('M1a — opener formation re-set (endPeriod, staged wiring)', () => {
 
 // ---------------------------------------- M2: OREB scramble economy (concept 10)
 
-describe('concept 10 — scramble economy (staged wiring)', () => {
+describe('concept 10 — scramble economy (live wiring)', () => {
   const N = 40;
   const KICK: ParamOverrides = { ai: { orebKickWindowSec: 4, orebKickBonus: 6 } };
 
@@ -305,15 +307,19 @@ describe('concept 10 — scramble economy (staged wiring)', () => {
     }
   });
 
-  it('the read dies outside its context: stale touch, non-rebound touch, staged window', () => {
+  it('the read dies outside its context: stale touch, non-rebound touch, pinned-zero window', () => {
     const kickKinds = (opts: StateOpts) =>
       sample(mkState(opts).s, N).filter((a) => a.kind === 'pass' && a.passKind === 'kickout').length;
     // grab is older than the read window
     expect(kickKinds({ params: KICK, acquiredBy: 'rebound', sinceCatch: 5, holderFt: 8 })).toBe(0);
     // an ordinary caught pass is not a scramble
     expect(kickKinds({ params: KICK, acquiredBy: 'pass', sinceCatch: 1.0, holderFt: 8 })).toBe(0);
-    // staged default (window 0): context never true even on a fresh grab
-    expect(kickKinds({ acquiredBy: 'rebound', sinceCatch: 1.0, holderFt: 8 })).toBe(0);
+    // window pinned 0 (the pre-flip staged value): context never true even
+    // on a fresh grab — the switch semantics
+    expect(kickKinds({
+      params: { ai: { orebKickWindowSec: 0 } },
+      acquiredBy: 'rebound', sinceCatch: 1.0, holderFt: 8
+    })).toBe(0);
   });
 
   it('putback appetite fires on the putback taxonomy (rebound + interior + quick touch)', () => {
@@ -338,7 +344,7 @@ describe('concept 10 — scramble economy (staged wiring)', () => {
 
 // ----------------------------- M2a: OREB perimeter refill (supply half)
 
-describe('M2a — OREB perimeter refill (staged wiring)', () => {
+describe('M2a — OREB perimeter refill (live wiring)', () => {
   /** post-OREB scene: the holder just grabbed the board; off-2 is a wing
    *  shooter caught retreating, off-3 sits at his corner spot, off-4 is a
    *  dunker also retreating (never refilled), off-5 has no spot */
@@ -376,8 +382,8 @@ describe('M2a — OREB perimeter refill (staged wiring)', () => {
     expect(grab.relocUntil).toBe(-99);
   });
 
-  it('STAGED default: the refill touches no positioning state', () => {
-    const { s, grab } = orebScene();
+  it('pinned 0-arm: the refill touches no positioning state', () => {
+    const { s, grab } = orebScene({ ai: { orebRefillSec: 0 } });
     onOrebSecured(s, grab);
     const wing = s.agents.get('off-2')!;
     expect(wing.intent).toBe('getback');
@@ -385,20 +391,22 @@ describe('M2a — OREB perimeter refill (staged wiring)', () => {
     expect(wing.relocUntil).toBe(-99);
   });
 
-  it('the tickScramble call site is live: a forced refill diverges a full game', () => {
+  it('the tickScramble call site is live: pinning the refill off diverges a full game', () => {
+    // pre-flip this proof forced the refill ON against the staged default;
+    // with 1.8 the default the same wiring proof runs zero-vs-default
     const { home, away } = sampleMatchup();
     const base = simulateGame({ seed: 'refill-live-0', home, away, collectFrames: false });
-    const live = simulateGame({
+    const zeroed = simulateGame({
       seed: 'refill-live-0', home, away, collectFrames: false,
-      params: { ai: { orebRefillSec: 1.8 } }
+      params: { ai: { orebRefillSec: 0 } }
     });
-    expect(JSON.stringify(live.events)).not.toBe(JSON.stringify(base.events));
+    expect(JSON.stringify(zeroed.events)).not.toBe(JSON.stringify(base.events));
   });
 });
 
 // ------------------------------- M3: halfcourt pull-up three (concept-1 flavor)
 
-describe('concept-1 flavor — drilled halfcourt pull-up three (staged wiring)', () => {
+describe('concept-1 flavor — drilled halfcourt pull-up three (live wiring)', () => {
   const dstub = (params?: ParamOverrides, phase = 'halfcourt') => ({
     params: withParams(params),
     poss: { phase },
@@ -414,8 +422,9 @@ describe('concept-1 flavor — drilled halfcourt pull-up three (staged wiring)',
     s: GameState, h: Agent, distFt = 26, contest = 0.2, move: 'pull_up' | 'catch_shoot' = 'pull_up'
   ) => decisiveness(s, h, move, 'three', distFt, contest, null);
 
-  it('staged default is exactly zero in the full trigger context', () => {
-    expect(term(dstub(), shooter(75, 75))).toBe(0);
+  it('the live default fires in the full trigger context; a pinned 0 stays exactly zero', () => {
+    expect(term(dstub(), shooter(75, 75))).toBeGreaterThan(0); // ships at 0.35 (ffit-grammar)
+    expect(term(dstub({ ai: { pullUpThreeBonus: 0 } }), shooter(75, 75))).toBe(0);
   });
 
   it('forced bonus fires in its habitat, wider than the arc catch-shoot gate', () => {
@@ -477,7 +486,7 @@ describe('concept-1 flavor — drilled halfcourt pull-up three (staged wiring)',
 
 // ------------------------------------- M4: heave discipline (desperation bypass)
 
-describe('heave discipline (staged wiring at the desperation bypass)', () => {
+describe('heave discipline (live wiring at the desperation bypass)', () => {
   const HEAVE: BallAction = { kind: 'shoot', moveType: 'heave' };
   const FLIPPED: ParamOverrides = { decide: { heaveLaunchChance: 0 } };
   const horn = (over: Partial<StateOpts>) => mkState({
@@ -508,12 +517,16 @@ describe('heave discipline (staged wiring at the desperation bypass)', () => {
     expect(decideBall(horn({ params: FLIPPED, clock: 0.9, shotClock: 0.9, score: [55, 50] }))).toEqual(HEAVE);
   });
 
-  it('staged default preserves the legacy launch in every period-expiring case', () => {
-    expect(decideBall(horn({ score: [55, 50] }))).toEqual(HEAVE);
-    expect(decideBall(horn({ score: [42, 50] }))).toEqual(HEAVE);
+  it('the pinned legacy arm (chance 1) preserves the always-launch in every period-expiring case', () => {
+    // the pre-flip staged default, kept behind an explicit override so the
+    // ≥1 draw-free semantics cannot rot; the live 0.06 default's behavior
+    // is the discipline pinned above (G6 owns its rate, flowboard)
+    const LEGACY: ParamOverrides = { decide: { heaveLaunchChance: 1 } };
+    expect(decideBall(horn({ params: LEGACY, score: [55, 50] }))).toEqual(HEAVE);
+    expect(decideBall(horn({ params: LEGACY, score: [42, 50] }))).toEqual(HEAVE);
     // the regime-split boundary: sc < 1.2 with the game clock binding
     // (old code's sc-branch, now covered by the period-expiring branch)
-    expect(decideBall(horn({ clock: 0.5, shotClock: 0.9, score: [70, 50] }))).toEqual(HEAVE);
+    expect(decideBall(horn({ params: LEGACY, clock: 0.5, shotClock: 0.9, score: [70, 50] }))).toEqual(HEAVE);
   });
 
   it('inside 32 ft the bypass never fires and no heave row is produced', () => {
@@ -524,17 +537,19 @@ describe('heave discipline (staged wiring at the desperation bypass)', () => {
   });
 });
 
-// ----------------------------------------------------- staged-inert pinning
+// ----------------------------------------------------- live-switch pinning
 
-describe('staged-inert: shape dials alone change nothing', () => {
-  it('a full game is byte-identical with shape dials moved and switches at rest', () => {
+describe('live switches: shape dials now scale live mechanisms', () => {
+  it('a full game diverges with shape dials moved — the switches are no longer at rest', () => {
+    // the inverse of the pre-flip staged-inert pin (ffit-grammar §5a): with
+    // the grammar switches live, every one of these dials is consumed, so
+    // moving them must move outcomes
     const run = (params?: ParamOverrides) => {
       const { home, away } = sampleMatchup();
       return simulateGame({ seed: 'grammar-pin-0', home, away, params, collectFrames: false });
     };
     const base = run();
-    const staged = run({
-      // every shape dial off its default; every stage switch at rest
+    const moved = run({
       ai: {
         openerScale: 1.31,
         openerDriveShare: 0.9,
@@ -543,11 +558,9 @@ describe('staged-inert: shape dials alone change nothing', () => {
         pullUpThreeMaxFt: 25
       },
       decide: {
-        heaveKeepDeficitMax: 10 // unread while heaveLaunchChance stays ≥ 1
+        heaveKeepDeficitMax: 10 // read since heaveLaunchChance < 1
       }
     });
-    expect(staged.finalScore).toEqual(base.finalScore);
-    expect(staged.events.length).toBe(base.events.length);
-    expect(staged.events).toEqual(base.events);
+    expect(JSON.stringify(moved.events)).not.toBe(JSON.stringify(base.events));
   });
 });

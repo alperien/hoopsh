@@ -32,8 +32,10 @@ const CORPUS_DIR = path.resolve(HERE, '..', '..', '..', 'data', 'nba', 'pbp-play
 
 /** the full judge-visible row taxonomy (census) */
 const CENSUS_TYPES = new Set(['shot', 'ft', 'reb', 'tov', 'foul', 'sub', 'timeout', 'jump', 'violation', 'replay']);
-/** types a SIM stream can produce today (no officiating vocabulary) */
-const SIM_TYPES = new Set(['shot', 'ft', 'reb', 'tov', 'foul', 'sub', 'timeout', 'jump']);
+/** types a SIM stream produces — the full census since the officiating
+ *  vocabulary went live (ffit-officiating): violation/replay/mid-game jump
+ *  rows are now sim-producible too */
+const SIM_TYPES = new Set(['shot', 'ft', 'reb', 'tov', 'foul', 'sub', 'timeout', 'jump', 'violation', 'replay']);
 
 const base = { t: 100, wt: 120, period: 2, clock: 400, score: [23, 20] as [number, number] };
 const ev = (over: Record<string, unknown>): GameEvent => ({ ...base, ...over } as unknown as GameEvent);
@@ -50,7 +52,7 @@ describe('neutral mapper round-trip', () => {
     expect(g.excluded['real.unparsed'] ?? 0).toBe(0);
   });
 
-  it('a sim game normalizes; row types stay inside the SIM-producible subset', () => {
+  it('a sim game normalizes; row types stay inside the census taxonomy', () => {
     const { home, away } = sampleMatchup();
     const r = simulateGame({ seed: 'scoreboard-test-1', home, away, collectFrames: false });
     const g = simToNeutral(r.events);
