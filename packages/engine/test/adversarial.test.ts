@@ -103,6 +103,52 @@ describe('adversarial input', () => {
     expect(p.shot.basePaint).toBe(withParams().shot.basePaint);
   });
 
+  it('withParams rejects null/array/scalar GROUP overrides loudly (audit M-17)', () => {
+    // { shot: null } used to fall through the merge's leaf branch and
+    // replace the whole group — detonating seconds into the sim as an
+    // unattributed read of undefined, naming no field
+    expect(() => withParams({ shot: null } as never)).toThrow(/group "shot" must be a plain-object/);
+    expect(() => withParams({ decide: [0.5] } as never)).toThrow(/group "decide" must be a plain-object/);
+    expect(() => withParams({ reb: 3 } as never)).toThrow(/group "reb" must be a plain-object/);
+    // an undefined group override stays a no-op (spread-built partials)
+    expect(withParams({ shot: undefined }).shot.baseRim).toBe(withParams().shot.baseRim);
+  });
+
+  it('withParams rejects tickHz/frameEvery combos that collapse frame timestamps (audit M-16)', () => {
+    // frame rows stamp wallT at one decimal: a wall-clock frame step below
+    // 0.1 s (frameEvery/tickHz) writes duplicate timestamps and breaks the
+    // strictly-increasing frame-time contract the viewer keys on — this
+    // legal-looking config used to pass silently
+    expect(() => withParams({ tickHz: 30, frameEvery: 2 })).toThrow(/frame step/);
+    expect(() => withParams({ tickHz: 0 })).toThrow(/must be positive/);
+    expect(() => withParams({ frameEvery: -1 })).toThrow(/must be positive/);
+    // legal retunes still pass: 30 Hz with a 3-tick cadence is exactly 0.1 s
+    expect(withParams({ tickHz: 30, frameEvery: 3 }).tickHz).toBe(30);
+  });
+
+  it('missing or non-finite Team.tactics throws at the boundary; strict enforces its range (audit M-44)', () => {
+    // the AI reads tactics.threeBias/helpAggr unconditionally: a missing
+    // tactics object crashed raw mid-game, and a NaN threeBias passed
+    // 'strict' only to detonate ~8 simulated seconds later as an
+    // unattributed non-finite-weight throw
+    const { home, away } = sampleMatchup();
+    const noTactics = structuredClone(home) as unknown as { tactics?: unknown };
+    delete noTactics.tactics;
+    expect(() => simulateGame({ seed: 'adv-tactics-missing', home: noTactics as typeof home, away, collectFrames: false }))
+      .toThrow(/missing tactics/);
+    const nanTactics = structuredClone(home);
+    nanTactics.tactics.threeBias = NaN;
+    expect(() => simulateGame({ seed: 'adv-tactics-nan', home: nanTactics, away, collectFrames: false }))
+      .toThrow(/non-finite tactic home\/.*threeBias/);
+    // finite-but-out-of-range: legal in the default tier (saturates), loud in strict
+    const hot = structuredClone(home);
+    hot.tactics.threeBias = 400;
+    expect(() => simulateGame({ seed: 'adv-tactics-strict', home: hot, away, collectFrames: false, validate: 'strict' }))
+      .toThrow(/tactic out of range/);
+    const r = simulateGame({ seed: 'adv-tactics-loose', home: hot, away, collectFrames: false });
+    expect(r.events[r.events.length - 1]!.type).toEqual('game_end');
+  });
+
   it("validate:'strict' enforces the pack contract that the default tier deliberately does not", () => {
     // the same 999 that is LEGAL input below is rejected when the caller
     // opts into the strict tier — "valid but unusual" vs "invalid" is a

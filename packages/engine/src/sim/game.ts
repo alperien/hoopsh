@@ -66,10 +66,11 @@ export interface GameConfig {
    */
   endgame?: boolean;
   /**
-   * Input-contract tier. 'finite' (default) rejects only non-finite ratings
-   * and measurements — out-of-range finite values are legal (custom content,
-   * stress tests; a 999 just saturates the curves). 'strict' additionally
-   * enforces the @hoopsh/data pack contract: ratings 0-100, heightIn 60-96.
+   * Input-contract tier. 'finite' (default) rejects only non-finite ratings,
+   * measurements, and tactics — out-of-range finite values are legal (custom
+   * content, stress tests; a 999 just saturates the curves). 'strict'
+   * additionally enforces the @hoopsh/data pack contract: ratings 0-100,
+   * heightIn 60-96, tactics 0-100.
    * Use 'strict' when rosters come from untrusted or hand-edited sources and
    * you want "valid but unusual" formally separated from "invalid".
    */
@@ -558,8 +559,9 @@ function holderSlot(s: GameState): number {
  * curves — see the adversarial extreme-roster test).
  *
  * 'strict' (opt-in): additionally enforces the @hoopsh/data pack contract —
- * ratings 0-100, heightIn 60-96 (ranges mirror data/src/schema.ts, which
- * the engine cannot import; keep the two in sync). This formally separates
+ * ratings 0-100, heightIn 60-96, tactics 0-100 (ranges mirror
+ * data/src/schema.ts, which the engine cannot import; keep the two in
+ * sync). This formally separates
  * "valid but unusual" from "invalid" for callers feeding the engine
  * untrusted or hand-edited rosters.
  */
@@ -596,6 +598,34 @@ function assertValidRatings(team: Team, side: string, strict: boolean): void {
     if (strict && (p.heightIn < 60 || p.heightIn > 96)) {
       throw new Error(
         `simulateGame: heightIn out of range ${side}/${p.id} = ${String(p.heightIn)} (validate:'strict' expects 60-96)`
+      );
+    }
+  }
+  // Team.tactics mirrors schema.ts as well (keys pace/threeBias/helpAggr —
+  // keep in sync, the engine cannot import the data package). The AI reads
+  // tactics.threeBias/helpAggr unconditionally with no fallback: a MISSING
+  // tactics object crashed raw ~8 simulated seconds in at the first
+  // tactics-driven decision, and a NaN threeBias passed 'strict' only to
+  // detonate later as an unattributed non-finite-weight throw — the exact
+  // silent-corruption chain the ratings tiers above exist to prevent
+  // (audit M-44). Same two tiers: finiteness always, 0-100 under 'strict'.
+  if (typeof team.tactics !== 'object' || team.tactics === null) {
+    throw new Error(
+      `simulateGame: ${side}/${team.id} missing tactics — need { pace, threeBias, helpAggr }, each a finite number (the AI reads them unconditionally)`
+    );
+  }
+  for (const k of ['pace', 'threeBias', 'helpAggr'] as const) {
+    const v = team.tactics[k];
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new Error(
+        `simulateGame: non-finite tactic ${side}/${team.id}.tactics.${k} = ${String(v)} — ` +
+        `validate rosters (see @hoopsh/data loadTeamPack) before simulating`
+      );
+    }
+    if (strict && (v < 0 || v > 100)) {
+      throw new Error(
+        `simulateGame: tactic out of range ${side}/${team.id}.tactics.${k} = ${String(v)} ` +
+        `(validate:'strict' enforces the 0-100 pack contract)`
       );
     }
   }

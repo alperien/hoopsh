@@ -2184,10 +2184,33 @@ export function withParams(overrides?: DeepPartial<SimParams>): SimParams {
   if (!overrides) return structuredClone(defaultParams);
   // SimParams has no index signature (deliberate — fixed keys catch typos),
   // so the generic merge goes through unknown at this one boundary.
-  return deepMerge(
+  const merged = deepMerge(
     structuredClone(defaultParams) as unknown as Record<string, unknown>,
     overrides as Record<string, unknown>
   ) as unknown as SimParams;
+  // FRAME MONOTONICITY (audit M-16): replay frame rows stamp wallT at ONE
+  // decimal (game.ts recordFrame round1), so the wall-clock frame step
+  // frameEvery/tickHz must be at least 0.1 s or successive frames collapse
+  // onto duplicate timestamps — a legal-looking { tickHz: 30, frameEvery: 2 }
+  // (step 0.067 s) silently broke the strictly-increasing frame-time
+  // contract the viewer/replay layer keys on. deepMerge above already
+  // rejects non-finite numbers; non-positive values would make the step
+  // arithmetic meaningless (and a non-positive tick makes the game itself
+  // unrunnable), so both are rejected here at the config boundary rather
+  // than 29k ticks later in a consumer.
+  if (merged.tickHz <= 0 || merged.frameEvery <= 0) {
+    throw new Error(
+      `withParams: tickHz (${merged.tickHz}) and frameEvery (${merged.frameEvery}) must be positive`
+    );
+  }
+  if (merged.frameEvery / merged.tickHz < 0.1 - 1e-9) {
+    throw new Error(
+      `withParams: frame step frameEvery/tickHz = ${(merged.frameEvery / merged.tickHz).toFixed(4)} s ` +
+      `is below the 0.1 s frame-timestamp resolution — frames would collapse onto duplicate ` +
+      `timestamps (replay contract); raise frameEvery or lower tickHz`
+    );
+  }
+  return merged;
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
@@ -2209,7 +2232,19 @@ function deepMerge(
     }
     const b = base[key];
     const p = patch[key];
-    if (b && p && typeof b === 'object' && typeof p === 'object' && !Array.isArray(b) && !Array.isArray(p)) {
+    if (b && typeof b === 'object' && !Array.isArray(b)) {
+      // GROUP keys take plain-object overrides only. null, arrays, and
+      // scalars used to fall through to the leaf branch and REPLACE the
+      // whole group ({ shot: null } merged clean, then detonated seconds
+      // into the sim as an unattributed read of undefined — audit M-17).
+      // Same fail-loud-at-the-boundary doctrine as the key/value checks.
+      if (p === undefined) continue;
+      if (!p || typeof p !== 'object' || Array.isArray(p)) {
+        throw new Error(
+          `withParams: SimParams group "${path}${key}" must be a plain-object override, got ` +
+          (p === null ? 'null' : Array.isArray(p) ? 'an array' : typeof p)
+        );
+      }
       deepMerge(b as Record<string, unknown>, p as Record<string, unknown>, `${path}${key}.`);
     } else if (p !== undefined) {
       // VALUES fail loudly too, not just keys: every SimParams leaf is a
