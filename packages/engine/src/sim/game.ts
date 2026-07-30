@@ -320,10 +320,11 @@ function tickLive(s: GameState, dt: number): void {
   // (a fixed 4.5s transition window expired mid-floor once the jog economy
   // slowed the getback, and the downhill archetype lost its drive window)
   const rim = attackedRim(s, h.side);
-  if (s.poss.phase === 'advance' && dist(h.pos, rim) < 36) {
-    // 36 ft ~ the logo pickup — offense initiates there, not at the arc
-    // (32 ft left 54% of the downhill benchmark's decisions inside the
-    // drive-gated advance phase after the jog economy; main had 36%)
+  if (s.poss.phase === 'advance' && dist(h.pos, rim) < s.params.move.advancePickupFt) {
+    // the logo pickup (move.advancePickupFt, ~36 ft) — offense initiates
+    // there, not at the arc (32 ft left 54% of the downhill benchmark's
+    // decisions inside the drive-gated advance phase after the jog economy;
+    // main had 36%)
     s.poss.phase = 'halfcourt';
   } else if (s.poss.phase === 'transition') {
     // transition ends when the DEFENSE IS SET: transSetBackCount+ defenders
@@ -358,7 +359,7 @@ function tickLive(s: GameState, dt: number): void {
     // speed comes from the short target leash (~1.5 ft/s), and the advance
     // stops at the restricted-area edge.
     const dRim = dist(h.pos, rim);
-    if (dRim > 4.5) {
+    if (dRim > s.params.ai.backdownStopFt) {
       const step = scale(norm(sub(rim, h.pos)), s.params.ai.backdownStepFt);
       h.target = add(h.pos, step);
     } else {
@@ -409,7 +410,7 @@ function tickLive(s: GameState, dt: number): void {
     // default instead of the designed 0.5s (scan a1).
     if (s.decisionAt === scheduledBefore) {
       const D = s.params.decide;
-      s.decisionAt = s.t + D.intervalSec * s.rng.range(0.75, 1.3);
+      s.decisionAt = s.t + D.intervalSec * s.rng.range(D.intervalJitterLo, D.intervalJitterHi);
     }
   }
 
@@ -495,7 +496,8 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
           ? s.t + (launchDist - A.driveMidStopFt) / D.driveSpeedFtSec
           : s.t + Math.min(D.driveCommitMaxSec, Math.max(D.driveCommitSec, launchDist / D.driveSpeedFtSec));
       }
-      s.decisionAt = s.t + 0.5; // re-evaluate quickly mid-drive (finish or kick)
+      // re-evaluate quickly mid-drive (finish or kick)
+      s.decisionAt = s.t + s.params.decide.driveRecheckSec;
       break;
     }
     case 'hold':

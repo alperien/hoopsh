@@ -229,8 +229,14 @@ export interface SimParams {
     proximityPower: number;
     /** putback attempt chance when an off-rebound lands at the rim */
     putbackChance: number;
+    /** putback eligibility radius: the rebounder must still be within this
+     *  of the rim for the automatic putback roll, ft */
+    putbackRadiusFt: number;
     /** beyond this distance from the miss-landing spot, a player can't reach the rebound */
     reboundCutoffFt: number;
+    /** scramble convergence radius: players within this of the landing spot
+     *  chase the loose ball, ft */
+    scrambleConvergeFt: number;
     /** relative spread of miss-landing samples around the mean: std = mean × this factor */
     reboundSpreadFactor: number;
     /** share of live-rebound scrambles whose carom dies (out of bounds /
@@ -249,6 +255,11 @@ export interface SimParams {
   decide: {
     /** seconds between ball-handler decision evaluations */
     intervalSec: number;
+    /** per-decision cadence jitter: the next window is intervalSec × a
+     *  uniform draw in [jitterLo, jitterHi] — players don't re-read the
+     *  floor on a metronome */
+    intervalJitterLo: number;
+    intervalJitterHi: number;
     /** softmax temperature over action utilities (higher = more random) */
     temperature: number;
     /** the quick-release window off a touch: a 0-dribble shot decided within
@@ -296,6 +307,15 @@ export interface SimParams {
     driveCommitMaxSec: number;
     /** planning speed for the arrival-based commit: commit ≈ launchDist / this */
     driveSpeedFtSec: number;
+    /** mid-drive re-decision window, seconds: a committed driver re-reads
+     *  (finish or kick) on this quick cadence instead of the generic one */
+    driveRecheckSec: number;
+    /** first-decision delays ("look around" beats) before the AI may act on
+     *  a fresh touch: a new possession's handler, a continuation resume
+     *  after a whistle, and a secured offensive rebound */
+    delayNewPossSec: number;
+    delayResumeSec: number;
+    delayOrebSec: number;
   };
 
   move: {
@@ -349,6 +369,14 @@ export interface SimParams {
     transSetBackCount: number;
     /** "back" = inside this distance of the rim being defended, ft */
     transBackRadiusFt: number;
+    /** the advance→halfcourt flip: the offense initiates once the holder is
+     *  inside this rim distance (the logo pickup), ft */
+    advancePickupFt: number;
+    /** dead-ball timing (the freeze applies fatigue; a clockRuns caller also
+     *  burns game clock): the standard whistle/basket read, and the shorter
+     *  same-possession side-out resume (no team change) */
+    deadBallResumeSec: number;
+    deadBallSideOutSec: number;
   };
 
   fatigue: {
@@ -657,6 +685,7 @@ export interface SimParams {
     // post mechanics
     postArrivalFt: number;       // self-posting player transitions to 'working' within this of the block
     backdownStepFt: number;      // distance the poster creeps toward the rim each movement step
+    backdownStopFt: number;      // the backdown's advance stops at this rim distance (restricted-area edge)
     // DHO mechanics
     dhoSearchRadiusFt: number;   // maximum distance from hub at which a DHO receiver is considered
     dhoArcSplitFt: number;       // inside this rim distance, DHO catch triggers a drive commitment
@@ -1044,11 +1073,24 @@ export const defaultParams: SimParams = {
     // rather than resetting the offense. FEEL, and it produces the putback
     // shot type. SWEPT-adjacent.
     putbackChance: 0.4454454268146934,
+    // FEEL — putback eligibility: the rebounder must still be right under
+    // the basket (within 6 ft of the rim) for the automatic putback roll.
+    // Was inline in possession.ts tickScramble (audit H-01, the
+    // mutation-proven anchor: 6 → 0 dropped putbacks 199 → 96 over 40
+    // games). Registered in harness/knobs.ts: putbackChance saturates
+    // against exactly this radius (see its knob note), so the pair are
+    // calibration companions.
+    putbackRadiusFt: 6,
     // Rebound scramble geometry:
     //   reboundCutoffFt: beyond this nobody realistically gets there. FEEL —
     //     24 ft is approximately the three-point arc; a player who let the shot
     //     leave from that far has no chance on a typical short miss.
     reboundCutoffFt: 24,        // FEEL — max scramble distance, ft
+    // FEEL — scramble convergence: players within 18 ft of the landing spot
+    // chase the loose ball — roughly "anyone who could plausibly be a
+    // rebounder on this carom" without pulling in players still way out on
+    // the perimeter. Was inline in possession.ts tickScramble (audit H-01).
+    scrambleConvergeFt: 18,
     // reboundSpreadFactor: controls how tightly miss-landings cluster around
     //   the mean. 0.45 × mean gives a Gaussian std; floor at 1 ft prevents
     //   on-the-rim degenerate samples. Tracking-data validated. FEEL.
@@ -1087,10 +1129,17 @@ export const defaultParams: SimParams = {
   },
 
   decide: {
-    // Seconds between ball-handler decision evaluations (jittered ±25% at the
-    // call site). Roughly "how often a player re-reads the floor" — the main
-    // lever on how many actions fit in a possession. SWEPT.
+    // Seconds between ball-handler decision evaluations (jittered per
+    // decision by intervalJitterLo/Hi below). Roughly "how often a player
+    // re-reads the floor" — the main lever on how many actions fit in a
+    // possession. SWEPT.
     intervalSec: 0.6571,
+    // FEEL — the cadence jitter: each window is intervalSec × uniform
+    // [0.75, 1.3] (−25%/+30%, mildly long-skewed) so decisions never land on
+    // a metronome. Was inline in game.ts tickLive (audit H-01; the old
+    // "±25%" doc here understated the upper edge).
+    intervalJitterLo: 0.75,
+    intervalJitterHi: 1.3,
     // Softmax temperature over action utilities, in expected-points units.
     // Low (0.06) = players nearly always take the best option; raising it adds
     // human noise and bad decisions. This is the engine's "IQ dial". SWEPT.
@@ -1190,7 +1239,23 @@ export const defaultParams: SimParams = {
     // penetrate until ARRIVAL, then finish or spray — same arrival principle
     // as the phase boundaries. FEEL.
     driveCommitMaxSec: 2.5,
-    driveSpeedFtSec: 16.5
+    driveSpeedFtSec: 16.5,
+    // FEEL — the mid-drive re-read: a committed driver checks finish-or-kick
+    // every half second instead of waiting out the generic jittered cadence
+    // (the drive is the one state where the floor changes that fast). Was
+    // inline in game.ts executeAction (audit H-01).
+    driveRecheckSec: 0.5,
+    // FEEL — first-decision delays, the "look around" beats before the AI
+    // may act on a fresh touch (were inline in possession.ts; audit H-01):
+    // a new possession's handler takes a beat off the inbound/steal/tip
+    // grant (0.25 — prevents the instant no-look heave); a whistle resume
+    // re-sets slightly longer (0.3 — the possession was already flowing and
+    // has to re-read); an offensive rebounder who just fought for the ball
+    // needs the longest beat (0.35). They gate WHEN the decision loop first
+    // fires, so all three shape early-possession texture.
+    delayNewPossSec: 0.25,
+    delayResumeSec: 0.3,
+    delayOrebSec: 0.35
   },
 
   move: {
@@ -1288,7 +1353,24 @@ export const defaultParams: SimParams = {
     // the arc plus a step — a defender beyond it cannot influence the
     // first action at the rim. FEEL.
     transSetBackCount: 4,
-    transBackRadiusFt: 30
+    transBackRadiusFt: 30,
+    // FEEL — the advance→halfcourt flip: the offense initiates at the logo
+    // pickup, ~36 ft from the rim — not at the arc (32 ft left 54% of the
+    // downhill benchmark's decisions inside the drive-gated advance phase
+    // after the jog economy; main had 36%). Was inline in game.ts tickLive
+    // (audit H-01).
+    advancePickupFt: 36,
+    // Dead-ball timing (the freeze walk applies fatigue; a clockRuns caller
+    // also burns game clock). FEEL — were inline in possession.ts (audit
+    // H-01):
+    //   deadBallResumeSec — the standard delay: long enough to read the
+    //     whistle/basket on a replay viewer, short enough not to visibly
+    //     slow the game's pace.
+    //   deadBallSideOutSec — the same-possession side-out resume (loose-ball
+    //     whistle, team-carom award, non-bonus reach-in): no team change, so
+    //     the pause covers the whistle, not a full re-set.
+    deadBallResumeSec: 1.8,
+    deadBallSideOutSec: 1.2
   },
 
   fatigue: {
@@ -1707,6 +1789,10 @@ export const defaultParams: SimParams = {
     //     by this distance (slow power dribbles). FEEL.
     postArrivalFt: 3.5,         // FEEL — self-post block-arrival threshold, ft
     backdownStepFt: 0.15,       // FEEL — backdown creep step per tick, ft
+    // FEEL — the backdown's advance stops 4.5 ft from the rim — roughly the
+    // restricted-area edge: the turnaround comes from there, not from under
+    // the backboard. Was inline in game.ts tickLive (audit H-01).
+    backdownStopFt: 4.5,
     // DHO mechanics:
     //   dhoSearchRadiusFt: receivers farther than this from the hub are skipped.
     //     Approximately the arc; a handoff needs to be practical. FEEL.
