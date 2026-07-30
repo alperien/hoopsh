@@ -106,3 +106,69 @@ describe('booth', () => {
     expect(script.split('\n').length).toEqual(cues.length);
   });
 });
+
+describe('booth flow vocabulary (officiating + timeout economy)', () => {
+  // forced rates guarantee every flow event kind lands in one game — the
+  // officiating.test.ts both-arms idiom, so these pins survive future rate
+  // re-fits. 20x-ish the shipped values; the shipped rates are pinned by
+  // the engine's own officiating suite, not here.
+  const { home, away } = sampleMatchup();
+  const result = simulateGame({
+    seed: 'booth-vocab-1', home, away, collectFrames: false,
+    params: { officiating: { kickedPerPass: 0.03, heldBallPerScramble: 0.25, techPerFoulWhistle: 0.3 } }
+  });
+  const cues = buildBoothScript(result.events, [home, away], { seed: 'booth-vocab-1' });
+  const kinds = (k: string): BoothCue[] => cues.filter((c) => c.kind === k);
+  const at = (wt: number): BoothCue[] => cues.filter((c) => c.wt === wt);
+  const count = (t: string): number => result.events.filter((e) => e.type === t).length;
+
+  it('the forced stream actually contains the vocabulary (anti-vacuity)', () => {
+    expect(count('timeout')).toBeGreaterThanOrEqual(4);
+    expect(count('jump_ball')).toBeGreaterThanOrEqual(2);
+    expect(count('violation')).toBeGreaterThanOrEqual(1);
+    expect(result.events.filter((e) => e.type === 'foul' && e.kind === 'technical').length)
+      .toBeGreaterThanOrEqual(2);
+  });
+
+  it('every timeout gets a play-by-play cue; coach stoppages get the analyst', () => {
+    expect(kinds('timeout').filter((c) => c.speaker === 'pbp').length).toEqual(count('timeout'));
+    const coachCalls = result.events.filter(
+      (e) => e.type === 'timeout' && (e.reason === 'stop_run' || e.reason === 'regroup')).length;
+    expect(kinds('timeout').filter((c) => c.speaker === 'color').length).toEqual(coachCalls);
+  });
+
+  it('every jump ball and violation is called', () => {
+    expect(kinds('jump_ball').length).toEqual(count('jump_ball'));
+    expect(kinds('violation').length).toEqual(count('violation'));
+  });
+
+  it('a technical NEVER renders as an offensive foul (the old fall-through)', () => {
+    const techs = result.events.filter((e) => e.type === 'foul' && e.kind === 'technical');
+    expect(techs.length).toBeGreaterThan(0);
+    for (const e of techs) {
+      for (const c of at(e.wt)) expect(c.text).not.toContain('Offensive foul');
+    }
+    // and the technical pool actually fired somewhere
+    expect(cues.some((c) => /technical|TECHNICAL/i.test(c.text))).toBe(true);
+  });
+
+  it('a travel NEVER renders as lost out of bounds (the old fall-through)', () => {
+    const travels = result.events.filter((e) => e.type === 'turnover' && e.kind === 'travel');
+    for (const e of travels) {
+      for (const c of at(e.wt)) expect(c.text).not.toContain('out of bounds');
+    }
+  });
+
+  it('playerless team boards render team-credited, never orphan punctuation', () => {
+    for (const c of cues) {
+      expect(c.text).not.toContain('undefined');
+      expect(/ [,.]/.test(c.text)).toBe(false); // "Rebound, ." class garbage
+      expect(c.text).not.toContain('  ');
+    }
+  });
+
+  it('is deterministic on the forced stream too', () => {
+    const again = buildBoothScript(result.events, [home, away], { seed: 'booth-vocab-1' });
+    expect(JSON.stringify(again)).toEqual(JSON.stringify(cues));
+  });
+});
