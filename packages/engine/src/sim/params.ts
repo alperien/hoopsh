@@ -2607,7 +2607,7 @@ export const defaultParams: SimParams = {
     // G5 sits floor-edge at 0.35 and the knot-combo mix shift dropped it
     // LOW (2.5-3.1/g vs floor 3.0) — re-fit together with the reach/
     // riskBase mix at the next move (knot-combo §5.5).
-    pullUpThreeBonus: 0.35,
+    pullUpThreeBonus: 0.7,
     // REAL-ish: 29 ft, the real pull-up band's outer edge (24-29 ft).
     // Beyond it lives the logo bomb; sim deep-3s (≥30 ft) already run
     // 5.08/g vs 2.08 real, and this green light must not refill the excess
@@ -2790,7 +2790,7 @@ export const defaultParams: SimParams = {
     // assembly with M1a live: 0.32 → share 7.7%, 0.26 → 10.3%, so the
     // predicted one-rung drop did not materialize — keep 0.32 (f-assembly
     // §6.2). Magnitude is hand-owned (flow-gated). FEEL → ladder-fitted.
-    openerShootMalus: 0.32,
+    openerShootMalus: 0.55,
     // FEEL: a blown coverage is still attacked; drives keep a quarter of
     // their appetite inside the window (shooting-foul rows count as first
     // attacks in the corpus definition, so drives are not exempt).
