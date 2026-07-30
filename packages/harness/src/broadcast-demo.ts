@@ -1,52 +1,64 @@
 /**
  * Broadcast demo:
- *   npm run broadcast [-- --seed showcase-v2]
- * Sims a game (deterministic by seed), merges template play-by-play with the
- * color-commentary provider into a two-voice broadcast script, and saves it.
- * Swap TemplateColorProvider for an LLM-backed CommentaryProvider to upgrade
- * the color voice — the interface is identical (see packages/narration).
+ *   npm run broadcast [-- --seed showcase-v2 --booth classic|latenight]
+ *   npm run broadcast -- --legacy          # the v1 pbp+color pipeline
+ * Sims a game (deterministic by seed) and renders the two-voice BOOTH script
+ * (docs/BROADCAST.md): play-by-play + analyst with geography, running-stat
+ * awareness, heat-scaled registers, and persona voices. Saves the full script
+ * and prints the last two minutes of regulation.
  *
- * Note the default seed here ("showcase-v2") is this script's own: simone.ts
- * defaults to a time-derived seed (`game-<Date.now()%100000>`) unless --seed
- * is passed, and the seed AGENTS.md §4.1's docs-only fingerprint check pins
- * is `fingerprint-1` via `npm run sim`. They're independent demo scripts,
- * not meant to reproduce each other's output. (A prior version of this note
- * cited a "showcase-v3" seed that exists nowhere in the repo — corrected.)
+ * Note the default seed here ("showcase-v2") differs from simone.ts's usual
+ * demo seed ("showcase-v3", the one AGENTS.md's docs-only fingerprint check
+ * pins) — they're independent demo scripts with their own default seeds, not
+ * meant to reproduce each other's output.
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { simulateGame } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
-import { buildBroadcastScript, formatScript, TemplateColorProvider } from '@hoopsh/narration';
-import { checkFlags, flagValue } from './args.js';
+import {
+  BOOTH_PRESETS, buildBoothScript, buildBroadcastScript, formatBoothScript, formatScript,
+  TemplateColorProvider, type BoothPresetId
+} from '@hoopsh/narration';
 
-// flagValue fails loudly on a bare `--seed` — the old inline read here used a
-// non-null assertion and silently seeded the sim with the string "undefined"
-// (see args.ts's header for the incident). checkFlags closes the sibling
-// hole: `--seed=x` and typo'd flags used to run the default seed silently
-// (audit H-03).
-checkFlags(process.argv, ['--seed']);
-const seed = flagValue(process.argv, '--seed', 'showcase-v2');
+const arg = (name: string): string | null => {
+  const i = process.argv.indexOf(`--${name}`);
+  return i !== -1 ? process.argv[i + 1] ?? null : null;
+};
+const seed = arg('seed') ?? 'showcase-v2';
+const boothId = (arg('booth') ?? 'classic') as BoothPresetId;
+const legacy = process.argv.includes('--legacy');
 
 const { home, away } = sampleMatchup();
 const result = simulateGame({ seed, home, away, collectFrames: false });
 
-const cues = await buildBroadcastScript(result.events, [home, away], new TemplateColorProvider(), { seed });
-const script = formatScript(cues);
-
 mkdirSync('out', { recursive: true });
-const file = `out/broadcast-${seed}.txt`;
-writeFileSync(file, script);
 
-const pbpCount = cues.filter((c) => c.speaker === 'pbp').length;
-const colorCount = cues.filter((c) => c.speaker === 'color').length;
-console.log(`final: ${home.abbrev} ${result.finalScore[0]} — ${away.abbrev} ${result.finalScore[1]}`);
-console.log(`${cues.length} cues (${pbpCount} play-by-play, ${colorCount} color) → ${file}\n`);
+if (legacy) {
+  const cues = await buildBroadcastScript(result.events, [home, away], new TemplateColorProvider(), { seed });
+  const script = formatScript(cues);
+  const file = `out/broadcast-${seed}-legacy.txt`;
+  writeFileSync(file, script);
+  console.log(`final: ${home.abbrev} ${result.finalScore[0]} — ${away.abbrev} ${result.finalScore[1]}`);
+  console.log(`${cues.length} cues (legacy pipeline) → ${file}`);
+} else {
+  const validBooth = boothId in BOOTH_PRESETS ? boothId : 'classic';
+  const booth = BOOTH_PRESETS[validBooth];
+  const cues = buildBoothScript(result.events, [home, away], { seed, booth: validBooth });
+  const script = formatBoothScript(cues, booth);
+  // booth id in the filename so comparing pairings on one seed never
+  // overwrites the other script
+  const file = `out/broadcast-${seed}${validBooth === 'classic' ? '' : `-${validBooth}`}.txt`;
+  writeFileSync(file, script);
 
-// excerpt: the last two minutes of regulation
-const excerpt = cues.filter((c) => c.period === 4 && c.clock <= 120);
-for (const c of excerpt.slice(0, 40)) {
-  const m = Math.floor(c.clock / 60);
-  const s = String(Math.floor(c.clock % 60)).padStart(2, '0');
-  console.log(`[${m}:${s}] ${c.speaker === 'pbp' ? 'PBP  ' : 'COLOR'} ${c.text}`);
+  const pbpCount = cues.filter((c) => c.speaker === 'pbp').length;
+  const colorCount = cues.filter((c) => c.speaker === 'color').length;
+  console.log(`final: ${home.abbrev} ${result.finalScore[0]} — ${away.abbrev} ${result.finalScore[1]}`);
+  console.log(`booth: ${booth.pbp.displayName} (pbp) + ${booth.color.displayName} (color)`);
+  console.log(`${cues.length} cues (${pbpCount} play-by-play, ${colorCount} color) → ${file}\n`);
+
+  // excerpt: the last two minutes of regulation
+  const excerpt = cues.filter((c) => c.period === 4 && c.clock <= 120);
+  const lines = formatBoothScript(excerpt, booth).split('\n');
+  for (const l of lines.slice(0, 44)) console.log(l);
 }

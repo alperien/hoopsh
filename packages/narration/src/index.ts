@@ -38,3 +38,20 @@ export interface BroadcastOptions {
   windowEvents?: number;
   periods?: number;
 }
+
+// ---- the booth (production layer) ----
+// Two-voice broadcast pipeline: sense.ts (running truth) → beats.ts (what is
+// worth saying) → booth.ts (turn-taking director) → voice.ts/personas.ts
+// (how each voice sounds). Entry point: `buildBoothScript(events, teams, opts?)`.
+export { buildBoothScript, formatBoothScript } from './booth.js';
+export type { BoothCue, BoothOptions, BoothConfig } from './booth.js';
+export { compileBeats } from './beats.js';
+export type { Beat, BeatKind, BeatTag, NoteKind, Register, SenseSnapshot } from './beats.js';
+export { GameSense } from './sense.js';
+export type { PlayerLine, TeamSense, PossessionSense, SenseDelta } from './sense.js';
+export { makeGeo, shotSpot } from './geometry.js';
+export type { ShotSpot, GeoContext } from './geometry.js';
+export type { VoicePack, Signature, RenderContext } from './voice.js';
+export { fillSlots, LineDealer, resolvePool, clockPhrase, periodPhrase, mmss, ordinal, minutesText, runText } from './voice.js';
+export { CORBIN, TREMAINE, BOONE, BOOTH_PRESETS } from './personas.js';
+export type { BoothPresetId } from './personas.js';
