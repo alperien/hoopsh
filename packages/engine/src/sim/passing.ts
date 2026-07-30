@@ -16,7 +16,9 @@ import { agent, attackedRim, emit, liveOnCourt, other, type Agent, type GameStat
 import { n } from '../model/derived.js';
 import { assignedDefender, onBallDefender } from './ai.js';
 import { passRisk } from './resolve.js';
-import { deadBall, endPeriod, endPossession, giveBall, startPossession } from './possession.js';
+import {
+  deadBall, endPeriod, endPossession, giveBall, retentionFoulShotClock, startPossession
+} from './possession.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 import { foulHuntSide } from './endgame.js';
 
@@ -257,12 +259,14 @@ export function attemptReachIn(s: GameState, dt: number): void {
       // NCAA rules team fouls 7-9 are a one-and-one, not a flat two
       enterFreeThrows(s, h, bonus.shots, bonus.oneAndOne);
     } else {
-      // not in the bonus: no free throws, offense just keeps the ball —
-      // shot clock is floored at the rule pack's short-clock reset (NBA 14s,
-      // defensive-foul reset) and never lowered, then the short side-out
-      // continuation delay (move.deadBallSideOutSec — same possession, no
-      // team change) lets the whistle register before play resumes
-      s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+      // not in the bonus: no free throws, offense just keeps the ball — the
+      // defensive-foul retention reset (retentionFoulShotClock: frontcourt
+      // floors at the short reset and is never lowered, a BACKcourt whistle
+      // — reach-ins land on the advance all the time — grants the full
+      // fresh clock, audit L-11), then the short side-out continuation
+      // delay (move.deadBallSideOutSec — same possession, no team change)
+      // lets the whistle register before play resumes
+      s.poss.shotClock = retentionFoulShotClock(s, h.side, h.pos);
       deadBall(s, h.side, {
         clockRuns: false, continuation: true,
         resumeIn: s.params.move.deadBallSideOutSec

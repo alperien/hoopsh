@@ -51,6 +51,29 @@ export function tipWeightedWinner(s: GameState): TeamSide {
   return s.rng.weighted([h, a]) as TeamSide;
 }
 
+/**
+ * Shot clock after a defensive foul with the offense RETAINING the ball
+ * (a reach-in outside the bonus, a loose-ball side-out): the real rule has
+ * two arms keyed on where play resumes —
+ *  - FRONTcourt: remaining time floored at the rule pack's short reset
+ *    (NBA 14 s), never lowered;
+ *  - BACKcourt: a full fresh clock (NBA 24 s) — the offense still has the
+ *    whole floor to travel.
+ * The backcourt arm was missing (audit L-11): a backcourt whistle with 19 s
+ * left kept 19 instead of resetting to 24. `ballPos` is where the whistle
+ * caught the ball (the holder for a reach-in, the carom spot for a
+ * loose-ball scramble) — the sim's proxy for the resume spot. A ball ON the
+ * division line has not attained frontcourt status, so exactly-midcourt
+ * counts as backcourt, matching the rule book.
+ */
+export function retentionFoulShotClock(s: GameState, side: TeamSide, ballPos: V2): number {
+  const rim = attackedRim(s, side);
+  const front = rim.x > s.court.midX ? ballPos.x > s.court.midX : ballPos.x < s.court.midX;
+  return front
+    ? Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec)
+    : s.rules.shotClockSec;
+}
+
 /** Ball-handler picked to bring the ball up / receive the inbound: highest ballHandle rating on the floor. */
 export function bestHandler(s: GameState, side: TeamSide): Agent {
   const eligible = liveOnCourt(s, side);
@@ -390,11 +413,12 @@ export function tickScramble(s: GameState, dt: number): void {
         // flat rules.bonusFreeThrows read — see fouls.ts FoulOutcome
         enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne);
       } else {
-        // side out, offense keeps it: shot clock is floored at the rule
-        // pack's short-clock reset (NBA 14s) off a loose-ball whistle —
-        // mirrors the real shot-clock-reset rule for a defensive foul with
-        // the offense retaining the ball
-        s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+        // side out, offense keeps it: the defensive-foul retention reset —
+        // frontcourt floors at the short reset (NBA 14s), a backcourt
+        // whistle grants a full fresh clock (retentionFoulShotClock; the
+        // carom spot stands in for where play resumes — for a rebound
+        // scramble that is essentially always the frontcourt)
+        s.poss.shotClock = retentionFoulShotClock(s, ph.offSide, ph.landAt);
         // deadBallSideOutSec: shorter than the standard dead-ball delay —
         // this is a continuation of the SAME possession (no team change), so
         // the pause just needs to cover the whistle, not a full re-set

@@ -75,8 +75,12 @@ type ShotMove = ShotMoveType;
 // ------------------------------------------------- 1. DECISIVENESS (shoot)
 
 /**
- * Drilled green-light shots. At most one term fires (the contexts are
- * mutually exclusive by shotMove), so this returns a single addition.
+ * Drilled green-light shots. At most one term fires, but that is enforced
+ * by the if/else-if LADDER, not by the contexts themselves — a mid-zone
+ * catch-and-shoot satisfies both the elbow-station term and the generic
+ * mid term, and the ladder's ordering (station outranks generic) is the
+ * tiebreak (an earlier "mutually exclusive by shotMove" claim here was
+ * wrong; audit L-18). The function still returns a single addition.
  *
  * catch-and-shoot: a genuinely OPEN three off the catch is the payoff of
  * ball movement — letting it fly is drilled behavior, and without this term
@@ -218,11 +222,21 @@ export function commitmentPass(
   const dhoTarget =
     act0?.kind === 'dho' && act0.hubId === h.p.id &&
     m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
+  // arrival measured against the SPOT TABLE, not m.target: a ROLLING
+  // screener's target is the rim while his cut is live, and if his spacing
+  // spot happened to be an elbow (exactly the mid-pop-big population), the
+  // old dist(m.pos, m.target) read fired at the RIM and handed the roller
+  // the pop throwback bonus (audit L-16). A popper standing at his elbow
+  // measures identically either way (his target IS the spot).
+  const popSpot =
+    m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r'
+      ? s.poss.spots.get(m.spotKey)
+      : undefined;
   const popTarget =
     act0?.kind === 'pnr' && act0.phase === 'finishing' &&
     m.p.id === act0.screenerId &&
-    (m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r') &&
-    dist(m.pos, m.target) < A.feedArrivalFt;
+    popSpot !== undefined &&
+    dist(m.pos, popSpot) < A.feedArrivalFt;
   return {
     entryTarget,
     dhoTarget,
@@ -349,8 +363,11 @@ export function advantagePass(
 // ------------------------------------- 6. GAME-STATE URGENCY (continuation)
 
 /**
- * The endgame layer's ball-handler half (GameConfig.endgame only — decide.ts
- * never calls this on the default path, so flag-off is byte-identical).
+ * The endgame layer's ball-handler half (gated on GameConfig.endgame, which
+ * ships ON — decide.ts calls this on every default-path decision since the
+ * n=1260/arm flag flip, ~3.5k calls/game; an earlier "never called on the
+ * default path" claim here predated the flip, audit L-17. Only an explicit
+ * endgame:false run skips it, which is what keeps flag-off byte-identical).
  *
  * The base continuation curve assumes an endless game: "what the remaining
  * shot-clock seconds are worth" with no scoreboard and no horn. Real late-

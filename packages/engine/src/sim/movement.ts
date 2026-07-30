@@ -127,7 +127,13 @@ export function integrateMovement(s: GameState, dt: number): void {
 export function applyFatigue(s: GameState, dt: number): void {
   const F = s.params.fatigue;
   for (const [, a] of s.agents) {
-    if (a.fouledOut) continue;
+    // a fouled-out player ON THE FLOOR (bench exhausted — subs.ts
+    // replaceFouledOut's play-on edge) is playing real minutes and tires
+    // like anyone else; the old blanket skip froze his energy mid-game
+    // (audit L-06). A fouled-out player on the BENCH can never return, so
+    // his recovery stays skipped — the value is read by nothing (kept
+    // byte-identical for the common case).
+    if (a.fouledOut && !a.onCourt) continue;
     if (a.onCourt) {
       // 28 ft/s ≈ elite NBA sprint speed (see sprintSpeed in model/derived.ts,
       // capped at 28 for a 100-speed player) — speedShare is "how close to
