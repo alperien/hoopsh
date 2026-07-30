@@ -10,7 +10,7 @@
 
 ## 1. Design goals
 
-1. **Ultra-realistic outputs.** Season-scale averages for a given ratings profile should
+1. **Realistic outputs.** Season-scale averages for a given ratings profile should
    land inside that player's real-life statistical range. League-wide aggregates (pace,
    efficiency, shot mix, rebounding, turnovers) must sit inside acceptance bands derived
    from real league data.

@@ -117,6 +117,9 @@ genius and a low-skill chucker are both expressible, and `roster:validate`
 will not second-guess that combination.
 
 **Two dials are staged, honestly.** `consistency` (hot/cold variance) and
+`pushPace` (individual tempo push) are defined and validated but read by no
+live engine system yet.
+
 What the dials do (0-100, 50 = league-neutral):
 
 | dial | effect |

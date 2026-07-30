@@ -26,6 +26,7 @@ const SOURCES = [
   'docs/EMBEDDING.md',
   'docs/ROSTERS.md',
   'docs/SEASON.md',
+  'docs/BROADCAST.md',
   'docs/GLOSSARY.md',
   'docs/ONBOARDING.md'
 ];

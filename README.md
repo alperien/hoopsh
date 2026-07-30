@@ -142,7 +142,7 @@ produces a heavy deep-three diet, off-ball gravity that warps the defense, and
 star-level scoring volume as a result of these interactions, without being scripted.
 
 Signature mechanics:
-- **Shot windup** — shots take 0.4–0.65s to release, making every catch-and-shoot a
+- **Shot windup** — shots take 0.25–0.65s to release, making every catch-and-shoot a
   race against the closeout; shooters *anticipate* the flying defender when judging
   shot quality.
 - **Self-consistent AI** — the same model that resolves shots also drives shot

@@ -214,6 +214,7 @@ validation, and the 38 dials: [ROSTERS.md](./ROSTERS.md).
 | `teamFoulsCarryToOT` | whether period counts carry into OT |
 | `foulOutAt` | personals that disqualify |
 | `timeoutsPerGame` | flat per-game budget (endgame layer only) |
+| `advanceAfterTimeout` | whether a late-game timeout advances the inbound to the frontcourt (NBA/FIBA yes, NCAA no) |
 
 Three honest caveats, all measured:
 
@@ -229,7 +230,7 @@ Three honest caveats, all measured:
   `rules:validate`, no loader.
 - **No single-game CLI path**: `npm run sim` has no `--rules`/`--league`
   flag (`--league` exists only in the batch harness, hardcoded nba|ncaa),
-  and unknown flags are silently ignored.
+  and unknown flags are rejected loudly (`args.ts`).
 
 ## Custom commentary
 
