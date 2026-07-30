@@ -5,7 +5,7 @@
  * with resolution — but real players are not EV-optimizers; they run DRILLED
  * BEHAVIORS. Every non-EV bias in decideBall used to be its own hand-shaped
  * patch (both external reviews called them epicycles, correctly). They are
- * now NINE named concepts, each modeling one drilled behavior, each with a
+ * now TEN named concepts, each modeling one drilled behavior, each with a
  * MASTER SCALE in params.ai (default 1.0) so the sweep can budget an entire
  * concept — and the whole layer is measured, not assumed small (the
  * decision-vs-EV divergence metric in the harness).
@@ -52,6 +52,13 @@
  *      pass channel, never the continuation) makes ball movement carry the
  *      opener the way a coached first set does. STAGED inert at
  *      openerShootMalus 0 until the flow-grammar fit flips it.
+ *   10. Scramble economy (scrambleScale): post-OREB the real game resolves
+ *      fast: a putback appetite on the rebounder's quick touch and a
+ *      kick-out read to the arc over the collapsed crash. Both terms live
+ *      inline in decideBall (they key off the shot taxonomy and the
+ *      holder's acquiredBy/catchT stamps, the concept-4 "kept where the
+ *      loop lives" shape); doctrine at the end of this file. STAGED dark
+ *      at zero bonuses and a zero read window.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -734,3 +741,36 @@ function isOpenerPossession(s: GameState): boolean {
   const periodStartT = regDone * s.rules.periodMinutes * 60 + otDone * s.rules.otMinutes * 60;
   return Math.abs(s.poss.startT - periodStartT) < 1e-3;
 }
+
+/*
+ * ------------------------------------ 10. SCRAMBLE ECONOMY (decide.ts inline)
+ *
+ * Post-OREB resolution economy: real second chances resolve fast (71.6% of
+ * player OREBs see a team FGA inside 6s; 28.2% of those are threes, the
+ * kick-out over the collapsed crash), while the sim's post-OREB possession
+ * is told to be patient (shot clock refloored to 14 ⇒ continuation ≈ 1.36,
+ * above a contested second-chance look) and the arc is empty of receivers.
+ * Two demand terms, both inline in decideBall because they key off holder
+ * state the loop already has (the concept-4 shape):
+ *
+ *  - putback appetite: uShoot += orebPutbackBonus × scrambleScale when the
+ *    shot taxonomy says 'putback'. No extra gating: the taxonomy already
+ *    guarantees rebound-acquired ∧ interior ∧ quick 0-dribble touch, and it
+ *    reaches the 6-14 ft grabs the <6 ft auto-putback branch
+ *    (possession.ts) never could, at honest contests, which is also the
+ *    putback-FG% dilution the corpus wants.
+ *  - kick-out read: per-teammate pass utility += orebKickBonus ×
+ *    scrambleScale for arc teammates while the holder's touch is a fresh
+ *    rebound (acquiredBy 'rebound', within orebKickWindowSec of the grab),
+ *    and the passKind selector labels that pass 'kickout' so the event log
+ *    reads "OREB → kickout → three" the way a broadcast log does. Flat
+ *    (the cutterBonus shape), not vision-scaled: the OREB kick is a team
+ *    reflex, not a creator read; vision-scaling would concentrate it on
+ *    hubs, which the corpus doesn't show for this pass.
+ *
+ * No possession-level state: context keys off the holder's existing
+ * acquiredBy/catchT stamps and dies when the ball moves on, matching the
+ * corpus scan's stop-at-next-event semantics. The supply half (re-filling
+ * getback perimeter teammates behind the grab, spec M2a) is offense.ts
+ * positioning with no magnitude to stage; it lands with the fit wave.
+ */

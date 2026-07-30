@@ -241,6 +241,55 @@ describe('concept 9 — opening set (staged wiring)', () => {
   });
 });
 
+// ---------------------------------------- M2: OREB scramble economy (concept 10)
+
+describe('concept 10 — scramble economy (staged wiring)', () => {
+  const N = 40;
+  const KICK: ParamOverrides = { ai: { orebKickWindowSec: 4, orebKickBonus: 6 } };
+
+  it('a fresh-rebound holder reaches the kick-out read: pass tagged kickout to the arc', () => {
+    const { s } = mkState({ params: KICK, acquiredBy: 'rebound', sinceCatch: 1.0, holderFt: 8 });
+    for (const a of sample(s, N)) {
+      expect(a.kind).toBe('pass');
+      if (a.kind === 'pass') {
+        expect(a.passKind).toBe('kickout');
+        // both spaced teammates sit behind the arc; the deep-parked pair never wins
+        expect(a.toId === 'off-2' || a.toId === 'off-3').toBe(true);
+      }
+    }
+  });
+
+  it('the read dies outside its context: stale touch, non-rebound touch, staged window', () => {
+    const kickKinds = (opts: StateOpts) =>
+      sample(mkState(opts).s, N).filter((a) => a.kind === 'pass' && a.passKind === 'kickout').length;
+    // grab is older than the read window
+    expect(kickKinds({ params: KICK, acquiredBy: 'rebound', sinceCatch: 5, holderFt: 8 })).toBe(0);
+    // an ordinary caught pass is not a scramble
+    expect(kickKinds({ params: KICK, acquiredBy: 'pass', sinceCatch: 1.0, holderFt: 8 })).toBe(0);
+    // staged default (window 0): context never true even on a fresh grab
+    expect(kickKinds({ acquiredBy: 'rebound', sinceCatch: 1.0, holderFt: 8 })).toBe(0);
+  });
+
+  it('putback appetite fires on the putback taxonomy (rebound + interior + quick touch)', () => {
+    const { s } = mkState({
+      params: { ai: { orebPutbackBonus: 6 } },
+      acquiredBy: 'rebound', sinceCatch: 0.3, holderFt: 4
+    });
+    for (const a of sample(s, N)) {
+      expect(a.kind).toBe('shoot');
+      if (a.kind === 'shoot') expect(a.moveType).toBe('putback');
+    }
+  });
+
+  it('the putback term keys strictly off the taxonomy: a cut finish is untouched by the bonus', () => {
+    // same look, same seed, acquiredBy 'pass' (⇒ cut_finish, not putback):
+    // a forced bonus must not perturb a single decision in the sequence
+    const seq = (params?: ParamOverrides) =>
+      sample(mkState({ params, acquiredBy: 'pass', sinceCatch: 0.3, holderFt: 4, seed: 'putback-gate' }).s, N);
+    expect(seq({ ai: { orebPutbackBonus: 6 } })).toEqual(seq());
+  });
+});
+
 // ----------------------------------------------------- staged-inert pinning
 
 describe('staged-inert: shape dials alone change nothing', () => {
@@ -255,7 +304,8 @@ describe('staged-inert: shape dials alone change nothing', () => {
       ai: {
         openerScale: 1.31,
         openerDriveShare: 0.9,
-        openerRampFloorShare: 0.55
+        openerRampFloorShare: 0.55,
+        scrambleScale: 1.22
       }
     });
     expect(staged.finalScore).toEqual(base.finalScore);

@@ -767,6 +767,7 @@ export interface SimParams {
      *  are deliberately exempt — the FTA protection) */
     probeShootMalus: number;
     openerScale: number;         // concept 9: opening-set deliberateness (sub-dials at end of block)
+    scrambleScale: number;       // concept 10: OREB scramble economy (sub-dials at end of block)
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
@@ -993,6 +994,12 @@ export interface SimParams {
     openerShootMalus: number;    // EV malus on shooting inside the opener window (0 = STAGED dark)
     openerDriveShare: number;    // share of the shoot malus the drive channel pays
     openerRampFloorShare: number; // shot-clock share where the suppression reaches zero
+    // OREB scramble economy (concept 10: SCRAMBLE ECONOMY — the terms live
+    // at their decide.ts sites; doctrine in ai/concepts.ts)
+    orebPutbackBonus: number;    // uShoot term on a putback-taxonomy touch (0 = STAGED dark)
+    orebKickBonus: number;       // pass-utility term to arc teammates inside the kick window (0 = STAGED dark)
+    orebKickWindowSec: number;   // rebounder's kick-out read window after the grab, sec (0 = STAGED
+                                 // dark: the context is never true, keeping the kickout taxonomy inert too)
   };
 }
 
@@ -1920,6 +1927,12 @@ export const defaultParams: SimParams = {
     // opener for ~+0.2 fga (the sub-dial doctrine lives with
     // openerShootMalus at the end of this block).
     openerScale: 1,
+    // FEEL — concept 10 master (the flow fit's budget knob). Registered in
+    // knobs.ts only AFTER the fit flips the concept live; its lo rail then
+    // protects the fitted putback/kick floor — bands cannot see
+    // second-chance grammar, and the wrong-reference incident that invited
+    // suppression is why flow.test.ts carries a putback floor at all.
+    scrambleScale: 1,
     // Pass-back damping (concept 3's negative side): an immediate return
     // pass UNDOES the advantage — it recreates the geometry the last pass
     // just left, so it is worth less than the receiver's raw shot quality
@@ -2416,7 +2429,34 @@ export const defaultParams: SimParams = {
     // urgency window (no violation risk by construction) and deep enough
     // that the median first shot lands ~15-17s, matching the real 16s.
     // Window shape, identity doctrine; off the sweep surface.
-    openerRampFloorShare: 0.4167
+    openerRampFloorShare: 0.4167,
+
+    // ---- Concept 10 (scramble economy): OREB putback + kick-out read ----
+    // After a player OREB the real game resolves fast: 71.6% of grabs see a
+    // team FGA inside 6s (sim 49.9%), and 28.2% of those quick shots are
+    // threes (sim 5.5%); the missing loop is overwhelmingly the kick-out
+    // three over the collapsed crash, not the tip-back (flow-grammar §2b).
+    // These are the demand half only: the putback shoot term and the
+    // kick-out pass term. (The supply half, re-filling getback perimeter
+    // teammates behind the grab, spec M2a, is offense.ts positioning, a
+    // structural change with no magnitude to stage; it lands with the fit
+    // wave.) STAGED at 0/0/0: both utility terms are exactly 0 and the zero
+    // window keeps the kick context (including the 'kickout' passKind
+    // taxonomy, which is event-visible) dark, so default event streams
+    // stay byte-identical. The fit wave flips: orebPutbackBonus ~0.35 ×
+    // orebKickBonus ~0.30 (joint ladder {0.2,0.35}×{0.2,0.3,0.45}),
+    // orebKickWindowSec 4.0 (FEEL: the rebounder's half of the corpus 6s
+    // window; pass flight + catch + windup consume the rest), alongside
+    // reb.putbackChance 0.4532 → ~0.55 (already registered [0.35, 0.8]).
+    // FEEL → ladder-fitted; sized like its concept-1 siblings
+    // (catchShootBonus 0.18 … midRangeBonus 0.71) to close a ~0.15-0.25 EV
+    // gap against the post-OREB continuation ≈ 1.36.
+    orebPutbackBonus: 0,
+    // FEEL → ladder-fitted; between postEntryBonus 0.22 and cutterBonus 0.5,
+    // a real designed outlet, not the primary read.
+    orebKickBonus: 0,
+    // stage switch (flip to 4.0); window shape, off the sweep surface.
+    orebKickWindowSec: 0
   }
 };
 

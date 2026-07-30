@@ -192,11 +192,23 @@ export function decideBall(s: GameState): BallAction {
   const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot
     // concept-9 term appended at the end of the sum (float-order contract,
     // ai/concepts.ts header); exactly 0 while staged
-    - opener.shoot;
+    - opener.shoot
+    // Concept 10, scramble economy (putback appetite): the drilled "go
+    // right back up". The putback taxonomy above already guarantees
+    // rebound-acquired ∧ interior ∧ quick 0-dribble touch; doctrine in
+    // ai/concepts.ts. Appended at the end; exactly 0 while staged.
+    + (shotMove === 'putback' ? A.orebPutbackBonus * A.scrambleScale : 0);
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
   let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
+  // CONCEPT 10: SCRAMBLE ECONOMY (kick-out read) — while the holder's touch
+  // is a fresh rebound, the crash has collapsed the defense and a spotted
+  // arc teammate is the designed outlet. Context keys off the holder's
+  // acquiredBy/catchT stamps (dies when the ball moves on); doctrine in
+  // ai/concepts.ts. STAGED dark at orebKickWindowSec 0: the context is
+  // never true, which also keeps the 'kickout' taxonomy below inert.
+  const orebCtx = h.acquiredBy === 'rebound' && s.t - h.catchT < A.orebKickWindowSec;
   for (const m of liveOnCourt(s, h.side)) {
     if (m.p.id === h.p.id) continue;
     const o = openness(s, m);
@@ -222,17 +234,26 @@ export function decideBall(s: GameState): BallAction {
     // determinism contract).
     const adv = advantagePass(s, h, m, s.t < m.cutUntil, shotClockShare);
     const pay = commitmentPass(s, h, m, act0);
+    // Concept 10: flat kick term (the cutterBonus shape; a team reflex,
+    // not a creator read, so no vision scaling); exactly 0 while staged
+    const kick = orebCtx && mLoc.zone === 'three' ? A.orebKickBonus * A.scrambleScale : 0;
     const u =
       theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
       + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
       - continuation * A.passContinuationScale
-      + probe.swing;
+      + probe.swing
+      // concept-10 term appended at the end of the sum (float-order contract)
+      + kick;
     if (bestPass === null || u > bestPass.u) {
       bestPass = {
         toId: m.p.id,
         u,
         passKind: pay.dhoTarget ? 'handoff'
           : pay.entryTarget ? 'entry'
+          // Concept 10: the post-OREB spray to the arc reads as a kick-out
+          // in the log, the way a broadcast scan tags it (dark while staged:
+          // orebKickWindowSec 0 keeps event streams byte-identical)
+          : orebCtx && mLoc.zone === 'three' ? 'kickout'
           : driving ? 'kickout'
           : s.poss.phase === 'transition' ? 'outlet' : 'normal'
       };
