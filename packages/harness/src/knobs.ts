@@ -204,6 +204,15 @@ export const SWEEPABLE: Knob[] = [
   { path: 'ai.midRangeBonus', lo: 0.25, hi: 0.9 },
   { path: 'ai.pnrMidPopChance', lo: 0.2, hi: 0.75 },
   { path: 'ai.driveMidStopChance', lo: 0.15, hi: 0.6 },
+  // midRangeBonus's off-dribble-three sibling (concept-1 flavor; the
+  // green-light gate shape stays off the surface, same doctrine). Range
+  // re-based around the flow re-fit's 0.70 (refit-g5: the measured dose
+  // curve is convex — 0.35 → 2.50 unassisted made 3s/g, 0.70 → 3.81 vs
+  // gate floor 3.0). The lo rail sits at the old fitted 0.35, the dose
+  // table's known do-little point; note 0.70 buys G5 by spending
+  // assisted-share floor margin (center 54.7 vs floor 54), so a sweep
+  // moving this dial should watch astdShare with it.
+  { path: 'ai.pullUpThreeBonus', lo: 0.35, hi: 1.0 },
 
   // Endgame layer (params.endgame; live only under GameConfig.endgame) —
   // registered for the flag-ON coordinated re-sweep: the n=1260/arm flag-on
