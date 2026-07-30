@@ -766,6 +766,7 @@ export interface SimParams {
     /** concept 8: EV subtracted from uShoot inside the probe window (drives
      *  are deliberately exempt — the FTA protection) */
     probeShootMalus: number;
+    openerScale: number;         // concept 9: opening-set deliberateness (sub-dials at end of block)
     passBackWindowSec: number;   // concept 3 (negative side): return-pass damping window
     passBackMalus: number;       // EV malus on an immediate return pass, decaying over the window
     relocateRatePerTick: number; // chance/tick a shooter shakes while a drive bends the defense
@@ -987,6 +988,11 @@ export interface SimParams {
     usageShareSwing: number;     // target share = 0.20 + n-ish swing (usage 90 -> ~30%)
     usageGainEV: number;         // EV pressure per 100% of target-vs-realized share gap
     usagePriorPoss: number;      // Bayesian prior possessions (kills cold-start spikes)
+    // quarter-opener deliberateness (concept 9, opening set; ai/concepts.ts
+    // openerSet, consumed at the end of decide.ts uShoot/uDrive sums)
+    openerShootMalus: number;    // EV malus on shooting inside the opener window (0 = STAGED dark)
+    openerDriveShare: number;    // share of the shoot malus the drive channel pays
+    openerRampFloorShare: number; // shot-clock share where the suppression reaches zero
   };
 }
 
@@ -1908,6 +1914,12 @@ export const defaultParams: SimParams = {
     // (not just the standalone dose) when that arc lands.
     probeSwingBonus: 0,
     probeShootMalus: 0,
+    // FEEL: concept 9 master (the flow fit's budget knob). Registered in
+    // knobs.ts only after the fit flips the concept live: bands cannot see
+    // opener timing, so an early registration would let a sweep zero the
+    // opener for ~+0.2 fga (the sub-dial doctrine lives with
+    // openerShootMalus at the end of this block).
+    openerScale: 1,
     // Pass-back damping (concept 3's negative side): an immediate return
     // pass UNDOES the advantage — it recreates the geometry the last pass
     // just left, so it is worth less than the receiver's raw shot quality
@@ -2379,7 +2391,32 @@ export const defaultParams: SimParams = {
     usageGainEV: 1.5,
     // FEEL — realized share is smoothed with this many prior possessions at
     // target, so the first minutes don't produce wild pressure swings
-    usagePriorPoss: 6
+    usagePriorPoss: 6,
+
+    // ---- Concept 9 (opening set): quarter-opener deliberateness ----
+    // A real period opener is a coached, scripted possession (real median
+    // first-shot 16s vs the sim's 12s; first attack <=8s: real 1.7% vs sim
+    // 36.6%; flow-grammar §1b). The malus below raises the shoot/drive bar
+    // early in the period's first possession only, never the pass channel
+    // and never the continuation (a yardstick raise taxes passes too; the
+    // probe-culture record names that exact poison). One possession per
+    // period ≈ 2.3% of trips: narrow by construction, assigned by the
+    // tip/arrow symmetrically, so it cannot correlate with margin.
+    // STAGED at 0 (provably inert: uShoot − 0 / uDrive − 0 are bit-identical
+    // through the softmax). The flow fit wave flips it via the ladder
+    // {0.2, 0.32, 0.45}; magnitude is hand-owned (flow-gated), the master
+    // openerScale is the sweep's handle. FEEL → ladder-fitted.
+    openerShootMalus: 0,
+    // FEEL: a blown coverage is still attacked; drives keep a quarter of
+    // their appetite inside the window (shooting-foul rows count as first
+    // attacks in the corpus definition, so drives are not exempt).
+    openerDriveShare: 0.75,
+    // REAL-ish: 0.4167 = 10/24. The suppression is full at possession start
+    // and dies at shot clock 10 (~14s into the trip), far above the 5s
+    // urgency window (no violation risk by construction) and deep enough
+    // that the median first shot lands ~15-17s, matching the real 16s.
+    // Window shape, identity doctrine; off the sweep surface.
+    openerRampFloorShare: 0.4167
   }
 };
 

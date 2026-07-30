@@ -5,7 +5,7 @@
  * with resolution — but real players are not EV-optimizers; they run DRILLED
  * BEHAVIORS. Every non-EV bias in decideBall used to be its own hand-shaped
  * patch (both external reviews called them epicycles, correctly). They are
- * now EIGHT named concepts, each modeling one drilled behavior, each with a
+ * now NINE named concepts, each modeling one drilled behavior, each with a
  * MASTER SCALE in params.ai (default 1.0) so the sweep can budget an entire
  * concept — and the whole layer is measured, not assumed small (the
  * decision-vs-EV divergence metric in the harness).
@@ -47,6 +47,11 @@
  *      ~5 s of set offense are pass-friendly and shot-averse (probe the
  *      defense before attacking it); ramps to zero by mid-clock, never in
  *      transition, never on the drive channel.
+ *   9. Opening set (openerScale): the period's first possession is a
+ *      called, scripted trip. An early-window shoot/drive malus (never the
+ *      pass channel, never the continuation) makes ball movement carry the
+ *      opener the way a coached first set does. STAGED inert at
+ *      openerShootMalus 0 until the flow-grammar fit flips it.
  *
  * Contract for byte-stable refactors: these functions return the SAME terms
  * the inline sites used to compute, in component form — call sites add them
@@ -663,3 +668,69 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
  * surviving state-aware piece is the defender-aware projected drive contest
  * in decide.ts. Numbers in params.decide.stealBreakBonus's comment.
  */
+
+// ------------------------------------------------- 9. OPENING SET (shoot/drive)
+
+/**
+ * Quarter-opener deliberateness: a real period opener is a coached, scripted
+ * possession (real median first shot 16s; first attack inside 8s happens
+ * 1.7% of the time vs the sim's 36.6%; flow-grammar §1b). The engine has no
+ * "called first set" concept, so openers attack like any other trip. This
+ * term raises the shoot/drive bar early in the period's first possession
+ * only, ramping to zero by shot clock ~10 (openerRampFloorShare): held/pass
+ * beats shoot/drive inside the window, ball movement carries the possession,
+ * and the suppression is long dead before the urgency window or any
+ * concept-6 horn window can overlap (a Q4 opener starts at clock 720).
+ *
+ * Deliberately never the pass channel (no swing subsidy, no pass malus) and
+ * never the continuation: a yardstick raise taxes passes at ~90% via
+ * passContinuationScale, the probe-culture record's measured poison. And
+ * deliberately identity-blind: the malus is flat (no tendency/rating gate)
+ * because it models the coach's script, not a player trait. It cannot
+ * re-route creation credit, and at one possession per period (~2.3% of
+ * trips, assigned by the tip/arrow symmetrically and score-independently) it
+ * is margin-orthogonal by construction.
+ *
+ * Drives are not exempt (unlike the probe): the corpus counts shooting-foul
+ * rows as first attacks, and real openers don't rim-attack in 6s either;
+ * openerDriveShare < 1 keeps a blown coverage attackable.
+ *
+ * Called from decideBall every decision tick; pure (no rng, no state
+ * writes). STAGED: openerShootMalus defaults to 0, which makes both returns
+ * exactly 0; the appended `− 0` terms are bit-identical through the
+ * softmax (the concepts-consolidation byte-stability contract above).
+ */
+export function openerSet(s: GameState, shotClockShare: number): { shoot: number; drive: number } {
+  const A = s.params.ai;
+  if (!isOpenerPossession(s) || (s.poss.phase !== 'halfcourt' && s.poss.phase !== 'advance')) {
+    return { shoot: 0, drive: 0 };
+  }
+  // full suppression at possession start, linear to zero at the floor share
+  const w = clamp((shotClockShare - A.openerRampFloorShare) / (1 - A.openerRampFloorShare), 0, 1);
+  const m = A.openerShootMalus * w * A.openerScale;
+  return { shoot: m, drive: m * A.openerDriveShare };
+}
+
+/**
+ * Is the current possession the period's first? Derived, not stored: the
+ * period's first possession is the one whose startT equals the game-clock
+ * time at which the period began (the sum of all prior periods' scheduled
+ * seconds; advanceClock never runs t past a horn, so each period
+ * contributes exactly its scheduled length). A whistle continuation resumes
+ * the same possession (same startT), so the flag correctly survives
+ * non-shooting fouls: the whistle doesn't cancel the set.
+ *
+ * Tolerance, not exact equality: t accrues fl-rounded 0.1s ticks
+ * (params.tickHz), so a period boundary lands within ~1e-9 of its exact
+ * value, never exactly on it. The nearest non-opener startT is at least one
+ * tick (0.1s) later; 1e-3 sits three orders of magnitude from both sides.
+ * (A stored Possession.opener flag set in startPossession is the structural
+ * equivalent; this derivation keeps the concept wiring inside the decision
+ * layer.)
+ */
+function isOpenerPossession(s: GameState): boolean {
+  const regDone = Math.min(s.period - 1, s.rules.periods);
+  const otDone = Math.max(0, s.period - 1 - s.rules.periods);
+  const periodStartT = regDone * s.rules.periodMinutes * 60 + otDone * s.rules.otMinutes * 60;
+  return Math.abs(s.poss.startT - periodStartT) < 1e-3;
+}

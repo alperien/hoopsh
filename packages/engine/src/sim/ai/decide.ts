@@ -21,7 +21,7 @@ import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
 import { onBallDefender } from './shared.js';
-import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, probeCulture, scorePressure, tempo } from './concepts.js';
+import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, openerSet, probeCulture, scorePressure, tempo } from './concepts.js';
 
 export type BallAction =
   | { kind: 'shoot'; moveType: ShotMoveType }
@@ -184,7 +184,15 @@ export function decideBall(s: GameState): BallAction {
   // never on the drive channel (doctrine in ai/concepts.ts). Both terms
   // append at the END of their sums — float order is the byte contract.
   const probe = probeCulture(s, shotClockShare);
-  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot;
+  // CONCEPT 9: OPENING SET — the period's first possession is a called set,
+  // an early-window shoot/drive malus only (never the pass channel, never
+  // the continuation). Doctrine in ai/concepts.ts; STAGED inert at
+  // openerShootMalus 0.
+  const opener = openerSet(s, shotClockShare);
+  const uShoot = myShot.ev + shootBias + T.shoot + usagePressure - continuation - contestBrake - probe.shoot
+    // concept-9 term appended at the end of the sum (float-order contract,
+    // ai/concepts.ts header); exactly 0 while staged
+    - opener.shoot;
 
   // --- utility: pass to each teammate
   let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
@@ -319,6 +327,10 @@ export function decideBall(s: GameState): BallAction {
     // CONCEPT 2: ACTION COMMITMENT (drive payoff) — attack the called action
     // (live screen, cleared side); doctrine in ai/concepts.ts
     uDrive += commitmentDrive(s, h.p.id, act0);
+    // Concept 9, opening set (drive share): appended at the end of the sum
+    // (float-order contract); drives are not exempt because the corpus
+    // counts shooting-foul rows as first attacks. Exactly 0 while staged.
+    uDrive -= opener.drive;
   }
 
   // --- utility: hold (keep probing)
