@@ -330,6 +330,9 @@ export interface SimParams {
     defDeadbandFt: number;
     /** defensive stance speed share when not sprinting (shuffle, don't glide) */
     stanceSpeedMult: number;
+    /** defensive sprint multiplier on lateral speed (closeouts, help
+     *  rotations, blitzes run hot; still capped by the fatigue-scaled max) */
+    defSprintMult: number;
     /** off-ball spacing moves are WALKED (share of max) — spots are held, not chased */
     offBallWalkMult: number;
     /** the ball-handler's bring-up is a dribble-JOG (share of max), not a sprint */
@@ -675,7 +678,19 @@ export interface SimParams {
     driveKickBoost: number;      // EV the help-collapse adds to the best teammate look
     driveAbortDiscount: number;  // share of a bad drive's downside actually paid (abort option)
     driveHoldBoost: number;      // hold bonus per remaining drive second (keep attacking)
+    /** the drive-hold ramp cap, seconds: the boost scales with remaining
+     *  commit time up to this far out — strong at launch, gone by the
+     *  terminal decision */
+    driveHoldRampSec: number;
     catchShootBonus: number;     // shoot bias for an open look in the catch window
+    /** the arc catch-and-shoot gate's contest ceiling: full bonus at contest
+     *  0, fading linearly to zero here (only the CREATED advantage fires) */
+    catchShootContestCeil: number;
+    /** the three-point green light shared by the catch-and-shoot and
+     *  transition pull-up terms: zero at/below the tendency floor (the light
+     *  belongs to shooters), full at floor + range */
+    threeGreenLightFloor: number;
+    threeGreenLightRange: number;
     midRangeBonus: number;       // drilled mid-range decisiveness (green-light gated; ai/concepts.ts)
     midGreenMaxFt: number;       // distance ceiling of the mid green light — real mid-range, not long 2s
     midPopShotBonus: number;     // shoot bias on the worked pop catch at the elbow (kin of postShotBonus)
@@ -685,9 +700,17 @@ export interface SimParams {
     pnrDurationSec: number;      // action lifetime
     pnrScreenSetDistFt: number;  // screener-to-defender distance that counts as contact
     pnrStunOverSec: number;      // defender delay when fighting over the screen
+    /** screen-fight stun scaling: over-stun = pnrStunOverSec × (fightBase +
+     *  screener strength / fightStrengthDiv) — strong screens hit harder */
+    pnrFightBase: number;
+    pnrFightStrengthDiv: number;
     pnrStunUnderSec: number;     // brief delay when ducking under
     pnrUnderSagFt: number;       // extra on-ball gap while going under (pull-up space)
     pnrUnderBase: number;        // base probability of going under vs handler gravity
+    pnrUnderMin: number;         // under-probability rails: even max gravity gets ducked sometimes…
+    pnrUnderMax: number;         // …and even a non-shooter occasionally gets chased over
+    pnrUnderConcedeSec: number;  // how long a ducking defender drops back and concedes the pull-up
+    pnrSetDwellSec: number;      // beat between screen contact and the screener's roll/pop read
     pnrRollGravityCut: number;   // screener gravity below this rolls; above pops
     pnrMidPopScoreCut: number;   // min mid-pop score (mid green light × midRange ability) for the short pop
     pnrMidPopChance: number;     // chance an eligible low-gravity screener pops to the elbow instead of rolling
@@ -696,6 +719,10 @@ export interface SimParams {
     pnrDropDepthFt: number;      // screener defender's drop-coverage depth from the rim
     pnrDriveBonus: number;       // handler drive-utility bonus coming off the screen
     pnrMinShotClock: number;     // don't start an action later than this
+    /** action-call eligibility ring (holder rim distance, ft): calls come
+     *  from initiation range — not under the rim, not from the backcourt */
+    actionCallMinRimFt: number;
+    actionCallMaxRimFt: number;
     pnrWaitBoost: number;        // handler hold-utility boost while the screen arrives
     pnrMaxScreenDistFt: number;  // screener candidates farther than this are skipped
     // screener-selection scoring (actionTick): low-gravity size makes a good
@@ -718,12 +745,16 @@ export interface SimParams {
     postCallShare: number;       // weight of the post option in the action-call roll
     postCallCut: number;         // minimum poster score to consider an entry
     postEntryBonus: number;      // pass-utility bonus for feeding a settled poster
+    /** arrival gate for designed feeds (post entry, pop throwback), ft: the
+     *  bonus applies only once the target stands AT his spot */
+    feedArrivalFt: number;
     postWorkBoost: number;       // hold bonus during the backdown window
     postBackdownSec: number;     // how long the poster works before shoot-or-spray
     postShotBonus: number;       // shoot bias once the backdown is worked (vs single coverage)
     postDurationSec: number;     // action lifetime (posting + working)
     // isolation action
     isoCallShare: number;        // weight of the iso option in the action-call roll
+    isoTendOffset: number;       // iso tendency neutral point (score = max(0, (iso − offset)/100))
     isoDriveBonus: number;       // attack commitment while the iso is live
     isoDurationSec: number;      // iso window length
     // dribble-handoff action
@@ -1201,9 +1232,15 @@ export const defaultParams: SimParams = {
     defDeadbandFt: 2.6,
     // Texture probe (by role, before these dials): defense averaged 8.7 ft/s
     // — every small sag adjustment ran at FULL lateral speed. A defender in
-    // his stance shuffles; the 1.15x sprint multiplier still applies to
+    // his stance shuffles; the defSprintMult below still applies to
     // closeouts, helps, and blitzes. FEEL.
     stanceSpeedMult: 0.48,
+    // FEEL — the defensive sprint runs HOT on lateral quickness: closeouts,
+    // help rotations, and blitzes beat the shuffle by 15%, still capped by
+    // the fatigue-scaled sprint max (ai/shared.ts moveSpeed). Was the inline
+    // 1.15 there — closeout speed is a contest-quality lever, not cosmetics
+    // (audit H-01).
+    defSprintMult: 1.15,
     // Off-ball offense averaged 7.4 ft/s: spot repositioning ran at the
     // 0.72 cruise. Spacing is walked to and HELD (cuts/crashes/transition
     // still sprint via the sprinting flag; the ball-holder keeps the cruise
@@ -1714,10 +1751,26 @@ export const defaultParams: SimParams = {
     // FEEL — keeps the dribble alive until the help commits; scaled by
     // remaining drive seconds in decideBall so the terminal decision is free
     driveHoldBoost: 0.25,
+    // FEEL — the hold boost's ramp cap: it scales with remaining commit time
+    // up to 1 s out — strong at launch, gone by the terminal decision. Was
+    // the inline clamp cap in ai/concepts.ts commitmentHold (audit H-01).
+    driveHoldRampSec: 1,
     // FEEL — open-three catch-and-shoot decisiveness at full openness (linear
     // to zero at contest 0.5, arc only); the make model already favors the
     // catch rhythm, this makes the DECISION match it
     catchShootBonus: 0.18,
+    // FEEL — the arc catch-and-shoot gate: full bonus on a 0-contest catch,
+    // fading to nothing by contest 0.5 — only the CREATED advantage fires,
+    // never an ordinary swing catch (ungated incident: pace 133 vs band
+    // 95-103). Was inline in ai/concepts.ts decisiveness (audit H-01).
+    catchShootContestCeil: 0.5,
+    // FEEL — the three-point green light (shared by the catch-and-shoot and
+    // transition pull-up terms): zero at/below tendency 25 — the light
+    // belongs to shooters; a sagged-off big is open precisely because the
+    // defense WANTS him shooting — ramping to full at 100 (25 + 75). Were
+    // inline in ai/concepts.ts, twice (audit H-01).
+    threeGreenLightFloor: 25,
+    threeGreenLightRange: 75,
     // FEEL — the drilled in-between game (ai/concepts.ts decisiveness, mid
     // flavor): the elbow/FT-line jumper a mid-range scorer rises into when
     // the defense CONCEDES it (drop coverage, the under, the sag off a
@@ -1786,10 +1839,29 @@ export const defaultParams: SimParams = {
     driveMidStopFt: 16,
     pnrDurationSec: 4.2,
     pnrScreenSetDistFt: 2.2,
+    // FEEL — the beat between screen contact and the screener's next job
+    // (roll or pop): half a second of the two-man game developing before
+    // the read resolves. Was inline in ai/actions.ts (audit H-01).
+    pnrSetDwellSec: 0.5,
     pnrStunOverSec: 0.65,
+    // FEEL — strong screens hit harder: the over-stun scales by fightBase +
+    // strength/fightStrengthDiv (~0.87× at average strength, ~1.03× for a
+    // max-strength screener). Were inline in ai/actions.ts (audit H-01).
+    pnrFightBase: 0.7,
+    pnrFightStrengthDiv: 300,
     pnrStunUnderSec: 0.2,
     pnrUnderSagFt: 3.5,
     pnrUnderBase: 0.8,
+    // FEEL — under-probability rails (were inline in ai/actions.ts, audit
+    // H-01): even a max-gravity handler gets ducked under sometimes (0.08
+    // floor), and even a non-shooter occasionally gets chased over (0.85
+    // cap) — no matchup reads as automatic.
+    pnrUnderMin: 0.08,
+    pnrUnderMax: 0.85,
+    // FEEL — a defender who ducks under drops back and CONCEDES the pull-up
+    // window for 1.2 s (navUnderUntil): the sag that makes going under a
+    // real trade, not a free win. Was inline in ai/actions.ts (audit H-01).
+    pnrUnderConcedeSec: 1.2,
     pnrRollGravityCut: 0.52,
     // The PnR short pop (the mid-range half of SUPPLY — a player who is
     // never AT 16 ft can never shoot from 16 ft; pre-fix no spacing spot or
@@ -1832,6 +1904,12 @@ export const defaultParams: SimParams = {
     pnrDropDepthFt: 11,
     pnrDriveBonus: 0.2,
     pnrMinShotClock: 8,
+    // FEEL — the action-call eligibility ring (was inline in ai/actions.ts,
+    // audit H-01): calls come from initiation range — a holder inside 18 ft
+    // is already attacking his advantage, one beyond 31 ft is still
+    // bringing the ball up.
+    actionCallMinRimFt: 18,
+    actionCallMaxRimFt: 31,
     pnrWaitBoost: 0.3,
     pnrMaxScreenDistFt: 26,
     // FEEL — action-SELECTION scoring weights (actionTick), all previously
@@ -1854,6 +1932,11 @@ export const defaultParams: SimParams = {
     postCallShare: 1.875,
     postCallCut: 0.1,
     postEntryBonus: 0.22,
+    // FEEL — designed feeds (the post entry, the pop throwback) pay their
+    // bonus only once the target stands within 4 ft of his spot: the feed
+    // goes to a man AT his station, not one mid-relocation. Was the inline
+    // arrival gate in ai/concepts.ts commitmentPass, twice (audit H-01).
+    feedArrivalFt: 4,
     postWorkBoost: 0.224,
     postBackdownSec: 2.2,
     // 7s covers: establish position (~1s) + wait for the entry (~1-2s) +
@@ -1867,6 +1950,11 @@ export const defaultParams: SimParams = {
     // probe). Real hubs finish over half their worked post-ups.
     postShotBonus: 0.552,
     isoCallShare: 0.91,
+    // FEEL — iso appetite is neutral at tendency 50 and floored at zero
+    // (max(0, (iso − 50)/100)): a low-iso handler simply never clears out.
+    // Was inline in ai/actions.ts (audit H-01); same neutral-point shape as
+    // driveTendOffset/posterTendOffset.
+    isoTendOffset: 50,
     isoDriveBonus: 0.15,
     isoDurationSec: 3.0,
     // FEEL — the DHO: the hub-center creation pattern (weight also scales with

@@ -134,9 +134,12 @@ export function decisiveness(
   const A = s.params.ai;
   let term = 0;
   if (shotMove === 'catch_shoot' && zone === 'three') {
-    term = A.catchShootBonus * clamp((0.5 - contestLevel) / 0.5, 0, 1) * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+    term = A.catchShootBonus
+      * clamp((A.catchShootContestCeil - contestLevel) / A.catchShootContestCeil, 0, 1)
+      * clamp((h.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1);
   } else if (s.poss.phase === 'transition' && shotMove === 'pull_up' && zone === 'three') {
-    term = A.transitionPullUpBonus * clamp((h.p.tend.shotThree - 25) / 75, 0, 1);
+    term = A.transitionPullUpBonus
+      * clamp((h.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1);
   } else if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     term = A.postShotBonus;
   } else if (
@@ -211,7 +214,7 @@ export function commitmentPass(
   const A = s.params.ai;
   const entryTarget =
     act0?.kind === 'post' && act0.phase === 'posting' &&
-    m.p.id === act0.posterId && dist(m.pos, m.target) < 4;
+    m.p.id === act0.posterId && dist(m.pos, m.target) < A.feedArrivalFt;
   const dhoTarget =
     act0?.kind === 'dho' && act0.hubId === h.p.id &&
     m.p.id === act0.receiverId && dist(m.pos, h.pos) < A.dhoHandoffDistFt;
@@ -219,7 +222,7 @@ export function commitmentPass(
     act0?.kind === 'pnr' && act0.phase === 'finishing' &&
     m.p.id === act0.screenerId &&
     (m.spotKey === 'elbow_l' || m.spotKey === 'elbow_r') &&
-    dist(m.pos, m.target) < 4;
+    dist(m.pos, m.target) < A.feedArrivalFt;
   return {
     entryTarget,
     dhoTarget,
@@ -254,7 +257,7 @@ export function commitmentDrive(s: GameState, holderId: string, act0: Action): n
  * is still maturing while the dribble is live — without this, hold falls to
  * the halfcourt baseline one tick after launch and every drive ends in an
  * instant kick before the help ever commits. Scaled by remaining drive
- * seconds (capped at 1s): strong at launch, gone by the terminal decision —
+ * seconds (capped at driveHoldRampSec): strong at launch, gone by the terminal decision —
  * penetrate first, THEN finish or spray. A flat boost instead suppresses the
  * kick outright and drives die at the rim in contested junk.
  *
@@ -275,7 +278,7 @@ export function commitmentHold(
   s: GameState, h: Agent, act0: Action, postingUp: boolean, driving: boolean
 ): { driveHold: number; wait: number; postWork: number } {
   const A = s.params.ai;
-  const driveHold = driving ? A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, 1) : 0;
+  const driveHold = driving ? A.driveHoldBoost * clamp(h.driveUntil - s.t, 0, A.driveHoldRampSec) : 0;
   let wait = 0;
   if (act0?.kind === 'pnr' && act0.handlerId === h.p.id && act0.phase === 'coming') {
     wait = A.pnrWaitBoost;

@@ -114,19 +114,20 @@ export function actionTick(s: GameState): void {
         // contact: the on-ball defender must navigate the screen
         act.phase = 'set';
         act.setAt = s.t;
-        const under = s.rng.chance(clamp(A.pnrUnderBase - gravity(s, handler), 0.08, 0.85));
+        const under = s.rng.chance(clamp(A.pnrUnderBase - gravity(s, handler), A.pnrUnderMin, A.pnrUnderMax));
         if (under) {
           onBall.screenStunUntil = s.t + A.pnrStunUnderSec;
-          onBall.navUnderUntil = s.t + 1.2; // drops back — concedes the pull-up
+          onBall.navUnderUntil = s.t + A.pnrUnderConcedeSec; // drops back — concedes the pull-up
         } else {
-          const fight = 0.7 + screener.p.attr.strength / 300; // strong screens hit harder
+          // strong screens hit harder (pnrFight* — see params.ai)
+          const fight = A.pnrFightBase + screener.p.attr.strength / A.pnrFightStrengthDiv;
           onBall.screenStunUntil = s.t + A.pnrStunOverSec * fight;
         }
       }
       return;
     }
 
-    if (act.phase === 'set' && s.t - act.setAt > 0.5) {
+    if (act.phase === 'set' && s.t - act.setAt > A.pnrSetDwellSec) {
       // screener's next job: roll to the rim, pop to the arc, or — the
       // mid-range supply line — pop SHORT to the elbow
       act.phase = 'finishing';
@@ -164,7 +165,8 @@ export function actionTick(s: GameState): void {
   if (s.t < h.driveUntil) return;
   const rim = attackedRim(s, s.poss.team);
   const dRim = dist(h.pos, rim);
-  if (dRim < 18 || dRim > 31) return;
+  // calls come from initiation range (the params.ai.actionCall* ring)
+  if (dRim < A.actionCallMinRimFt || dRim > A.actionCallMaxRimFt) return;
   // usage hierarchy: actions are called by the pecking order. rank01 is the
   // holder's creation standing among on-court teammates (ties count half), so
   // the primary initiates most screens while the weakest creator mostly
@@ -226,7 +228,7 @@ export function actionTick(s: GameState): void {
     const sc = ((a.p.tend.post - A.posterTendOffset) / 100) * (A.posterScoreBase + a.p.attr.strength / A.posterStrengthDiv + a.p.attr.finishing / A.posterFinishingDiv);
     if (sc > posterScore) { posterScore = sc; poster = a; }
   }
-  const isoScore = Math.max(0, (h.p.tend.iso - 50) / 100);
+  const isoScore = Math.max(0, (h.p.tend.iso - A.isoTendOffset) / 100);
   // DHO receiver: the best gravity/motion mover in range — the handoff is a
   // SHOOTER's action (the stun buys him his rise), so gravity carries it
   let dhoRecv: Agent | null = null;
