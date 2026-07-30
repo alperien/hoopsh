@@ -10,8 +10,15 @@
  * own arithmetic: horn capping, dead-clock no-ops, and minutes accrual.
  *
  * States are hand-built with only the fields each function reads
- * (concede.test.ts doctrine). No calibrated magnitude is pinned — expected
- * values are recomputed from the same params instance (AGENTS.md §2.1).
+ * (concede.test.ts doctrine) — since the FLOW flip that includes the
+ * cumulative-load pool (`Agent.load`, live at fatigue.loadPerSec 0.011):
+ * applyFatigue writes it and integrateMovement's speed cap reads it through
+ * effectiveEnergy = energy − load (movement.ts:165-176 → resolve.ts
+ * currentMaxSpeed), so a stub without `load` moves at NaN speed. The load
+ * pool's own accrual/consumer pins belong to fatigue-pool.test.ts; here the
+ * fixtures carry load 0, the identity arm where effectiveEnergy equals raw
+ * energy exactly. No calibrated magnitude is pinned — expected values are
+ * recomputed from the same params instance (AGENTS.md §2.1).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -31,6 +38,7 @@ interface AgentSpec {
   vy?: number;
   attr?: Parameters<typeof makePlayer>[0]['attr'];
   energy?: number;
+  load?: number;
   secondsPlayed?: number;
   onCourt?: boolean;
   fouledOut?: boolean;
@@ -49,6 +57,9 @@ function mkAgent(o: AgentSpec): Agent {
     pos: { x, y },
     vel: { x: o.vx ?? 0, y: o.vy ?? 0 },
     energy: o.energy ?? 100,
+    // load 0 = the effectiveEnergy identity arm (movement.ts:174-176):
+    // top speed reads energy − load, and applyFatigue accrues the pool
+    load: o.load ?? 0,
     secondsPlayed: o.secondsPlayed ?? 0,
     onCourt: o.onCourt ?? true,
     fouledOut: o.fouledOut ?? false,
@@ -59,7 +70,8 @@ function mkAgent(o: AgentSpec): Agent {
 }
 
 // advanceClock reads: clock, t, lineup, agents. applyFatigue reads: params,
-// agents. integrateMovement adds: court, ball.holderId, poss.action, params.
+// agents (draining energy AND accruing load, movement.ts:147-160).
+// integrateMovement adds: court, ball.holderId, poss.action, params.
 function mkState(agents: Agent[], o?: { clock?: number; t?: number }): GameState {
   const map = new Map(agents.map((a) => [a.p.id, a]));
   const lineup: [string[], string[]] = [
@@ -122,7 +134,7 @@ describe('advanceClock (movement.ts:22-41, AGENTS.md §1.5)', () => {
   });
 
   it('a fouled-out body still standing in the lineup accrues minutes (bench-exhausted degenerate)', () => {
-    // state.ts:293-310 — plain onCourt (not liveOnCourt) is the deliberate
+    // state.ts:391-408 — plain onCourt (not liveOnCourt) is the deliberate
     // choice for lineup mechanics: the body is physically on the floor, and
     // the minutes-conservation invariant (team minutes = 5 × game length)
     // needs exactly five accruers per side at all times.
@@ -134,7 +146,7 @@ describe('advanceClock (movement.ts:22-41, AGENTS.md §1.5)', () => {
   });
 });
 
-describe('applyFatigue (movement.ts:127-153)', () => {
+describe('applyFatigue (movement.ts:127-163)', () => {
   it('on-court players drain, bench players recover; fouled-out splits by location — a floor ghost tires like anyone else, a benched ghost freezes', () => {
     // movement.ts:130-136 (audit L-06, commit 96f76db): the skip narrowed
     // from `fouledOut` to `fouledOut && !onCourt`. A fouled-out player still
@@ -171,7 +183,7 @@ describe('applyFatigue (movement.ts:127-153)', () => {
   });
 
   it('a neutral-stamina stationary player drains exactly drainPerSec — the executable base-rate definition', () => {
-    // movement.ts:131-142 — speedShare 0 and stamina 50 make every
+    // movement.ts:137-148 — speedShare 0 and stamina 50 make every
     // multiplier exactly 1, so one second costs exactly drainPerSec
     const still = mkAgent({ id: 's', side: 0, energy: 80, attr: { stamina: 50 } });
     const s = mkState([still]);
@@ -180,7 +192,7 @@ describe('applyFatigue (movement.ts:127-153)', () => {
   });
 
   it('sprinting drains faster than standing still', () => {
-    // movement.ts:131-137 — speedShare scales drain up
+    // movement.ts:138-147 — speedShare scales drain up
     const sprinter = mkAgent({ id: 'sp', side: 0, energy: 80, vx: 28 });
     const stander = mkAgent({ id: 'st', side: 0, energy: 80 });
     const s = mkState([sprinter, stander]);
@@ -189,7 +201,7 @@ describe('applyFatigue (movement.ts:127-153)', () => {
   });
 
   it('stamina moderates the drain: the iron man outlasts the low-tank player', () => {
-    // movement.ts:138-140 — 100 drains a quarter slower, 0 a quarter faster
+    // movement.ts:143-146 — 100 drains a quarter slower, 0 a quarter faster
     const iron = mkAgent({ id: 'i', side: 0, energy: 80, attr: { stamina: 100 } });
     const glass = mkAgent({ id: 'gl', side: 0, energy: 80, attr: { stamina: 0 } });
     const s = mkState([iron, glass]);
@@ -210,7 +222,7 @@ describe('integrateMovement (movement.ts:43-119)', () => {
   });
 
   it('an arrived agent stays put — the 0.25 ft threshold stops the jitter', () => {
-    // movement.ts:62-65
+    // movement.ts:61-64
     const parked = mkAgent({ id: 'p', side: 0, x: 50, y: 25, targetX: 50, targetY: 25 });
     const s = mkState([parked]);
     integrateMovement(s, 0.1);
@@ -219,7 +231,7 @@ describe('integrateMovement (movement.ts:43-119)', () => {
   });
 
   it('positions clamp inside the court with the half-foot margin, even chasing an out-of-bounds target', () => {
-    // movement.ts:81-83 — nobody's centerpoint sits on the paint stripe
+    // movement.ts:80-83 — nobody's centerpoint sits on the paint stripe
     const chaser = mkAgent({ id: 'c', side: 0, x: 2, y: 2, targetX: -50, targetY: -50, sprinting: true });
     const s = mkState([chaser]);
     for (let i = 0; i < 30; i++) integrateMovement(s, 0.1);
