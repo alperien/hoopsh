@@ -107,6 +107,10 @@ export interface SimParams {
     rimHeightCoef: number;
     /** input clamp on that height advantage: |reach edge| beyond this many ft stops counting */
     rimHeightAdvClampFt: number;
+    /** height advantage (ft) credited on an UNCONTESTED rim look — the
+     *  neutral point the real matchup blends from as contest rises (see
+     *  shotMakeP's height term; keeps rim make-p monotone in contest) */
+    rimHeightUncontestedFt: number;
     /** catch-and-shoot logit bonus per unit of delivery quality n(passAcc/vision avg) */
     passQualityCoef: number;
     /** league-typical delivery in n-space — the zero point of the term above */
@@ -912,6 +916,14 @@ export const defaultParams: SimParams = {
     // FEEL (hoisted from an inline resolve.ts shotMakeP literal per this
     // file's header rule: a make-path number belongs on this surface).
     rimHeightAdvClampFt: 1.5,
+    // FEEL — the model's height NEUTRAL POINT: shooting over nobody is like
+    // shooting over someone half a foot shorter (a mild positive that keeps
+    // the height term from swinging negative on unguarded makes). Also the
+    // baseline the real matchup blends FROM as contest level rises (audit
+    // M-02) — was an inline contestCore literal that only applied to the
+    // by===null case, so any nonzero contest jumped straight to the raw
+    // reach difference.
+    rimHeightUncontestedFt: 0.5,
     // REAL — "on time, on target": teammates of elite passers measurably
     // shoot better; a 94-delivery passer adds ~+0.25 logit (~5-6 points of
     // make% on an open three) vs a neutral one

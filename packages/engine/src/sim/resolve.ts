@@ -72,10 +72,14 @@ function contestCore(s: GameState, shooter: Agent, pos: V2, projLeadSec: number)
       bestReach = reachFt(d.p);
     }
   }
-  // 0.5 ft uncontested height advantage: shooting over nobody is like shooting
-  // over someone slightly shorter — a mild positive that prevents the height
-  // term from swinging negative on unguarded makes (geometry, not behavioral).
-  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : 0.5;
+  // Uncontested height advantage (params.shot.rimHeightUncontestedFt):
+  // shooting over nobody is like shooting over someone slightly shorter — a
+  // mild positive that prevents the height term from swinging negative on
+  // unguarded makes. The same value is the blend BASELINE inside shotMakeP's
+  // height term, so a defender at the contest-radius edge (level → 0)
+  // contributes exactly the uncontested number — no discontinuity when `by`
+  // flips (audit M-02).
+  const heightAdvFt = by ? reachFt(shooter.p) - bestReach : s.params.shot.rimHeightUncontestedFt;
   return { level: clamp(best, 0, 1), by, heightAdvFt };
 }
 
@@ -163,9 +167,22 @@ export function shotMakeP(
 
   // Size only matters at the rim (a 7-footer's reach is irrelevant on a
   // jumper). Clamped to ±rimHeightAdvClampFt of standing-reach advantage so
-  // extreme mismatches stay believable rather than automatic.
+  // extreme mismatches stay believable rather than automatic — and the
+  // matchup edge is scaled by CONTEST LEVEL, blending from the uncontested
+  // baseline (rimHeightUncontestedFt): you only finish "over" a defender to
+  // the degree he is actually in the play. Pre-blend, the full reach
+  // difference applied at ANY nonzero contest, so a grazing contest by a
+  // much SHORTER defender out-valued wide open (+6.1pp worst case) and the
+  // rim logit jumped the instant a defender crossed the contest radius
+  // (audit M-02). With the blend, level 0 equals uncontested by
+  // construction, level 1 prices the full clamped edge exactly as before,
+  // and the rim logit is strictly decreasing in contest for any matchup at
+  // the shipped coefficients: d/dlevel = contestCoef + rimHeightCoef·(adv −
+  // baseline) ≤ −1.1325 + 0.35·(1.5 − 0.5) < 0.
   const heightTerm = zone === 'rim'
-    ? P.rimHeightCoef * clamp(contest.heightAdvFt, -P.rimHeightAdvClampFt, P.rimHeightAdvClampFt)
+    ? P.rimHeightCoef * (P.rimHeightUncontestedFt +
+        (clamp(contest.heightAdvFt, -P.rimHeightAdvClampFt, P.rimHeightAdvClampFt) -
+          P.rimHeightUncontestedFt) * contest.level)
     : 0;
 
   const fatigue = P.fatigueCoef * (1 - shooter.energy / 100);
