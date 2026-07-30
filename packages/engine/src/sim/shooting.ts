@@ -10,7 +10,7 @@ import {
   agent, attackedRim, emit, other, round1, type Agent, type GameState, type PendingShot
 } from './state.js';
 import {
-  blockP, contestAt, sampleMissLanding, shotMakeP, shootingFoulP
+  blockP, contestAt, sampleMissLanding, sampleScrambleSec, shotMakeP, shootingFoulP
 } from './resolve.js';
 import { enterFreeThrows, recordFoul } from './fouls.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
@@ -220,10 +220,15 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
   s.ball.flight = null;
   s.ball.holderId = null;
   s.ball.pos = { ...origin };
+  // scramble window = the miss->secure cadence (G9): the game clock runs
+  // under it, so this draw is the logged miss->rebound clock delta. Blocked
+  // misses share the FG distribution (real blocked-miss rebounds run ~1s
+  // faster, p50 2s vs 3s; pooled deliberately, since blocks are ~9% of
+  // misses and the gate pools them too).
   enterScramble(
     s,
     clampRect(landAt, s.court.length, s.court.width, 1.5),
-    s.rng.range(R.scrambleResolveLoSec, R.scrambleResolveHiSec),
+    sampleScrambleSec(s, 'fg'),
     shot.side
   );
 }

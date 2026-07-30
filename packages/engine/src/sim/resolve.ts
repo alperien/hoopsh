@@ -362,6 +362,62 @@ export function sampleMissLanding(s: GameState, rim: V2, shotDistFt: number): V2
 }
 
 /**
+ * How long the loose ball stays up for grabs before somebody secures it:
+ * the window `possession.ts tickScramble` plays out (game clock running,
+ * ball holderless in the frames) before resolving the rebound. Drawn once
+ * per miss, at the two `enterScramble` call sites (shooting.ts
+ * resolveShotOutcome for FGAs, fouls.ts tickFreeThrows for final-FT
+ * misses), consuming exactly one rng float on both paths below.
+ *
+ * Real basketball: hang time off the iron, caroms, tips, bodies colliding.
+ * Corpus median three seconds of game clock between the miss row and the
+ * player-rebound row, only ~17% within a second (params.reb cadence block
+ * for the full histograms). The legacy 0.5-0.95s window made every sim
+ * rebound land <=1s after its miss, the blind judges' single strongest
+ * genuine tell (gate G9).
+ *
+ * Stage switch (params.reb.cadenceOn, the heave-discipline pattern): 0
+ * short-circuits to the legacy uniform draws before any new rng call, so
+ * the default stream stays byte-identical (golden corpus is the
+ * authority). At 1 the same single draw maps through a piecewise-linear
+ * inverse CDF whose interior knots sit at half-integer seconds (both
+ * measurement pipelines floor clocks, so F is fitted at k+0.5; see the
+ * params provenance note). Flip = mechanics tier: fingerprints invalidate,
+ * pace re-centers (scrambles legitimately consume ~2s more clock per miss),
+ * noise floor regenerates (AGENTS §4.2-4.4).
+ */
+export function sampleScrambleSec(s: GameState, kind: 'fg' | 'ft'): number {
+  const R = s.params.reb;
+  if (R.cadenceOn === 0) {
+    // legacy pre-cadence windows (FEEL: "don't all resolve on the same
+    // beat") — the hoisted audit H-01 params, read so the stage switch and
+    // the sweep surface stay in one place; retired at the flip, the cadence
+    // CDF below replaces them wholesale.
+    return kind === 'ft'
+      ? s.rng.range(R.ftScrambleLoSec, R.ftScrambleHiSec)
+      : s.rng.range(R.scrambleResolveLoSec, R.scrambleResolveHiSec);
+  }
+  const ft = kind === 'ft';
+  // interior knots at k+0.5 s (flooring inversion, params provenance note);
+  // endpoints are the corpus-anchored physical floor and tail cap
+  const w = ft
+    ? [R.cadenceFtMinSec, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, R.cadenceFtMaxSec]
+    : [R.cadenceFgMinSec, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, R.cadenceFgMaxSec];
+  const f = ft
+    ? [0, R.cadenceFtCum0, R.cadenceFtCum1, R.cadenceFtCum2, R.cadenceFtCum3, R.cadenceFtCum4, R.cadenceFtCum5, 1]
+    : [0, R.cadenceFgCum0, R.cadenceFgCum1, R.cadenceFgCum2, R.cadenceFgCum3, R.cadenceFgCum4, R.cadenceFgCum5, 1];
+  const u = s.rng.float();
+  for (let i = 1; i < f.length; i++) {
+    // strict < : u >= f[i-1] here, so a matching segment has positive width
+    // (equal adjacent cums are a legal fit, see cadenceFtCum1; just skip)
+    if (u < f[i]!) {
+      return w[i - 1]! + (w[i]! - w[i - 1]!) * ((u - f[i - 1]!) / (f[i]! - f[i - 1]!));
+    }
+  }
+  return w[w.length - 1]!;
+}
+
+/**
  * The scramble lottery shared by player rebounds and team-rebound side
  * awards: every live on-court player within reach, weighted by positioning
  * and craft.

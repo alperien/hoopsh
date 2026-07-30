@@ -269,6 +269,40 @@ export interface SimParams {
      *  rolls dead) and is awarded as a TEAM rebound at a dead-ball inbound
      *  instead of credited to a player — see possession.ts tickScramble */
     deadBallCaromChance: number;
+    // --- rebound cadence (G9, fdesign-judge §3, STAGED wiring). How long a
+    // miss stays loose before someone secures it (resolve.ts
+    // sampleScrambleSec -> possession.ts tickScramble's window). cadenceOn
+    // is the stage switch: at 0 the legacy sub-second uniform windows are
+    // drawn with the same single rng call (byte-identical stream); at 1 the
+    // draw maps through a piecewise-linear inverse CDF whose interior knots
+    // sit at half-integer seconds and whose levels are the cum* fields.
+    // Each cum* sextet is a coupled set (a monotone CDF): re-fit together
+    // against the corpus, never nudge one alone. Off the sweep surface
+    // (knobs.ts doctrine): the 17 bands measure no cadence statistic and
+    // would only bend these to buy pace; the flip wave re-centers pace
+    // with pace-native dials and verifies cadence via the flowboard (G9).
+    /** stage switch: 0 = legacy instant-rebound windows (never-fire), 1 =
+     *  corpus-shaped scramble cadence */
+    cadenceOn: number;
+    /** missed-FGA secure window: min/max span (seconds of game clock) */
+    cadenceFgMinSec: number;
+    cadenceFgMaxSec: number;
+    /** missed-FGA window CDF levels at the 0.5/1.5/2.5/3.5/4.5/5.5s knots */
+    cadenceFgCum0: number;
+    cadenceFgCum1: number;
+    cadenceFgCum2: number;
+    cadenceFgCum3: number;
+    cadenceFgCum4: number;
+    cadenceFgCum5: number;
+    /** missed-final-FT secure window: same model, its own corpus fit */
+    cadenceFtMinSec: number;
+    cadenceFtMaxSec: number;
+    cadenceFtCum0: number;
+    cadenceFtCum1: number;
+    cadenceFtCum2: number;
+    cadenceFtCum3: number;
+    cadenceFtCum4: number;
+    cadenceFtCum5: number;
     /** scramble rating blend — a coupled set shaping WHO wins each rebound lottery */
     blendOffReb: number;         // offensive: pursuit
     blendOffVertical: number;    // offensive: hops
@@ -1353,6 +1387,44 @@ export const defaultParams: SimParams = {
     // team rebounds a normal sight in the log (~7/game plus the FT
     // dead-ball formalities). REAL anchor, FEEL discount.
     deadBallCaromChance: 0.08,
+    // ---- rebound cadence (G9, STAGED at cadenceOn 0) ----
+    // Real rebounds are not instant: the miss caroms off iron, bodies fight,
+    // and only then does someone secure the ball. Measured on the committed
+    // 184-game corpus (data/nba/pbp-plays, G9 definition = harness
+    // rebMissDeltas: game-clock delta miss row -> player-rebound row,
+    // interleaved subs skipped): missed FGAs n=15,004, floored-second
+    // histogram 0s 5.5% / 1s 12.0% / 2s 27.6% / 3s 31.5% / 4s 16.7% /
+    // 5s 5.0% / 6s+ 1.8%, p50 3s, <=1s 17.4%; missed final FTs n=869,
+    // 0s 12.4% / 1s 8.7% / 2s 37.4% / 3s 28.4% / 4s+ 13.0%, p50 2s (faster:
+    // the clock legally starts on the touch after an FT, and the lane is
+    // already boxed). The sim's legacy window resolved every scramble in
+    // 0.5-0.95s; "rebound rows <=1s after every miss" was the blind
+    // judges' #1 genuine tell (tell C / gate G9, findings/fdesign-judge).
+    cadenceOn: 0,
+    // REAL: corpus-fitted CDF levels. The knots sit at half-integer
+    // seconds because both measurement pipelines floor clocks to whole
+    // seconds: P(logged delta <= k) ~ F(k + 0.5), so fitting F at k+0.5
+    // (then MC-polishing for the sim's 0.1s tick rounding) makes the
+    // sim's logged histogram land on the corpus one. Fitted values
+    // reproduce the FG target within 1.2pp L1 (p50 3s, <=1s 17.0%,
+    // 2-4s 75.6%) and the FT target within corpus noise (n=869). The odd
+    // precision is the fit; do not tidy (AGENTS §2.1).
+    cadenceFgMinSec: 0.3,   // REAL floor: a tip-to-grab off the rim
+    cadenceFgMaxSec: 8.0,   // corpus p99.9 ~ 7.5s; longer scrums are scorer noise
+    cadenceFgCum0: 0.085,
+    cadenceFgCum1: 0.141,
+    cadenceFgCum2: 0.451,
+    cadenceFgCum3: 0.792,
+    cadenceFgCum4: 0.949,
+    cadenceFgCum5: 0.983,
+    cadenceFtMinSec: 0.1,   // near-zero: the first touch can be the secure
+    cadenceFtMaxSec: 6.5,   // corpus max 8, p99 6
+    cadenceFtCum0: 0.168,
+    cadenceFtCum1: 0.171,   // ~no mass 0.5-1.5s: clean grab or a real fight
+    cadenceFtCum2: 0.611,
+    cadenceFtCum3: 0.903,
+    cadenceFtCum4: 0.976,
+    cadenceFtCum5: 0.993,
     // Scramble rating blend (FEEL — a COUPLED SET: re-tune together, never
     // hand-nudge one alone). Rebounding is a zero-sum lottery, so these
     // redistribute WHO rebounds without moving league totals. Height stays

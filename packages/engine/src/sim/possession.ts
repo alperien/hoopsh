@@ -343,8 +343,12 @@ export function setupDeadTargets(s: GameState, offSide: TeamSide): void {
  * floor and nearby players converge on it. Called after any missed shot
  * (field goal or free throw) whose rebound isn't an automatic putback.
  * `resolveIn` is how long the scramble plays out before `tickScramble` picks
- * a winner — callers pass a randomized window so scrambles don't all resolve
- * on the same beat.
+ * a winner; callers draw it from `resolve.ts sampleScrambleSec` (the G9
+ * miss->secure cadence; corpus-shaped when params.reb.cadenceOn is live,
+ * the legacy sub-second window when STAGED). The window runs on both time
+ * axes: the game clock burns under it (tickScramble advances it; real
+ * rebounds consume game clock) and the frames show a holderless ball at the
+ * landing spot with bodies converging (wallT ticks every frame regardless).
  */
 export function enterScramble(
   s: GameState,
@@ -404,6 +408,10 @@ export function tickDead(s: GameState, dt: number): void {
 export function tickScramble(s: GameState, dt: number): void {
   const ph = s.phase as Extract<Phase, { kind: 'scramble' }>;
   advanceClock(s, dt);
+  // a miss in the final seconds can legally end the period mid-scramble:
+  // the horn beats the secure, no rebound row is logged (real pbp reads the
+  // same: miss, then end-of-quarter). With the corpus cadence live this
+  // fires more often than the legacy sub-second window did; that is real.
   if (s.clock < 1e-6) { endPeriod(s); return; }
   // ease the ball 25% of the remaining distance toward its landing spot each
   // tick (a decaying-lerp "falling" visual, not a real physics trajectory —
@@ -430,6 +438,15 @@ export function tickScramble(s: GameState, dt: number): void {
   // The expired scramble resolves exactly ONE of three ways, tried in order:
   // loose-ball foul -> team rebound -> player rebound. The first two branches
   // return; a player rebound falls through to the putback/possession routing.
+  // Everything below happens at the secure (window expiry), which is the
+  // rule-correct instant: the shot clock resets/floors when a team gains
+  // possession (it is not running while the ball is loose; this phase
+  // never decrements it), and the grammar layer's putback/kick windows key
+  // off the rebounder's catchT stamped here, not off the miss. The
+  // loose-ball-foul and dead-carom pre-rolls below also ride the full
+  // window; the corpus says real tipped-dead caroms die earlier (team-reb
+  // delta p50 1s vs player 3s); accepted residual, team rows sit outside
+  // the G9 gate (fdesign-judge §3).
 
   // loose-ball foul (defensive side only, v0.1): the two combatants closest
   // to the landing spot are the fouler/victim proxy — we don't model the

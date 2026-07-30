@@ -11,7 +11,7 @@
 
 import { attackedRim, agent, emit, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
 import { bonusFreeThrowAward, type BonusAward } from '../rules/rulepack.js';
-import { freeThrowP, sampleMissLanding } from './resolve.js';
+import { freeThrowP, sampleMissLanding, sampleScrambleSec } from './resolve.js';
 import { checkSubs, replaceFouledOut } from './subs.js';
 import { applyFatigue, integrateMovement } from './movement.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
@@ -247,16 +247,12 @@ export function tickFreeThrows(s: GameState, dt: number): void {
     // whose FT line isn't NBA's (EuroLeague: 13.85).
     const rim = attackedRim(s, ph.side);
     s.ball.pos = { ...rim };
-    // ftScramble window (reb.ftScrambleLoSec/HiSec): a free-throw miss is a
-    // shorter, more contained scrum than a live-shot rebound (everyone's
-    // already boxed out in the lane) so it resolves a bit faster than a
-    // typical miss scramble
-    enterScramble(
-      s,
-      sampleMissLanding(s, rim, s.rules.ftLineFt - s.rules.rimInsetFt),
-      s.rng.range(s.params.reb.ftScrambleLoSec, s.params.reb.ftScrambleHiSec),
-      ph.side
-    );
+    // FT-miss scramble window (its own cadence fit; resolve.ts
+    // sampleScrambleSec 'ft'): a free-throw miss is a shorter, more
+    // contained scrum than a live-shot rebound (the lane is already boxed,
+    // and the real game clock only starts on the touch, so logged deltas
+    // run ~1s faster than FG misses; corpus p50 2s vs 3s)
+    enterScramble(s, sampleMissLanding(s, rim, s.rules.ftLineFt - s.rules.rimInsetFt), sampleScrambleSec(s, 'ft'), ph.side);
     onShotReleased(s, ph.side); // trigger crash/get-back off-ball reactions, same as any missed shot
   }
 }
