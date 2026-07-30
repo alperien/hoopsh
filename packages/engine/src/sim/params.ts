@@ -913,6 +913,8 @@ export interface SimParams {
     midGreenMaxFt: number;       // distance ceiling of the mid green light — real mid-range, not long 2s
     midPopShotBonus: number;     // shoot bias on the worked pop catch at the elbow (kin of postShotBonus)
     midContestCeil: number;      // contest ceiling of the mid green light (the middy lives vs drop coverage)
+    pullUpThreeBonus: number;    // drilled halfcourt off-dribble three (green-light gated; 0 = STAGED dark)
+    pullUpThreeMaxFt: number;    // outer edge of the pull-up-three green light; the logo bomb is not drilled
     driveMidStopChance: number;  // snake stop-short rate at full midPullUpLight (game.ts drive commit)
     driveMidStopFt: number;      // rim distance where a stop-short drive ends — the pull-up spot
     pnrDurationSec: number;      // action lifetime
@@ -994,7 +996,7 @@ export interface SimParams {
     openerShootMalus: number;    // EV malus on shooting inside the opener window (0 = STAGED dark)
     openerDriveShare: number;    // share of the shoot malus the drive channel pays
     openerRampFloorShare: number; // shot-clock share where the suppression reaches zero
-    // OREB scramble economy (concept 10: SCRAMBLE ECONOMY — the terms live
+    // OREB scramble economy (concept 10; the terms live
     // at their decide.ts sites; doctrine in ai/concepts.ts)
     orebPutbackBonus: number;    // uShoot term on a putback-taxonomy touch (0 = STAGED dark)
     orebKickBonus: number;       // pass-utility term to arc teammates inside the kick window (0 = STAGED dark)
@@ -1927,9 +1929,9 @@ export const defaultParams: SimParams = {
     // opener for ~+0.2 fga (the sub-dial doctrine lives with
     // openerShootMalus at the end of this block).
     openerScale: 1,
-    // FEEL — concept 10 master (the flow fit's budget knob). Registered in
-    // knobs.ts only AFTER the fit flips the concept live; its lo rail then
-    // protects the fitted putback/kick floor — bands cannot see
+    // FEEL: concept 10 master (the flow fit's budget knob). Registered in
+    // knobs.ts only after the fit flips the concept live; its lo rail then
+    // protects the fitted putback/kick floor, because bands cannot see
     // second-chance grammar, and the wrong-reference incident that invited
     // suppression is why flow.test.ts carries a putback floor at all.
     scrambleScale: 1,
@@ -2244,6 +2246,25 @@ export const defaultParams: SimParams = {
     // which looks a mid-range IDENTITY is willing to take. Above it, the
     // contestBrake's judgment stands: that is a bad shot for anyone.
     midContestCeil: 0.65,
+    // ---- concept-1 flavor: the drilled halfcourt pull-up three ----
+    // The signature modern self-created shot had no term (concept 1 drilled
+    // exactly four shots) and its raw numbers can't fire on their own:
+    // elite pull-up-3 EV ≈ 1.03 vs a mid-clock continuation of 1.38-1.44;
+    // the mid-range restoration's exact pre-fix signature, one zone out.
+    // Unassisted made 3s run 1.44/g vs the real 3.87 while made-3 volume
+    // already matches: a composition defect, so the fix is a decision-layer
+    // decisiveness flavor (midRangeBonus's sibling), never a make-model
+    // buff (movePullUp −0.22 matches real pull-up-vs-catch gaps; buffing it
+    // would corrupt 3P% calibration, the midRangeBonus doctrine's exact
+    // wrong fix). STAGED at 0 (term exactly 0 through the softmax);
+    // fit ladder {0.2, 0.35, 0.5}, then registered [0.15, 0.55] in knobs.ts
+    // (the midRangeBonus precedent registers the dial itself).
+    pullUpThreeBonus: 0,
+    // REAL-ish: 29 ft, the real pull-up band's outer edge (24-29 ft).
+    // Beyond it lives the logo bomb; sim deep-3s (≥30 ft) already run
+    // 5.08/g vs 2.08 real, and this green light must not refill the excess
+    // the heave discipline removes. Identity shape, off the sweep surface.
+    pullUpThreeMaxFt: 29,
     // FEEL — the snake stop-short (game.ts drive commit): at FULL
     // midPullUpLight roughly a third of a mid-range artist's drives attack
     // to the pull-up spot instead of the rim; scaled by the light, the

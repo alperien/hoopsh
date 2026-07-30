@@ -29,7 +29,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { decideBall, type BallAction } from '../src/sim/ai/decide.js';
-import { openerSet } from '../src/sim/ai/concepts.js';
+import { decisiveness, openerSet } from '../src/sim/ai/concepts.js';
 import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
 
 type ParamOverrides = Parameters<typeof withParams>[0];
@@ -290,6 +290,85 @@ describe('concept 10 — scramble economy (staged wiring)', () => {
   });
 });
 
+// ------------------------------- M3: halfcourt pull-up three (concept-1 flavor)
+
+describe('concept-1 flavor — drilled halfcourt pull-up three (staged wiring)', () => {
+  const dstub = (params?: ParamOverrides, phase = 'halfcourt') => ({
+    params: withParams(params),
+    poss: { phase },
+    t: 0
+  }) as unknown as GameState;
+  const shooter = (pullUp: number, shotThree: number) => ({
+    p: { tend: { pullUp, shotThree, shotRim: 50, shotMid: 50 } },
+    spotKey: null,
+    dribblesSinceCatch: 3
+  }) as unknown as Agent;
+  const FORCED: ParamOverrides = { ai: { pullUpThreeBonus: 0.5 } };
+  const term = (
+    s: GameState, h: Agent, distFt = 26, contest = 0.2, move: 'pull_up' | 'catch_shoot' = 'pull_up'
+  ) => decisiveness(s, h, move, 'three', distFt, contest, null);
+
+  it('staged default is exactly zero in the full trigger context', () => {
+    expect(term(dstub(), shooter(75, 75))).toBe(0);
+  });
+
+  it('forced bonus fires in its habitat, wider than the arc catch-shoot gate', () => {
+    const t1 = term(dstub(FORCED), shooter(75, 75));
+    expect(t1).toBeGreaterThan(0);
+    expect(t1).toBeLessThan(0.5);
+    // the mid conceded-jumper ceiling (0.65), not the arc gate's 0.5: a
+    // defender in the picture at contest 0.5 still concedes the rise
+    expect(term(dstub(FORCED), shooter(75, 75), 26, 0.5)).toBeGreaterThan(0);
+    expect(term(dstub(FORCED), shooter(75, 75), 26, 0.65)).toBe(0);
+    // more openness, bigger green light
+    expect(term(dstub(FORCED), shooter(75, 75), 26, 0.1))
+      .toBeGreaterThan(term(dstub(FORCED), shooter(75, 75), 26, 0.4));
+  });
+
+  it('zero-veto identity gate: either appetite at its floor kills the light entirely', () => {
+    expect(term(dstub(FORCED), shooter(25, 75), 26, 0)).toBe(0);
+    expect(term(dstub(FORCED), shooter(75, 20), 26, 0)).toBe(0);
+  });
+
+  it('the green light stops at the logo bomb and outside the halfcourt', () => {
+    expect(term(dstub(FORCED), shooter(75, 75), 29.5)).toBe(0);
+    expect(term(dstub(FORCED), shooter(75, 75), 28.5)).toBeGreaterThan(0);
+    // advance-phase pull-ups get nothing from this branch
+    expect(term(dstub(FORCED, 'advance'), shooter(75, 75))).toBe(0);
+  });
+
+  it('no stacking: transition keeps its own term and catch-and-shoot is untouched', () => {
+    // in transition the pre-existing branch fires; a forced pull-up-three
+    // bonus must not change its value by a single bit
+    expect(term(dstub(FORCED, 'transition'), shooter(75, 75)))
+      .toBe(term(dstub(undefined, 'transition'), shooter(75, 75)));
+    // the arc catch-and-shoot branch is equally untouched
+    expect(term(dstub(FORCED), shooter(75, 75), 26, 0.2, 'catch_shoot'))
+      .toBe(term(dstub(), shooter(75, 75), 26, 0.2, 'catch_shoot'));
+  });
+
+  it('live: a forced bonus makes the self-created three fire in its context, veto holds', () => {
+    const N = 40;
+    const forced: ParamOverrides = { ai: { pullUpThreeBonus: 6 } };
+    // 26 ft, halfcourt, stale touch (pull_up taxonomy), green tendencies
+    const green = mkState({
+      params: forced, sinceCatch: 2.0, holderFt: 26,
+      tend: { pullUp: 75, shotThree: 75 }
+    });
+    const acts = sample(green.s, N);
+    expect(shootCount(acts)).toBe(N);
+    for (const a of acts) {
+      if (a.kind === 'shoot') expect(a.moveType).toBe('pull_up');
+    }
+    // same look, no off-dribble game: the veto stands and the shot stays rare
+    const veto = mkState({
+      params: forced, sinceCatch: 2.0, holderFt: 26,
+      tend: { pullUp: 20, shotThree: 75 }
+    });
+    expect(shootCount(sample(veto.s, N))).toBeLessThan(N / 2);
+  });
+});
+
 // ----------------------------------------------------- staged-inert pinning
 
 describe('staged-inert: shape dials alone change nothing', () => {
@@ -305,7 +384,8 @@ describe('staged-inert: shape dials alone change nothing', () => {
         openerScale: 1.31,
         openerDriveShare: 0.9,
         openerRampFloorShare: 0.55,
-        scrambleScale: 1.22
+        scrambleScale: 1.22,
+        pullUpThreeMaxFt: 25
       }
     });
     expect(staged.finalScore).toEqual(base.finalScore);

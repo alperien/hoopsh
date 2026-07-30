@@ -12,9 +12,11 @@
  *
  *   1. DECISIVENESS (decisivenessScale) — a drilled shot fires in its trigger
  *      context: the open catch-and-shoot three, the transition pull-up, the
- *      worked post move, the conceded mid-range jumper. Green-light-gated:
- *      it belongs to shooters/post threats/mid-range artists, never to the
- *      player the defense WANTS shooting.
+ *      worked post move, the conceded mid-range jumper, and the halfcourt
+ *      pull-up three (STAGED at pullUpThreeBonus 0 until the flow-grammar
+ *      fit flips it). Green-light-gated: it belongs to shooters/post
+ *      threats/mid-range artists, never to the player the defense WANTS
+ *      shooting.
  *   2. ACTION COMMITMENT (actionCommitScale) — a called action is a plan:
  *      its designed payoff is preferred (entry feed, handoff, attack off the
  *      screen/clear-out) and its carrier waits for it to arrive (screen
@@ -77,6 +79,7 @@
 import { clamp } from '../../core/rng.js';
 import { dist } from '../../core/vec.js';
 import { other, type Agent, type GameState } from '../state.js';
+import type { SimParams } from '../params.js';
 import type { ShotMoveType, TeamSide } from '../../core/events.js';
 import { hurriedness } from '../endgame.js';
 import { creation, midGreenLight, midPullUpLight } from './shared.js';
@@ -113,6 +116,30 @@ type ShotMove = ShotMoveType;
  * a drive-first star actually takes (his halfcourt threes are conceded to
  * the rim threat). Green-light gated identically; without this the downhill
  * benchmark attempted 0.7 threes against a real 5-7.
+ *
+ * halfcourt pull-up three: the signature modern self-created shot, the
+ * stepback/off-dribble three over drop or under coverage. The engine
+ * already builds the separation (pnrUnderSagFt, the screen stun, the
+ * navUnder concession) and then talks the handler into driving or
+ * re-swinging: elite pull-up-3 EV ≈ 1.03 against a mid-clock continuation
+ * of 1.38-1.44, so pre-term the shot was argmax essentially never; the
+ * mid-range restoration's exact pre-fix signature, one zone out. Decision
+ * layer on purpose: movePullUp −0.22 matches real pull-up-vs-catch quality
+ * gaps, and buffing the make model would corrupt 3P% calibration (the
+ * midRangeBonus doctrine names this exact wrong fix). Gates, each earned:
+ * the contest ceiling reuses midContestCeil rather than the arc gate's 0.5
+ * (the shot's habitat is a defender in the picture conceding the rise;
+ * requiring arc-style openness selected away the mid game's actual context,
+ * same incident; one conceded-jumper ceiling, no speculative new dial);
+ * distance ≤ pullUpThreeMaxFt keeps the green light out of the ≥30 ft
+ * logo-bomb excess the heave discipline drains; the halfcourt phase gate
+ * leaves transition to its own term above (no double-dip; advance-phase
+ * pull-ups are 35-footers the distance gate excludes anyway); and the
+ * deepPullUpLight zero-veto joint gate (below) keeps it from sagged-off
+ * bigs and no-dribble catch specialists. pullUpBias still applies at the
+ * call site (the generic off-dribble appetite); this term is the
+ * three-specific drilled shot stacked on top, exactly how the mid pull-up
+ * stacks midRangeBonus over pullUpBias. STAGED at pullUpThreeBonus 0.
  *
  * worked post move: after the backdown the turnaround is the plan — without
  * this the spray won 8:1 and post scoring never materialized.
@@ -156,6 +183,16 @@ export function decisiveness(
   } else if (s.poss.phase === 'transition' && shotMove === 'pull_up' && zone === 'three') {
     term = A.transitionPullUpBonus
       * clamp((h.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1);
+  } else if (
+    zone === 'three' && shotMove === 'pull_up' && s.poss.phase === 'halfcourt' &&
+    distFt <= A.pullUpThreeMaxFt
+  ) {
+    // the drilled halfcourt pull-up three (doctrine in the JSDoc above):
+    // conceded-jumper contest ceiling (midContestCeil, reused) × the
+    // zero-veto joint appetite gate. STAGED: pullUpThreeBonus 0.
+    term = A.pullUpThreeBonus
+      * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1)
+      * deepPullUpLight(A, h);
   } else if (shotMove === 'post' && act0?.kind === 'post' && s.t - act0.postedAt >= A.postBackdownSec) {
     term = A.postShotBonus;
   } else if (
@@ -200,6 +237,27 @@ export function decisiveness(
     term = A.midRangeBonus * clamp((A.midContestCeil - contestLevel) / A.midContestCeil, 0, 1) * moveGate;
   }
   return term * A.decisivenessScale;
+}
+
+/**
+ * The deep half of the pull-up light: joint gate over the off-dribble
+ * appetite and the three-point appetite, as a geometric mean, the
+ * midPullUpLight doctrine verbatim (ai/shared.ts): both are required
+ * (either at/below its floor vetoes the light entirely: a sagged-off big
+ * is open precisely because the defense wants him rising, and a
+ * catch-and-shoot specialist with no dribble game never steps back), while
+ * the mean avoids double-counted moderation. The three side reads the same
+ * hoisted threeGreenLightFloor/Range the other three-point green lights use
+ * (audit H-01); the pull-up side matches midPullUpLight's inline (t − 25)/50.
+ * Module-local until a second consumer (a stepback separation mechanic is
+ * the design's named follow-on) earns the shared.ts promotion; shared.ts
+ * stays small by design.
+ */
+function deepPullUpLight(A: SimParams['ai'], a: Agent): number {
+  return Math.sqrt(
+    clamp((a.p.tend.pullUp - 25) / 50, 0, 1)
+      * clamp((a.p.tend.shotThree - A.threeGreenLightFloor) / A.threeGreenLightRange, 0, 1)
+  );
 }
 
 // --------------------------------------- 2. ACTION COMMITMENT (pass/drive/hold)
