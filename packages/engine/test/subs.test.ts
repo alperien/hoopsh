@@ -115,3 +115,53 @@ describe('crunch covers the OT tip stoppage (audit H-02)', () => {
     expect(otGames).toBeGreaterThanOrEqual(2);
   });
 });
+
+// -------------------------------------------------------- audits M-13 / M-14
+
+describe('rotationMinutes edge semantics (audits M-13/M-14)', () => {
+  it('a player id colliding with an Object.prototype key still rotates (M-13)', () => {
+    // Team.rotationMinutes is a plain object; the old bare index read of
+    // rotationMinutes["constructor"] returned the INHERITED constructor
+    // function, the minutes-pace math went NaN, the NaN poisoned the leash
+    // clamp (tiredAt = NaN, energy < NaN always false) and the player was
+    // never substituted for the rest of the game — strict validation green.
+    // The data pack validator now rejects such ids, but the engine boundary
+    // accepts raw Team objects, so the read itself must be own-property
+    // safe. Red on the old read: zero substitutions of this starter.
+    const { home, away } = sampleMatchup();
+    const victim = home.starters[0]!;
+    const evil = structuredClone(home);
+    for (const p of evil.players) if (p.id === victim) p.id = 'constructor';
+    evil.starters = evil.starters.map((id) => (id === victim ? 'constructor' : id));
+    evil.rotationMinutes = {}; // present-but-empty is enough to poison the old read
+    const r = simulateGame({ seed: 'proto-key-0', home: evil, away, collectFrames: false });
+    const outs = r.events.filter(
+      (e) => e.type === 'substitution' && e.team === 0 && e.out[0] === 'constructor'
+    );
+    expect(outs.length).toBeGreaterThanOrEqual(1); // the normal fatigue rotation reaches him
+  });
+
+  it('rotationMinutes 0 is a DNP scratch: never auto-inserted, not even in garbage time (M-14)', () => {
+    // The old Math.max(1, …) division floor made an unplayed 0-target player
+    // read pace 0 — "maximally behind target" — which sorted him FIRST in
+    // the eager-return queue: the scratch became the highest-priority sub
+    // (audit M-14). The controller's own limit semantics point the other
+    // way: any second played against a 0 target is infinitely ahead of
+    // pace, i.e. he never comes in. Red on the old floor: the scratch
+    // entered within the first rotation wave.
+    const { home, away } = sampleMatchup();
+    const team = structuredClone(home);
+    const scratchId = team.players.map((p) => p.id).find((id) => !team.starters.includes(id))!;
+    team.rotationMinutes = { [scratchId]: 0 };
+    for (const seed of ['scratch-0', 'scratch-1']) {
+      const r = simulateGame({ seed, home: team, away, collectFrames: false });
+      for (const e of r.events) {
+        if (e.type === 'substitution' && e.team === 0) {
+          expect(e.in).not.toContain(scratchId);
+        }
+        // and he is never in an opening lineup either (sanity: not a starter)
+        if (e.type === 'game_start') expect(e.home.lineup).not.toContain(scratchId);
+      }
+    }
+  });
+});

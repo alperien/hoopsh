@@ -1771,9 +1771,11 @@ For a hand-started file, add the line yourself (path relative to *your* file):
 
 The schema is **generated** — `npm run schema:gen` derives it from the same
 constants `validateTeamPack()` enforces (`packages/data/src/schema.ts`), so it
-cannot drift from the loader. Two rules JSON Schema cannot express are only
-checked at load time: player-id uniqueness, and starters/rotationMinutes
-referring to real roster ids. Editor-green is necessary, `roster:validate`
+cannot drift from the loader. A few rules JSON Schema cannot express are only
+checked at load time: player-id uniqueness, ids not colliding with
+Object.prototype keys ("constructor", "toString", … — ids key plain JSON
+objects downstream), and starters/rotationMinutes referring to real roster
+ids. Editor-green is necessary, `roster:validate`
 is sufficient.
 
 ## Pack anatomy
@@ -1788,7 +1790,7 @@ is sufficient.
     "tactics": { "pace": 62, "threeBias": 58, "helpAggr": 50 },  // required — see the dial table below
     "players": [ /* >= 8 players, each with all 38 ratings — see below */ ],
     "starters": [ "owls-p01", "owls-p02", "owls-p03", "owls-p04", "owls-p05" ],  // exactly 5 distinct ids
-    "rotationMinutes": { "owls-p01": 36 }   // optional coach targets; omit to sub on fatigue alone
+    "rotationMinutes": { "owls-p01": 36 }   // optional coach targets; omit to sub on fatigue alone; 0 = DNP scratch (never auto-inserted)
   }
 }
 ```
