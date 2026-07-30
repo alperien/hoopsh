@@ -540,8 +540,9 @@ export function buildBoothScript(events: GameEvent[], teams: [Team, Team], opts?
   return cues;
 }
 
-/** printable two-voice script: "[Q3 4:12] CORBIN: …" */
-export function formatBoothScript(cues: BoothCue[], boothConfig?: BoothConfig): string {
+/** printable two-voice script: "[Q3 4:12] CORBIN: …" — `periods` is the
+ * regulation period count from the rule pack (default 4, NBA). */
+export function formatBoothScript(cues: BoothCue[], boothConfig?: BoothConfig, periods = 4): string {
   const voiceName = (cue: BoothCue): string => {
     if (boothConfig) {
       const pack = cue.voice === boothConfig.pbp.id ? boothConfig.pbp : boothConfig.color;
@@ -549,8 +550,14 @@ export function formatBoothScript(cues: BoothCue[], boothConfig?: BoothConfig): 
     }
     return cue.voice.toUpperCase();
   };
+  // overtime bracket labels, same convention as pbp.ts periodName /
+  // broadcast.ts formatScript / the viewer: the old hardcoded `Q${c.period}`
+  // printed "[Q5 …]" for overtime — the booth-side sibling of scan finding
+  // B6-6, which fixed only the legacy formatScript pipeline.
+  const label = (p: number): string =>
+    p > periods ? `OT${p - periods > 1 ? p - periods : ''}` : periods === 2 ? `H${p}` : `Q${p}`;
   return cues
-    .map((c) => `[Q${c.period} ${mmss(c.clock)}] ${voiceName(c)}: ${c.text}`)
+    .map((c) => `[${label(c.period)} ${mmss(c.clock)}] ${voiceName(c)}: ${c.text}`)
     .join('\n');
 }
 

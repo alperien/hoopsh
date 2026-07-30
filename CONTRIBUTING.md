@@ -62,11 +62,11 @@ Say you are fixing a typo in `docs/ROSTERS.md`.
    npm test                              # ~2 min; note tests/pass/fail/todo
    ```
 
-   At `edb9e3d` that reads `1217 events`, `Breakers 111, Monarchs 124`,
+   At the `v0.1.0` tag that reads `1143 events`, `Breakers 132, Monarchs 116`,
    tests all passing (the run prints the count; 1 pre-existing todo is normal).
 2. Make the edit.
 3. If the file is a Bible source (check the `SOURCES` list in
-   `tools/build-bible.mjs` — 11 docs at last count), regenerate in the same
+   `tools/build-bible.mjs` — 12 docs at last count), regenerate in the same
    commit:
    `npm run docs:bible`. CI fails on Bible drift. Never edit `docs/BIBLE.md`
    itself.
@@ -91,7 +91,7 @@ with a named exemplar for each shape of change.
   the recipe in [docs/PLAYBOOK.md](./docs/PLAYBOOK.md) Part 2 (usually
   Recipe G).
 - **Pure refactor** — fingerprint and test counts identical, provably
-  (`npm run fingerprint` checks 24 seeds byte-for-byte).
+  (`npm run fingerprint` checks 28 seeds byte-for-byte).
 - **Mechanics or params change** — the whole ladder, and expect band drift.
   **Open an issue first** (feature template): the calibrated defaults are
   coupled, re-tuning is a sweep task (see [docs/CALIBRATION.md](./docs/CALIBRATION.md)),

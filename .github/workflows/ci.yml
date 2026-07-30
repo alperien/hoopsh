@@ -31,7 +31,7 @@ jobs:
         # bands flicker; see REFACTOR.md). The pass/fail floor lives in cli.ts
         # as RATCHET_FLOOR next to the measurements that justify it.
         run: npm run batch -- --games 48
-      - name: golden fingerprint corpus (24 seeds, events+frames byte-identical)
+      - name: golden fingerprint corpus (28 seeds, events+frames byte-identical)
         run: npm run fingerprint
       - name: fingerprint determinism (two runs must match)
         # normalize the wall-clock timing line — the SIMULATION is

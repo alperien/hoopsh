@@ -49,7 +49,7 @@ NCAA bonus free throw earned only by making the first).
 | Term | Plain meaning | Where it lives / is used |
 |---|---|---|
 | fingerprint | the docs-tier identity check: `npm run sim -- --seed fingerprint-1` event count + final score, plus `npm test` counts — identical before/after proves a no-behavior change | AGENTS §4.1/§4.3, PLAYBOOK step 3 |
-| golden corpus | 24 seeds' events+frames SHA-256 hashes, checked in — the refactor tripwire; regenerated only at deliberate re-baselines | packages/harness/golden/fingerprints.json, fingerprint.ts |
+| golden corpus | 28 seeds' events+frames SHA-256 hashes, checked in — the refactor tripwire; regenerated only at deliberate re-baselines | packages/harness/golden/fingerprints.json, fingerprint.ts |
 | acceptance bands | the league-mean ranges (pace, FG%, 3PA share, …) a batch run is graded against | harness/src/bands.ts `NBA_BANDS`; `npm run batch` |
 | band lock / "locked" | at 40+ games, every band's measured CENTER sits inside its band — necessary, not sufficient (the sweep tunes the same knobs the bands grade) | docs/CALIBRATION.md |
 | sweep | the parameter optimizer: searches `knobs.ts` ranges over `SimParams` against the bands; its printed diff gets baked into params.ts | harness/src/sweep.ts; `npm run sweep` |
@@ -59,7 +59,7 @@ NCAA bonus free throw earned only by making the first).
 | recipes A–G | the per-change-shape build procedures (new tendency, new knob, new action, new event, new rule field, new test, new consumer) | docs/PLAYBOOK.md Part 2 |
 | rule pack vs data pack | league rules as JSON (`RulePack` — periods, clocks, bonus, geometry) vs roster content as JSON (team packs) | rules/rulepack.ts; docs/ROSTERS.md |
 | the Bible | docs/BIBLE.md — a GENERATED concatenation of the source docs for one-context-window handoff; never edited directly | tools/build-bible.mjs; `npm run docs:bible` |
-| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W50 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
+| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W58 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
 | Phase 2R | the current roadmap phase: tuning and validating the implemented mechanics, not building new ones | README.md Roadmap |
 | B2 / game-state coupling | the score-pressure mechanic: trailing team's defense presses up, leader's sags (concept 7 channel 2), plus the garbage-time concede rotation | REGISTER W17/W18; concepts.ts, subs.ts |
 | concepts 6/7/8 | numbered bounded-rationality concepts: 6 = game-state urgency (clock kill, hold-for-last, 2-for-1), 7 = score pressure, 8 = probe culture; concept 4 (usage pressure) lives in decide.ts | sim/ai/concepts.ts (in-file order 1–3, 6, 5, 7, 8) |

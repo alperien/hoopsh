@@ -206,15 +206,15 @@ needs. Templates use `{slot}` tokens filled from the beat + sense snapshot
 (kinds/tags/minimum heat) and a per-game budget; the booth enforces the budget
 so a catchphrase stays an event, not a tic.
 
-Shipped personas are **imitations of real broadcasters** (project decision,
-2026-07, superseding the first draft's invented personas — invented broadcast
-language read as generated text). Every template line is either modeled on a
-verified call from a researched phrase inventory (game transcripts, quote
-compilations, broadcaster interviews), confirmed genre lingua franca ("won't
-go", "in and out", "kicks it out", "and the foul", "checks in for"), or a
-plain factual statement the event stream supports. Nothing is invented for
-color. Imitation is stylistic, for a simulation project; no affiliation is
-implied.
+Shipped personas are **original archetypes** grounded in researched broadcast
+craft (project decision, 2026-07, superseding the first draft's invented
+personas — invented broadcast language read as generated text). Every template
+line is either modeled on a verified call from a researched phrase inventory
+(game transcripts, quote compilations, broadcaster interviews), confirmed genre
+lingua franca ("won't go", "in and out", "kicks it out", "and the foul",
+"checks in for"), or a plain factual statement the event stream supports.
+Nothing is invented for color. The craft is imitated, not any specific
+broadcaster; no affiliation is implied.
 
 - **Miles Corbin** (pbp, the precision anchor) — crescendo discipline:
   terse standard calls in routine play, "It's good! It's good!" doubling at

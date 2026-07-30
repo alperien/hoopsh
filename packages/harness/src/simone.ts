@@ -104,8 +104,16 @@ for (const l of pbp.filter((x) => x.period === lastPeriod && x.clock <= 120)) {
 mkdirSync('out', { recursive: true });
 const replay = buildReplay(result);
 writeFileSync(`out/replay-${seed}.json`, JSON.stringify(replay));
+// overtime bracket labels, same convention as narration's pbp.ts periodName /
+// broadcast.ts formatScript / the viewer: the old hardcoded `Q${l.period}`
+// saved overtime lines as "[Q5 …]" (the saved-pbp sibling of scan finding
+// B6-6, which fixed only the legacy formatScript pipeline). `periods` is the
+// regulation count from the rule pack the game was actually simulated under.
+const periods = result.rules.periods;
+const label = (p: number): string =>
+  p > periods ? `OT${p - periods > 1 ? p - periods : ''}` : periods === 2 ? `H${p}` : `Q${p}`;
 writeFileSync(
   `out/pbp-${seed}.txt`,
-  pbp.map((l) => `[Q${l.period} ${Math.floor(l.clock / 60)}:${Math.floor(l.clock % 60).toString().padStart(2, '0')}] ${l.text}`).join('\n')
+  pbp.map((l) => `[${label(l.period)} ${Math.floor(l.clock / 60)}:${Math.floor(l.clock % 60).toString().padStart(2, '0')}] ${l.text}`).join('\n')
 );
 console.log(`\nsaved out/replay-${seed}.json and out/pbp-${seed}.txt`);

@@ -34,7 +34,6 @@ calibration-finding issue template.
 ## Reporting
 
 Report privately via GitHub: Security → "Report a vulnerability" on
-`alperien/hoopsh` (or **[OWNER: insert fallback contact email]**). Do not open
-a public issue for an exploitable problem. Single-maintainer project:
-acknowledgment is best-effort, usually within a week. There are no versioned
-releases; fixes land on `main`.
+`alperien/hoopsh`. Do not open a public issue for an exploitable problem.
+Single-maintainer project: acknowledgment is best-effort, usually within a
+week. Fixes land on `main` and ship in the next tagged release.
