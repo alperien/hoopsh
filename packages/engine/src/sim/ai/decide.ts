@@ -77,11 +77,12 @@ export function decideBall(s: GameState): BallAction {
   // Doctrine in ai/concepts.ts; flag off never reaches this call.
   if (s.endgame) continuation = endgameContinuation(s, h.side, continuation);
 
-  // Desperation heave: with <1.2s of shot clock (or a period expiring inside
-  // 2.5s) and no chance to get closer than 32 ft, just launch it. Bypasses the
-  // whole utility comparison — no shot is "good", but a violation is worse.
-  const periodExpiring = s.clock < 2.5 && s.clock < sc;
-  if ((sc < 1.2 || periodExpiring) && distToRim > 32) {
+  // Desperation heave (trigger constants: params.decide.heave*): with the
+  // shot clock nearly gone (or a period horn expiring first) and no chance
+  // to get closer than the heave range, just launch it. Bypasses the whole
+  // utility comparison — no shot is "good", but a violation is worse.
+  const periodExpiring = s.clock < D.heavePeriodClockSec && s.clock < sc;
+  if ((sc < D.heaveShotClockSec || periodExpiring) && distToRim > D.heaveMinDistFt) {
     return { kind: 'shoot', moveType: 'heave' };
   }
 
@@ -114,12 +115,12 @@ export function decideBall(s: GameState): BallAction {
   const loc = classifyShot(s.rules, s.court, rim, h.pos);
   const interior = loc.zone === 'rim' || loc.zone === 'paint';
   const shotMove: ShotMoveType =
-    // post-shot zone boundary — 14 ft from the rim is the outer edge of the
-    // traditional post area. FEEL — same numerical value as move.nearRimFt
-    // (the contest model's interior boundary) but a distinct physical concept:
-    // this gates the SHOT TYPE (post vs pull-up), not the defensive role blend.
-    postingUp && distToRim < 14 ? 'post'
-      : driving && distToRim < 12 ? 'drive'
+    // shot-type gates live in params.decide.postShotRangeFt/driveShotRangeFt
+    // — the post boundary is numerically equal to move.nearRimFt (the
+    // contest model's interior boundary) but a distinct physical concept:
+    // it gates the SHOT TYPE (post vs pull-up), not the defensive role blend.
+    postingUp && distToRim < D.postShotRangeFt ? 'post'
+      : driving && distToRim < D.driveShotRangeFt ? 'drive'
       : !quickTouch ? 'pull_up'
       : !interior ? 'catch_shoot'
       : h.acquiredBy === 'rebound' ? 'putback'
@@ -244,9 +245,10 @@ export function decideBall(s: GameState): BallAction {
     // calibration owner; do not "tidy" the 8 in passing.
     const gap = onBall ? dist(onBall.pos, h.pos) : 8;
     const laneCrowd = defendersInLane(s, h, rim);
-    // Where the drive would END: 5 ft short of the rim (a layup/floater spot,
-    // not the rim itself — nobody finishes AT the center of the hoop).
-    const projected = lerp(h.pos, rim, clamp((distToRim - 5) / distToRim, 0, 1));
+    // Where the drive would END: driveFinishSpotFt short of the rim (a
+    // layup/floater spot, not the rim itself — nobody finishes AT the
+    // center of the hoop).
+    const projected = lerp(h.pos, rim, clamp((distToRim - A.driveFinishSpotFt) / distToRim, 0, 1));
     // the projected-contest FLOOR is defender-aware: driveProjContestBase
     // prices the help expected to arrive by the finish, and help can only
     // come from defenders who are actually back — on a set floor (back ≥
@@ -262,9 +264,10 @@ export function decideBall(s: GameState): BallAction {
     };
     const driveShot = shotEV(s, h, projected, 'drive', projContest);
     // P(actually get downhill) — the matchup at the point of attack:
-    //   base 0.55, ± the ballHandle-vs-lateral-quickness gap, ± the cushion
-    //   the defender is giving (a 9 ft gap is an invitation; 2 ft is a wall).
-    //   Clamped [0.2, 0.95]: nobody is uncontainable, nobody is helpless.
+    //   handlingBase, ± the ballHandle-vs-lateral-quickness gap, ± the
+    //   cushion the defender gives beyond handlingGapRefFt (a 9 ft gap is an
+    //   invitation; 2 ft is a wall). Clamped [handlingMin, handlingMax]:
+    //   nobody is uncontainable, nobody is helpless.
     // containment = physical mirror (lateral) blended with point-of-attack
     // craft (perimeterD) per ai.containDBlend; 50 = the rating-neutral
     // containment when nobody is on the ball (same fallback trap as the
@@ -275,8 +278,8 @@ export function decideBall(s: GameState): BallAction {
     const handling = clamp(
       A.handlingBase +
         (h.p.attr.ballHandle - contain) / A.handlingSkillDiv +
-        (gap - 4) / A.handlingGapDiv,
-      0.2, 0.95
+        (gap - A.handlingGapRefFt) / A.handlingGapDiv,
+      A.handlingMin, A.handlingMax
     );
     const tendTerm = ((h.p.tend.drive - A.driveTendOffset) / 100) * A.driveTendScale * D.driveAppetite;
     // a live drive is worth the BETTER of finishing at the rim or the
@@ -353,19 +356,21 @@ export function decideBall(s: GameState): BallAction {
  * direct utility penalty — this is what makes a packed paint deter drives and
  * (via the kickout branch) makes help defense produce open shooters.
  *
- * along ∈ (0.15, 0.95): ignore defenders standing on top of the handler
- * (that's the on-ball matchup, handled separately) and those already under
- * the rim. (`along` is segmentT's parametric position on the handler→rim
- * segment — geometry, NOT the game clock this file otherwise calls t.)
- * lat < 5 ft: within a body's width of the driving line, weighted linearly.
+ * along ∈ (laneAlongMin, laneAlongMax): ignore defenders standing on top of
+ * the handler (that's the on-ball matchup, handled separately) and those
+ * already under the rim. (`along` is segmentT's parametric position on the
+ * handler→rim segment — geometry, NOT the game clock this file otherwise
+ * calls t.) lat < laneWidthFt: within a body's width of the driving line,
+ * weighted linearly. All three constants live in params.ai.lane*.
  */
 function defendersInLane(s: GameState, h: Agent, rim: V2): number {
+  const A = s.params.ai;
   let count = 0;
   for (const d of liveOnCourt(s, other(h.side))) {
     const along = segmentT(h.pos, rim, d.pos);
-    if (along > 0.15 && along < 0.95) {
+    if (along > A.laneAlongMin && along < A.laneAlongMax) {
       const lat = dist(d.pos, lerp(h.pos, rim, along));
-      if (lat < 5) count += 1 - lat / 5;
+      if (lat < A.laneWidthFt) count += 1 - lat / A.laneWidthFt;
     }
   }
   return count;

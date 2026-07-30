@@ -257,6 +257,13 @@ export interface SimParams {
      *  decide.ts); after it the gather is over and the shot is a self-created
      *  pull-up */
     quickCatchSec: number;
+    /** shot-type classification gates (rim distance, ft): a live post-up
+     *  releases as a POST move inside postShotRangeFt; a committed drive
+     *  releases as a DRIVE finish inside driveShotRangeFt (farther out, the
+     *  stop-and-rise is honestly a pull-up). The label picks the make
+     *  model's move adjustment and the windup, so both are make-path gates */
+    postShotRangeFt: number;
+    driveShotRangeFt: number;
     /**
      * continuation value curve: expected points of "keep working the possession"
      * = continuationMax * (shotClock / fullClock) ^ continuationCurve
@@ -266,6 +273,12 @@ export interface SimParams {
     continuationCurve: number;
     /** below this many shot-clock seconds, urgency overrides shot quality */
     urgencySec: number;
+    /** desperation-heave trigger: launch from beyond heaveMinDistFt once the
+     *  shot clock is under heaveShotClockSec, or once the period clock is
+     *  both under heavePeriodClockSec and the binding (earlier) horn */
+    heaveShotClockSec: number;
+    heavePeriodClockSec: number;
+    heaveMinDistFt: number;
     /** global era knob multiplying three-point appetite */
     threeAppetite: number;
     /** global multiplier on drive appetite */
@@ -575,12 +588,24 @@ export interface SimParams {
     driveMinDistFt: number;      // no drive evaluation inside this range
     driveProjContestBase: number;
     driveProjContestCrowd: number;
+    /** where a drive is priced to END: this many ft short of the rim (a
+     *  layup/floater release spot, not the hoop's center) */
+    driveFinishSpotFt: number;
     handlingBase: number;        // base P(get downhill)
     handlingSkillDiv: number;    // handle-vs-lateral divisor
     handlingGapDiv: number;      // defender-gap divisor
+    handlingGapRefFt: number;    // neutral on-ball cushion — gaps beyond it help the handler
+    handlingMin: number;         // P(get downhill) floor — nobody is helpless
+    handlingMax: number;         // ...and cap — nobody is uncontainable
     driveTendOffset: number;     // drive tendency neutral point
     driveTendScale: number;
     laneCrowdPenalty: number;
+    /** defendersInLane geometry: the counted parametric slice of the
+     *  handler→rim segment (on-ball and under-rim defenders excluded) and
+     *  the lateral width of the driving line, ft */
+    laneAlongMin: number;
+    laneAlongMax: number;
+    laneWidthFt: number;
     driveFlat: number;
     driveTransitionMult: number;
     // passing
@@ -1037,6 +1062,16 @@ export const defaultParams: SimParams = {
     // cut_finish/putback taxonomy (a make-model input, so it belongs on the
     // calibration surface per this file's house rule).
     quickCatchSec: 0.9,
+    // Shot-type classification gates (decide.ts shotMove). A holder working
+    // a live post-up releases a POST move inside 14 ft — the outer edge of
+    // the traditional post area (numerically equal to move.nearRimFt but a
+    // distinct physical concept: this labels the SHOT, that blends the
+    // defensive roles). A committed driver inside 12 ft releases a DRIVE
+    // finish; farther out, stopping and rising off the bounce is honestly a
+    // pull-up. FEEL — were inline in decide.ts; the label is a make-model
+    // input (move adjustment + windup), so both gates live here (audit H-01).
+    postShotRangeFt: 14,
+    driveShotRangeFt: 12,
     // THE MOST IMPORTANT NUMBER IN THE ENGINE.
     // Expected points of "keep working this possession" with a full shot
     // clock ≈ 1.45. Every shot decision is a comparison against this: shoot
@@ -1058,6 +1093,16 @@ export const defaultParams: SimParams = {
     // Inside this many shot-clock seconds, urgency scales the continuation
     // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
+    // The desperation heave (decide.ts): with the shot clock nearly gone
+    // (< 1.2 s), or the period horn about to beat the shot clock (clock
+    // < 2.5 s and the earlier of the two), and no hope of getting closer
+    // than 32 ft, just launch — no shot is good, but a violation/expiry is
+    // worse. FEEL — were inline in decide.ts; the trigger produces a real
+    // attempt (shot.moveHeave prices its awfulness), so it is a
+    // decision-path lever, not cosmetics (audit H-01).
+    heaveShotClockSec: 1.2,
+    heavePeriodClockSec: 2.5,
+    heaveMinDistFt: 32,
     // ERA KNOBS. Global multipliers on three-point and drive appetite —
     // these are the intended hooks for era packs (a 1995 pack would set
     // threeAppetite ≈ 0.4, a 2015 pack ≈ 1.2). At 1.0 they are neutral.
@@ -1507,12 +1552,32 @@ export const defaultParams: SimParams = {
     driveMinDistFt: 9,
     driveProjContestBase: 0.35,
     driveProjContestCrowd: 0.22,
+    // FEEL — a drive is priced at its landing spot, 5 ft short of the rim: a
+    // layup/floater release point, not the center of the hoop (was inline in
+    // decide.ts's projected-finish lerp; audit H-01).
+    driveFinishSpotFt: 5,
     handlingBase: 0.55,
     handlingSkillDiv: 160,
     handlingGapDiv: 18,
+    // FEEL — the downhill-probability shape around handlingBase (were inline
+    // in decide.ts, audit H-01): a 4 ft on-ball cushion is the neutral point
+    // (a 9 ft gap is an invitation, 2 ft is a wall), and the rails keep every
+    // matchup honest — nobody is helpless (0.2), nobody uncontainable (0.95).
+    handlingGapRefFt: 4,
+    handlingMin: 0.2,
+    handlingMax: 0.95,
     driveTendOffset: 35,
     driveTendScale: 0.42,
     laneCrowdPenalty: 0.1,
+    // FEEL — defendersInLane geometry (were inline in decide.ts, audit
+    // H-01): the crowd count ignores defenders essentially ON the handler
+    // (along ≤ 0.15 of the way to the rim — that's the on-ball matchup,
+    // priced separately) and those already under the rim (along ≥ 0.95);
+    // inside the slice a defender within 5 ft of the driving line counts,
+    // weighted linearly to zero at that edge (about a body's width).
+    laneAlongMin: 0.15,
+    laneAlongMax: 0.95,
+    laneWidthFt: 5,
     driveFlat: -0.05,
     driveTransitionMult: 1.1198,
     passRiskUtilMult: 2.4,
