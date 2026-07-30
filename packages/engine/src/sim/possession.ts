@@ -13,7 +13,7 @@
 
 import { dist, lerp, type V2 } from '../core/vec.js';
 import { clamp } from '../core/rng.js';
-import type { TeamSide } from '../core/events.js';
+import type { PossessionOutcome, TeamSide } from '../core/events.js';
 import {
   attackedRim, emit, liveOnCourt, onCourt, other, round1,
   type Agent, type GameState, type Phase
@@ -27,6 +27,36 @@ import { startShot } from './shooting.js';
 import { decideLiveTimeout, maybeTimeout, type TimeoutCall } from './endgame.js';
 
 /**
+ * Resolve a two-man jump ball: one weighted coin flip between exactly `a`
+ * and `b`, returning the winner. The tip formula is mostly standing reach
+ * (height) with a real but smaller share of leaping ability: a jump ball is
+ * won more by who's taller than who jumps higher, but hops still matter
+ * (70/30 split). Extracted from `tipWeightedWinner` (byte-identical there:
+ * same weights, same single `rng.weighted` draw) so mid-game held-ball
+ * jumps (tickScramble / passing.ts attemptReachIn, officiating wave) reuse
+ * the one formula instead of duplicating it. Consumes exactly one rng draw.
+ */
+export function jumpWinnerOf(s: GameState, a: Agent, b: Agent): Agent {
+  const weight = (j: Agent): number => j.p.heightIn * 0.7 + j.p.attr.vertical * 0.3;
+  return s.rng.weighted([weight(a), weight(b)]) === 0 ? a : b;
+}
+
+/**
+ * Who comes up with a jump ball's tap: the winning jumper's nearest live
+ * on-court teammate to the jump spot, excluding the jumper himself.
+ * Corpus: 326/340 mid-game jump gains are a third player, not the jumper
+ * (the tap goes to a teammate). Falls back to the jumper only when no live
+ * teammate exists (bench-exhausted degenerate state). Deterministic, no
+ * rng, so a staged-off game's stream is untouched by this helper existing.
+ */
+export function jumpGainer(s: GameState, winner: Agent, at: V2): Agent {
+  const mates = liveOnCourt(s, winner.side)
+    .filter((a) => a.p.id !== winner.p.id)
+    .sort((a, b) => dist(a.pos, at) - dist(b.pos, at));
+  return mates[0] ?? winner;
+}
+
+/**
  * Decide who wins a jump ball (opening tip, each overtime period).
  * Called once per game at tip-off and once per OT period in `endPeriod`.
  * Purely a coin-flip weighted by height + hops — no possession/clock side
@@ -36,20 +66,14 @@ export function tipWeightedWinner(s: GameState): TeamSide {
   // pick each side's best jumper first (a small proxy score: height dominates,
   // vertical breaks near-ties — 0.12 is just enough weight that an elite leaper
   // can edge out someone an inch taller, not enough to flip a real size gap),
-  // then weight the two jumpers against each other for the actual coin flip.
-  const jumper = (side: TeamSide): number => {
+  // then hand the two jumpers to the shared two-man flip.
+  const jumper = (side: TeamSide): Agent => {
     const bigs = onCourt(s, side);
-    const best = bigs.reduce((m, a) =>
+    return bigs.reduce((m, a) =>
       a.p.heightIn + a.p.attr.vertical * 0.12 > m.p.heightIn + m.p.attr.vertical * 0.12 ? a : m
     );
-    // final tip-win weight: mostly standing reach (height), a real but smaller
-    // share of leaping ability — a jump ball is won more by who's taller than
-    // who jumps higher, but hops still matter (70/30 split)
-    return best.p.heightIn * 0.7 + best.p.attr.vertical * 0.3;
   };
-  const h = jumper(0);
-  const a = jumper(1);
-  return s.rng.weighted([h, a]) as TeamSide;
+  return jumpWinnerOf(s, jumper(0), jumper(1)).side;
 }
 
 /**
@@ -213,7 +237,7 @@ export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy'
  */
 export function endPossession(
   s: GameState,
-  outcome: 'made_fg' | 'made_ft' | 'def_rebound' | 'turnover' | 'period_end'
+  outcome: PossessionOutcome
 ): void {
   // a possession ends exactly once — and-ones, buzzer flows, and FT-miss
   // scrambles all route here, so guard against double counting (pace/ORtg
@@ -246,6 +270,12 @@ export function deadBall(
      *  live_rebound/steal hook): applied here instead of re-evaluating;
      *  one timeout per stoppage, hard */
     timeout?: TimeoutCall;
+    /** this stoppage hosts a reviewable call (officiating wave, STAGED
+     *  inert at the officiating.reviewPer* zeros): set by exactly the
+     *  close-call sites, OOB/travel/off-goaltend turnovers ('oob') and the
+     *  final-period last-2:00 made-FG dead ball ('late_make'). Unflagged
+     *  dead balls consume nothing. */
+    reviewable?: 'oob' | 'late_make';
   }
 ): void {
   s.ball.flight = null;
@@ -269,6 +299,24 @@ export function deadBall(
   // flag off, it returns immediately. Ordering: timeout before checkSubs is
   // the sub-window handshake; the rotation layer reads phase.timeout.
   maybeTimeout(s, opts.timeout);
+  // Replay review (officiating wave, fdesign-officiating §1.7): a
+  // review-flagged stoppage may send the officials to the monitor. Pure
+  // wallT theater with no outcome (reviews never overturn in v1; the
+  // narration renders "the call stands"). Rolled after maybeTimeout (fixed
+  // draw order at this site: timeout evaluation, then at most one review
+  // chance) and gated rate-first so an unflagged or staged-off game draws
+  // nothing. The stoppage stretch is the TimeoutEvent wallT-only mechanic:
+  // game clock frozen, `wt` runs through the huddle at the monitor.
+  if (opts.reviewable) {
+    const O = s.params.officiating;
+    const rate = opts.reviewable === 'oob' ? O.reviewPerOOB : O.reviewPerLateMake;
+    if (rate > 0 && s.rng.chance(rate)) {
+      emit(s, { type: 'replay_review', trigger: opts.reviewable });
+      const ph = s.phase as Extract<Phase, { kind: 'dead' }>;
+      ph.clockRuns = false;
+      ph.resumeIn = Math.max(ph.resumeIn, O.reviewResumeSec);
+    }
+  }
   checkSubs(s);
   setupDeadTargets(s, nextTeam);
 }
@@ -462,12 +510,14 @@ export function tickScramble(s: GameState, dt: number): void {
       const liveVictims = liveOnCourt(s, ph.offSide);
       const victim = (liveVictims.length > 0 ? liveVictims : victims)
         .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0]!;
-      const { bonus } = recordFoul(s, fouler, 'loose_ball', victim);
+      const { bonus, techFT } = recordFoul(s, fouler, 'loose_ball', victim);
       if (bonus) {
         victim.usedPoss++; // bonus trip = possession used (usage bookkeeping)
         // award from FoulOutcome.bonus (NCAA 7-9 is a one-and-one), not a
-        // flat rules.bonusFreeThrows read — see fouls.ts FoulOutcome
-        enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne);
+        // flat rules.bonusFreeThrows read (see fouls.ts FoulOutcome; a
+        // technical rider prefixes the trip: fouls.ts, staged-inert)
+        enterFreeThrows(s, victim, bonus.shots, bonus.oneAndOne,
+          techFT ? { pre: techFT.p.id } : undefined);
       } else {
         // side out, offense keeps it: the defensive-foul retention reset —
         // frontcourt floors at the short reset (NBA 14s), a backcourt
@@ -475,6 +525,19 @@ export function tickScramble(s: GameState, dt: number): void {
         // carom spot stands in for where play resumes — for a rebound
         // scramble that is essentially always the frontcourt)
         s.poss.shotClock = retentionFoulShotClock(s, ph.offSide, ph.landAt);
+        if (techFT) {
+          // technical rider with no FTs of its own: the tech FT is shot
+          // first, then this deadBall runs from tickFreeThrows via resume
+          // with the same arguments, so the possession resumes
+          // byte-identically
+          enterFreeThrows(s, techFT, 1, false, {
+            resume: {
+              nextTeam: ph.offSide, continuation: true,
+              resumeIn: s.params.move.deadBallSideOutSec
+            }
+          });
+          return;
+        }
         // deadBallSideOutSec: shorter than the standard dead-ball delay —
         // this is a continuation of the SAME possession (no team change), so
         // the pause just needs to cover the whistle, not a full re-set
@@ -535,6 +598,51 @@ export function tickScramble(s: GameState, dt: number): void {
     y: round1(ph.landAt.y)
   });
 
+  // Held ball → mid-game jump (officiating wave, fdesign-officiating §1.1,
+  // STAGED inert at heldBallPerScramble 0: the rate gate runs before the
+  // draw). The scrum's winner gets tied up by the nearest live opponent and
+  // the officials administer a real jump (no possession arrow, the NBA
+  // rule). The rebound above stays credited as scored: real logs print the
+  // rebound row, then the jump row, and the tap can still flip the ball.
+  // Draw order at this site is fixed: one chance(), then (on fire) the one
+  // weighted() flip inside jumpWinnerOf, ≤2 draws per resolved scramble.
+  // Branching is on the jump winner, not the rebound winner: the offense's
+  // side keeps its still-open possession at a 14s-floor reset; the
+  // defense's side closes it as an ordinary defensive board whose next
+  // possession starts as an administered 'tip' (never a transition burst).
+  const O = s.params.officiating;
+  if (O.heldBallPerScramble > 0 && s.rng.chance(O.heldBallPerScramble)) {
+    const opp = liveOnCourt(s, other(winner.side))
+      .sort((a, b) => dist(a.pos, ph.landAt) - dist(b.pos, ph.landAt))[0];
+    if (opp) {
+      const jumpWinner = jumpWinnerOf(s, winner, opp);
+      const gainer = jumpGainer(s, jumpWinner, ph.landAt);
+      emit(s, {
+        type: 'jump_ball',
+        between: [winner.p.id, opp.p.id],
+        winner: jumpWinner.side,
+        gainedBy: gainer.p.id
+      });
+      s.phase = { kind: 'live' };
+      if (jumpWinner.side === ph.offSide) {
+        // offense controls the tap: same possession continues. The shot
+        // clock floors at the rule pack's short-clock reset like any
+        // offense-retains whistle, and the administered restart reads as a
+        // set halfcourt trip (the stoppage let the defense organize)
+        s.poss.shotClock = Math.max(s.poss.shotClock, s.rules.shotClockOffRebSec);
+        s.poss.phase = 'halfcourt';
+        giveBall(s, gainer, 'deadball');
+        // 0.35s: the post-rebound survey beat; the gainer just came out of
+        // a tie-up, same re-set moment as an offensive board
+        s.decisionAt = s.t + 0.35;
+      } else {
+        endPossession(s, 'def_rebound');
+        startPossession(s, jumpWinner.side, 'tip', gainer);
+      }
+      return;
+    }
+  }
+
   s.phase = { kind: 'live' };
   if (offensive) {
     // offensive board: shot clock gets the rule pack's short-clock reset
@@ -552,6 +660,21 @@ export function tickScramble(s: GameState, dt: number): void {
       dist(winner.pos, rim) < s.params.reb.putbackRadiusFt &&
       s.rng.chance(s.params.reb.putbackChance)
     ) {
+      // Offensive goaltending (officiating wave, §1.2, STAGED inert at
+      // goaltendPerPutback 0, rate gate before the draw): the rebounder
+      // interferes on the rim instead of getting the attempt off. A
+      // turnover with no shot event (real logs read OREB row → turnover
+      // row, no FGA) and never a steal. The dead ball is flagged
+      // reviewable: rim interference is exactly the close call officials
+      // check the monitor for.
+      if (O.goaltendPerPutback > 0 && s.rng.chance(O.goaltendPerPutback)) {
+        emit(s, {
+          type: 'turnover', team: winner.side, player: winner.p.id, kind: 'off_goaltend'
+        });
+        endPossession(s, 'turnover');
+        deadBall(s, other(winner.side), { clockRuns: false, reviewable: 'oob' });
+        return;
+      }
       startShot(s, winner, 'putback');
       return;
     }
@@ -581,6 +704,21 @@ export function endPeriod(s: GameState): void {
   endPossession(s, 'period_end');
   s.clock = 0;
   s.pendingRelease = null; // a windup at the horn never gets released
+  // Period-end replay review (officiating wave, fdesign-officiating §1.7,
+  // STAGED inert at reviewPerPeriodEnd 0, rate gate before the draw): the
+  // last-second look at the monitor. Emitted before the period_end event
+  // (real logs print the replay row, then "End of quarter") and it
+  // stretches the period break's wall-clock delay (game clock is already at
+  // 0). Draw order at this site is fixed: this one chance() precedes the
+  // OT re-tip's weighted() below, so the flip's stream position is stable.
+  let reviewStretch = 0;
+  {
+    const O = s.params.officiating;
+    if (O.reviewPerPeriodEnd > 0 && s.rng.chance(O.reviewPerPeriodEnd)) {
+      emit(s, { type: 'replay_review', trigger: 'period_end' });
+      reviewStretch = O.reviewResumeSec;
+    }
+  }
   emit(s, { type: 'period_end' });
 
   // a tied score at the end of the last scheduled period forces overtime —
@@ -641,14 +779,16 @@ export function endPeriod(s: GameState): void {
   }
   // 1.6s period-opening delay: a touch shorter than the general 1.8s dead-ball
   // default since there's no preceding whistle/basket to read, just a
-  // quarter-break cut back to game action. An OT opener is a fresh jump ball
-  // (tip_off emitted above), so its possession is kind 'tip' per the event
-  // contract (events.ts PossessionStartEvent: 'tip' = the opening possession
-  // of a period off a jump ball) — it was stamped 'inbound', undercounting
-  // jump-ball possessions for any consumer reading the documented kind.
+  // quarter-break cut back to game action, stretched to the monitor delay
+  // when a period-end review fired above (wallT-only, two-axes discipline).
+  // An OT opener is a fresh jump ball (tip_off emitted above), so its
+  // possession is kind 'tip' per the event contract (events.ts
+  // PossessionStartEvent: 'tip' = the opening possession of a period off a
+  // jump ball) — it was stamped 'inbound', undercounting jump-ball
+  // possessions for any consumer reading the documented kind.
   s.phase = {
-    kind: 'dead', resumeIn: 1.6, clockRuns: false, nextTeam: team,
-    possKind: isOT ? 'tip' : 'inbound'
+    kind: 'dead', resumeIn: Math.max(1.6, reviewStretch), clockRuns: false,
+    nextTeam: team, possKind: isOT ? 'tip' : 'inbound'
   };
   // the period-opening stoppage is the quarter-break wave's site (subs.ts
   // quarterWave, STAGED inert at waveMaxPerTeam 0): planned boundary swaps,

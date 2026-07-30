@@ -377,7 +377,7 @@ export interface SimParams {
     delayResumeSec: number;
     delayOrebSec: number;
     /** heave discipline (decide.ts desperation bypass): final-period/OT
-     *  deficit within which the period-horn heave is genuinely let fly —
+     *  deficit within which the period-horn heave is genuinely let fly;
      *  one make ties/wins */
     heaveKeepDeficitMax: number;
     /** chance a NON-mattering period-horn heave is launched anyway (the
@@ -768,6 +768,102 @@ export interface SimParams {
      *  attacked rim, ft — the real advance puts the ball at the hashmark
      *  (~28 ft out); this is a BEHAVIORAL spot (the possession starts there) */
     timeoutAdvanceSpotFt: number;
+  };
+
+  /**
+   * Officiating vocabulary (fdesign-officiating): the non-foul whistle
+   * texture the event stream structurally lacked: jump balls, goaltending,
+   * travels, technicals, take fouls, kicked balls, replay reviews.
+   * STAGED-inert wiring: every rate below ships at 0 and every draw site
+   * short-circuits before consuming rng when its rate is 0 (the timeout-
+   * economy stage-switch discipline), so the shipped stream is byte-
+   * identical to the pre-wiring engine. The officiating fit wave flips the
+   * rates to the corpus-pinned seeds noted inline and owns the coordinated
+   * re-sweep (tov/pf both hug ceilings; fdesign-officiating §5).
+   *
+   * None of the rates join harness/knobs.ts: they are corpus-pinned REAL
+   * targets the 17-band sweep cannot see; if the sweep owned them it would
+   * trade them to zero to relieve the tov/pf ceilings, defeating the arc.
+   * They get their own rate gates in the flow harness instead
+   * (fdesign-officiating §6). Context-split dials (drive:post, scramble:
+   * reach) are FEEL, invisible in the corpus text.
+   */
+  officiating: {
+    /** held-ball chance per resolved rebound scramble (primary jump-ball
+     *  site, possession.ts tickScramble). STAGED 0; corpus-fit seed ~0.009
+     *  (~90 scrambles/g → ~0.7/g; scramble:reach split 85:15 FEEL, total
+     *  0.83/g REAL) */
+    heldBallPerScramble: number;
+    /** held-ball share of on-ball reach-in events (secondary site,
+     *  passing.ts attemptReachIn, non-hunting only). STAGED 0; seed ~0.05
+     *  (~0.15/g) */
+    heldBallPerReach: number;
+    /** defensive-goaltend chance per contested rim/paint would-be miss with
+     *  no block/foul rolled (shooting.ts startShot). STAGED 0; seed ~0.016
+     *  (~31 such misses/g → 0.51/g REAL). Deliberately independent of the
+     *  block roll: chaining onto blocks would drain the blk band's 0.4
+     *  floor margin; the independent draw takes the makes from misses
+     *  instead (fdesign-officiating §1.2/§5) */
+    goaltendPerContestedInsideMiss: number;
+    /** offensive-goaltend chance per putback launch (possession.ts
+     *  tickScramble putback branch). STAGED 0; seed ~0.016 (~8 putbacks/g
+     *  → 0.13/g REAL) */
+    goaltendPerPutback: number;
+    /** traveling hazard per second of committed drive time (game.ts
+     *  tickLive, the charge-roll pattern: rate × dt on attacking ticks).
+     *  STAGED 0; fit seed: pin drive+post travels at 1.05/g REAL total,
+     *  drive:post ≈ 60:40 FEEL (corpus text carries no context), sized
+     *  against measured drive/post exposure at the flip */
+    travelPerDriveSec: number;
+    /** traveling hazard per second of post backdown time (same site, the
+     *  backingDown tick guard). STAGED 0; see travelPerDriveSec */
+    travelPerPostSec: number;
+    /** technical-foul chance per foul whistle (fouls.ts recordFoul, after
+     *  the foul event + any foul-out replacement). STAGED 0; seed ~0.016
+     *  (~43 fouls/g → 0.71/g REAL). V1 models the dominant after-foul
+     *  frustration trigger only (42% of real techs); teched player = the
+     *  fouler, resolution = 1 technical FT, possession unchanged */
+    techPerFoulWhistle: number;
+    /** 0/1 stage switch: relabel the endgame hunt's reach-in fouls
+     *  (passing.ts attemptReachIn, foulHuntSide active) as kind 'take'.
+     *  Zero rate/stat change, pure vocabulary (the corpus's Q4-late take
+     *  rows). STAGED 0 so shipped events are byte-identical; flip: 1.
+     *  Kept switchable only for the staging discipline; the fit wave flips
+     *  it permanently */
+    takeRelabelHuntFouls: number;
+    /** transition-take reach-rate multiplier (× foul.reachInPerSec) while
+     *  takeHuntActive (passing.ts): the beaten-in-transition wrap-up,
+     *  built exactly like the endgame hunt's loaded dice. STAGED 0 (site
+     *  never activates); fit seed ~35-55 (the foulHuntRateMult register,
+     *  sized to ~0.2-0.3/g REAL) */
+    takeHuntRateMult: number;
+    /** transition-take window: seconds from a steal/live-rebound possession
+     *  start during which the take is live (unread while takeHuntRateMult
+     *  is 0). FEEL ~4 s, the real transition-kill beat. The take also
+     *  requires the defense beaten (defendersBack < transSetBackCount − 1)
+     *  and never runs in the final period's last 2:00 (REAL rule exclusion,
+     *  also the firewall against the endgame foul hunt) */
+    takeWindowSec: number;
+    /** kicked-ball chance per clean-catch pass arrival (passing.ts
+     *  resolvePassArrival). STAGED 0; seed ~0.0018 (~311 passes/g →
+     *  0.57/g REAL). Offense retains, same possession, 14s-floor stoppage */
+    kickedPerPass: number;
+    /** replay-review chance at a review-flagged OOB/violation dead ball
+     *  (possession.ts deadBall, callers pass reviewable:'oob'). STAGED 0;
+     *  seed ~0.12 (trigger mix FEEL, review total 2.2-2.6/g REAL) */
+    reviewPerOOB: number;
+    /** replay-review chance at a final-period last-2:00 made-FG dead ball
+     *  (reviewable:'late_make'). STAGED 0; seed ~0.10 */
+    reviewPerLateMake: number;
+    /** replay-review chance per period end (possession.ts endPeriod,
+     *  rolled before the period_end emit, the real row order). STAGED 0;
+     *  seed ~0.15/period */
+    reviewPerPeriodEnd: number;
+    /** wall-clock seconds a review stretches its stoppage (the TimeoutEvent
+     *  wallT-only mechanic: game clock frozen, the replay shows the
+     *  monitor huddle; unread while the review rates are 0). FEEL ~18 s,
+     *  reads as a real look without bloating the replay */
+    reviewResumeSec: number;
   };
 
   /**
@@ -1941,6 +2037,35 @@ export const defaultParams: SimParams = {
     timeoutResumeSec: 8,
     // hashmark inbound: possession starts ~28 ft from the attacked rim
     timeoutAdvanceSpotFt: 28
+  },
+
+  // Officiating (fdesign-officiating), STAGED-inert wiring values. Every
+  // rate sits at 0 and every draw site short-circuits before touching rng at
+  // 0, so the shipped stream is byte-identical to the pre-wiring engine
+  // (fingerprint corpus is the authority). The officiating fit wave flips to
+  // the corpus-pinned seeds on the interface docs above and owns the
+  // coordinated tov/pf re-sweep (§5 blast radius). Not swept; see the
+  // interface block doc for why these rates must never join knobs.ts.
+  officiating: {
+    heldBallPerScramble: 0, // STAGED; corpus-fit seed ~0.009 (0.83/g total held balls, REAL)
+    heldBallPerReach: 0, // STAGED; corpus-fit seed ~0.05 (the 15% on-ball share, FEEL split)
+    goaltendPerContestedInsideMiss: 0, // STAGED; corpus-fit seed ~0.016 (0.51/g def goaltends, REAL)
+    goaltendPerPutback: 0, // STAGED; corpus-fit seed ~0.016 (0.13/g off goaltends, REAL)
+    travelPerDriveSec: 0, // STAGED; fit pins drive+post total 1.05/g REAL, 60:40 FEEL split
+    travelPerPostSec: 0, // STAGED; see travelPerDriveSec
+    techPerFoulWhistle: 0, // STAGED; corpus-fit seed ~0.016 (0.71/g techs, REAL)
+    takeRelabelHuntFouls: 0, // STAGED 0/1 switch; flip: 1 (pure relabel, zero stat change)
+    takeHuntRateMult: 0, // STAGED; fit seed ~35-55 (~0.2-0.3/g transition takes, REAL)
+    // 4 s: the real transition-kill beat; the take happens before the break
+    // organizes, never after the defense is back (unread while the mult is 0)
+    takeWindowSec: 4,
+    kickedPerPass: 0, // STAGED; corpus-fit seed ~0.0018 (0.57/g kicked balls, REAL)
+    reviewPerOOB: 0, // STAGED; corpus-fit seed ~0.12 (review total 2.2-2.6/g REAL, mix FEEL)
+    reviewPerLateMake: 0, // STAGED; corpus-fit seed ~0.10
+    reviewPerPeriodEnd: 0, // STAGED; corpus-fit seed ~0.15/period
+    // 18 s of wall-clock monitor time: same replay-texture register as the
+    // 8 s timeout huddle; a review reads longer than a huddle (FEEL)
+    reviewResumeSec: 18
   },
 
   ai: {

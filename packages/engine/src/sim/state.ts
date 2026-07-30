@@ -34,12 +34,13 @@ export type MoveIntent =
 export type BallAcquisition = 'pass' | 'rebound' | 'steal' | 'deadball';
 
 /**
- * Timeout vocabulary, internal superset of TimeoutEvent's (core/events.ts,
- * still 'stop_run' | 'advance'). STAGED: 'mandatory' (scorer-imposed TV
- * stoppage, charged per NBA Rule 5 VI(b) convention) and 'regroup' (coach
- * hazard below the stop-run label) are producible only under forced params
- * until the officiating wave widens the event contract to match
- * (fdesign-timeouts §5: value-only widening, no shape change).
+ * Timeout vocabulary, now identical to TimeoutEvent['reason']
+ * (core/events.ts): the officiating wave widened the event contract to the
+ * full set with replay v3 (fdesign-timeouts §5, value-only widening, no
+ * shape change), so the internal superset and the contract converged.
+ * 'mandatory' (scorer-imposed TV stoppage, charged per NBA Rule 5 VI(b)
+ * convention) and 'regroup' (coach hazard below the stop-run label) remain
+ * producible only under forced params (params.endgame.to* STAGED inert).
  */
 export type TimeoutReason = 'stop_run' | 'advance' | 'mandatory' | 'regroup';
 
@@ -165,6 +166,15 @@ export interface PendingShot {
   made: boolean;
   assist?: string;
   foul?: { by: string; ftAwarded: number; andOne: boolean };
+  /**
+   * defensive goaltending violator (the contesting defender): the miss was
+   * flipped to a made shot at the release roll (shooting.ts startShot,
+   * STAGED inert at officiating.goaltendPerContestedInsideMiss 0) and
+   * resolveShotOutcome emits the `violation` row right after the shot
+   * event. Internal state, never an event field; the contract carries the
+   * violation as its own event.
+   */
+  goaltend?: string;
 }
 
 export interface BallFlight {
@@ -224,6 +234,19 @@ export type Phase =
       nextIn: number;
       /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
       oneAndOne: boolean;
+      /** pending technical prefix attempt (officiating wave, fouls.ts): shot
+       *  first (n:1 of:1, technical:true, no rebound on a miss, no
+       *  possession effects) before the main trip's `taken`/`of` sequence
+       *  runs unchanged (real row order: foul → tech → tech FT → the
+       *  personal's own penalty). Cleared once shot. */
+      pre?: { shooterId: string };
+      /** technical-only trip (the triggering foul awarded no FTs of its
+       *  own): after the single attempt, tickFreeThrows skips endPossession
+       *  and the miss scramble and re-enters `deadBall` with exactly these
+       *  stored arguments, so the pre-whistle possession flow resumes
+       *  byte-identically to the no-tech path. Every attempt of such a trip
+       *  stamps `technical: true`. */
+      resume?: { nextTeam: TeamSide; continuation: boolean; resumeIn: number };
       /** same handshake as the dead variant's. STAGED: written only once the
        *  officiating wave adds the FT-whistle timeout hook in fouls.ts
        *  enterFreeThrows (fdesign-timeouts §1.2.2) */

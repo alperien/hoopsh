@@ -22,10 +22,11 @@ const rep = buildReplay(result);
 
 describe('buildReplay produces a viewer-complete artifact (M-18)', () => {
   it('carries the current format version literal', () => {
-    // 2 is the shipped Replay.version (see replay.ts's version history —
+    // 3 is the shipped Replay.version (see replay.ts's version history —
     // bumping it is a deliberate DO-NOT #8 event that updates the viewer
-    // and THIS pin in the same change)
-    expect(rep.version).toBe(2);
+    // and THIS pin in the same change; v2 → v3 landed with the officiating
+    // vocabulary wiring, which this rebase carries)
+    expect(rep.version).toBe(3);
   });
 
   it('frames are present when collected, 26 columns, wall-clock monotone', () => {

@@ -24,7 +24,7 @@
  * the ordinary resolution paths running under endgame intent.
  */
 
-import type { TeamSide, TimeoutEvent } from '../core/events.js';
+import type { TeamSide } from '../core/events.js';
 import { clamp } from '../core/rng.js';
 import { emit, other, type GameState, type Phase, type TimeoutReason } from './state.js';
 
@@ -382,12 +382,13 @@ function callTimeout(s: GameState, team: TeamSide, reason: TimeoutReason): void 
     if (s.clock <= E.toFinalPeriodLateSec) s.timeoutsUsedFinalLate[team] += 1;
   }
   s.lastTimeoutT[team] = s.t;
-  // STAGED contract note: TimeoutEvent.reason is still 'stop_run'|'advance';
-  // the two staged reasons are unreachable at shipped params, and the
-  // officiating wave widens the union (fdesign-timeouts §5) before any flip
-  // makes them reachable. The cast keeps the wiring compilable until then.
+  // Contract converged (officiating wave, replay v3): TimeoutEvent.reason
+  // now carries the full TimeoutReason set. 'mandatory'/'regroup' remain
+  // unreachable at shipped params (STAGED to* values), but they emit
+  // through the real union, no cast (fdesign-timeouts §5's value-only
+  // widening, delivered with the rest of the event-contract chain).
   emit(s, {
-    type: 'timeout', team, reason: reason as TimeoutEvent['reason'], remaining: s.timeoutsLeft[team]
+    type: 'timeout', team, reason, remaining: s.timeoutsLeft[team]
   });
   const ph = s.phase;
   if (ph.kind === 'dead') {

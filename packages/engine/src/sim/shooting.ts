@@ -12,7 +12,7 @@ import {
 import {
   blockP, contestAt, sampleMissLanding, sampleScrambleSec, shotMakeP, shootingFoulP
 } from './resolve.js';
-import { enterFreeThrows, recordFoul } from './fouls.js';
+import { type FoulOutcome, enterFreeThrows, recordFoul } from './fouls.js';
 import { deadBall, endPeriod, endPossession, enterScramble } from './possession.js';
 import { onShotReleased } from './ai.js';
 import { noteScore } from './endgame.js';
@@ -71,6 +71,30 @@ export function startShot(
     };
   }
 
+  // Defensive goaltending (officiating wave, fdesign-officiating §1.2,
+  // STAGED inert at goaltendPerContestedInsideMiss 0, rate gate before the
+  // draw): one gated roll after the make/block/foul rolls, on contested
+  // rim/paint would-be misses only. On fire the miss becomes a made shot
+  // before the assist bookkeeping below (goaltended makes carry assists;
+  // corpus samples do), and resolveShotOutcome runs the ordinary make path
+  // plus the violation row. Deliberately independent of the block roll:
+  // chaining onto block successes would drain the blk band's floor margin;
+  // the 0.25/team of extra makes comes from plain misses instead, and the
+  // violator is still the contesting defender either way. A shot that drew
+  // a whistle is skipped (goaltend+foul compounds are real but rare;
+  // documented simplification, fdesign-officiating §8). Draw order at this
+  // site is fixed: make → block → foul → goaltend, ≤1 goaltend roll/shot.
+  let goaltend: string | undefined;
+  const O = s.params.officiating;
+  if (
+    O.goaltendPerContestedInsideMiss > 0 &&
+    !made && !blockedBy && !foul && (loc.zone === 'rim' || loc.zone === 'paint') &&
+    contest.by && s.rng.chance(O.goaltendPerContestedInsideMiss)
+  ) {
+    goaltend = contest.by;
+    made = true; // the basket counts, scored as a normal FGM
+  }
+
   // assist bookkeeping — the "direct scoring move" rule. The dribble
   // allowance is ZONE-AWARE (see params.ai.assistMaxDribbles*): a jumper
   // taken off the bounce is self-created and earns the passer nothing,
@@ -114,6 +138,7 @@ export function startShot(
     made: blockedBy ? false : made,
     assist,
     foul,
+    goaltend,
   };
 
   s.ball.holderId = null;
@@ -165,40 +190,66 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
     foul: shot.foul
   });
 
+  // Defensive goaltending violation row (officiating wave): rides
+  // immediately after the made shot event it flipped: same t/wt, and the
+  // shot's score stamp already includes the points (real accounting: a
+  // normal FGM row, then "Violation by Team (def goaltending)"). The
+  // violating side is the defense; the player is the contesting defender
+  // startShot tagged. Never coexists with a shooting foul (startShot skips
+  // the compound), so the recordFoul below can't interleave.
+  if (shot.goaltend) {
+    emit(s, {
+      type: 'violation',
+      team: other(shot.side),
+      player: shot.goaltend,
+      kind: 'def_goaltend'
+    });
+  }
+
+  let bonusInfo: FoulOutcome | null = null;
   if (shot.foul) {
     // called for its side effects (personal/team foul counts, foul event,
-    // foul-out replacement). The returned FoulOutcome is deliberately
-    // discarded: a shooting foul's FT count comes from the shot itself
-    // (shot.foul.ftAwarded — 2/3/and-one), never from the bonus state
-    // (see fouls.ts FoulOutcome doc). A dead `bonusInfo` local here used to
-    // suggest otherwise.
-    recordFoul(s, agent(s, shot.foul.by), 'shooting', shooter);
+    // foul-out replacement). A shooting foul's FT count comes from the shot
+    // itself (shot.foul.ftAwarded — 2/3/and-one), never from the bonus
+    // state (see fouls.ts FoulOutcome doc; a dead `bonusInfo` local here
+    // once suggested otherwise — scan wave). The outcome is consumed again
+    // now, but ONLY for the staged technical rider (techFT below); the FT
+    // count still never reads it.
+    bonusInfo = recordFoul(s, agent(s, shot.foul.by), 'shooting', shooter);
   }
 
   const periodOver = s.clock < 1e-6;
 
   if (shot.made) {
     if (shot.foul) {
-      // and-one: the possession isn't over until the free throw resolves —
-      // the FT flow emits the single possession_end
-      enterFreeThrows(s, shooter, 1);
+      // and-one: the possession isn't over until the free throw resolves;
+      // the FT flow emits the single possession_end (a technical rider on
+      // the shooting foul prefixes the trip; fouls.ts, staged-inert)
+      enterFreeThrows(s, shooter, 1, false,
+        bonusInfo?.techFT ? { pre: bonusInfo.techFT.p.id } : undefined);
       return;
     }
     endPossession(s, 'made_fg');
     if (periodOver) { endPeriod(s); return; }
     const lastTwoMin = s.period >= s.rules.periods && s.clock <= 120;
+    // a final-period last-2:00 make is the reviewable 2-vs-3/release check
+    // (officiating wave; the flag costs nothing while the review rates are
+    // staged at 0; the clock is already frozen there by the lastTwoMin rule)
     deadBall(s, other(shot.side), {
       clockRuns: !lastTwoMin,
       // made-basket inbound time (move.madeBasketResumeSec) — the clock
       // runs through it outside the final two minutes
-      resumeIn: s.params.move.madeBasketResumeSec
+      resumeIn: s.params.move.madeBasketResumeSec,
+      ...(lastTwoMin ? { reviewable: 'late_make' as const } : {})
     });
     return;
   }
 
   // missed
   if (shot.foul) {
-    enterFreeThrows(s, shooter, shot.foul.ftAwarded);
+    // (a technical rider prefixes the trip: fouls.ts, staged-inert)
+    enterFreeThrows(s, shooter, shot.foul.ftAwarded, false,
+      bonusInfo?.techFT ? { pre: bonusInfo.techFT.p.id } : undefined);
     return;
   }
   if (periodOver) { endPeriod(s); return; }

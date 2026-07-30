@@ -28,10 +28,11 @@ import type { Agent, GameState, TimeoutReason } from '../src/sim/state.js';
 type TO = Extract<GameEvent, { type: 'timeout' }>;
 const timeouts = (r: GameResult): TO[] =>
   r.events.filter((e): e is TO => e.type === 'timeout');
-/** forced-live streams carry the STAGED reasons ('mandatory'/'regroup') that
- *  TimeoutEvent's union doesn't yet; read through the internal superset
- *  (state.ts TimeoutReason; the officiating wave converges the two) */
-const reasonOf = (e: TO): TimeoutReason => e.reason as TimeoutReason;
+/** forced-live streams carry the STAGED reasons ('mandatory'/'regroup');
+ *  the officiating wave converged TimeoutEvent's union with the internal
+ *  TimeoutReason (replay v3), so this is now a plain read, kept as a helper
+ *  only for the suite's call-site symmetry */
+const reasonOf = (e: TO): TimeoutReason => e.reason;
 
 // ---------------------------------------------------------------- the pools
 
