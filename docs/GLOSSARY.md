@@ -59,7 +59,7 @@ NCAA bonus free throw earned only by making the first).
 | recipes A–G | the per-change-shape build procedures (new tendency, new knob, new action, new event, new rule field, new test, new consumer) | docs/PLAYBOOK.md Part 2 |
 | rule pack vs data pack | league rules as JSON (`RulePack` — periods, clocks, bonus, geometry) vs roster content as JSON (team packs) | rules/rulepack.ts; docs/ROSTERS.md |
 | the Bible | docs/BIBLE.md — a GENERATED concatenation of the source docs for one-context-window handoff; never edited directly | tools/build-bible.mjs; `npm run docs:bible` |
-| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W58 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
+| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W61 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
 | Phase 2R | the current roadmap phase: tuning and validating the implemented mechanics, not building new ones | README.md Roadmap |
 | B2 / game-state coupling | the score-pressure mechanic: trailing team's defense presses up, leader's sags (concept 7 channel 2), plus the garbage-time concede rotation | REGISTER W17/W18; concepts.ts, subs.ts |
 | concepts 6/7/8 | numbered bounded-rationality concepts: 6 = game-state urgency (clock kill, hold-for-last, 2-for-1), 7 = score pressure, 8 = probe culture; concept 4 (usage pressure) lives in decide.ts | sim/ai/concepts.ts (in-file order 1–3, 6, 5, 7, 8) |

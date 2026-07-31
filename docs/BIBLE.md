@@ -731,7 +731,10 @@ implemented and DEFAULT-ON since the calib/integration landing
 economy (mandatory/TV anchors, the coach voluntary hazard, the live-ball
 site) is live since the FLOW flip, corpus-fitted and gated by flowboard G1 —
 ATO play-calls remain unmodeled · no backcourt/
-8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
+8-second violations (travels exist as officiating-vocabulary hazards) · the NBA
+last-2:00 team-foul penalty, the OT bonus threshold drop, and the per-period
+made-basket clock stops ARE modeled since the rules landing (rulepack.ts
+`lateWindow*`, `teamFoulBonusAtOT`, `makeStopClock*`; REGISTER W59) ·
 team-foul counting hardcodes the NBA rule under every pack (offensive fouls
 are personal-only, sim/fouls.ts `countsTeam`): under NCAA men's rules a
 player-control foul DOES count toward the team-foul/bonus total (while never
@@ -1712,6 +1715,9 @@ validation, and the 38 dials: [ROSTERS.md](./ROSTERS.md).
 | `foulOutAt` | personals that disqualify |
 | `timeoutsPerGame` | flat per-game budget (endgame layer only) |
 | `advanceAfterTimeout` | whether a late-game timeout advances the inbound to the frontcourt (NBA/FIBA yes, NCAA no) |
+| `teamFoulBonusAtOT` | bonus threshold in overtime (NBA drops to 4; carry-over leagues keep regulation) |
+| `lateWindowSec`, `lateWindowFoulBonusAt` | the NBA last-2:00 team-foul penalty window (0 disables — NCAA, FIBA) |
+| `makeStopClockFinalSec`, `makeStopClockEarlySec` | made-basket clock stops: final period/OT window and the NBA's last-minute window in earlier periods |
 
 Three honest caveats, all measured:
 
@@ -2737,7 +2743,7 @@ NCAA bonus free throw earned only by making the first).
 | recipes A–G | the per-change-shape build procedures (new tendency, new knob, new action, new event, new rule field, new test, new consumer) | docs/PLAYBOOK.md Part 2 |
 | rule pack vs data pack | league rules as JSON (`RulePack` — periods, clocks, bonus, geometry) vs roster content as JSON (team packs) | rules/rulepack.ts; docs/ROSTERS.md |
 | the Bible | docs/BIBLE.md — a GENERATED concatenation of the source docs for one-context-window handoff; never edited directly | tools/build-bible.mjs; `npm run docs:bible` |
-| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W58 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
+| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W61 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
 | Phase 2R | the current roadmap phase: tuning and validating the implemented mechanics, not building new ones | README.md Roadmap |
 | B2 / game-state coupling | the score-pressure mechanic: trailing team's defense presses up, leader's sags (concept 7 channel 2), plus the garbage-time concede rotation | REGISTER W17/W18; concepts.ts, subs.ts |
 | concepts 6/7/8 | numbered bounded-rationality concepts: 6 = game-state urgency (clock kill, hold-for-last, 2-for-1), 7 = score pressure, 8 = probe culture; concept 4 (usage pressure) lives in decide.ts | sim/ai/concepts.ts (in-file order 1–3, 6, 5, 7, 8) |
