@@ -318,7 +318,7 @@ export interface PassRisk {
   dangerId: string | null;
 }
 
-export function passRisk(s: GameState, from: Agent, to: Agent, lob = false): PassRisk {
+export function passRisk(s: GameState, from: Agent, to: Agent): PassRisk {
   const P = s.params.pass;
   // lane occlusion: defenders near the segment, weighted by closeness to the lane
   let occlusion = 0;
@@ -353,11 +353,7 @@ export function passRisk(s: GameState, from: Agent, to: Agent, lob = false): Pas
   // longPassPer10Ft logits. Long skip passes hang in the air — real turnover source.
   const lengthTerm = P.longPassPer10Ft * Math.max(0, passLen - P.longPassFt) / 10;
   const skillTerm = P.skillCoef * ((n(from.p.attr.passAcc) + n(from.p.attr.passVision)) / 2);
-  let logit = P.riskBase + P.laneRiskCoef * clamp(occlusion, 0, P.laneOcclusionCap) + lengthTerm - skillTerm;
-  // a tagged lob is a harder throw (session-8 arc): the bump is a BRANCH,
-  // not an unconditional +0 — staged byte-identity must not lean on float
-  // identities (verifier F4)
-  if (lob) logit += P.lobRiskLogit;
+  const logit = P.riskBase + P.laneRiskCoef * clamp(occlusion, 0, P.laneOcclusionCap) + lengthTerm - skillTerm;
   return { turnoverP: sigmoid(logit), dangerId };
 }
 

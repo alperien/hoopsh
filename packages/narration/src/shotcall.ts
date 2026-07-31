@@ -52,10 +52,10 @@ const DUNK_MAX_FT = 2.25;
  *  so roughly the springiest quarter of rotations dunk their point-blank
  *  makes (real dunk share of 0-2 ft makes ≈ 27%). */
 const DUNK_ATHLETE_SCORE = 74;
-// KEEP IN SYNC: the engine's lob/leak-out gates mirror this score and the
-// 0.6/0.4 blend (engine/src/sim/params.ts ai.lobAthleteGate/lobBlendVert/
-// lobBlendFin) — the booth's definition of who dunks IS the engine's
-// definition of who gets thrown the lob. The engine cannot import this
+// KEEP IN SYNC: the engine's leak-out designation mirrors this score and
+// the 0.6/0.4 blend (engine/src/sim/params.ts ai.dunkAthleteGate/
+// dunkBlendVert/dunkBlendFin) — the booth's definition of who dunks IS the
+// engine's definition of who leaks out. The engine cannot import this
 // package (it imports nothing); a sync test pins the pair from the outside.
 /** a putback tapped straight back up from point-blank reads as a tip-in */
 const TIP_IN_MAX_FT = 1.6;

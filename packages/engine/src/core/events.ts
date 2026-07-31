@@ -232,7 +232,7 @@ export interface PassEvent extends Base {
   team: TeamSide;
   from: string;
   to: string;
-  kind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' | 'lob';
+  kind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff';
 }
 
 /**

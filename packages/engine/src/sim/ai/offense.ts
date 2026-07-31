@@ -253,7 +253,7 @@ function leakerOf(s: GameState, side: TeamSide, holderId: string): string | null
   let best: Agent | null = null;
   for (const a of liveOnCourt(s, side)) {
     if (a.p.id === holderId) continue;
-    if (A.lobBlendVert * a.p.attr.vertical + A.lobBlendFin * a.p.attr.finishing < A.lobAthleteGate) continue;
+    if (A.dunkBlendVert * a.p.attr.vertical + A.dunkBlendFin * a.p.attr.finishing < A.dunkAthleteGate) continue;
     if (!best || sprintSpeed(a.p.attr) > sprintSpeed(best.p.attr)) best = a;
   }
   return best === null ? null : best.p.id;
@@ -440,9 +440,9 @@ export function offenseOffBallTick(s: GameState): void {
       a.sprinting = true;
       // the same rung-shape as an active cut: target just short of the rim
       a.target = lerp(rim, a.pos, 0.06);
-      if (dist(a.pos, rim) <= s.params.ai.lobCatchMaxFt + 2) {
+      if (dist(a.pos, rim) <= s.params.ai.leakFinishRadiusFt) {
         // inside the finishing radius the leak IS a cut: the stamp arms the
-        // lob tag and the cutter bonus for the catch itself
+        // cutter bonus and the chooser's cut_finish pricing for the catch
         a.cutUntil = s.t + s.params.ai.cutDurationSec;
       }
       continue;

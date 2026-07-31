@@ -16,7 +16,7 @@ import type { TeamSide } from '../core/events.js';
 import { agent, attackedRim, emit, liveOnCourt, other, type Agent, type GameState } from './state.js';
 import { n } from '../model/derived.js';
 import { assignedDefender, onBallDefender } from './ai.js';
-import { contestAt, defendersBack, passRisk } from './resolve.js';
+import { defendersBack, passRisk } from './resolve.js';
 import {
   deadBall, endPeriod, endPossession, giveBall, jumpGainer, jumpWinnerOf,
   retentionFoulShotClock, startPossession
@@ -37,12 +37,10 @@ export function startPass(
   s: GameState,
   from: Agent,
   toId: string,
-  passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' | 'lob'
+  passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff'
 ): void {
   const to = agent(s, toId);
-  // the lob flag rides the CHOICE payload from decide.ts — pricing and
-  // outcome share one passRisk belief (the session-8 self-consistency rule)
-  const risk = passRisk(s, from, to, passKind === 'lob');
+  const risk = passRisk(s, from, to);
   const fails = s.rng.chance(risk.turnoverP);
   // lead the receiver by pass.leadSec of his current velocity — a pass
   // thrown to where a moving teammate WILL be, not where he currently stands
@@ -197,29 +195,6 @@ export function resolvePassArrival(s: GameState): void {
   // a catch after the buzzer is a dead play — the ball must be shot before 0.0
   // (passes in flight while the clock expires were scoring post-buzzer baskets)
   if (s.clock < 1e-6) { endPeriod(s); return; }
-  // THE LOB FUSION (W64 channel 2, session-8 arc): a clean lob catch rises
-  // immediately — the catch IS the gather. pendingRelease replaces the
-  // decision window (never a decideBall re-entry: the W64(2) graveyard),
-  // exactly the machinery executeAction's 'shoot' uses, so stage 5 owns the
-  // windup, the stage-4 violation check still precedes the release (no
-  // buzzer-proof lobs — verifier F8), and giveBall above has already
-  // stamped the assist chain (every made alley-oop is assisted — F1).
-  // contest0 is the at-catch contest discounted for the vertical advantage;
-  // it enters startShot as the BLEND INPUT (contestReleaseBlend mixes the
-  // at-release contest back in — the effective relief is measured, not
-  // assumed; F1b). The receiver's cut target stays live: unlike a decided
-  // shot (which plants the shooter), momentum carries the rise to the rim —
-  // that coast is what puts the release inside the booth's 2.25 ft dunk
-  // band (F2).
-  if (f.passKind === 'lob' && s.params.ai.lobScale > 0) {
-    s.pendingRelease = {
-      shooterId: to.p.id,
-      moveType: 'cut_finish',
-      releaseAt: s.t + s.params.shot.windupCutFinish,
-      contest0: contestAt(s, to, to.pos).level * s.params.ai.lobContestDiscount
-    };
-    return;
-  }
   // 0.12s: deliberately much faster than the ~0.25-0.35s decision delays used
   // elsewhere (new possession, post-rebound) — this is the catch-and-shoot
   // trigger window, modeling a shooter who catches and fires almost
