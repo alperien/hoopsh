@@ -16,7 +16,9 @@ import {
 
 describe('booth', () => {
   const { home, away } = sampleMatchup();
-  const result = simulateGame({ seed: 'booth-1', home, away, collectFrames: false });
+  // booth-21 (re-scouted on the frozen landing tree): carries the full flow
+  // vocabulary — 2 technicals, 2 jump balls, 1 violation
+  const result = simulateGame({ seed: 'booth-21', home, away, collectFrames: false });
   const cues = buildBoothScript(result.events, [home, away], { seed: 'booth-1' });
 
   it('is deterministic for a fixed seed and booth', () => {
@@ -146,6 +148,15 @@ describe('booth flow vocabulary (officiating + timeout economy)', () => {
     const techs = result.events.filter((e) => e.type === 'foul' && e.kind === 'technical');
     expect(techs.length).toBeGreaterThan(0);
     for (const e of techs) {
+      // a tech legally RIDES any whistle, including a charge (the fouler
+      // argues the offensive-foul call he just got) — a real offensive foul
+      // at the same wt then correctly renders "Offensive foul" beside the
+      // tech call. The fall-through this test guards is an "Offensive foul"
+      // cue with NO offensive-foul event at that instant.
+      const coincidentCharge = result.events.some(
+        (x) => x.type === 'foul' && x.kind === 'offensive' && x.wt === e.wt
+      );
+      if (coincidentCharge) continue;
       for (const c of at(e.wt)) expect(c.text).not.toContain('Offensive foul');
     }
     // and the technical pool actually fired somewhere

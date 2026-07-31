@@ -86,6 +86,7 @@ function mkAgent(o: AgentSpec): Agent {
  */
 function mkState(o?: {
   teamFouls?: [number, number];
+  teamFoulsLate?: [number, number];
   benchIds?: string[];
   params?: SimParams;
   seed?: string;
@@ -109,6 +110,7 @@ function mkState(o?: {
     rules: NBA, court,
     period: 1, clock: 480, t: 100, wallT: 140, score: [10, 12],
     teamFoulsPeriod: o?.teamFouls ?? [0, 0],
+    teamFoulsLate: o?.teamFoulsLate ?? [0, 0],
     conceded: [false, false],
     teams: [
       { id: 'h', starters: [...homeIds], players: roster(homeIds, o?.benchIds ?? []) },

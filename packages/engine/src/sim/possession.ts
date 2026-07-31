@@ -764,6 +764,9 @@ export function endPeriod(s: GameState): void {
   // FIBA/EuroLeague treat extra periods as an extension of the 4th. The NBA
   // resets here like any other period (rules/rulepack.ts field doc).
   if (!(isOT && s.rules.teamFoulsCarryToOT)) s.teamFoulsPeriod = [0, 0];
+  // the late-window count is per-period by rule even where period counts
+  // carry into OT (the window belongs to the period, not the count)
+  s.teamFoulsLate = [0, 0];
   // Timeout bookkeeping resets every period, unlike the OT foul carry above
   // (state.ts doc): the per-period count drives the mandatory-stoppage
   // owed/charging arithmetic, the final-period counters back the Q4 caps.

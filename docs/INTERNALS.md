@@ -212,7 +212,10 @@ implemented and DEFAULT-ON since the calib/integration landing
 economy (mandatory/TV anchors, the coach voluntary hazard, the live-ball
 site) is live since the FLOW flip, corpus-fitted and gated by flowboard G1 —
 ATO play-calls remain unmodeled · no backcourt/
-8-second/travel violations · NBA last-2-minutes bonus rule not yet implemented ·
+8-second violations (travels exist as officiating-vocabulary hazards) · the NBA
+last-2:00 team-foul penalty, the OT bonus threshold drop, and the per-period
+made-basket clock stops ARE modeled since the rules landing (rulepack.ts
+`lateWindow*`, `teamFoulBonusAtOT`, `makeStopClock*`; REGISTER W63) ·
 team-foul counting hardcodes the NBA rule under every pack (offensive fouls
 are personal-only, sim/fouls.ts `countsTeam`): under NCAA men's rules a
 player-control foul DOES count toward the team-foul/bonus total (while never

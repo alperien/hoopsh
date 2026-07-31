@@ -29,7 +29,7 @@ This is the hub. If you don't know which document you need, start here.
 | [`docs/CALIBRATION.md`](./CALIBRATION.md) | Calibration workflow, noise-floor doctrine, what "locked" claims, the CURRENT measured state | Before touching `params.ts` values or `bands.ts`; when tuning realism |
 | [`docs/EMBEDDING.md`](./EMBEDDING.md) | **The downstream-builder guide** — consuming the packages from your own project; what works, what's broken, honest caveats | When building ON the engine rather than IN the repo |
 | [`docs/GLOSSARY.md`](./GLOSSARY.md) | Every terse name and process term, decoded once, with where it lives | Whenever jargon blocks you |
-| [`docs/REGISTER.md`](./REGISTER.md) | **The live debt register** — D1–D9, W1–W58, realism-gate tiers | Checking what's open, deferred, or already measured |
+| [`docs/REGISTER.md`](./REGISTER.md) | **The live debt register** — D1–D9, W1–W61, realism-gate tiers | Checking what's open, deferred, or already measured |
 | [`docs/PLAYBOOK.md`](./PLAYBOOK.md) | **The build procedure** — 8 steps, recipes A–G, STOP rules, report format | Every time you write new code |
 | [`docs/ONBOARDING.md`](./ONBOARDING.md) | Two-evening guided path with checkpoints | Your first two evenings |
 | [`docs/ROSTERS.md`](./ROSTERS.md) | **The roster-authoring guide** — the 38 dials in basketball language, archetypes, scaffold → validate → sim loop | When writing a team pack |

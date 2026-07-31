@@ -153,6 +153,9 @@ export interface SeasonLine {
   ftPct: number;
   orb?: number;
   pf?: number;
+  /** made dunks per game (bbref shooting table fg_dunk / games) — drives the
+   *  vertical floor so real dunkers clear the dunk-call athlete gate */
+  dunks?: number;
   shotZones?: ShotZoneSplits;
   /** optional id of a fidelity.ts benchmark fixture to diff against */
   fixtureId?: string;
@@ -220,7 +223,7 @@ export function validateSeasonLines(raw: unknown): { file: SeasonLinesFile | nul
     // and crashed mid-fit deep in the rate math, and a negative orb silently
     // skewed the rebounding profile — the exact silent-default class this
     // validator exists to reject.
-    for (const k of ['wingspanIn', 'orb', 'pf'] as const) {
+    for (const k of ['wingspanIn', 'orb', 'pf', 'dunks'] as const) {
       const v = pl[k];
       if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v) || v < 0)) {
         issues.push({ path: `${at}.${k}`, message: 'optional, but when present must be a finite number >= 0' });
@@ -714,8 +717,41 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
   F('speed', a.speed, 'template', 'athleticism not in a box line (gap list)');
   F('accel', a.accel, 'template', 'athleticism not in a box line (gap list)');
   F('lateral', a.lateral, 'template', 'athleticism not in a box line (gap list)');
-  a.vertical = F('vertical', a.vertical + (line.blk - P.blkAvg) * 6, 'template',
-    'template + small BLK nudge (blocks need hops); otherwise not box-visible');
+  {
+    // Dunk volume is the one direct hops signal a season line can carry
+    // (bbref shooting table, made dunks per game). The narration dunk call
+    // gates on athlete = 0.6·vertical + 0.4·finishing >= 74 (shotcall.ts
+    // DUNK_ATHLETE_SCORE) — a HARD gate, so a real dunker whose blend lands
+    // 73.9 never dunks in-sim (measured: Wembanyama fit to 73.0 while
+    // leading the fit pool in real dunks). When the line carries dunks,
+    // invert that gate: >= 0.3 dunks/g clears it with margin, heavier dunk
+    // diets push the floor further (+4 per dunk/g, capped +6). finishing is
+    // already fitted (rim% inversion) by this point, so the inversion is
+    // exact. Without the field, the old template+BLK nudge stands unchanged.
+    const blkNudge = a.vertical + (line.blk - P.blkAvg) * 6;
+    if (line.dunks !== undefined && line.dunks >= 0.3) {
+      // real dunker: must CLEAR the gate, with margin scaling on volume
+      const floor = (74 + 2 + Math.min(6, line.dunks * 4) - 0.4 * a.finishing) / 0.6;
+      a.vertical = F('vertical', Math.max(blkNudge, Math.min(97, floor)), 'formula',
+        `max(template+BLK nudge, dunk-gate inversion): ${line.dunks}/g made dunks must clear ` +
+        `the dunk-call athlete gate (0.6·vert + 0.4·finishing >= 74, narration shotcall) — ` +
+        `floor = (76 + min(6, dunks·4) − 0.4·finishing)/0.6 with finishing=${Math.round(a.finishing)}`);
+    } else if (line.dunks !== undefined && line.dunks < 0.15) {
+      // real NON-dunker: must NOT clear the gate. A high-finishing guard
+      // (layup-package 90s) otherwise lands a blend over 74 and the booth
+      // calls dunks the real player almost never throws — the inverse
+      // failure of the floor above. Same inversion, other side.
+      const ceil = Math.max(25, (73 - 0.4 * a.finishing) / 0.6);
+      a.vertical = F('vertical', Math.min(blkNudge, ceil), 'formula',
+        `min(template+BLK nudge, dunk-gate ceiling): ${line.dunks}/g made dunks — a real ` +
+        `non-dunker stays under the dunk-call athlete gate (blend < 74) — ` +
+        `ceiling = (73 − 0.4·finishing)/0.6 with finishing=${Math.round(a.finishing)}`);
+    } else {
+      a.vertical = F('vertical', blkNudge, 'template',
+        'template + small BLK nudge (blocks need hops); otherwise not box-visible' +
+        (line.dunks !== undefined ? ` (dunks=${line.dunks}/g in the 0.15-0.3 boundary zone)` : ''));
+    }
+  }
 
   // ---- mental ----
   a.decisions = F('decisions', 42 + rates.astToTov * 9 + (usg - 20) * 0.5, 'formula',

@@ -232,16 +232,24 @@ export function resolveShotOutcome(s: GameState, shot: PendingShot, blockedBy?: 
     }
     endPossession(s, 'made_fg');
     if (periodOver) { endPeriod(s); return; }
-    const lastTwoMin = s.period >= s.rules.periods && s.clock <= 120;
-    // a final-period last-2:00 make is the reviewable 2-vs-3/release check
-    // (officiating wave; the flag costs nothing while the review rates are
-    // staged at 0; the clock is already frozen there by the lastTwoMin rule)
+    // made-basket clock stop, per pack (rulepack.ts makeStopClock*): the
+    // final period/OT window (NBA/FIBA 2:00, NCAA 1:00) and the NBA's
+    // last-minute window in EARLIER periods (Rule 5 V) — the frozen clock
+    // also opens the ordinary substitution pass at this dead ball
+    // (possession.ts liveInbound), which is where real Q1-Q3 last-minute
+    // post-make subs live (flowboard G8c)
+    const finalClass = s.period >= s.rules.periods;
+    const stopSec = finalClass ? s.rules.makeStopClockFinalSec : s.rules.makeStopClockEarlySec;
+    const clockStops = s.clock <= stopSec;
+    // the replay-review check stays a FINAL-period last-2:00 fact (its own
+    // rule, coincident with the NBA stop window but not the same thing)
+    const reviewLate = finalClass && s.clock <= 120;
     deadBall(s, other(shot.side), {
-      clockRuns: !lastTwoMin,
+      clockRuns: !clockStops,
       // made-basket inbound time (move.madeBasketResumeSec) — the clock
-      // runs through it outside the final two minutes
+      // runs through it outside the stop windows
       resumeIn: s.params.move.madeBasketResumeSec,
-      ...(lastTwoMin ? { reviewable: 'late_make' as const } : {})
+      ...(reviewLate ? { reviewable: 'late_make' as const } : {})
     });
     return;
   }

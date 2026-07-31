@@ -30,7 +30,7 @@
 import { clamp } from '@hoopsh/engine';
 import type {
   Coach, DayDigest, GameRecord, InboxItem, League, PlayerId,
-  ScheduledGame, ScoutRange, SimulateJobs, TeamId, UserAction,
+  ScheduledGame, ScoutRange, Season, SimulateJobs, TeamId, UserAction,
 } from './types.js';
 import { buildSeasonCalendar, currentDate, phaseOn } from './calendar.js';
 import { abilityScore, applyGameResults, planDayJobs } from './gameday.js';

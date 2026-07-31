@@ -163,6 +163,7 @@ describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
       wallT: period * 720,
       score,
       teamFoulsPeriod: [2, 3],
+      teamFoulsLate: [0, 0],
       tipWinner: 0,
       endgame: true,
       timeoutsLeft: [4, 4],

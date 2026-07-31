@@ -215,6 +215,9 @@ validation, and the 38 dials: [ROSTERS.md](./ROSTERS.md).
 | `foulOutAt` | personals that disqualify |
 | `timeoutsPerGame` | flat per-game budget (endgame layer only) |
 | `advanceAfterTimeout` | whether a late-game timeout advances the inbound to the frontcourt (NBA/FIBA yes, NCAA no) |
+| `teamFoulBonusAtOT` | bonus threshold in overtime (NBA drops to 4; carry-over leagues keep regulation) |
+| `lateWindowSec`, `lateWindowFoulBonusAt` | the NBA last-2:00 team-foul penalty window (0 disables — NCAA, FIBA) |
+| `makeStopClockFinalSec`, `makeStopClockEarlySec` | made-basket clock stops: final period/OT window and the NBA's last-minute window in earlier periods |
 
 Three honest caveats, all measured:
 

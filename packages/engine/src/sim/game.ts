@@ -203,6 +203,7 @@ function initState(cfg: GameConfig): GameState {
     wallT: 0,
     score: [0, 0],
     teamFoulsPeriod: [0, 0],
+    teamFoulsLate: [0, 0],
     tipWinner: 0,
     // default ON per the n=1260/arm flag-on survey — see GameConfig.endgame
     endgame: cfg.endgame ?? true,

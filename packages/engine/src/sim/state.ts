@@ -316,6 +316,11 @@ export interface GameState {
   wallT: number;   // wall-clock timeline: advances every tick, stoppages included
   score: [number, number];
   teamFoulsPeriod: [number, number];
+  /** team fouls committed INSIDE the current period's late window
+   *  (rules.lateWindowSec) — drives the NBA last-2:00 penalty
+   *  (rulepack.ts bonusFreeThrowAward). Resets every period
+   *  UNCONDITIONALLY, even where teamFoulsPeriod carries into OT. */
+  teamFoulsLate: [number, number];
   tipWinner: TeamSide;
 
   /**

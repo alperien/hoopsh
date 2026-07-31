@@ -23,16 +23,17 @@
  * evstream-19 dropped from OT back to regulation — exactly the failure mode
  * the previous header predicted — and slot 1 moved off evstream-1 (still
  * regulation, but zero violations on the new streams) so the pool keeps
- * every flow-vocabulary event type live. Scanned evstream-1..110:
- *   evstream-5  — regulation; 1247 events, 3 violations (2 kicked_ball,
- *                 1 def_goaltend), 1 technical, 1 DEFENSE-won mid-game jump
- *                 ball (a 'tip' possession start with no tip_off), 2
- *                 charges, 13 blocks, 8 and-ones, 27 multi-FT trips.
- *   evstream-48 — reaches OVERTIME (period 5): 2 tip_offs, 2 'tip'
- *                 possession starts, a tied Q4 period_end; 2 technicals, 6
- *                 takes, 1 travel, 1 OFFENSE-won jump ball, 5 replay
- *                 reviews, 11 and-ones, and one shooting-foul whistle with
- *                 a technical rider (the tech FT precedes the trip).
+ * every flow-vocabulary event type live. Re-scouted at the rules landing
+ * (OT bonus threshold + last-2:00 window penalty + made-basket clock stops
+ * reshuffled every stream; same re-anchor doctrine as the prior two
+ * re-scouts). Scanned evstream-1..240 on the frozen landing tree (rules +
+ * fitted when-dials):
+ *   evstream-10  — regulation; 1 DEFENSE-won and 1 OFFENSE-won mid-game
+ *                  jump ball, 7 offensive fouls, 1 technical, 1 violation,
+ *                  5 replay reviews.
+ *   evstream-167 — reaches OVERTIME (period 5) with a tied Q4 period_end;
+ *                  2 DEFENSE-won and 1 OFFENSE-won jump balls, 6 offensive
+ *                  fouls, 1 technical, 2 replay reviews.
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
@@ -50,7 +51,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-5', 'evstream-48'].map((seed) => {
+const pool: GameResult[] = ['evstream-10', 'evstream-167'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -271,8 +272,8 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
     // pairing across the pool — a 'tip' start exists only off a jump:
     // period openers 1:1, plus one per defense-won mid-game jump ball.
     expect(tipStarts).toBe(tipOffs + defWon);
-    // both mid-game branches live: evstream-5's scramble tie-up goes to the
-    // defense, evstream-48's to the offense (scouted, see header).
+    // both mid-game branches live: both pool games host a DEFENSE-won jump
+    // and each hosts an OFFENSE-won one (scouted, see header).
     expect(defWon).toBeGreaterThanOrEqual(1);
     expect(offWon).toBeGreaterThanOrEqual(1);
   });
@@ -856,13 +857,30 @@ describe('turnover and foul bookkeeping', () => {
   // with fouledOut still false — the naive formula is wrong for techs.
   // Thresholds read from result.rules, not literals.
   it('inBonus and fouledOut follow their documented threshold formulas', () => {
+    // The full penalty-state formula (events.ts FoulEvent doc): regulation
+    // threshold (teamFoulBonusAt; teamFoulBonusAtOT in OT) OR the NBA
+    // last-2:00 window rule (lateWindowSec/lateWindowFoulBonusAt) — the
+    // window count is reconstructed from the stream itself, which is the
+    // point: a consumer can re-derive inBonus from prior foul events alone.
     let fouls = 0;
     let bad = 0;
     for (const g of pool) {
+      // per-period, per-team window counts, rebuilt in stream order
+      let period = 0;
+      const lateCounts: [number, number] = [0, 0];
       for (const e of g.events) {
+        if (e.period !== period) { period = e.period; lateCounts[0] = 0; lateCounts[1] = 0; }
         if (e.type !== 'foul') continue;
+        const counting = e.kind !== 'offensive' && e.kind !== 'technical';
+        if (counting && rules.lateWindowSec > 0 && e.clock <= rules.lateWindowSec) {
+          lateCounts[e.team] += 1;
+        }
         fouls++;
-        if (e.inBonus !== (e.teamCountInPeriod >= rules.teamFoulBonusAt)) bad++;
+        const threshold = e.period > rules.periods ? rules.teamFoulBonusAtOT : rules.teamFoulBonusAt;
+        const lateBonus =
+          rules.lateWindowSec > 0 && e.clock <= rules.lateWindowSec &&
+          lateCounts[e.team] >= rules.lateWindowFoulBonusAt;
+        if (e.inBonus !== (e.teamCountInPeriod >= threshold || lateBonus)) bad++;
         if (e.kind === 'technical') {
           if (e.fouledOut !== false) bad++;
         } else if (e.fouledOut !== (e.personalCount >= rules.foulOutAt)) bad++;
@@ -894,8 +912,8 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 8
-    expect(techs).toBeGreaterThanOrEqual(1); // re-scouted 3
+    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 13 at the rules landing
+    expect(techs).toBeGreaterThanOrEqual(1); // re-scouted 2 at the rules landing
   });
 
   // events.ts:293-296 — oneAndOne "is stamped on every attempt of such a

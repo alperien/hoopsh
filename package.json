@@ -1,8 +1,8 @@
 {
   "name": "hoopsh",
   "private": true,
-  "version": "0.1.0",
-  "description": "hoopsh — a modular, deterministic 2D spatial basketball simulation core",
+  "version": "0.2.0",
+  "description": "hoopsh \u2014 a modular, deterministic 2D spatial basketball simulation core",
   "license": "MIT",
   "author": "alperien <emailadrss@proton.me>",
   "repository": {
@@ -51,6 +51,8 @@
     "rosters:export": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/export-rosters.ts",
     "nba:fetch": "node tools/fetch-nba.mjs",
     "nba:parse": "node tools/parse-nba.mjs",
+    "nba:fetch-team": "node tools/fetch-nba-team.mjs",
+    "nba:parse-team": "node tools/parse-nba-team.mjs",
     "rosters:fit": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/harness/src/fit-roster.ts",
     "schema:gen": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/gen-schema.mjs",
     "roster:new": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs tools/roster-new.mjs",
