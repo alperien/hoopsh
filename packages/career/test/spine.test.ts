@@ -5,8 +5,9 @@
  * empty or archived so the spine shows through.
  */
 import { describe, expect, it } from 'vitest';
+import { simulateJobsInline } from '@hoopsh/franchise';
 import { advanceCareerWeek, applyChoice } from '../src/tick.js';
-import { resolveAllocation } from '../src/week.js';
+import { resolveAllocation, resolveWeek } from '../src/week.js';
 import { fastSim } from '../src/fastsim.js';
 import { fixtureCareer } from '../test/fixture.js';
 
@@ -90,6 +91,81 @@ describe('the week allocation economy', () => {
     career.weekPlan = { slots: ['body', 'body', 'rest'], focus: 'phys' };
     resolveAllocation(career);
     expect(me.health.wear).toBeLessThan(3);
+  });
+});
+
+describe('the training pity timer', () => {
+  it('banks fractional progress and lands +1 deterministically at least every ceil(1/rate) weeks', () => {
+    const career = fixtureCareer();
+    expect(career.trainingBank).toBe(undefined); // old saves carry no bank; the week creates it
+    career.weekPlan = { slots: ['extraWork', 'rest', 'rest'], focus: 'scoring' };
+    // HS staff 42: rate = 0.16 * (1 - 8/50*0.35) ~ 0.151/week -> a tick at least every 7 weeks
+    const cap = Math.ceil(1 / (career.params.week.trainingGainBase * (1 + ((42 - 50) / 50) * 0.35)));
+    expect(cap).toBe(7);
+    const landings: number[] = [];
+    for (let w = 0; w < 16; w++) {
+      const before = career.events.length;
+      resolveAllocation(career);
+      career.clock.week += 1;
+      if (career.events.slice(before).some(e => e.kind === 'dev' && e.reason.includes('extra work paid'))) {
+        landings.push(w);
+      }
+    }
+    expect(landings.length).toBeGreaterThanOrEqual(2); // 16 weeks at ~0.151/week
+    let last = -1;
+    for (const w of landings) {
+      expect(w - last).toBeLessThanOrEqual(cap); // the drought cap, deterministic
+      last = w;
+    }
+    expect((career.trainingBank?.scoring ?? 0)).toBeLessThan(1); // a landing spends the bank
+    expect((career.trainingBank?.scoring ?? 0)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('a finished group banks nothing (the ceiling is honest)', () => {
+    const career = fixtureCareer();
+    const me = career.players[career.me]!;
+    me.potential.scoring = 1; // group mean is already past this
+    career.weekPlan = { slots: ['extraWork', 'rest', 'rest'], focus: 'scoring' };
+    for (let w = 0; w < 10; w++) resolveAllocation(career);
+    expect(career.trainingBank?.scoring ?? 0).toBe(0);
+    expect(career.events.some(e => e.kind === 'dev')).toBe(false);
+  });
+});
+
+describe('the sticky card and honest weekly grading (resolveWeek)', () => {
+  const offPlan = { assertiveness: 95, range: 95, motor: 50, defense: 30, playmaking: 40 };
+
+  it('folds a dialed card into the standing approach at week end, even without games', async () => {
+    const career = offseason(fixtureCareer());
+    applyChoice(career, { kind: 'setApproach', card: { ...offPlan } });
+    expect(career.nextApproach?.assertiveness).toBe(95);
+    await resolveWeek(career, fastSim);
+    expect(career.approach).toEqual(offPlan);   // the card persists until changed
+    expect(career.nextApproach).toBe(null);     // and the one-shot slot is clear
+  });
+
+  it('playingHurt never persists into the standing card', async () => {
+    const career = offseason(fixtureCareer());
+    career.nextApproach = { ...offPlan, playingHurt: true };
+    await resolveWeek(career, fastSim);
+    expect(career.approach).toEqual(offPlan);
+    expect((career.approach as { playingHurt?: boolean }).playingHurt).toBe(undefined);
+  });
+
+  it('grades BOTH games of a doubleheader week against the one card the engine saw', async () => {
+    const career = fixtureCareer();
+    career.clock.week = 0; // the fixture schedule packs my team a two-game week at week 0
+    career.nextApproach = { ...offPlan };
+    const digest = await resolveWeek(career, simulateJobsInline);
+    const myGames = career.coach.grades.filter(g => g.gameId.startsWith('c2026-w0'));
+    expect(myGames.length).toBe(2);
+    expect(digest.gamesPlayed.length).toBeGreaterThanOrEqual(2);
+    // the measured dishonesty was adherence alternating 0/100 with an
+    // off-plan card; both nights now judge the card that simulated
+    expect(myGames[0]!.adherence).toBe(myGames[1]!.adherence);
+    expect(myGames[0]!.adherence).toBeLessThan(70);
+    expect(career.approach).toEqual(offPlan); // and the card stuck at week end
+    expect(career.nextApproach).toBe(null);
   });
 });
 

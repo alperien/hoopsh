@@ -17,10 +17,12 @@
  * Score-band provenance: the brief estimated a 35-110 prep band; the
  * measured deterministic sample (seed 'career-fixture') spans 17-48 per
  * side, because quality-30 teenagers under the UNCALIBRATED prep pack
- * (docs/CAREER.md register C9; packs.ts header) shoot like teenagers. The
- * asserted 15-110 band brackets both today's reality and the C9
- * calibration arc's headroom; the floor still proves a real basketball
- * game broke out.
+ * (docs/CAREER.md register C9; packs.ts header) shoot like teenagers.
+ * The felt-loop fix's rotation sheet (minutes follow the role) shifted
+ * my team's game trajectories and the same seed now bottoms at 14 (one
+ * quality-24 side's cold night). The asserted 12-110 band brackets
+ * today's reality and the C9 calibration arc's headroom; the floor still
+ * proves a real basketball game broke out.
  */
 import { describe, expect, it } from 'vitest';
 import { simulateJobsInline, streamRng } from '@hoopsh/franchise';
@@ -233,6 +235,89 @@ describe('circuitWeekJobs', () => {
   });
 });
 
+describe('minutes follow the role (the felt-loop projection)', () => {
+  /** My team's projected job side for the first schedule week of a fresh world. */
+  function myJobSide(career: ReturnType<typeof fixtureCareer>) {
+    const circuit = career.circuit!;
+    const myTeamId = circuit.teams[circuit.myTeamIdx]!.id;
+    const week = Math.min(...circuit.schedule.map((g) => g.week));
+    const jobs = circuitWeekJobs(career, week);
+    const job = jobs.find((j) => j.home.id === myTeamId || j.away.id === myTeamId)!;
+    return { mine: job.home.id === myTeamId ? job.home : job.away, other: job.home.id === myTeamId ? job.away : job.home };
+  }
+
+  function freshWorld(role: 'garbage' | 'bench' | 'rotation' | 'sixthMan' | 'starter' | 'featured' | 'franchise') {
+    const career = fixtureCareer();
+    career.circuit = buildCircuit(career, 'hs', streamRng(career.seed, 'career-circuit', career.clock.year, 'hs'));
+    career.coach.role = role;
+    return career;
+  }
+
+  it('a bench role watches the tip and carries a mop-up minutes line', () => {
+    const career = freshWorld('garbage');
+    const { mine } = myJobSide(career);
+    expect(mine.starters).not.toContain(career.me);
+    expect(mine.starters.length).toBe(5);
+    // prep is a 32-minute game: the NBA-shaped table scales by 32/48,
+    // written to the sheet at 0.1-minute precision
+    const target = Math.round(Math.max(1, career.params.trust.minutesByRole.garbage * (32 / 48)) * 10) / 10;
+    expect(mine.rotationMinutes?.[career.me]).toBe(target);
+  });
+
+  it('a starter role owns the tip; featured/franchise tilt the sheet further', () => {
+    const starter = freshWorld('starter');
+    const { mine: s } = myJobSide(starter);
+    expect(s.starters).toContain(starter.me);
+    const franchise = freshWorld('franchise');
+    const { mine: f } = myJobSide(franchise);
+    expect(f.starters).toContain(franchise.me);
+    expect(f.rotationMinutes![franchise.me]!).toBeGreaterThan(s.rotationMinutes![starter.me]!);
+    // the promotion ladder is monotone in the sheet
+    const rotation = freshWorld('rotation');
+    const { mine: r } = myJobSide(rotation);
+    expect(r.starters).not.toContain(rotation.me);
+    expect(s.rotationMinutes![starter.me]!).toBeGreaterThan(r.rotationMinutes![rotation.me]!);
+  });
+
+  it('the whole sheet is the coach s minutes budget: every dressed teammate has a line, five slots split', () => {
+    const career = freshWorld('starter');
+    const { mine, other } = myJobSide(career);
+    const sheet = mine.rotationMinutes!;
+    for (const p of mine.players) {
+      expect(sheet[p.id]).toBeGreaterThan(0); // never a DNP-scratch 0 (engine semantics)
+      expect(sheet[p.id]).toBeLessThanOrEqual(32);
+    }
+    const total = Object.values(sheet).reduce((s, m) => s + m, 0);
+    expect(Math.abs(total - 32 * 5)).toBeLessThan(3); // gameMinutes x 5 slots, rounding tolerance
+    expect(other.rotationMinutes).toBe(undefined); // opponents run the engine default
+  });
+});
+
+describe('tired legs in the projection (energy on the floor)', () => {
+  it('a 0-energy week dulls my projected attributes by the full debuff; a rested week is untouched', () => {
+    const career = fixtureCareer();
+    career.circuit = buildCircuit(career, 'hs', streamRng(career.seed, 'career-circuit', career.clock.year, 'hs'));
+    const circuit = career.circuit;
+    const myTeamId = circuit.teams[circuit.myTeamIdx]!.id;
+    const week = Math.min(...circuit.schedule.map((g) => g.week));
+    const meAt = (energy: number) => {
+      career.energy = energy;
+      const job = circuitWeekJobs(career, week).find((j) => j.home.id === myTeamId || j.away.id === myTeamId)!;
+      const side = job.home.id === myTeamId ? job.home : job.away;
+      return side.players.find((p) => p.id === career.me)!;
+    };
+    const rested = meAt(80);
+    const empty = meAt(0);
+    const base = career.players[career.me]!;
+    const d = career.params.week.energyLegsDebuff;
+    expect(rested.attr).toEqual(base.attr);
+    expect(empty.attr.three).toBe(Math.max(0, base.attr.three - d));
+    expect(empty.attr.speed).toBe(Math.max(0, base.attr.speed - d));
+    expect(empty.tend).toEqual(rested.tend); // tired legs never change what I want
+    career.energy = 80;
+  });
+});
+
 describe('a full engine-real HS season', () => {
   it('plays the regular slate week by week through the job/fold seam', () => {
     const weeks = [...new Set(HS.schedule.map((g) => g.week))].sort((a, b) => a - b);
@@ -249,7 +334,7 @@ describe('a full engine-real HS season', () => {
     let violations = 0;
     for (const rec of Object.values(HS.results)) {
       for (const side of rec.final) {
-        if (side < 15 || side > 110) violations += 1;
+        if (side < 12 || side > 110) violations += 1;
       }
       if (rec.final[0] === rec.final[1]) violations += 1; // the engine never ties
       if (rec.ot < 0) violations += 1;
