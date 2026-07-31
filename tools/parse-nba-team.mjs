@@ -102,6 +102,18 @@ function parseTeam(abbr) {
   const title = /<title>(.*?)<\/title>/.exec(html)?.[1] ?? '';
   const teamName = title.replace(/ Roster and Stats.*$/, '').replace(/^\d{4}-\d{2} /, '').trim();
 
+  // team_misc: the season's team-level ratings + record. These carry the
+  // team-strength signal a box line cannot (defensive craft is
+  // box-invisible), consumed by the fitter's team-context anchors.
+  const misc = (() => {
+    const rows = tableRows(html, 'team_misc') ?? [];
+    const teamRow = rows.find((r) => r.includes('>Team<'));
+    if (!teamRow) return null;
+    const c = cells(teamRow);
+    const v = (k) => num(c[k]);
+    return { ortg: v('off_rtg'), drtg: v('def_rtg'), pace: v('pace'), wins: v('wins'), losses: v('losses') };
+  })();
+
   // roster: name -> physicals
   const phys = new Map();
   for (const row of tableRows(html, 'roster') ?? []) {
@@ -203,6 +215,7 @@ function parseTeam(abbr) {
   const accessed = new Date().toISOString().slice(0, 10);
   const out = {
     kind: 'season-lines',
+    ...(misc && misc.ortg !== null ? { teamRatings: misc } : {}),
     provenance:
       `basketball-reference.com /teams/${abbr}/${endYear}.html (${season} regular season: roster, per-game, and shooting tables), ` +
       `fetched ${accessed} by tools/fetch-nba-team.mjs, parsed by tools/parse-nba-team.mjs. ` +
