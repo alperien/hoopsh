@@ -47,11 +47,22 @@ registerScreen('career-journey', {
   nav: true,
   mode: 'career',
   async render(root) {
-    const [firstPage, circuitData, epilogue] = await Promise.all([
+    const [firstPage, circuitData, epilogue, draftnight] = await Promise.all([
       api.careerEvents(0),
       api.careerCircuit(),
       api.careerEpilogue().catch(() => null), // 404 while the story is still going
+      api.careerDraftnight().catch(() => null), // 404 before any draft exists
     ]);
+
+    // the green room replays only once the night was MINE: my name was
+    // called, or my draft came and went (post-entry phases; a draftPrep
+    // career past the beat). Pre-draft the endpoint serves scenery drafts.
+    const phase = store.career?.clock?.phase;
+    const myNight = draftnight && (
+      draftnight.myPick !== null
+      || phase === 'nba' || phase === 'china' || phase === 'retired'
+      || (phase === 'draftPrep' && !store.career?.nextBeat)
+    );
 
     let page = 0;
     const feed = el('div', {}, firstPage.items.map(eventRow));
@@ -73,7 +84,9 @@ registerScreen('career-journey', {
 
     root.replaceChildren(
       el('h1', { class: 'doc' }, 'the journey'),
-      el('div', { class: 'doc-sub' }, 'everything that happened, and why'),
+      el('div', { class: 'doc-sub' },
+        'everything that happened, and why',
+        myNight ? el('span', {}, ' · ', el('a', { href: '#/career-draftnight' }, 'relive draft night')) : null),
       epilogue ? el('div', { style: 'margin-bottom:18px' }, epilogueCard(epilogue)) : null,
       circuitData.history.length ? el('div', {},
         ledger('the seasons'),

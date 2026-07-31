@@ -26,6 +26,10 @@ function threadLabel(threadId, newest) {
   return THREAD_LABELS[threadId] ?? threadId;
 }
 
+/** The wire reads as newsprint, the mentor as a steadier hand; the rest
+ *  keep the plain bubble. Unknown thread ids fall through unstyled. */
+const THREAD_CLASS = { wire: 'ph-wire', mentor: 'ph-mentor' };
+
 function bubble(m, respond) {
   const open = m.choices && m.choices.length > 0 && !m.chosen;
   const picked = m.chosen && m.choices ? m.choices.find(c => c.id === m.chosen) : null;
@@ -85,7 +89,7 @@ registerScreen('career-phone', {
       messages.length === 0
         ? el('div', { class: 'empty' }, 'nobody texts first. play a game.')
         : el('div', {}, [...sections.entries()].map(([threadId, list]) =>
-            el('div', { class: 'ph-thread' },
+            el('div', { class: `ph-thread${THREAD_CLASS[threadId] ? ` ${THREAD_CLASS[threadId]}` : ''}` },
               el('div', { class: 'ph-thread-head' },
                 el('span', {}, threadLabel(threadId, list[0])),
                 el('span', { class: 'count' }, `${list.length}`)),

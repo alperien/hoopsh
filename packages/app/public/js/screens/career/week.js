@@ -36,6 +36,62 @@ function nextGameCard(s) {
     `around the circuit, week ${g.week}: ${g.away} at ${g.home}`, roundChip);
 }
 
+/** The role clock as filled dots: n of needed, with the next rung named. */
+function clockDots(role) {
+  const dir = role.above > 0 ? 'above' : role.below > 0 ? 'below' : null;
+  const n = dir === 'above' ? role.above : dir === 'below' ? role.below : 0;
+  const dots = el('span', { class: 'clockdots' },
+    Array.from({ length: role.needed }, (_, i) =>
+      el('span', { class: `rung${i < n ? ' on' : ''}${dir === 'below' ? ' bad' : ''}` })));
+  const words = dir === 'above'
+    ? `${n} of ${role.needed} above the band` + (role.next ? `; ${role.next} follows` : '; the top of the ladder')
+    : dir === 'below'
+      ? `${n} of ${role.needed} below the band` + (role.danger ? `; ${role.danger} looms` : '')
+      : 'the role clock is even';
+  return el('div', { class: 'next-line' },
+    el('span', { class: 'nl-word' }, `role: ${role.current}`),
+    el('span', { class: 'nl-body' }, dots, ' ', words),
+  );
+}
+
+/** The windshield: what the week is being played FOR, before the bite. */
+function nextBlock(s) {
+  const g = s.gradient;
+  if (!g) return null;
+  const lines = [clockDots(g.role)];
+  if (g.stockLast) {
+    lines.push(el('div', { class: 'next-line' },
+      el('span', { class: 'nl-word' }, g.stockLast.rank !== null ? `boards: #${g.stockLast.rank}` : 'off the boards'),
+      el('span', { class: 'nl-body' }, `"${g.stockLast.reason}"`),
+    ));
+  }
+  if (g.nearestOffer) {
+    const o = g.nearestOffer;
+    lines.push(el('div', { class: 'next-line' },
+      el('span', { class: 'nl-word' }, 'the window'),
+      el('span', { class: 'nl-body' },
+        `${o.dest} window closes week ${o.expiresWeek}, ${o.weeksLeft} week${o.weeksLeft === 1 ? '' : 's'}`),
+    ));
+  }
+  if (s.nextBeat) {
+    lines.push(el('div', { class: 'next-line' },
+      el('span', { class: 'nl-word' }, 'the date'),
+      el('span', { class: 'nl-body' },
+        `${s.nextBeat.label}, ${s.nextBeat.weeksAway} week${s.nextBeat.weeksAway === 1 ? '' : 's'} away`),
+    ));
+  }
+  const recent = s.recentGames ?? [];
+  if (recent.length) {
+    lines.push(el('div', { class: 'recent-strip' },
+      recent.map(r => el('a', {
+        class: `recent-game ${r.win ? 'up' : 'down'}`,
+        href: `#/career-game/${r.gameId}`,
+        title: `${r.away} at ${r.home}`,
+      }, `${r.win ? 'W' : 'L'} ${Math.max(r.final[0], r.final[1])}-${Math.min(r.final[0], r.final[1])}`))));
+  }
+  return el('div', { class: 'card next-block', style: 'margin-bottom:10px' }, lines);
+}
+
 function coachCard(coach) {
   const lg = coach.lastGrade;
   return el('div', { class: 'card' },
@@ -124,6 +180,7 @@ registerScreen('career-week', {
     // ---- the pulse ----
     const me = s.me;
     const events = s.eventsTail ?? [];
+    const windshield = nextBlock(s);
 
     root.replaceChildren(
       el('h1', { class: 'doc' }, 'this week'),
@@ -151,6 +208,8 @@ registerScreen('career-week', {
         el('div', {},
           ledger('this week'),
           el('div', { class: 'card', style: 'margin-bottom:10px' }, nextGameCard(s)),
+          windshield ? ledger('next', 'the carrot before the bite') : null,
+          windshield,
           coachCard(s.coach),
           ledger('lately', 'every consequence states its reason'),
           events.length
