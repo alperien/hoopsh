@@ -82,7 +82,7 @@ function renderNav(active) {
   const nav = document.getElementById('nav');
   nav.replaceChildren(...navItems().map(item =>
     el('a', { href: `#/${item.name}`, class: active === item.name ? 'active' : undefined },
-      el('span', {}, item.nav),
+      el('span', {}, typeof item.nav === 'string' ? item.nav : item.title),
       item.navKey ? el('span', { class: 'key' }, item.navKey) : null,
     )));
 }
