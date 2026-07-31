@@ -14,7 +14,9 @@ import type { CareerState, CircuitGame } from '../src/types.js';
 import { fixtureCareer } from './fixture.js';
 import { GROUP_ORDER, perceiveProspect } from '../src/perception.js';
 import { groupMean } from '../../franchise/src/people/dev.js';
-import { attendWorkout, enterDraftClass, runCombineWeek, updateStock } from '../src/stock.js';
+import {
+  attendWorkout, enterDraftClass, productionIndex, runCombineWeek, updateStock,
+} from '../src/stock.js';
 
 // ---------------------------------------------------------------------------
 // scenario helpers
@@ -26,12 +28,28 @@ function strongMe(career: CareerState): void {
   for (const g of GROUP_ORDER) me.potential[g] = 90;
 }
 
+/** Flat dials at any level: mid-band prospects sit inside the consensus
+ * band where the mock actually wobbles (a roofed 80s sheet pins pick 1). */
+function setMe(career: CareerState, attr: number, pot: number): void {
+  const me = career.players[career.me]!;
+  for (const k of Object.keys(me.attr) as Array<keyof Attributes>) me.attr[k] = attr;
+  for (const g of GROUP_ORDER) me.potential[g] = pot;
+}
+
 let gameSeq = 0;
+
+/** Optional line/score overrides for perception-economy scenarios: shot
+ * columns feed the efficiency leg of productionIndex, the final feeds
+ * the circuit's scoring environment. */
+interface GameOpts {
+  shot?: Partial<Pick<GameLine, 'fgm' | 'fga' | 'tpm' | 'tpa' | 'ftm' | 'fta'>>;
+  final?: [number, number];
+}
 
 /** Hand-set one played circuit game for me at a given week with a given line. */
 function addMyGame(
   career: CareerState, week: number, pts: number,
-  type: CircuitGame['type'] = 'regular', round?: string,
+  type: CircuitGame['type'] = 'regular', round?: string, opts: GameOpts = {},
 ): void {
   const c = career.circuit!;
   const my = c.teams[c.myTeamIdx]!;
@@ -46,14 +64,17 @@ function addMyGame(
     drb: 24, ast: 17, stl: 6, blk: 3, tov: 11, pf: 16, pace: 70,
     fastbreakPts: 10, biggestLead: 12,
   };
+  const shot = opts.shot ?? {};
   const line: GameLine = {
     playerId: career.me, teamId: my.id, starter: true, min: 30, pts,
-    fgm: Math.floor(pts / 2), fga: 18, tpm: 2, tpa: 6, ftm: pts % 2, fta: 2,
+    fgm: shot.fgm ?? Math.floor(pts / 2), fga: shot.fga ?? 18,
+    tpm: shot.tpm ?? 2, tpa: shot.tpa ?? 6,
+    ftm: shot.ftm ?? pts % 2, fta: shot.fta ?? 2,
     orb: 1, drb: 4, ast: 3, stl: 1, blk: 0, tov: 2, pf: 2, plusMinus: 6,
   };
   c.results[id] = {
     id, date: { season: c.year, day: week }, type: 'regular',
-    home: my.id, away: opp.id, seed: `s-${id}`, final: [86, 74], ot: 0,
+    home: my.id, away: opp.id, seed: `s-${id}`, final: opts.final ?? [86, 74], ot: 0,
     lines: [line], totals: [totals, totals], keyPlays: [],
   };
 }
@@ -230,6 +251,180 @@ describe('attendWorkout', () => {
 
 // ---------------------------------------------------------------------------
 // draft entry (the fog handoff)
+
+// ---------------------------------------------------------------------------
+// the perception economy (fix wave B): production in the read
+
+describe('productionIndex and the production-blended read', () => {
+  it('an inefficient chucker reads below an efficient scorer with the same sheet', () => {
+    const mk = (shot: GameOpts['shot']): CareerState => {
+      const career = fixtureCareer({ seed: 'stock-eff' });
+      strongMe(career);
+      gameSeq = 200; // identical game ids across the pair: identical streams
+      for (let i = 5; i >= 1; i--) {
+        addMyGame(career, career.clock.week - i, 22, 'regular', undefined, { shot, final: [60, 52] });
+      }
+      updateStock(career);
+      return career;
+    };
+    // 22 points each: the chucker needs 26 shots (fg 30.8%), the scorer 16 (fg 56.3%)
+    const chucker = mk({ fgm: 8, fga: 26, ftm: 4, fta: 5, tpm: 2, tpa: 10 });
+    const scorer = mk({ fgm: 9, fga: 16, ftm: 2, fta: 3, tpm: 2, tpa: 5 });
+
+    const prodChucker = productionIndex(chucker)!;
+    const prodScorer = productionIndex(scorer)!;
+    expect(prodChucker.ts!).toBeLessThan(0.45); // the shot diet is the difference...
+    expect(prodScorer.ts!).toBeGreaterThan(0.55);
+    expect(prodChucker.ppg).toBe(prodScorer.ppg); // ...volume is not
+    expect(prodScorer.index - prodChucker.index).toBeGreaterThan(15);
+
+    // and it lands in the perceived value every war room holds
+    const teamIds = Object.keys(chucker.stock!.perTeam).sort();
+    let better = 0;
+    for (const tid of teamIds) {
+      if (scorer.stock!.perTeam[tid]! > chucker.stock!.perTeam[tid]!) better += 1;
+    }
+    expect(better).toBe(teamIds.length); // every single team, same fog, different tape
+    const mean = (c: CareerState): number => {
+      const vs = Object.values(c.stock!.perTeam);
+      return vs.reduce((a, b) => a + b, 0) / vs.length;
+    };
+    expect(mean(scorer) - mean(chucker)).toBeGreaterThan(2); // visibly worse, not a rounding hair
+  });
+
+  it('same seed: a hot 3-game stretch moves the rank up, a cold one down, reasons quoting form', () => {
+    const base = fixtureCareer({ seed: 'form-A' });
+    setMe(base, 62, 72);
+    for (let i = 6; i >= 1; i--) {
+      addMyGame(base, base.clock.week - i, 15, 'regular', undefined, {
+        shot: { fgm: 6, fga: 13, ftm: 3, fta: 4 }, final: [60, 52],
+      });
+    }
+    // let the ladder settle on the steady-15 read first
+    for (let w = 0; w < 10; w++) {
+      updateStock(base);
+      base.clock.week += 1;
+    }
+    const settled = base.stock!.rank!;
+    expect(settled).toBeTruthy();
+
+    const hot = structuredClone(base);
+    const cold = structuredClone(base);
+    gameSeq = 100;
+    for (let i = 0; i < 3; i++) {
+      addMyGame(hot, hot.clock.week, 27, 'regular', undefined, {
+        shot: { fgm: 11, fga: 17, ftm: 3, fta: 4 }, final: [60, 52],
+      });
+    }
+    gameSeq = 100; // same ids: the hot and cold forks differ ONLY in the lines
+    for (let i = 0; i < 3; i++) {
+      addMyGame(cold, cold.clock.week, 4, 'regular', undefined, {
+        shot: { fgm: 2, fga: 15, ftm: 0, fta: 0 }, final: [60, 52],
+      });
+    }
+    for (const fork of [hot, cold]) {
+      updateStock(fork);
+      fork.clock.week += 1;
+      updateStock(fork); // two weeks: the capped walk shows its direction
+    }
+
+    expect(hot.stock!.rank!).toBeLessThan(settled);  // form up, boards up
+    expect(cold.stock!.rank!).toBeGreaterThan(settled); // form down, boards down
+    expect(hot.stock!.rank!).toBeLessThan(cold.stock!.rank!);
+
+    // the stated reasons quote the form window, not vibes (pillar 2)
+    const hotReason = hot.stock!.history[hot.stock!.history.length - 1]!.reason;
+    const coldReason = cold.stock!.history[cold.stock!.history.length - 1]!.reason;
+    expect(/games travel: .* a night/.test(hotReason)).toBe(true);
+    expect(hotReason).toContain('true shooting');
+    expect(/tape cooled|slump/.test(coldReason)).toBe(true);
+    expect(coldReason).toContain('a night');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// feed hygiene (fix wave B)
+
+describe('stock feed hygiene', () => {
+  it('sub-3-pick moves stay in the history but push no events; bigger moves print', () => {
+    const career = fixtureCareer({ seed: 'quiet-A' });
+    setMe(career, 62, 72); // mid-band: the ladder wobbles around its slot
+    for (let i = 6; i >= 1; i--) {
+      addMyGame(career, career.clock.week - i, 14 + (i % 2), 'regular', undefined, {
+        shot: { fgm: 6, fga: 12, ftm: 2, fta: 3 }, final: [60, 52],
+      });
+    }
+    for (let w = 0; w < 18; w++) {
+      updateStock(career);
+      career.clock.week += 1;
+    }
+
+    const hist = career.stock!.history;
+    const events = career.events.filter(e => e.kind === 'stock');
+    // classify every history move; no shocks exist in this scenario (no
+    // current-week games, no injury, no combine)
+    let sub3 = 0;
+    let big = 0;
+    for (let i = 1; i < hist.length; i++) {
+      const a = hist[i - 1]!.rank;
+      const b = hist[i]!.rank;
+      if (a !== null && b !== null && Math.abs(a - b) < 3) sub3 += 1;
+      else big += 1;
+    }
+    expect(sub3).toBeGreaterThanOrEqual(2); // the wobble happened (the old code printed all of it)
+    expect(big).toBeGreaterThanOrEqual(1);
+    // the ledger balances exactly: first appearance + every 3-plus move
+    // printed, every sub-3 move did not
+    expect(events.length).toBe(1 + big);
+    expect(events.length).toBeLessThan(hist.length);
+
+    // and no printed event carries a sub-3 reason: every event's reason
+    // exists in the history (the event is the entry, curated)
+    for (const ev of events) {
+      expect(hist.some(h => h.reason === ev.reason)).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mock-vs-board convergence (fix wave B)
+
+describe('draftPrep board convergence', () => {
+  it('with a live class visible, the mock converges to the war rooms own sort', () => {
+    const career = fixtureCareer({ seed: 'prep-A' });
+    setMe(career, 55, 65);
+    career.clock.phase = 'draftPrep';
+    career.circuit = null;
+    career.circuitHistory.push({
+      year: 2026, kind: 'hs', teamName: 'Oak Ridge Central', w: 12, l: 2,
+      myLine: { gp: 14, min: 392, pts: 210, reb: 60, ast: 40, stl: 14, blk: 6, tpm: 20, fgPct: 0.52 },
+      finish: 'state champion', honors: [],
+    });
+    // plant a live class of 25 clearly worse prospects (floored dials):
+    // the boards must sort me to the top even though the season consensus
+    // band alone would park a 55-flat sheet in the teens
+    const league = career.league;
+    for (const pid of Object.keys(league.players).sort().slice(0, 25)) {
+      const p = league.players[pid]!;
+      p.status = 'draftEligible';
+      for (const k of Object.keys(p.attr) as Array<keyof Attributes>) p.attr[k] = 30;
+      for (const g of GROUP_ORDER) p.potential[g] = 35;
+      league.draftClass.push(pid);
+    }
+    career.stock!.combineDone = true;
+    career.clock.week = career.params.tick.combineWeek + 1;
+
+    for (let w = 0; w < 16 && career.clock.week < 52; w++) {
+      updateStock(career);
+      career.clock.week += 1;
+    }
+
+    // only the rival can plausibly sit ahead: the mock found the boards
+    expect(career.stock!.rank!).toBeLessThanOrEqual(3);
+    const reasons = career.stock!.history.map(h => h.reason);
+    expect(reasons.some(r => r.includes('pre-draft boards tighten'))).toBe(true);
+  });
+});
 
 describe('enterDraftClass', () => {
   it('moves me and the rival into the league class with my seat protected', () => {

@@ -16,7 +16,9 @@ import type { AttrGroup, FrPlayer, GameRecord, TeamTotalsLite } from '@hoopsh/fr
 import type { CareerParams } from '../src/params.js';
 import type { PerceivedGroups } from '../src/perception.js';
 import type { CareerState, InterestRung, Program, RouteOffer } from '../src/types.js';
-import { buildPrograms, commitToOffer, openOffers, updateRecruiting } from '../src/recruiting.js';
+import {
+  buildPrograms, commitToOffer, openOffers, recruiterSurnameOf, updateRecruiting,
+} from '../src/recruiting.js';
 import { fixtureCareer } from './fixture.js';
 
 // ---------------------------------------------------------------------------
@@ -86,6 +88,26 @@ function playGame(career: CareerState, pts: number): void {
       playerId: career.me, teamId: home, starter: true, min: 28, pts,
       fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, orb: 0, drb: 0,
       ast: 0, stl: 0, blk: 0, tov: 0, pf: 0, plusMinus: 0,
+    }],
+    totals: [zeroTotals(), zeroTotals()], keyPlays: [],
+  };
+  c.results[g.id] = rec;
+}
+
+/** playGame with a real shot line, for the production-read scenarios
+ * (fix wave B): the efficiency leg of stock.ts productionIndex reads
+ * fgm/fga/fta off the stored lines. */
+function playShotGame(career: CareerState, pts: number, fgm: number, fga: number): void {
+  const c = career.circuit!;
+  const g = c.schedule.find(x => !c.results[x.id])!;
+  const home = c.teams[g.homeIdx]!.id;
+  const rec: GameRecord = {
+    id: g.id, date: { season: c.year, day: g.week * 7 }, type: 'regular',
+    home, away: c.teams[g.awayIdx]!.id, seed: `test-${g.id}`, final: [64, 55], ot: 0,
+    lines: [{
+      playerId: career.me, teamId: home, starter: true, min: 28, pts,
+      fgm, fga, tpm: 2, tpa: 6, ftm: pts - 2 * fgm - 2 >= 0 ? 2 : 0, fta: 3, orb: 1, drb: 4,
+      ast: 3, stl: 1, blk: 0, tov: 2, pf: 2, plusMinus: 5,
     }],
     totals: [zeroTotals(), zeroTotals()], keyPlays: [],
   };
@@ -328,6 +350,94 @@ describe('career recruiting: the pro routes', () => {
     const perceive = standIn(-30); // ceiling mean well under the pro bar
     for (let w = 0; w < 3; w++) runWeek(career, perceive);
     expect(career.recruiting!.offers.filter(o => o.kind !== 'college').length).toBe(0);
+  });
+});
+
+describe('career recruiting: the staggered ladder (fix wave B)', () => {
+  it('rung timelines are NOT identical across programs: courtship spreads over weeks, blue bloods first', () => {
+    for (const seed of ['stagger-A', 'stagger-B', 'stagger-C']) {
+      const career = fixtureCareer({ seed });
+      career.recruiting!.programs = buildPrograms(career, streamRng(career.seed, 'career-recruit', 'build'));
+      setRows(career, 8, 180); // a headliner's tape: every staff WANTS to move
+      const perceive = standIn(12);
+      career.clock.week = career.params.tick.hsSeasonStartWeek;
+
+      const firstMove = new Map<string, number>();
+      const offerAt = new Map<string, number>();
+      const prevRung = new Map<string, number>();
+      let skips = 0;
+      for (let w = 0; w < 24; w++) {
+        updateRecruiting(career, perceive);
+        for (const it2 of career.recruiting!.interest) {
+          const now = rungIdx(it2.rung);
+          if (now > (prevRung.get(it2.programId) ?? 0) + 1) skips += 1;
+          prevRung.set(it2.programId, now);
+          if (it2.rung !== 'none' && !firstMove.has(it2.programId)) firstMove.set(it2.programId, career.clock.week);
+          if (it2.rung === 'offer' && !offerAt.has(it2.programId)) offerAt.set(it2.programId, career.clock.week);
+        }
+        career.clock.week += 1;
+      }
+
+      expect(skips).toBe(0); // pacing never buys a double-climb
+      const weeks = [...firstMove.values()];
+      expect(weeks.length).toBe(career.recruiting!.programs.length); // everyone courts eventually
+      expect(new Set(weeks).size).toBeGreaterThanOrEqual(5); // not one wall
+      expect(Math.max(...weeks) - Math.min(...weeks)).toBeGreaterThanOrEqual(5); // spread over real weeks
+
+      // blue bloods move earlier than the small schools, on average
+      const meanFor = (tier: 1 | 2 | 3): number => {
+        const ws = career.recruiting!.programs
+          .filter(p => p.tier === tier)
+          .map(p => firstMove.get(p.id)!)
+          .filter(w2 => w2 !== undefined);
+        return ws.reduce((a, b) => a + b, 0) / Math.max(1, ws.length);
+      };
+      expect(meanFor(1)).toBeLessThan(meanFor(3));
+
+      // offers arrive across weeks too, not as one nine-letter day
+      const offerWeeks = [...offerAt.values()];
+      expect(offerWeeks.length).toBeGreaterThanOrEqual(3);
+      expect(new Set(offerWeeks).size).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
+describe('career recruiting: recruiter surnames (fix wave B)', () => {
+  it('no two programs ever share a coach surname, and the board stays deterministic', () => {
+    for (const seed of ['percept-A', 'percept-B', 'percept-C']) {
+      const career = fixtureCareer({ seed });
+      const a = buildPrograms(career, streamRng(career.seed, 'career-recruit', 'build'));
+      const b = buildPrograms(career, streamRng(career.seed, 'career-recruit', 'build'));
+      expect(a).toEqual(b); // still a pure function of the stream
+
+      const surnames = a.map(p => recruiterSurnameOf(career.seed, p.id));
+      expect(new Set(surnames).size).toBe(a.length); // Marchetti coaches ONE program
+      expect(new Set(a.map(p => p.id)).size).toBe(a.length); // steered ids stay unique
+    }
+  });
+});
+
+describe('career recruiting: production in the read (fix wave B)', () => {
+  it('a chucker month cools every staff below an efficient scorer with the same sheet', () => {
+    const mk = (fgm: number, fga: number): CareerState => {
+      const career = boardCareer();
+      setRows(career, 5, 110); // 22 a game either way
+      for (let i = 0; i < 5; i++) playShotGame(career, 22, fgm, fga);
+      return career;
+    };
+    const chucker = mk(8, 26); // 30.8% from the field for his 22
+    const scorer = mk(9, 16);  // 56.3% for the same 22
+    const perceive = standIn(0);
+    updateRecruiting(chucker, perceive);
+    updateRecruiting(scorer, perceive);
+
+    // same fog stand-in, same sheet, same volume: only the tape differs
+    let cooler = 0;
+    for (const it2 of scorer.recruiting!.interest) {
+      const other = chucker.recruiting!.interest.find(x => x.programId === it2.programId)!;
+      if (other.perceived < it2.perceived) cooler += 1;
+    }
+    expect(cooler).toBe(scorer.recruiting!.interest.length);
   });
 });
 

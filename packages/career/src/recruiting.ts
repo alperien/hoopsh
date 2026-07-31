@@ -24,9 +24,23 @@
  *   career-recruit:need:<programId>  stable positional need: five
  *                                    draws, one per position, the same
  *                                    value every week by construction.
+ *   career-recruit:pace:<programId>  stable courtship pacing: two
+ *                                    draws (spread, laggard), the same
+ *                                    delay every week by construction
+ *                                    (fix wave B: staggers the ladder).
  * buildPrograms draws from the CALLER's rng (the creation-time stream
  * belongs to whoever builds the career); its per-program draw order is
- * documented on the function.
+ * documented on the function. It also READS the fresh
+ * 'career-phone-coach:<programId>' streams (owned by phone.ts) to steer
+ * program ids away from recruiter-surname collisions - see
+ * recruiterSurnameOf.
+ *
+ * THE PERCEPTION ECONOMY (fix wave B): every program's NOW read blends
+ * the fogged sheet with the role-relative recent-production index
+ * (stock.ts productionIndex, shared so recruiting and the mock can
+ * never price the tape differently). A chucker's month reads worse
+ * than an efficient scorer's with the identical sheet, and a hot or
+ * cold fortnight moves the board inside 2-3 weeks.
  *
  * Every rung move, offer, pull, and close appends a CareerEvent of kind
  * 'recruiting' with a stated reason: the events feed is the phone
@@ -37,6 +51,7 @@ import type { Rng } from '@hoopsh/engine';
 import { groupMean, streamRng } from '@hoopsh/franchise';
 import type { AttrGroup, FrPlayer } from '@hoopsh/franchise';
 import { perceiveProspect } from './perception.js';
+import { blendNowRead, productionIndex } from './stock.js';
 import type {
   CareerState, InterestRung, Program, RecruitState, RoleId, RouteOffer,
 } from './types.js';
@@ -99,6 +114,26 @@ const TIER_NAMES: Record<1 | 2 | 3, readonly string[]> = {
  * a kid's comes from his birthplace (homeRegionOf). */
 const REGIONS: readonly string[] = ['Northeast', 'Mid-Atlantic', 'Southeast', 'Midwest', 'Southwest', 'Mountain West', 'West Coast'];
 
+/**
+ * MIRROR of phone.ts RECRUITER_SURNAMES (that module keeps its pool
+ * private and is outside this fix's manifest). MUST match byte for byte:
+ * buildPrograms steers program ids so the surnames phone.ts derives from
+ * them never collide (the audit found Marchetti twice, Whitfield twice,
+ * Rucker twice in one inbox), and the steering only works while the two
+ * pools and the 'career-phone-coach:<programId>' derivation agree.
+ */
+const RECRUITER_SURNAMES: readonly string[] = [
+  'Hartley', 'Reyes', 'Calhoun', 'Brandt', 'Okafor', 'Marchetti', 'Doyle',
+  'Whitfield', 'Kessler', 'Aldana', 'Pruitt', 'Novak', 'Beaumont', 'Rucker',
+  'Sandoval', 'Tillman',
+];
+
+/** How many deterministic id variants buildPrograms tries per program
+ * before failing loudly; at 14 programs over 16 surnames the worst
+ * per-try collision odds are 13/16, so 200 tries cannot plausibly
+ * exhaust (odds under 1e-18) without the pools having diverged. */
+const SURNAME_STEER_TRIES = 200;
+
 // promised-role pricing against the public consensus on my level
 const LEVEL_HIGH_MAJOR = 50; // FEEL: consensus level (0-100) of a legit high-major senior
 const LEVEL_HEADLINER = 58;  // FEEL: a national headliner; programs sell the keys
@@ -110,8 +145,19 @@ const TIER_BAR = [58, 51, 44] as const; // FEEL: perceived rating a staff must s
 const PERCEIVED_SLOPE = 2.5; // FEEL: interest points per perceived rating point above/below the tier bar
 const REGION_MATCH = 100;    // FEEL: the local kid maxes the region component: the hometown fans already know your name
 const REGION_FAR = 30;       // FEEL: programs still recruit nationally, just cooler
-const WEEK_NOISE_SD = 2;     // FEEL: week-to-week scouting mood, small against the 12-point rung gaps
+const WEEK_NOISE_SD = 3;     // FEEL (fix wave B, was 2): week-to-week scouting mood; the audit found sd 2 too small to de-correlate fourteen staffs reading the same tape, and 3 still sits under the RUNG_HYSTERESIS guard
 const RUNG_HYSTERESIS = 3;   // FEEL: courtship inertia: a staff does not un-send a letter (or pull an offer) over rounding noise
+
+// courtship pacing (fix wave B): every staff runs its own calendar, so
+// rung moves and offers spread over 6-10+ weeks instead of arriving as
+// one wall. Delays anchor to params.tick.hsSeasonStartWeek (recruiting
+// is an HS-phase courtship) and derive per program from the registered
+// 'career-recruit:pace:<programId>' stream - deterministic, stored
+// nowhere, the needFor persistence discipline.
+const PACING_TIER_BASE = [0, 2, 4] as const;  // FEEL: blue bloods court first, mid-majors wait on more tape
+const PACING_TIER_SPAN = [4, 5, 7] as const;  // CAL: staff-to-staff spread inside a tier (uniform 0..span-1 weeks); measured to land offer arrivals across ~6-10 weeks instead of the audited one-week wall
+const PACING_LAGGARD_CHANCE = 0.15;           // FEEL: a laggard or two per 14-program board finds the file very late
+const PACING_LAGGARD_EXTRA = 4;               // CAL: how late the laggard runs (measured against the same offer-spread target)
 const COVERAGE_PER_GAME = 6; // FEEL: coverage points of tape per game played, before circuit exposure scaling
 const TIER_COVERAGE_MULT = [1.5, 1.2, 1.0] as const; // FEEL: blue bloods scout everyone; mid-majors lean on regional tape
 const EXPOSURE_SCORE_SCALE = 2.0; // FEEL: a half-season of prep tape is full exposure for a college staff; converts the NBA-grade coverage scale up
@@ -183,6 +229,31 @@ function needFor(seed: string, programId: string, pos: FrPlayer['pos']): number 
     if (p === pos) need = v;
   }
   return need;
+}
+
+/**
+ * The surname phone.ts will hang on this program's recruiting coach:
+ * the exact derivation that module uses ('career-phone-coach:<id>'
+ * fresh stream, one pick). Exported (module, not barrel) so tests can
+ * assert the no-duplicate guarantee against the same math buildPrograms
+ * steers with. Coupling documented on RECRUITER_SURNAMES.
+ */
+export function recruiterSurnameOf(seed: string, programId: string): string {
+  return streamRng(seed, 'career-phone-coach', programId).pick(RECRUITER_SURNAMES);
+}
+
+/**
+ * This program's courtship pacing delay in weeks, from a fresh
+ * fixed-draw stream ('career-recruit:pace:<programId>'): tier base +
+ * a uniform staff spread + the occasional laggard, the same answer
+ * every call. Rung moves wait until week
+ * params.tick.hsSeasonStartWeek + delay (fix wave B, file header).
+ */
+function pacingDelayFor(seed: string, program: Program): number {
+  const rng = streamRng(seed, 'career-recruit', 'pace', program.id);
+  const spread = Math.floor(rng.float() * PACING_TIER_SPAN[program.tier - 1]);
+  const laggard = rng.float() < PACING_LAGGARD_CHANCE ? PACING_LAGGARD_EXTRA : 0;
+  return PACING_TIER_BASE[program.tier - 1] + spread + laggard;
 }
 
 /** My regular-season line this circuit year, summed across stints. */
@@ -299,14 +370,39 @@ function promiseFor(tier: 1 | 2 | 3, level: number): RoleId {
 }
 
 /**
+ * The program id for board slot `i` whose derived recruiter surname
+ * (recruiterSurnameOf) collides with nobody already on the board: the
+ * base 'prog-NN' id first, then deterministic '-2', '-3', ... variants
+ * until a fresh surname falls out of the hash. Draws NOTHING from the
+ * caller's rng (surname derivation uses fresh per-id streams), so the
+ * documented five-draw-per-program build order is untouched. When the
+ * board is larger than the surname pool, uniqueness is impossible and
+ * the base id passes through (every pool name is already in use).
+ */
+function steerProgramId(seed: string, i: number, usedSurnames: Set<string>): { id: string; surname: string } {
+  const base = `prog-${String(i + 1).padStart(2, '0')}`;
+  if (usedSurnames.size >= RECRUITER_SURNAMES.length) {
+    return { id: base, surname: recruiterSurnameOf(seed, base) };
+  }
+  for (let k = 0; k < SURNAME_STEER_TRIES; k++) {
+    const id = k === 0 ? base : `${base}-${k + 1}`;
+    const surname = recruiterSurnameOf(seed, id);
+    if (!usedSurnames.has(surname)) return { id, surname };
+  }
+  throw new Error(`career/recruiting: no collision-free recruiter surname for ${base} in ${SURNAME_STEER_TRIES} tries (pool diverged from phone.ts?)`);
+}
+
+/**
  * Build the college recruiting board at career creation:
  * params.recruiting.programCount programs across three prestige tiers.
  * Pure construction from the caller's rng (the creation-time stream is
  * the caller's to own) in a FIXED per-program draw order: name index,
  * region, coachDev gaussian, pace jitter, threeBias jitter (five draws
  * per program, consumed even when a name pool runs dry), so a board is
- * a pure function of the stream handed in. Called once when the HS
- * phase opens; mutates nothing on the career.
+ * a pure function of the stream handed in. Program ids are steered away
+ * from recruiter-surname collisions (steerProgramId; fix wave B) with
+ * zero caller-rng draws. Called once when the HS phase opens; mutates
+ * nothing on the career.
  */
 export function buildPrograms(career: CareerState, rng: Rng): Program[] {
   const p = career.params.recruiting;
@@ -321,6 +417,7 @@ export function buildPrograms(career: CareerState, rng: Rng): Program[] {
   };
   const tiers = tierPlan(p.programCount);
   const programs: Program[] = [];
+  const usedSurnames = new Set<string>();
   for (let i = 0; i < tiers.length; i++) {
     const tier = tiers[i]!;
     const pool = pools[tier];
@@ -333,8 +430,10 @@ export function buildPrograms(career: CareerState, rng: Rng): Program[] {
     // pool overflow (programCount raised far past the default) falls back
     // to a region-built name; still fictional, still unique via the index
     const name = pool.length > 0 ? pool.splice(nameIdx, 1)[0]! : `${region} ${tier === 1 ? 'State' : 'College'} ${i + 1}`;
+    const { id, surname } = steerProgramId(career.seed, i, usedSurnames);
+    usedSurnames.add(surname);
     programs.push({
-      id: `prog-${String(i + 1).padStart(2, '0')}`,
+      id,
       name,
       tier,
       coachDev,
@@ -435,11 +534,11 @@ function maybeRouteOffers(
 /**
  * Weekly recruiting update, called by the week tick during the HS
  * phase. Recomputes every open program's perception and interest score,
- * moves rungs (at most ONE per program per week, either direction:
- * courtship has pacing), extends and pulls offers, runs class-fill day
- * and window expiry, and surfaces the pro route offers. Mutates
- * career.recruiting and appends explained CareerEvents; writes nothing
- * else.
+ * moves rungs (at most ONE per program per week, either direction, and
+ * never before the program's own pacing delay opens - pacingDelayFor,
+ * fix wave B), extends and pulls offers, runs class-fill day and window
+ * expiry, and surfaces the pro route offers. Mutates career.recruiting
+ * and appends explained CareerEvents; writes nothing else.
  *
  * The cold-stretch rule, precisely: a "bad week" is when my last
  * FORM_WINDOW_GAMES (3) games in circuit.results average 25%+ below my
@@ -468,11 +567,14 @@ export function updateRecruiting(
   const p = career.params.recruiting;
 
   // production signals: season line from my rows, recent form from the
-  // game log (see the cold-stretch rule in the function doc)
+  // game log (see the cold-stretch rule in the function doc), and the
+  // role-relative production index every staff prices into its NOW read
+  // (fix wave B; stock.ts owns the index so the two systems agree)
   const { gp, pts } = seasonLine(me, year);
   const seasonAvg = gp > 0 ? pts / gp : 0;
   const recent = recentForm(career);
   const badWeek = recent !== null && seasonAvg > 0 && recent < seasonAvg * BAD_FORM_RATIO;
+  const prod = productionIndex(career);
 
   // weekly noise: one gaussian per program in programs order, drawn up
   // front so a closed program still consumes its slot and can never
@@ -493,11 +595,14 @@ export function updateRecruiting(
     }
     if (interest.closed) continue;
 
-    // their fog read of me, coverage growing with my games played;
-    // slumps drag the stored read (see the cold-stretch rule above)
+    // their fog read of me, coverage growing with my games played, the
+    // NOW half production-blended (fix wave B: the tape is part of the
+    // read, not just the sheet); slumps drag the stored read (see the
+    // cold-stretch rule above)
     const coverage = coverageFor(gp, program.tier, career);
     const fog = perceive(career.seed, program.id, me, coverage, career.params);
-    const fogBlend = NOW_WEIGHT * meanGroups(fog.now) + CEILING_WEIGHT * meanGroups(fog.ceiling);
+    const fogBlend = NOW_WEIGHT * blendNowRead(meanGroups(fog.now), prod)
+      + CEILING_WEIGHT * meanGroups(fog.ceiling);
     // (floor 1: perceived 0 is the fresh-entry sentinel above, so a long
     // slump may not decay a real read back into "never scouted")
     interest.perceived = badWeek && interest.perceived > 0
@@ -530,6 +635,14 @@ export function updateRecruiting(
     // pacing: one rung per week in either direction (also guards a
     // double update inside one week, which must not double-climb)
     if (interest.lastMoveWeek >= week) continue;
+
+    // staggered courtship (fix wave B): a staff does not move at all
+    // until its own calendar opens - tier base + per-program spread off
+    // the registered pace stream, anchored to the HS season start. The
+    // perceived read above still updates every week (they watch before
+    // they write); only the LADDER waits, so fourteen programs stop
+    // moving rungs in lockstep walls.
+    if (week < career.params.tick.hsSeasonStartWeek + pacingDelayFor(career.seed, program)) continue;
 
     if (score >= p.rungThresholds[r]!) { // rungThresholds[r] gates RUNGS[r+1]
       const next = RUNGS[r + 1]!;
