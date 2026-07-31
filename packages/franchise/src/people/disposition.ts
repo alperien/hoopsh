@@ -2,13 +2,17 @@
  * people/disposition.ts - off-court morale and trade requests. OWNER:
  * people task.
  *
- * Morale is OFF-COURT ONLY in v1 (register F1, docs/FRANCHISE.md §13): a
- * sulking star still plays like a star; his leverage is the papers and
- * the front office, never the engine dials. updateDispositions is a pure
+ * Morale was OFF-COURT ONLY in v1 (register F1, docs/FRANCHISE.md §13).
+ * The owner amended that this wave (register F1-A, people/
+ * INTEGRATION-psyche.md): the psyche layer (people/psyche.ts) now carries
+ * bounded, capped on-court effects through the legal pre-game seam. Morale
+ * itself STILL never touches a dial directly; its on-court reach is only
+ * as one damped input to confidence, inside psyche.ts's caps. This module
+ * keeps its v1 job: requests and decisions. updateDispositions is a pure
  * recomputation, idempotent per call: morale is a function of today's
- * league state (role, wins, usage, health), never an accumulator, so the
- * spine can call it on whatever cadence it likes and calling twice moves
- * nothing twice.
+ * league state (role, wins, usage, health, and now the room), never an
+ * accumulator, so the spine can call it on whatever cadence it likes and
+ * calling twice moves nothing twice.
  *
  * QUIET BY DESIGN: the research warns that morale spam and mood
  * micromanagement are hated (research 01 Q3: BBGM's own anti-
@@ -25,6 +29,7 @@
  */
 import type { FrPlayer, FrTeam, InboxItem, League } from '../types.js';
 import { ATTR_GROUPS, groupMean, regularSeasonTotals } from './dev.js';
+import { CHEM_BASE, lifestyleMoraleDelta, teamChemistry } from './psyche.js';
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -153,10 +158,26 @@ export function moraleFor(league: League, player: FrPlayer): number {
     injuryDelta = -Math.min(12, 0.15 * player.health.injury.remainingDays);
   }
 
+  // The room (register F1-A): chemistry feeds morale modestly, 0.08 per
+  // point around the content baseline, clamped to +-3 (FEEL). Null before
+  // the psyche layer initializes: exactly the pre-psyche baseline. Slow by
+  // construction (psyche.ts steps chemistry 3/week max), so this never
+  // whipsaws morale.
+  let chemDelta = 0;
+  const chem = teamChemistry(team);
+  if (chem !== null) chemDelta = clamp((chem - CHEM_BASE) * 0.08, -3, 3);
+
+  // Lifestyle texture (psyche.ts): +-1 point of who-he-is. Zero when the
+  // psyche layer has not assigned a label yet.
+  const lifeDelta = lifestyleMoraleDelta(player);
+
   // Professionalism compresses the swing: the consummate pro (100) shows
   // 60% of the grievance, the volatile one (0) shows all of it. FEEL 0.4.
   const damper = 1 - 0.4 * (player.disposition.professionalism / 100);
-  return clamp(Math.round(MORALE_BASE + damper * (roleDelta + successDelta + usageDelta + injuryDelta)), 0, 100);
+  return clamp(
+    Math.round(MORALE_BASE + damper * (roleDelta + successDelta + usageDelta + injuryDelta + chemDelta + lifeDelta)),
+    0, 100,
+  );
 }
 
 /**

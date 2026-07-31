@@ -265,7 +265,7 @@ function usedNames(career: CareerState): Set<string> {
  */
 function ensureUniqueCircuitName(rng: Rng, p: FrPlayer, used: Set<string>): void {
   for (let i = 0; i < MAX_NAME_REROLLS && used.has(p.name); i++) {
-    const n = generateName(rng);
+    const n = generateName(rng, { bornYear: p.bornSeason });
     p.name = `${n.first} ${n.last}`;
     p.birthplace = n.birthplace;
     p.origin = n.origin;

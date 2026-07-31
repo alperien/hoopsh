@@ -15,6 +15,7 @@
 import { Rng } from '@hoopsh/engine';
 import type { League, NewsItem, Transaction } from '../types.js';
 import { WIRE } from './recap.js';
+import { lifestyleNews } from '../people/psyche.js';
 
 export const INSIDER = 'Sloane Keller';
 export const COLUMNIST = 'Ray Delgado';
@@ -250,6 +251,9 @@ export function writeDailyNews(league: League): NewsItem[] {
       weight: hot ? 2 : 1,
     });
   }
+
+  // the rare lifestyle beat (people/psyche.ts): a few per season, weight 1
+  out.push(...lifestyleNews(league));
 
   return out;
 }

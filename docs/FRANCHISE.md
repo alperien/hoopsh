@@ -444,7 +444,7 @@ the condition for lifting it.
 
 | # | simplification | cost | lift when |
 |---|---|---|---|
-| F1 | disposition never modifies on-court dials | a sulking star plays true | morale-to-court coupling designed with calibration evidence, not vibes |
+| F1 | disposition never modifies on-court dials. AMENDED by F1-A (owner request, psyche wave): bounded psyche effects reach the court through the gameday pre-degrade seam only. Confidence caps at 1.5 attribute points either way, team chemistry at 1.0, offensive-execution dials only; morale still never touches a dial directly (people/INTEGRATION-psyche.md) | a sulking star still plays near-true; inside the F1-A caps a pressing one now shoots a touch worse | raising the F1-A caps needs calibration evidence at league scale, not vibes |
 | F2 | injuries roll post-game, attributed narratively to a moment | no mid-game exits; minutes of an injury game slightly overstated | engine exposes an in-game exit seam or rotation caps can express onset minute |
 | F3 | trades are 2-team, no sign-and-trades | some real deal shapes inexpressible | valuation engine proven exploit-resistant in the wild |
 | F4 | G-League assignment develops but does not sim games | no G-League box scores | a second league instance is cheap enough to run nightly |

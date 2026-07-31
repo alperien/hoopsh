@@ -155,6 +155,8 @@ export interface GameView {
   lines: GameLine[]; totals: [TeamTotalsLite, TeamTotalsLite];
   keyPlays: object[];
   recap: NewsItem | null;
+  /** crew snapshot off the record; null for games from before the officials era */
+  officials: { crewId: string; crew: [string, string, string] } | null;
   hasReplay: boolean; hasBroadcast: boolean;
 }
 

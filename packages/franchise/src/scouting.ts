@@ -28,6 +28,7 @@ import type {
 } from './types.js';
 import { streamRng } from './rng.js';
 import { ATTR_GROUPS, groupMean } from './people/dev.js';
+import { archetypeLabelOf } from './people/archetypes.js';
 
 // Re-exported group vocabulary: ATTR_GROUPS (people/dev.ts) is the one
 // runtime copy of the PotentialProfile comment in types.ts; scouting reads
@@ -209,7 +210,8 @@ export function buildUserReport(league: League, playerId: string): ScoutReport {
   const ranked = groupsByStrength(perceivedCur);
   const top = ranked[0]!;
   const second = ranked[1]!;
-  let role = `${GROUP_ADJ[top]} ${POS_NOUN[player.pos]}`;
+  const archLabel = archetypeLabelOf(player);
+  let role = archLabel !== '' ? archLabel : `${GROUP_ADJ[top]} ${POS_NOUN[player.pos]}`;
   if (perceivedCur[second] >= STRENGTH_BAR) role += ` with ${GROUP_TOOL[second]}`;
 
   // comparison: the most profile-similar rostered veteran (their current
