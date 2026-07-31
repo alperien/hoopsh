@@ -851,7 +851,11 @@ export interface FitOptions {
   seedBase: string;
 }
 
-export const DEFAULT_FIT_OPTIONS: FitOptions = {
+export /** minutes targets go to this many players (mpg-ordered) — see the
+ *  pigeonhole note in assembleTeamPack */
+const ROTATION_TARGETS = 9;
+
+const DEFAULT_FIT_OPTIONS: FitOptions = {
   // 7 iters × (2 cands × 4 games) = 56 refinement games, + 4 seed-eval +
   // 16 verify-gate games = 76 total per player, inside the 10×8 hard cap
   iters: 7, cands: 2, games: 4, refine: true, seedBase: 'fit'
@@ -1158,8 +1162,25 @@ export function assembleTeamPack(
   const totFga = fits.reduce((s, f) => s + f.line.fga, 0);
   const totTpa = fits.reduce((s, f) => s + f.line.tpa, 0);
   const share3 = totFga > 0 ? totTpa / totFga : 0.39;
+  // Minutes targets go to the CORE NINE only (by mpg, gs tiebreak). Two
+  // reasons, both measured (REGISTER W65, the Hartenstein starvation):
+  // 1. The engine's proactive eager-return swaps a behind-pace TARGET in
+  //    for an UNtargeted on-court body (subs.ts) — the design assumes a
+  //    partially-targeted roster. Targeting all twelve killed that path
+  //    structurally and starved a starting center to 9 sim minutes against
+  //    a 24-minute target.
+  // 2. The pigeonhole: 240 game-minutes cannot hold twelve season averages
+  //    (a real 12-man roster's mpg column sums to ~290 because bench tails
+  //    alternate DNPs across a season). Nine targets + untargeted fill IS
+  //    the real single-game rotation shape. Measured on OKC at n=12: the
+  //    core nine land within ~1 minute of their real averages (Hartenstein
+  //    11.5 -> 24.0 vs 24.2 real; Dort 19.4 -> 26.9 vs 26.8), while the
+  //    tail plays fill — exactly like a real box score's minutes column.
+  const targeted = [...fits]
+    .sort((x, y) => y.line.mpg - x.line.mpg || (y.line.gs ?? 0) - (x.line.gs ?? 0))
+    .slice(0, ROTATION_TARGETS);
   const rotationMinutes: Record<string, number> = {};
-  for (const f of fits) rotationMinutes[f.player.id] = Math.round(clamp(f.line.mpg, 12, 40));
+  for (const f of targeted) rotationMinutes[f.player.id] = Math.round(clamp(f.line.mpg, 12, 40));
   const teamObj: Team = {
     id, name, abbrev,
     players,
