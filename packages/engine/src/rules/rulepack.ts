@@ -126,8 +126,9 @@ export interface RulePack {
    * second half's running count (NCAA/NFHS Major Rules Differences, see
    * data/ncaa/README.md R4). FIBA/EuroLeague: true — extra periods are an
    * extension of the fourth period (FIBA Official Rules, Art. 41). NBA:
-   * false — the count restarts each OT (the NBA's separate, lower OT bonus
-   * threshold of 4 team fouls is NOT modeled; out of scope per R4).
+   * false — the count restarts each OT, and the NBA's separate, lower OT
+   * bonus threshold applies to the fresh count (teamFoulBonusAtOT: 4,
+   * modeled since the rules landing — REGISTER W63).
    */
   teamFoulsCarryToOT: boolean;
   /** personal fouls that disqualify a player (sim/fouls.ts recordFoul's fouledOut check, sim/subs.ts replaceFouledOut) */

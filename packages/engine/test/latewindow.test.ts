@@ -84,7 +84,7 @@ describe('bonusFreeThrowAward: the three penalty paths (rulepack.ts)', () => {
  *  events.ts doc promises */
 function scanFouls(g: GameResult): {
   windowTripPaid: number; windowTripUnpaid: number;
-  resetViolations: number; otThresholdSeen: number;
+  resetViolations: number; bonusMismatch: number;
 } {
   const rules = g.rules;
   let period = 0;
@@ -93,7 +93,7 @@ function scanFouls(g: GameResult): {
   let windowTripPaid = 0;
   let windowTripUnpaid = 0;
   let resetViolations = 0;
-  let otThresholdSeen = 0;
+  let bonusMismatch = 0;
   const ev = g.events;
   for (let i = 0; i < ev.length; i++) {
     const e = ev[i]!;
@@ -112,9 +112,15 @@ function scanFouls(g: GameResult): {
     // events.test.ts also holds; kept here so THIS file fails standalone)
     if (counting && e.teamCountInPeriod !== counts[e.team]) resetViolations += 1;
     const threshold = e.period > rules.periods ? rules.teamFoulBonusAtOT : rules.teamFoulBonusAt;
-    if (e.period > rules.periods && counting && e.teamCountInPeriod === rules.teamFoulBonusAtOT && e.inBonus) {
-      otThresholdSeen += 1;
-    }
+    // the FULL derivation vs the stamped flag, on EVERY foul event —
+    // this is the leak detector: a teamFoulsLate count leaking across a
+    // period boundary (or an offensive foul bumping it) shows up as a
+    // stamped/derived disagreement here, window paths included
+    const derived =
+      e.teamCountInPeriod >= threshold ||
+      (rules.lateWindowSec > 0 && e.clock <= rules.lateWindowSec &&
+        late[e.team] >= rules.lateWindowFoulBonusAt);
+    if (e.inBonus !== derived) bonusMismatch += 1;
     // the window trip: penalty state reached WITHOUT the count threshold
     if (counting && e.inBonus && e.teamCountInPeriod < threshold &&
         (e.kind === 'reach' || e.kind === 'loose_ball' || e.kind === 'take')) {
@@ -130,7 +136,7 @@ function scanFouls(g: GameResult): {
       if (paid) windowTripPaid += 1; else windowTripUnpaid += 1;
     }
   }
-  return { windowTripPaid, windowTripUnpaid, resetViolations, otThresholdSeen };
+  return { windowTripPaid, windowTripUnpaid, resetViolations, bonusMismatch };
 }
 
 describe('the last-2:00 window on real streams (REGISTER W63)', () => {
@@ -153,8 +159,12 @@ describe('the last-2:00 window on real streams (REGISTER W63)', () => {
     expect(unpaid).toBe(0); // a penalized non-shooting foul NEVER goes unpaid
   });
 
-  it('the stamped team counts agree with the stream derivation in every game', () => {
-    for (const g of pool) expect(scanFouls(g).resetViolations).toBe(0);
+  it('the stamped team counts and every inBonus flag agree with the stream derivation', () => {
+    for (const g of pool) {
+      const s = scanFouls(g);
+      expect(s.resetViolations).toBe(0);
+      expect(s.bonusMismatch).toBe(0);
+    }
   });
 
   it('the window resets at every period boundary: an early-period foul below threshold is never penalized', () => {
