@@ -24,9 +24,10 @@
  *      violations (the discount can only remove doomed throws).
  *
  * Seed pool scouted at the staged landing (out/scout-passclock.mjs, this
- * arc): passclock-1..24 host 13 shot-clock violations in the staged arm,
- * 13 of them receiver-catch (the 100% class read reproduced); the charged
- * arm reads 4 total, 1 receiver-catch (-92% on the class). Vacuity floor
+ * arc, at the shipped shape charge 1 / getOffSec 1.5): passclock-1..24
+ * host 13 shot-clock violations in the staged arm, 13 of them
+ * receiver-catch (the 100% class read reproduced); the charged arm reads
+ * 1 total, 1 receiver-catch (-92% on the class). Vacuity floor
  * (staged >= 8) sits well under the scouted 13 so a reshuffle that starves
  * the premise fails loudly rather than passing on nothing; the margin
  * assertion (live <= staged - 4) is a third of the scouted gap of 12.

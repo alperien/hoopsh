@@ -272,12 +272,17 @@ export function decideBall(s: GameState): BallAction {
     // CONCEPT 12: THE PASS-FLIGHT CLOCK CHARGE — the world charges pass
     // flight to the shot clock (game.ts tickLive stage 2), so the chooser
     // must price the receiver's shot at the ARRIVAL clock, not the throw
-    // clock. This mirrors the shot-side urgency collapse (the continuation
-    // curve above) onto the pass EV term: inside the urgency window the
-    // receiver's priced value scales with the clock he will actually catch
-    // with. Flight time reproduces startPass's success-branch arithmetic
+    // clock. Flight time reproduces startPass's success-branch arithmetic
     // (passing.ts: lead target, minFlightFt floor, flat ball speed) — the
     // same self-consistency rule as the delivery and move-type terms above.
+    // The window is the receiver's GET-OFF time, not the holder's urgency
+    // curve: a catch needs a decision tick plus a windup (0.3-0.42 s,
+    // params.shot) before the release freezes the clock, so a catch at
+    // arrivalSc ~2 is still nearly full value while a catch under ~0.5 s
+    // eats the whistle. The first cut of this concept mirrored the
+    // urgency window (5 s) and over-suppressed catchable mid-clock swings
+    // (measured -0.111 passes/poss at n=160 — the session-7 A/B record);
+    // the get-off window keeps the grenade cut and returns the volume.
     // A pass whose arrival outlives the clock (arrivalSc 0) prices to
     // 1 − charge of its gross value: at the full charge the whistle-eating
     // grenade is worthless, exactly what resolution will make of it.
@@ -291,8 +296,8 @@ export function decideBall(s: GameState): BallAction {
       const flightSec =
         Math.max(s.params.pass.minFlightFt, dist(h.pos, lead)) / s.params.pass.speedFtS;
       const arrivalSc = Math.max(0, sc - flightSec);
-      if (arrivalSc < D.urgencySec) {
-        evGross *= Math.max(0, 1 - A.passClockCharge * (1 - arrivalSc / D.urgencySec));
+      if (arrivalSc < A.passClockGetOffSec) {
+        evGross *= Math.max(0, 1 - A.passClockCharge * (1 - arrivalSc / A.passClockGetOffSec));
       }
     }
     const u =

@@ -1021,11 +1021,18 @@ export interface SimParams {
     /** concept 12 — pass-flight clock charge (0..1): how much of the shot
      *  clock a pass consumes in flight is priced into the chooser's EV term.
      *  0 = legacy (receiver EV priced at the throw clock, delivery free);
-     *  1 = full urgency mirror at the arrival clock (sc − flight time,
+     *  1 = full discount at the arrival clock (sc − flight time,
      *  startPass's success-branch arithmetic). Stage switch: at 0 the
      *  decide.ts branch short-circuits before any arithmetic (byte-identical
      *  streams). */
     passClockCharge: number;
+    /** concept 12 — the receiver's get-off window, s: an arrival clock at or
+     *  above this prices full value; below it the EV term decays linearly to
+     *  (1 − passClockCharge) at zero. Physics floor: a catch needs a decision
+     *  tick + a windup (shot.windupCatchShoot / windupCutFinish) before the
+     *  release freezes the clock — so ~0.5 s arrivals are whistle bait while
+     *  ~2 s arrivals convert. */
+    passClockGetOffSec: number;
     cutterBonus: number;         // hitting an active cutter
     swingBase: number;           // intrinsic ball-movement value
     swingPassOutScale: number;
@@ -2405,9 +2412,16 @@ export const defaultParams: SimParams = {
     // charged pass flight to the shot clock since the whistle-free-31s fix
     // (game.ts), and every measured shot-clock violation today is a
     // receiver-catch violation (a grenade pass arriving <=1.5s before the
-    // whistle; session-7 verifier's 200-game classification). The mirror of
-    // decide.ts's shot-side urgency collapse, applied at the arrival clock.
+    // whistle; session-7 verifier's 200-game classification).
     passClockCharge: 0,
+    // The get-off window. FEEL, physics-anchored: decision tick (0.1) +
+    // catch windup (shot.windupCatchShoot 0.42 / windupCutFinish 0.3) +
+    // closeout/re-gather margin. The first cut used the holder's 5 s
+    // urgency window and over-suppressed catchable mid-clock swings
+    // (-0.111 passes/poss at n=160, session-7 A/B); the window ladder
+    // {1.0, 1.5, 2.5} re-measured the trade and the chosen value keeps the
+    // grenade cut at minimal volume cost (see the session-7 register row).
+    passClockGetOffSec: 1.5,
     cutterBonus: 0.5,
     swingBase: 0.0341,
     swingPassOutScale: 0.16,
