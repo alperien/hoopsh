@@ -46,8 +46,13 @@ describe('the dunk-gate inversion (fit-roster.ts vertical)', () => {
   it('a real dunker clears the gate, and heavier dunk diets clear it by more', () => {
     const low = analyticFit(big({ dunks: 0.3 }));
     const high = analyticFit(big({ dunks: 2.5 }));
-    expect(blend(low)).toBeGreaterThanOrEqual(GATE + 2 - 1e-9);
-    expect(blend(high)).toBeGreaterThanOrEqual(GATE + 2 + 6 - 1e-9); // margin caps at +6
+    // same rounding epsilon as the exactness test below (0.61, documented
+    // there): the analytic target rides the FITTED finishing, which moves
+    // with the engine's make-model params — the session-7 sweep re-center
+    // (shot.basePaint) shifted the template big's finishing one integer
+    // notch and exposed these two floors as epsilon-free by rounding luck
+    expect(blend(low)).toBeGreaterThanOrEqual(GATE + 2 - 0.61);
+    expect(blend(high)).toBeGreaterThanOrEqual(GATE + 2 + 6 - 0.61); // margin caps at +6
     expect(high.player.attr.vertical).toBeGreaterThanOrEqual(low.player.attr.vertical);
     expect(high.player.attr.vertical).toBeLessThanOrEqual(97); // the fitter's own cap
   });

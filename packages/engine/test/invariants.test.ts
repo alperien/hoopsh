@@ -144,7 +144,17 @@ describe(`engine invariants over ${GAMES} games`, () => {
         if (e.type === 'rebound' && e.player) actors.push(e.player); // team rebounds credit nobody
         if (e.type === 'pass') actors.push(e.from, e.to);
         if (e.type === 'turnover') actors.push(e.player, ...(e.stolenBy ? [e.stolenBy] : []));
-        if (e.type === 'foul') actors.push(e.on, ...(e.drawnBy ? [e.drawnBy] : []));
+        // technicals are excluded from the actor list: a tech is not an act
+        // of PLAY — the engine's frustration tech (fouls.ts: the fouler
+        // "argues the whistle he just got", drawn by design AFTER the
+        // foul-out replacement) can legally land on a player who just
+        // fouled out, exactly like a real walking-off tech; benched and
+        // ejected personnel draw techs in real basketball too. The
+        // disqualification bars play, not anger. First reached at the
+        // session-7 stream reshuffle (invariant-11: reach foul-out, sub,
+        // same-whistle tech, one event apart); every other foul kind still
+        // asserts.
+        if (e.type === 'foul' && e.kind !== 'technical') actors.push(e.on, ...(e.drawnBy ? [e.drawnBy] : []));
         for (const a of actors) {
           const boundary = outAt.get(a);
           if (boundary !== undefined && idx > boundary) {

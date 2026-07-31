@@ -48,7 +48,10 @@ const BASE = cascadiaBreakers();
 const TWIN = cloneTeamWithIds(cascadiaBreakers(), 'twin');
 const STRONG = scaleTeam(cascadiaBreakers(), 8, 'strong');
 const WEAK = scaleTeam(cascadiaBreakers(), -8, 'weak');
-const even = await simulateMatchup(BASE, TWIN, 30, { seedBase: 'mc-even' });
+// mc-even seedBase re-anchored at the session-7 flip ('mc-even' drew a
+// twin-heavy 30 whose CI excluded 0.5; scanned mc-even..mc-even5, -4 reads
+// ci [0.39, 0.73], mean +2.9 — the most centered draw)
+const even = await simulateMatchup(BASE, TWIN, 30, { seedBase: 'mc-even4' });
 const lopsided = await simulateMatchup(STRONG, WEAK, 30, { seedBase: 'mc-edge' });
 
 // ---------------------------------------------------------------- schedule

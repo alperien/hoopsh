@@ -4,6 +4,42 @@ All notable changes to hoopsh are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html). Dates are ISO 8601.
 
+## [Unreleased]
+
+Pass-volume increments 2 and 3 (REGISTER W74-W75), plan-first with
+adversarial verifier gating (findings/session7-plan*.md).
+
+### Engine
+
+- Concept 12, the pass-flight clock charge: the chooser now prices a
+  receiver's shot at the clock he will CATCH with (the world has charged
+  pass flight to the shot clock all along). Before the fix every measured
+  shot-clock violation was a grenade catch — a pass arriving inside 1.5
+  seconds; at the shipped get-off window (1.5 s) that class falls 91% and
+  holder-side violations exist for the first time. Pass volume unchanged
+  by this fix alone; buzzer-beater rates flat.
+- `pass.riskBase` re-priced -3.6 → -3.75 (the W16/FLOW riskening partially
+  reversed, measured safe only WITH the probe and concept 12 live). The
+  deeper -3.82 dose met every band but spent 4.2 points of favorite-win at
+  n=1080 and died at the pre-registered line — the shipped dose spends
+  3.0. Sweep rails now encode both band-invisible walls ([-3.8, -3.7]).
+- Sweep re-center at the landing (verify 40x3, 17/17): the added live
+  possessions pressed REB and the efficiency ceilings; fifteen SWEPT dials
+  absorbed them. riskBase itself untouched by the optimizer.
+
+### Measured at the landing
+
+- Texture passes/possession 1.61 -> ~1.85 (corpus 2.84-2.86): a fifth of
+  the gap closed in one landing, ping-pong share flat.
+- Out-of-sample rosters 13/17 -> 17/17 — all four registered marginals
+  (FG%, 3PA share, BLK, assisted share) back in band.
+- Player fidelity enforced misses 5 -> 2: Jokic's assists reached his
+  fixture floor for the first time; the two remaining misses are
+  pre-existing registered debt.
+- Theta and assist-hierarchy identity preserved on both w19 cohorts at
+  n=1080 per arm; the self-play theta delta rides a CI edge and is
+  registered as a watch item.
+
 ## [0.3.0] - 2026-07-31
 
 Ball movement, priced. The pass-volume probe (concept 8) is live for the

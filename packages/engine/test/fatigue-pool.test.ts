@@ -284,12 +284,16 @@ describe('load consumers (forced live)', () => {
 describe('the loadPerSec stage switch (dormancy pins inverted at the FLOW flip)', () => {
   it('the pool ships live at the ffit-rhythm fits; couplings at the REAL-fit seeds', () => {
     expect(defaultParams.fatigue.loadPerSec).toBe(0.011);
-    expect(defaultParams.endgame.deadGameBoost).toBe(0.25);
+    // deadGameBoost and loadReachSwing are SWEPT (knobs.ts) — the ffit
+    // values are their SEEDS, not their owners. These exact-value pins are
+    // drift TRIPWIRES: they fail on any unnoticed move and get updated
+    // deliberately at sweep landings (here: the session-7 re-center).
+    expect(defaultParams.endgame.deadGameBoost).toBe(0.30045967918468036);
     // shape dials at design values
     expect(defaultParams.fatigue.loadRecoverPerSecBench).toBe(0.02);
     expect(defaultParams.fatigue.loadHalftimeRecover).toBe(12);
     // the foul couplings: 1 + swing × load/100, exactly ×1 at load 0
-    expect(defaultParams.foul.loadReachSwing).toBe(1.3);
+    expect(defaultParams.foul.loadReachSwing).toBe(1.7706909623782483);
     expect(defaultParams.foul.loadShootSwing).toBe(0.5);
   });
 

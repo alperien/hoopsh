@@ -134,7 +134,19 @@ export const SWEEPABLE: Knob[] = [
   // stealShare only redistributes the SAME turnover total between steals and
   // dead-ball (OOB) turnovers, so it's tuned by the STL band, not the TOV
   // band — moving it never changes total turnovers, just who "gets credit."
-  { path: 'pass.riskBase', lo: -4.3, hi: -3.3 },
+  //
+  // riskBase rails narrowed [-4.3, -3.3] → [-3.8, -3.7] at the session-7
+  // re-price (the ai.swingBase doctrine, both directions): the bands see
+  // NEITHER of this dial's true walls. The HI wall is texture — the corpus
+  // reads 2.84 passes/poss against the sim's ~1.6-1.7, and the region
+  // above ~-3.7 re-creates the over-priced-risk economy the measured dose
+  // grid priced at ~0.1 passes/poss per 0.15 logits. The LO wall is talent
+  // separation — the -3.82 cell met bands with MORE volume but spent 4.2
+  // points of favorite-win at n=1080 (the pre-registered -4.0 line), and
+  // the sweep cannot see favorite-win any more than it can see volume.
+  // Both walls are measured doctrine, revisable only with fresh
+  // measurement (session-7 register row).
+  { path: 'pass.riskBase', lo: -3.8, hi: -3.7 },
   { path: 'pass.stealShare', lo: 0.4, hi: 0.7 },
 
   // Rebounding — offWeightMult is THE lever on ORB% (band 20-30%, see

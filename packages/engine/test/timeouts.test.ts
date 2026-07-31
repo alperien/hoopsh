@@ -637,11 +637,15 @@ describe('fitted defaults (ffit-timeouts) — drift tripwire', () => {
   });
 
   it('a default-config stream carries the live timeout vocabulary', () => {
-    // the legacy-reasons pin, inverted at the flip: mandatory anchors are a
-    // deterministic rule, so every default game carries at least one, and
-    // every reason sits inside the full TimeoutReason union
+    // the legacy-reasons pin, inverted at the flip: the mandatory anchors
+    // are a deterministic RULE, but a period whose windows are all covered
+    // by early voluntary calls charges no mandatory — so a busy-timeout
+    // game can legally carry none (first seen at the session-7 reshuffle:
+    // to-default-0 went 9 regroups + 2 advances, every anchor pre-covered).
+    // The pinned seed is scouted to carry the full vocabulary (scan
+    // to-default-0..16 on re-anchor; -1 reads 4 mandatory + all four kinds)
     const { home, away } = sampleMatchup();
-    const r = simulateGame({ seed: 'to-default-0', home, away, collectFrames: false });
+    const r = simulateGame({ seed: 'to-default-1', home, away, collectFrames: false });
     const reasons = timeouts(r).map((e) => e.reason);
     expect(reasons.length).toBeGreaterThan(0);
     for (const reason of reasons) {
