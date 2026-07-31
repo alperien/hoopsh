@@ -88,6 +88,38 @@ export interface RulePack {
   /** free throws awarded on a flat bonus trip — i.e. at `doubleBonusAt`+ team fouls, and at every bonus trip for bonusRule 'flat' (sim/passing.ts attemptReachIn, sim/possession.ts tickScramble via fouls.ts recordFoul) */
   bonusFreeThrows: number;
   /**
+   * Team-foul bonus threshold in OVERTIME periods. The real NBA drops the
+   * period threshold from 5 to 4 in OT (Rule 12B); leagues whose team-foul
+   * counts CARRY into OT (NCAA second half, FIBA fourth period) keep their
+   * regulation threshold — set this equal to `teamFoulBonusAt` there.
+   */
+  teamFoulBonusAtOT: number;
+  /**
+   * The late-window team-foul penalty (NBA Rule 12B VII: in the last two
+   * minutes of EACH period, a team not yet in the penalty is penalized from
+   * its `lateWindowFoulBonusAt`-th team foul COMMITTED INSIDE the window —
+   * the "take foul up 3 with 30 seconds left pays free throws" rule, and the
+   * mechanism that turns end-of-period fouling into a free-throw parade).
+   * `lateWindowSec` is the window length in period-clock seconds; 0 disables
+   * the rule entirely (NCAA and FIBA have no such rule). Window counts are
+   * tracked per period in GameState.teamFoulsLate and reset every period
+   * unconditionally, even where period counts carry into OT.
+   */
+  lateWindowSec: number;
+  lateWindowFoulBonusAt: number;
+  /**
+   * Made-basket clock stop. The game clock stops after a successful field
+   * goal in the last `makeStopClockFinalSec` seconds of the FINAL period and
+   * overtimes (NBA/FIBA 120, NCAA 60), and the last `makeStopClockEarlySec`
+   * seconds of every EARLIER period (NBA 60 — Rule 5 V; NCAA and FIBA 0).
+   * Consumed by sim/shooting.ts's made-basket dead ball; a frozen clock
+   * also opens the ordinary substitution window at that dead ball
+   * (sim/possession.ts), which is where real Q1-Q3 last-minute post-make
+   * subs come from.
+   */
+  makeStopClockFinalSec: number;
+  makeStopClockEarlySec: number;
+  /**
    * Whether period team-foul counts CARRY into overtime instead of resetting
    * (sim/possession.ts endPeriod). NCAA men: true — team fouls reset only at
    * the end of the first half, so OT (and every further OT) inherits the
@@ -163,14 +195,23 @@ export const NBA: RulePack = {
   // bonus at 5 team fouls in a period, always a flat 2 free throws (so the
   // "double bonus" threshold coincides with the bonus itself), team fouls
   // reset every period including OT, disqualification at 6 personal fouls —
-  // the real modern NBA thresholds. (The real NBA also drops the OT bonus
-  // threshold to 4 and has a last-2:00 team-foul rule; neither is modeled.)
+  // the real modern NBA thresholds. OT drops the bonus threshold to 4 and
+  // the last two minutes of every period carry the second-window-foul
+  // penalty (Rule 12B VII); both modeled.
   teamFoulBonusAt: 5,
   bonusRule: 'flat',
   doubleBonusAt: 5,
   bonusFreeThrows: 2,
+  teamFoulBonusAtOT: 4,
+  lateWindowSec: 120,
+  lateWindowFoulBonusAt: 2,
   teamFoulsCarryToOT: false,
   foulOutAt: 6,
+  // clock stops on made baskets: last 2:00 of Q4/OT, last 1:00 of Q1-Q3
+  // (Rule 5 V) — the second window is where real early-period post-make
+  // substitutions live (flowboard G8c)
+  makeStopClockFinalSec: 120,
+  makeStopClockEarlySec: 60,
   // 7 team timeouts per game — the real modern NBA budget (the real rule
   // also caps usage at 4 in the fourth period / 2 in the last three minutes;
   // that refinement is future work, see the interface note).
@@ -217,6 +258,16 @@ export const NCAA: RulePack = {
   teamFoulBonusAt: 7,
   bonusRule: 'oneAndOne',
   doubleBonusAt: 10,
+  // NCAA has no OT threshold drop (counts carry from the second half, R4)
+  // and no NBA-style last-2:00 window penalty — stated explicitly rather
+  // than inherited from the NBA spread (audit M-11 class).
+  teamFoulBonusAtOT: 7,
+  lateWindowSec: 0,
+  lateWindowFoulBonusAt: 0,
+  // NCAA stops the clock on made baskets only in the last minute of the
+  // SECOND half and OT (the final "period" here is the half); never earlier.
+  makeStopClockFinalSec: 60,
+  makeStopClockEarlySec: 0,
   teamFoulsCarryToOT: true,
   foulOutAt: 5,
   // NCAA: 4 timeouts (3×30s + 1×60s) in the flat per-game simplification —
@@ -255,6 +306,16 @@ export const EUROLEAGUE: RulePack = {
   teamFoulBonusAt: 5,
   bonusRule: 'flat',
   doubleBonusAt: 5,
+  // FIBA: OT extends the fourth period (Art. 41), so the threshold stays 5;
+  // there is no NBA-style last-2:00 window penalty. Stated explicitly
+  // rather than inherited from the NBA spread (audit M-11 class).
+  teamFoulBonusAtOT: 5,
+  lateWindowSec: 0,
+  lateWindowFoulBonusAt: 0,
+  // FIBA stops the clock on made baskets in the last two minutes of the
+  // fourth period and OT only (Art. 49.2) — never in earlier periods.
+  makeStopClockFinalSec: 120,
+  makeStopClockEarlySec: 0,
   teamFoulsCarryToOT: true,
   foulOutAt: 5,
   // FIBA/EuroLeague: 2 first-half + 3 second-half timeouts, flattened to 5
@@ -293,10 +354,35 @@ export interface BonusAward {
  * Shooting fouls never route through this — their FT count comes from the
  * shot (2/3/and-one) regardless of the bonus.
  */
-export function bonusFreeThrowAward(rules: RulePack, teamFoulsInPeriod: number): BonusAward | null {
-  if (teamFoulsInPeriod < rules.teamFoulBonusAt) return null;
-  if (rules.bonusRule === 'oneAndOne' && teamFoulsInPeriod < rules.doubleBonusAt) {
-    return { shots: 2, oneAndOne: true };
+export function bonusFreeThrowAward(
+  rules: RulePack,
+  teamFoulsInPeriod: number,
+  ctx?: {
+    /** overtime period? — the NBA drops the threshold to teamFoulBonusAtOT */
+    isOT?: boolean;
+    /** team fouls committed inside the current period's late window (GameState.teamFoulsLate) */
+    lateWindowFouls?: number;
+    /** period clock at the whistle, seconds — gates the late-window rule */
+    clockSec?: number;
   }
-  return { shots: rules.bonusFreeThrows, oneAndOne: false };
+): BonusAward | null {
+  const threshold = ctx?.isOT ? rules.teamFoulBonusAtOT : rules.teamFoulBonusAt;
+  if (teamFoulsInPeriod >= threshold) {
+    if (rules.bonusRule === 'oneAndOne' && teamFoulsInPeriod < rules.doubleBonusAt) {
+      return { shots: 2, oneAndOne: true };
+    }
+    return { shots: rules.bonusFreeThrows, oneAndOne: false };
+  }
+  // The late-window penalty (NBA Rule 12B VII): not yet in the ordinary
+  // bonus, but the window's own foul count has reached the trigger — every
+  // such foul pays the flat award. Callers without window context (older
+  // call sites, tests) get regulation semantics unchanged.
+  if (
+    rules.lateWindowSec > 0 &&
+    ctx?.clockSec !== undefined && ctx.clockSec <= rules.lateWindowSec &&
+    (ctx.lateWindowFouls ?? 0) >= rules.lateWindowFoulBonusAt
+  ) {
+    return { shots: rules.bonusFreeThrows, oneAndOne: false };
+  }
+  return null;
 }

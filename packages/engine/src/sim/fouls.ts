@@ -71,12 +71,28 @@ export function recordFoul(
   // foul, same team-foul/bonus arithmetic as a reach (fdesign-officiating
   // §1.5: the label is vocabulary, never a new penalty).
   const countsTeam = kind !== 'offensive';
-  if (countsTeam) s.teamFoulsPeriod[side] += 1;
-  const inBonus = s.teamFoulsPeriod[side] >= s.rules.teamFoulBonusAt;
+  if (countsTeam) {
+    s.teamFoulsPeriod[side] += 1;
+    // the late-window count (NBA last-2:00 penalty): a team foul whistled
+    // with the period clock inside rules.lateWindowSec also counts toward
+    // the window's own trigger (rulepack.ts bonusFreeThrowAward)
+    if (s.rules.lateWindowSec > 0 && s.clock <= s.rules.lateWindowSec) {
+      s.teamFoulsLate[side] += 1;
+    }
+  }
   // the award is looked up AFTER the team-foul bump, so the foul that puts a
   // team at exactly teamFoulBonusAt (or doubleBonusAt) already pays at the
-  // new tier — matching how the rule reads ("on the seventh team foul…")
-  const bonus = countsTeam ? bonusFreeThrowAward(s.rules, s.teamFoulsPeriod[side]) : null;
+  // new tier — matching how the rule reads ("on the seventh team foul…").
+  // Context makes the OT threshold and the late-window penalty live; inBonus
+  // is the standing team-penalty state (emitted on every foul event,
+  // including offensive fouls that pay nothing themselves).
+  const award = bonusFreeThrowAward(s.rules, s.teamFoulsPeriod[side], {
+    isOT: s.period > s.rules.periods,
+    lateWindowFouls: s.teamFoulsLate[side],
+    clockSec: s.clock
+  });
+  const inBonus = award !== null;
+  const bonus = countsTeam ? award : null;
   const fouledOut = fouler.fouls >= s.rules.foulOutAt;
   if (fouledOut) fouler.fouledOut = true;
   emit(s, {
