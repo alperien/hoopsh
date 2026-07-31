@@ -71,7 +71,7 @@ export function careerSummary(career: CareerState, opts: { simRunning: boolean }
     phaseLabel: PHASE_LABELS[career.clock.phase],
     me: player ? {
       id: player.id,
-      name: `${player.first} ${player.last}`,
+      name: player.name,
       pos: player.pos,
       age: career.clock.year - player.bornSeason,
       heightLabel: heightLabel(player.heightIn),
@@ -134,7 +134,7 @@ export function meView(career: CareerState) {
   if (!player) return null;
   return {
     id: player.id,
-    name: `${player.first} ${player.last}`,
+    name: player.name,
     pos: player.pos,
     age: career.clock.year - player.bornSeason,
     heightLabel: heightLabel(player.heightIn),
@@ -190,7 +190,7 @@ export function careerGameView(career: CareerState, record: GameRecord, hasRepla
   const names: Record<string, string> = {};
   for (const line of record.lines) {
     const p = career.players[line.playerId] ?? career.league.players[line.playerId];
-    if (p) names[line.playerId] = `${p.first} ${p.last}`;
+    if (p) names[line.playerId] = p.name;
   }
   return {
     gameId: record.id,

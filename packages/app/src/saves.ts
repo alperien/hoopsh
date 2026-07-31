@@ -102,7 +102,7 @@ export function listSaves(): SaveRow[] {
           file: f,
           kind: 'career',
           clock: { ...c.clock },
-          playerName: player ? `${player.first} ${player.last}` : undefined,
+          playerName: player?.name,
         });
       } else {
         out.push({
