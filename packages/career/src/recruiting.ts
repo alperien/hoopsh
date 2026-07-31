@@ -251,9 +251,9 @@ export function recruiterSurnameOf(seed: string, programId: string): string {
  */
 function pacingDelayFor(seed: string, program: Program): number {
   const rng = streamRng(seed, 'career-recruit', 'pace', program.id);
-  const spread = Math.floor(rng.float() * PACING_TIER_SPAN[program.tier - 1]);
+  const spread = Math.floor(rng.float() * PACING_TIER_SPAN[program.tier - 1]!);
   const laggard = rng.float() < PACING_LAGGARD_CHANCE ? PACING_LAGGARD_EXTRA : 0;
-  return PACING_TIER_BASE[program.tier - 1] + spread + laggard;
+  return PACING_TIER_BASE[program.tier - 1]! + spread + laggard;
 }
 
 /** My regular-season line this circuit year, summed across stints. */
