@@ -45,6 +45,22 @@ export interface FranchiseParams {
     roadAttrDebuff: number;
   };
 
+  /**
+   * owner: officials.ts (officiating task). Every magnitude is re-clamped
+   * to a hard cap at read time (officialsParamsOf): sweeps may lower these,
+   * never turn referees into a season-deciding force.
+   */
+  officials: {
+    /** crews in the league pool */
+    crewCount: number;            // FEEL 20: ~70 real referees make ~23 crews; 20 keeps names learnable
+    /** max relative swing on the engine's shooting-foul zone params at tightness 0/100 */
+    tightnessFoulSwing: number;   // CAL 0.10 (hard cap 0.10 in officials.ts)
+    /** max extra road attr debuff (rating points) at homeLean 100; negative mirror at 0 */
+    leanRoadDebuffMax: number;    // CAL 0.8 (hard cap 1.1, half the hca debuff)
+    /** tightness points of per-game jitter at consistency 0 */
+    tightnessJitter: number;      // CAL 12 (hard cap 20)
+  };
+
   /** owner: gameday.ts (spine task) */
   fatigue: {
     /** CAL stamina debuff on the second night of a back-to-back */
@@ -292,6 +308,19 @@ export interface FranchiseParams {
     /** rest a starter on B2B night 2 when fatigue below this (policy default) */
     b2bRestBelow: number;             // FEEL 35
   };
+
+  /** owner: people/psyche.ts (psyche task). OPTIONAL: psyche.ts defaults apply when absent (old saves) */
+  psyche?: {
+    /** CAL max attr points confidence moves the offensive-execution dials, either direction (register F1-A) */
+    confAttrCap: number;              // CAL 1.5
+    /** CAL max attr points team chemistry moves the same dials, team-wide; smaller by design */
+    chemAttrCap: number;              // CAL 1.0
+    confStep: number;                 // FEEL 8 (max confidence move per weekly update)
+    chemStep: number;                 // FEEL 3 (the room must move slower than the man)
+    chemDeadband: number;             // FEEL 1 (hysteresis: no oscillation)
+    chemDevSpan: number;              // CAL 0.05 (dev factor bounds 0.95-1.05)
+    lifestyleNewsRate: number;        // FEEL 0.02 (a few beats per season, never spam)
+  };
 }
 
 /**
@@ -312,6 +341,12 @@ export function defaultFranchiseParams(): FranchiseParams {
       offseasonDays: 40,
     },
     hca: { roadAttrDebuff: 2.2 },
+    officials: {
+      crewCount: 20,
+      tightnessFoulSwing: 0.10,
+      leanRoadDebuffMax: 0.8,
+      tightnessJitter: 12,
+    },
     fatigue: {
       b2bStaminaDebuff: 8,
       loadDebuffPer60Min: 2,
@@ -453,6 +488,15 @@ export function defaultFranchiseParams(): FranchiseParams {
       starterMinutes: [36, 35, 33, 31, 29],
       benchMinutes: [26, 22, 18, 12, 8],
       b2bRestBelow: 35,
+    },
+    psyche: {
+      confAttrCap: 1.5,
+      chemAttrCap: 1.0,
+      confStep: 8,
+      chemStep: 3,
+      chemDeadband: 1,
+      chemDevSpan: 0.05,
+      lifestyleNewsRate: 0.02,
     },
   };
 }

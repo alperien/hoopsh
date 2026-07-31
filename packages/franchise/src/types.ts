@@ -226,8 +226,17 @@ export interface FrPlayer {
   workEthic: number;
   disposition: Disposition;
   health: Health;
-  /** off-court morale 0-100; drives requests/decisions only (register F1) */
+  /** off-court morale 0-100; drives requests/decisions only (register F1, amended F1-A) */
   morale: number;
+  /**
+   * Psyche state (people/psyche.ts, register F1-A): confidence 0-100 and
+   * a lifestyle label. Absent until initPsyche lazily fills it (old
+   * saves, fresh draftees); absent reads as neutral everywhere.
+   */
+  psyche?: {
+    confidence: number;
+    lifestyle: 'gymRat' | 'quietPro' | 'familyMan' | 'nightlife' | 'mediaDarling' | 'gamerHermit';
+  };
   status: PlayerStatus;
   contract: Contract | null;
   /** set while a free agent; cleared on signing */
@@ -236,6 +245,12 @@ export interface FrPlayer {
   seasons: PlayerSeasonRow[];
   awards: AwardRef[];
   devLog: DevNote[];
+  /**
+   * Archetype id the player was generated from (people/archetypes.ts
+   * catalog). Optional: pre-wave saves lack it; readers go through
+   * archetypeOf/archetypeLabelOf which handle the absence.
+   */
+  archetype?: string;
   /** deterministic seed for the procedural portrait */
   faceSeed: number;
   retiredSeason?: Season;
@@ -332,6 +347,16 @@ export interface FrTeam {
   taxSeasonsRecent: Season[];
   /** persistent per-team scouting error seed (their scouts are wrong differently) */
   scoutSeed: number;
+  /**
+   * Locker-room state (people/psyche.ts, register F1-A): chemistry 0-100,
+   * bond ages in days, and the weekly-update stamp. Absent until
+   * initPsyche runs; absent reads as neutral everywhere.
+   */
+  psyche?: {
+    chemistry: number;
+    tenureDays: Record<PlayerId, number>;
+    updatedOn: LeagueDate | null;
+  };
   strategy: {
     timeline: Timeline;
     /** ids the front office will not shop (AI teams; advisory for user team) */
@@ -408,6 +433,8 @@ export interface GameRecord {
   /** app-side replay JSON path for watched/featured games; absent otherwise */
   replayFile?: string;
   seriesId?: SeriesId;
+  /** the crew that worked the game: id plus surname snapshot (officials.ts) */
+  officials?: import('./officials.js').GameOfficials;
 }
 
 export interface TeamStanding {
@@ -704,6 +731,12 @@ export interface League {
    * decision. Absent/empty on GM saves; purely additive.
    */
   careerControlled?: PlayerId[];
+  /**
+   * Referee crews (officials.ts). Generated once at genesis; absent on
+   * saves from before the feature, and every officials read no-ops
+   * cleanly then (results byte-identical to the pre-officials pipeline).
+   */
+  officials?: import('./officials.js').OfficialsState;
 }
 
 // ---------------------------------------------------------------------------
@@ -725,6 +758,13 @@ export interface GameJob {
    * Carried by the job so workers and folds stay self-contained.
    */
   rules?: RulePack;
+  /**
+   * Per-game SimParams override for simulateGame's public `params` input
+   * (officiating tightness rides here; officials.ts officialsJobExtras).
+   * Plain numbers only: jobs cross the worker boundary as JSON. Absent =
+   * engine stock params, exactly the existing behavior.
+   */
+  params?: import('@hoopsh/engine').GameConfig['params'];
 }
 
 export interface GameJobResult {
