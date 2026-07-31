@@ -552,6 +552,7 @@ describe('endPeriod bookkeeping (hand-built state)', () => {
       ball: { holderId: null, pos: { x: 47, y: 25 }, flight: null },
       poss: {
         team: 0, shotClock: 10, phase: 'halfcourt', startT: 0, kind: 'inbound',
+        leakArmed: false,
         lastPass: null, spotMap: new Map(), spots: new Map(), action: null, ended: false
       },
       phase: { kind: 'live' },

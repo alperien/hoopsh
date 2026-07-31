@@ -130,7 +130,7 @@ function mkState(o: StateOpts = {}): { s: GameState; holder: string; arcMate: st
     conceded: [false, false],
     poss: {
       team: 0, shotClock: o.shotClock ?? 20, phase: o.phase ?? 'halfcourt',
-      startT, kind: 'inbound', lastPass: null,
+      startT, kind: 'inbound', leakArmed: false, lastPass: null,
       // the M1b marker mirrors what startPossession would have stamped for
       // this startT (default = the period's start, an opener)
       opener: startT === periodStartT(period),

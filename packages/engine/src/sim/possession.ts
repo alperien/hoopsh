@@ -130,12 +130,22 @@ export function startPossession(
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip',
   holder?: Agent
 ): void {
+  // W64 channel-3 dose (session-8): the leak arms per TRANSITION possession
+  // — one draw, the heave-guard shape (scale 0 never reaches the draw;
+  // scale >= 1 short-circuits it, so the full dose and the staged default
+  // are both draw-free and the byte-identity ladder holds at both ends).
+  const leakScale = s.params.ai.leakOutScale;
+  const leakArmed =
+    (kind === 'live_rebound' || kind === 'steal') &&
+    leakScale > 0 &&
+    (leakScale >= 1 || s.rng.chance(leakScale));
   s.poss = {
     team,
     shotClock: s.rules.shotClockSec,
     phase: kind === 'live_rebound' || kind === 'steal' ? 'transition' : 'advance',
     startT: s.t,
     kind,
+    leakArmed,
     // the period's first possession: the game clock still reads the full
     // period value here (the opening dead ball never runs it, advanceClock
     // is the only clock writer, and any prior possession consumes live
