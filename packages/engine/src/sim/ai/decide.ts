@@ -25,7 +25,7 @@ import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiv
 
 export type BallAction =
   | { kind: 'shoot'; moveType: ShotMoveType }
-  | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' }
+  | { kind: 'pass'; toId: string; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' | 'lob' }
   | { kind: 'drive' }
   | { kind: 'hold' };
 
@@ -232,7 +232,7 @@ export function decideBall(s: GameState): BallAction {
     + (shotMove === 'putback' ? A.orebPutbackBonus * A.scrambleScale : 0);
 
   // --- utility: pass to each teammate
-  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' } | null = null;
+  let bestPass: { toId: string; u: number; passKind: 'normal' | 'kickout' | 'outlet' | 'entry' | 'handoff' | 'lob' } | null = null;
   let bestCatchEv = -Infinity; // best teammate look as-is — the drive block prices the collapse off it
   // CONCEPT 10: SCRAMBLE ECONOMY (kick-out read) — while the holder's touch
   // is a fresh rebound, the crash has collapsed the defense and a spotted
@@ -258,7 +258,27 @@ export function decideBall(s: GameState): BallAction {
     const mMove: ShotMoveType = mLoc.zone === 'rim' || mLoc.zone === 'paint' ? 'cut_finish' : 'catch_shoot';
     const theirShot = shotEV(s, m, m.pos, mMove, catchContest, myDelivery);
     if (theirShot.ev > bestCatchEv) bestCatchEv = theirShot.ev;
-    const risk = passRisk(s, h, m);
+    // CONCEPT 13: THE LOB (W64 channel 2, session-8 arc) — a mid-cut
+    // finisher whose catch point sits at the rim gets the TAGGED throw: the
+    // same utility (no bonus — the Stage-2 doctrine), but the tag re-prices
+    // the risk (a lob is a harder throw, pass.lobRiskLogit — priced HERE and
+    // realized in startPass through one passRisk flag) and re-resolves the
+    // clean catch as an immediate rise (passing.ts fusion). Gates, all
+    // deterministic, lobScale FIRST (staged 0 short-circuits before any
+    // arithmetic): mid-cut receiver, lead target within lobCatchMaxFt of
+    // the rim, athlete blend over lobAthleteGate (the booth's own dunk
+    // gate, shotcall.ts — sync-tested).
+    let lob = false;
+    if (A.lobScale > 0 && s.t < m.cutUntil) {
+      const lead = add(m.pos, scale(m.vel, s.params.pass.leadSec));
+      if (
+        dist(lead, rim) <= A.lobCatchMaxFt &&
+        A.lobBlendVert * m.p.attr.vertical + A.lobBlendFin * m.p.attr.finishing >= A.lobAthleteGate
+      ) {
+        lob = true;
+      }
+    }
+    const risk = passRisk(s, h, m, lob);
     // CONCEPT 3: ADVANCE THE ADVANTAGE (cutter / swing / hierarchy pull) and
     // CONCEPT 2: ACTION COMMITMENT (the called action's designed feed) — the
     // doctrine and incident history live in ai/concepts.ts; components are
@@ -313,6 +333,11 @@ export function decideBall(s: GameState): BallAction {
         u,
         passKind: pay.dhoTarget ? 'handoff'
           : pay.entryTarget ? 'entry'
+          // the lob tag outranks the taxonomy kinds below: a designed DHO or
+          // post entry keeps its name, everything else that qualifies IS the
+          // alley-oop (dive dump-offs and PnR pocket lobs included — the
+          // session-8 verifier's F5, disclosed captures)
+          : lob ? 'lob'
           // Concept 10: the post-OREB spray to the arc reads as a kick-out
           // in the log, the way a broadcast scan tags it (dark while staged:
           // orebKickWindowSec 0 keeps event streams byte-identical)

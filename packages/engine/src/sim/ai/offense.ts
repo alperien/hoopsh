@@ -10,7 +10,8 @@ import { clamp } from '../../core/rng.js';
 import { spacingSpots } from '../../geometry/court.js';
 import type { TeamSide } from '../../core/events.js';
 import { agent, attackedRim, liveOnCourt, onCourt, other, type Agent, type GameState } from '../state.js';
-import { gravity } from '../resolve.js';
+import { defendersBack, gravity } from '../resolve.js';
+import { sprintSpeed } from '../../model/derived.js';
 import { assignedDefender, midGreenLight } from './shared.js';
 import { actionTick } from './actions.js';
 
@@ -243,6 +244,21 @@ export function assignSpots(s: GameState, side: TeamSide): void {
  * wins): DHO receiver > posting big > screener > active cut > cut trigger >
  * active relocation > relocation trigger > hold the spacing spot.
  */
+/** the designated transition leaker: fastest non-handler whose athlete
+ *  blend clears the lob gate (the booth's dunk gate — who leaks is who
+ *  finishes). Deterministic: strict > keeps the FIRST of tied speeds in
+ *  lineup order. */
+function leakerOf(s: GameState, side: TeamSide, holderId: string): string | null {
+  const A = s.params.ai;
+  let best: Agent | null = null;
+  for (const a of liveOnCourt(s, side)) {
+    if (a.p.id === holderId) continue;
+    if (A.lobBlendVert * a.p.attr.vertical + A.lobBlendFin * a.p.attr.finishing < A.lobAthleteGate) continue;
+    if (!best || sprintSpeed(a.p.attr) > sprintSpeed(best.p.attr)) best = a;
+  }
+  return best === null ? null : best.p.id;
+}
+
 export function offenseOffBallTick(s: GameState): void {
   const side = s.poss.team;
   const rim = attackedRim(s, side);
@@ -257,6 +273,14 @@ export function offenseOffBallTick(s: GameState): void {
   const act = s.poss.action;
   const holderId = s.ball.holderId;
   const holder = holderId ? agent(s, holderId) : null;
+  // the leak-out designation (session-8, W64 channel 3): computed once per
+  // tick, deterministic — the fastest gate-clearing non-handler; lineup
+  // iteration order (insertion-deterministic) breaks speed ties via the
+  // strict inequality. null while staged, off-phase, or nobody qualifies.
+  const leakerId =
+    s.params.ai.leakOutScale > 0 && s.poss.phase === 'transition' && holder
+      ? leakerOf(s, side, holder.p.id)
+      : null;
 
   for (const a of liveOnCourt(s, side)) {
     if (a.p.id === s.ball.holderId) continue;
@@ -394,6 +418,34 @@ export function offenseOffBallTick(s: GameState): void {
         a.intent = 'spot';
         continue;
       }
+    }
+
+    // THE TRANSITION LEAK-OUT (W64 channel 3, session-8 arc): on a live
+    // rebound or steal — phase 'transition' ONLY, which excludes makes and
+    // period openers by construction (possession.ts gives those 'advance';
+    // verifier F6) — the designated leaker abandons his spot and runs the
+    // far rim at a sprint while the defense is not yet set. Designation is
+    // deterministic (fastest gate-clearing non-handler, lineup order breaks
+    // ties — no rng). He carries NO cutUntil on the run (the cutter bonus
+    // must not subsidize a 60 ft hit-ahead — F5); the stamp lands only
+    // inside the finishing radius, where the lob tag and the bonus are
+    // honest. leakOutScale is the stage switch, checked FIRST.
+    if (
+      s.params.ai.leakOutScale > 0 &&
+      s.poss.phase === 'transition' &&
+      a.p.id === leakerId &&
+      defendersBack(s, a.side) < s.params.move.transSetBackCount
+    ) {
+      a.intent = 'cut';
+      a.sprinting = true;
+      // the same rung-shape as an active cut: target just short of the rim
+      a.target = lerp(rim, a.pos, 0.06);
+      if (dist(a.pos, rim) <= s.params.ai.lobCatchMaxFt + 2) {
+        // inside the finishing radius the leak IS a cut: the stamp arms the
+        // lob tag and the cutter bonus for the catch itself
+        a.cutUntil = s.t + s.params.ai.cutDurationSec;
+      }
+      continue;
     }
 
     a.intent = 'spot';
