@@ -17,7 +17,7 @@
  */
 
 import type {
-  Attributes, Tendencies, Position, Team, GameEvent,
+  Attributes, Tendencies, Position, RulePack, Team, GameEvent,
 } from '@hoopsh/engine';
 
 // ---------------------------------------------------------------------------
@@ -697,6 +697,13 @@ export interface League {
   actionLog: LoggedAction[];
   /** monotonically increasing action sequence */
   actionSeq: number;
+  /**
+   * Player ids whose life decisions belong to a human career (the career
+   * mode's seam): retirement hazard skips them, the AI option pass leaves
+   * their player options alone, and the FA market never signs them to a
+   * decision. Absent/empty on GM saves; purely additive.
+   */
+  careerControlled?: PlayerId[];
 }
 
 // ---------------------------------------------------------------------------
@@ -712,6 +719,12 @@ export interface GameJob {
   away: Team;
   /** 'events' = return the full stream (user/featured games); 'fold' = fold in worker */
   detail: 'events' | 'fold';
+  /**
+   * Rule pack override for non-NBA circuits (the career mode's leagues).
+   * Absent = the NBA pack, exactly the franchise's existing behavior.
+   * Carried by the job so workers and folds stay self-contained.
+   */
+  rules?: RulePack;
 }
 
 export interface GameJobResult {

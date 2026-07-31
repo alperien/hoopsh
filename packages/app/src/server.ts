@@ -16,16 +16,22 @@ import { fileURLToPath } from 'node:url';
 import {
   advanceDay, applyUserAction, createLeague, respondToOffer,
 } from '@hoopsh/franchise';
-import type { DayDigest, League, SimulateJobs, TradeOffer, UserAction } from '@hoopsh/franchise';
+import type { DayDigest, GameRecord, League, SimulateJobs, TradeOffer, UserAction } from '@hoopsh/franchise';
+import { advanceCareerWeek, applyChoice, createCareer } from '@hoopsh/career';
+import type { CareerChoice, CareerState, CreationSpec, WeekDigest } from '@hoopsh/career';
 import { buildBroadcastScript, TemplateColorProvider } from '@hoopsh/narration';
 import type { GameEvent, Team } from '@hoopsh/engine';
 import { makeWorkerPool } from './runner.js';
-import { listSaves, loadLeague, saveLeague } from './saves.js';
+import { listSaves, loadCareer, loadLeague, saveCareer, saveLeague } from './saves.js';
 import {
   faMarket, gameView, leaders, playerRow, playerView, prospects,
   scheduleRow, summary, teamView,
 } from './views.js';
-import type { NewLeagueBody, SimStatus } from './protocol.js';
+import {
+  careerGameView, careerSummary, circuitView, epilogueView, meView,
+  planView, recruitingView, stockView,
+} from './career-views.js';
+import type { CareerSimStatus, NewCareerBody, NewLeagueBody, SimStatus } from './protocol.js';
 import { SAVE_FORMAT_VERSION, conferenceSeeds } from '@hoopsh/franchise';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +55,12 @@ interface AppState {
   sim: SimStatus & { digestCap: number };
   pool: SimulateJobs;
   lastDigest: DayDigest | null;
+  /** the second chair (docs/CAREER.md); when set, league time locks */
+  career: CareerState | null;
+  careerSaveName: string;
+  careerSim: CareerSimStatus & { digestCap: number };
+  /** folded circuits drop their results; the session keeps them viewable */
+  careerGameArchive: Record<string, GameRecord>;
 }
 
 function newSimStatus(): AppState['sim'] {
@@ -61,6 +73,18 @@ function newSimStatus(): AppState['sim'] {
     digests: [],
     stoppedFor: null,
     digestCap: 40, // the UI needs recent context, not the whole run
+  };
+}
+
+function newCareerSimStatus(): AppState['careerSim'] {
+  return {
+    running: false,
+    clock: { phase: 'hs', year: 0, week: 0 },
+    weeksDone: 0,
+    weeksTotal: 0,
+    digests: [],
+    stoppedFor: null,
+    digestCap: 26,
   };
 }
 
@@ -118,26 +142,280 @@ async function runAdvance(state: AppState, days: number, stopOnInbox: boolean): 
   }
 }
 
+/** The async multi-week career loop; one at a time, polled by the UI. */
+async function runCareerAdvance(state: AppState, weeks: number, stopOnDecision: boolean): Promise<void> {
+  const career = state.career!;
+  const cs = state.careerSim;
+  cs.running = true;
+  cs.weeksTotal = weeks;
+  cs.weeksDone = 0;
+  cs.digests = [];
+  cs.stoppedFor = null;
+  try {
+    for (let i = 0; i < weeks; i++) {
+      const unansweredBefore = career.phone.filter(m => m.choices?.length && !m.chosen).length;
+      const digest: WeekDigest = await advanceCareerWeek(career, state.pool);
+      // stamp replays onto this week's circuit games and archive records
+      // so folded seasons stay viewable for the session
+      for (const gid of digest.gamesPlayed) {
+        const record = career.circuit?.results[gid];
+        if (record) {
+          const file = path.join(REPLAY_DIR, `${gid}.json`);
+          if (existsSync(file)) record.replayFile = file;
+          state.careerGameArchive[gid] = record;
+        }
+      }
+      cs.weeksDone = i + 1;
+      cs.clock = { ...career.clock };
+      cs.digests.push(digest);
+      if (cs.digests.length > cs.digestCap) cs.digests.shift();
+      if (i >= weeks - 1) break;
+      if (stopOnDecision) {
+        const unansweredNow = career.phone.filter(m => m.choices?.length && !m.chosen).length;
+        if (unansweredNow > unansweredBefore) { cs.stoppedFor = 'decision'; break; }
+        if (digest.phaseChangedTo) { cs.stoppedFor = 'phase'; break; }
+      }
+    }
+    if (!cs.stoppedFor) cs.stoppedFor = 'target';
+  } finally {
+    cs.running = false;
+  }
+}
+
+/** Career routes (the second chair). Returns true when handled. */
+async function handleCareerApi(state: AppState, req: IncomingMessage, res: ServerResponse, p: string): Promise<boolean> {
+  if (p === '/api/career/new' && req.method === 'POST') {
+    if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
+    const body = JSON.parse(await readBody(req) || '{}') as NewCareerBody;
+    if (!body.spec) { json(res, 400, { error: 'spec is required' }); return true; }
+    state.career = createCareer({
+      seed: body.seed || `career-${body.name || 'me'}`,
+      spec: body.spec as CreationSpec,
+    });
+    state.careerSaveName = body.name || 'my-career';
+    state.careerSim = newCareerSimStatus();
+    state.careerGameArchive = {};
+    state.league = state.career.league; // the world mounts as scenery
+    state.sim = newSimStatus();
+    state.lastDigest = null;
+    saveCareer(state.career, state.careerSaveName);
+    json(res, 200, { ok: true });
+    return true;
+  }
+  if (p === '/api/career/load' && req.method === 'POST') {
+    if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
+    const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
+    if (!body.name) { json(res, 400, { error: 'name is required' }); return true; }
+    state.career = loadCareer(body.name);
+    state.careerSaveName = body.name;
+    state.careerSim = newCareerSimStatus();
+    state.careerGameArchive = {};
+    state.league = state.career.league;
+    state.sim = newSimStatus();
+    state.lastDigest = null;
+    json(res, 200, { ok: true });
+    return true;
+  }
+
+  const career = state.career;
+  if (!career) { json(res, 409, { error: 'no career loaded; POST /api/career/new or /api/career/load first' }); return true; }
+
+  if (p === '/api/career/save' && req.method === 'POST') {
+    const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
+    const name = body.name || state.careerSaveName;
+    saveCareer(career, name);
+    state.careerSaveName = name;
+    json(res, 200, { ok: true, name });
+    return true;
+  }
+  if (p === '/api/career/summary' && req.method === 'GET') {
+    json(res, 200, careerSummary(career, { simRunning: state.careerSim.running }));
+    return true;
+  }
+  if (p === '/api/career/me' && req.method === 'GET') {
+    json(res, 200, meView(career));
+    return true;
+  }
+  if (p === '/api/career/plan' && req.method === 'GET') {
+    json(res, 200, planView(career));
+    return true;
+  }
+  if (p === '/api/career/circuit' && req.method === 'GET') {
+    json(res, 200, circuitView(career));
+    return true;
+  }
+  if (p === '/api/career/phone' && req.method === 'GET') {
+    json(res, 200, { messages: career.phone.slice().reverse() });
+    return true;
+  }
+  if (p === '/api/career/recruiting' && req.method === 'GET') {
+    json(res, 200, recruitingView(career));
+    return true;
+  }
+  if (p === '/api/career/stock' && req.method === 'GET') {
+    json(res, 200, stockView(career) ?? { rank: null, history: [], board: [], workoutInvites: [], workoutsDone: [], combineDone: false });
+    return true;
+  }
+  if (p === '/api/career/offers' && req.method === 'GET') {
+    const { openOffers, buildMyOffers } = await import('@hoopsh/career');
+    let market: unknown[] = [];
+    try {
+      market = career.clock.phase === 'draftPrep' || career.clock.phase === 'nba' || career.clock.phase === 'china'
+        ? buildMyOffers(career) : [];
+    } catch { market = []; }
+    json(res, 200, { offers: openOffers(career), market });
+    return true;
+  }
+  if (p === '/api/career/ledger' && req.method === 'GET') {
+    json(res, 200, {
+      entries: career.ledger.slice().reverse(),
+      earnings: career.ledger.reduce((s, e) => s + e.amount, 0),
+    });
+    return true;
+  }
+  if (p === '/api/career/events' && req.method === 'GET') {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const page = Number(url.searchParams.get('page') ?? '0');
+    const pageSize = 40;
+    const all = career.events;
+    const start = Math.max(0, all.length - (page + 1) * pageSize);
+    const end = all.length - page * pageSize;
+    json(res, 200, { items: all.slice(start, Math.max(start, end)).reverse(), hasMore: start > 0 });
+    return true;
+  }
+  if (p === '/api/career/epilogue' && req.method === 'GET') {
+    const view = epilogueView(career);
+    if (!view) { json(res, 404, { error: 'the story is still going' }); return true; }
+    json(res, 200, view);
+    return true;
+  }
+  if (p === '/api/career/choice' && req.method === 'POST') {
+    if (state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
+    const body = JSON.parse(await readBody(req) || '{}') as { choice?: CareerChoice };
+    if (!body.choice) { json(res, 400, { error: 'choice is required' }); return true; }
+    const result = applyChoice(career, body.choice);
+    if (result.ok) saveCareer(career, state.careerSaveName);
+    json(res, 200, result);
+    return true;
+  }
+  if (p === '/api/career/advance' && req.method === 'POST') {
+    if (state.careerSim.running || state.sim.running) { json(res, 409, { error: 'a sim is already running' }); return true; }
+    const body = JSON.parse(await readBody(req) || '{}') as { weeks?: number; stopOnDecision?: boolean };
+    const weeks = Math.max(1, Math.min(60, Math.floor(body.weeks ?? 1)));
+    void runCareerAdvance(state, weeks, body.stopOnDecision !== false).then(
+      () => saveCareer(state.career!, state.careerSaveName),
+      err => { console.error('career advance failed:', err); state.careerSim.running = false; },
+    );
+    json(res, 200, { started: true });
+    return true;
+  }
+  if (p === '/api/career/sim/status' && req.method === 'GET') {
+    const { digestCap, ...status } = state.careerSim;
+    void digestCap;
+    json(res, 200, status);
+    return true;
+  }
+
+  const findRecord = (gid: string): GameRecord | undefined =>
+    career.circuit?.results[gid] ?? state.careerGameArchive[gid];
+
+  const gameMatch = p.match(/^\/api\/career\/game\/([\w@.-]+)$/);
+  if (gameMatch && req.method === 'GET') {
+    const record = findRecord(gameMatch[1]!);
+    if (!record) { json(res, 404, { error: 'no result for that game' }); return true; }
+    const hasReplay = Boolean(record.replayFile && existsSync(record.replayFile));
+    json(res, 200, careerGameView(career, record, hasReplay));
+    return true;
+  }
+  const replayMatch = p.match(/^\/api\/career\/game\/([\w@.-]+)\/replay$/);
+  if (replayMatch && req.method === 'GET') {
+    const record = findRecord(replayMatch[1]!);
+    if (!record?.replayFile || !existsSync(record.replayFile)) {
+      json(res, 404, { error: 'no replay kept for that game' });
+      return true;
+    }
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+    res.end(readFileSync(record.replayFile));
+    return true;
+  }
+  const bcastMatch = p.match(/^\/api\/career\/game\/([\w@.-]+)\/broadcast$/);
+  if (bcastMatch && req.method === 'GET') {
+    const record = findRecord(bcastMatch[1]!);
+    if (!record?.replayFile || !existsSync(record.replayFile)) {
+      json(res, 404, { error: 'no broadcast available (replay not kept)' });
+      return true;
+    }
+    const replay = JSON.parse(readFileSync(record.replayFile, 'utf8')) as { events: GameEvent[] };
+    const toTeam = (id: string): Team => {
+      const t = career.circuit?.teams.find(x => x.id === id);
+      return {
+        id, name: t?.name ?? id, abbrev: t?.abbrev ?? id.slice(0, 3).toUpperCase(),
+        tactics: { pace: 50, threeBias: 50, helpAggr: 50 },
+        players: [], starters: [],
+      } as unknown as Team;
+    };
+    const cues = await buildBroadcastScript(
+      replay.events,
+      [toTeam(record.home), toTeam(record.away)],
+      new TemplateColorProvider(),
+      { seed: record.seed },
+    );
+    json(res, 200, { cues });
+    return true;
+  }
+  const viewerMatch = p.match(/^\/api\/career\/game\/([\w@.-]+)\/viewer$/);
+  if (viewerMatch && req.method === 'GET') {
+    const record = findRecord(viewerMatch[1]!);
+    if (!record?.replayFile || !existsSync(record.replayFile)) {
+      json(res, 404, { error: 'no replay kept for that game' });
+      return true;
+    }
+    const template = readFileSync(path.join(HERE, '..', '..', 'viewer', 'index.html'), 'utf8');
+    const MARK = '/*HOOPSH_REPLAY*/null';
+    const replayJson = readFileSync(record.replayFile, 'utf8').replace(/</g, '\\u003c');
+    const idx = template.indexOf(MARK);
+    if (idx < 0) { json(res, 500, { error: 'viewer template is missing the bake marker' }); return true; }
+    const html = template.slice(0, idx) + replayJson + template.slice(idx + MARK.length);
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(html);
+    return true;
+  }
+
+  json(res, 404, { error: `no route for ${req.method} ${p}` });
+  return true;
+}
+
 /** Route the request. Returns true when handled. */
 async function handleApi(state: AppState, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = new URL(req.url ?? '/', 'http://localhost');
   const p = url.pathname;
   if (!p.startsWith('/api/')) return false;
 
+  if (p.startsWith('/api/career/')) {
+    return handleCareerApi(state, req, res, p);
+  }
+
   // ---- league-independent routes
   if (p === '/api/meta' && req.method === 'GET') {
-    json(res, 200, { saves: listSaves(), version: SAVE_FORMAT_VERSION, hasLeague: state.league !== null });
+    json(res, 200, {
+      saves: listSaves(),
+      version: SAVE_FORMAT_VERSION,
+      hasLeague: state.league !== null,
+      hasCareer: state.career !== null,
+    });
     return true;
   }
   if (p === '/api/new' && req.method === 'POST') {
     const body = JSON.parse(await readBody(req) || '{}') as NewLeagueBody;
     if (!body.userTeam) { json(res, 400, { error: 'userTeam is required' }); return true; }
-    if (state.sim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
+    if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     state.league = createLeague({
       seed: body.seed || `league-${body.userTeam}-${body.name || 'gm'}`,
       userTeam: body.userTeam,
       startSeason: body.startSeason,
     });
+    state.career = null; // the GM chair takes over
+    state.careerSim = newCareerSimStatus();
     state.saveName = body.name || 'my-league';
     state.lastDigest = null;
     state.sim = newSimStatus();
@@ -148,8 +426,10 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
   if (p === '/api/load' && req.method === 'POST') {
     const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
     if (!body.name) { json(res, 400, { error: 'name is required' }); return true; }
-    if (state.sim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
+    if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     state.league = loadLeague(body.name);
+    state.career = null;
+    state.careerSim = newCareerSimStatus();
     state.saveName = body.name;
     state.lastDigest = null;
     state.sim = newSimStatus();
@@ -161,6 +441,7 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
   if (!league) { json(res, 409, { error: 'no league loaded; POST /api/new or /api/load first' }); return true; }
 
   if (p === '/api/save' && req.method === 'POST') {
+    if (state.career) { json(res, 409, { error: 'the career saves through /api/career/save' }); return true; }
     const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
     const name = body.name || state.saveName;
     saveLeague(league, name);
@@ -241,6 +522,7 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     return true;
   }
   if (p === '/api/sim/advance' && req.method === 'POST') {
+    if (state.career) { json(res, 409, { error: 'career mode drives time through /api/career/advance' }); return true; }
     if (state.sim.running) { json(res, 409, { error: 'a sim is already running' }); return true; }
     const body = JSON.parse(await readBody(req) || '{}') as { days?: number; stopOnInbox?: boolean };
     const days = Math.max(1, Math.min(400, Math.floor(body.days ?? 1)));
@@ -252,6 +534,7 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     return true;
   }
   if (p === '/api/action' && req.method === 'POST') {
+    if (state.career) { json(res, 409, { error: 'the career chair has no GM console' }); return true; }
     if (state.sim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     const body = JSON.parse(await readBody(req) || '{}') as { action?: UserAction };
     if (!body.action) { json(res, 400, { error: 'action is required' }); return true; }
@@ -416,6 +699,10 @@ export function startServer(opts: { port?: number; workers?: number; loadSave?: 
     sim: newSimStatus(),
     pool: makeWorkerPool({ workers: opts.workers, replayDir: REPLAY_DIR }),
     lastDigest: null,
+    career: null,
+    careerSaveName: 'my-career',
+    careerSim: newCareerSimStatus(),
+    careerGameArchive: {},
   };
   if (opts.loadSave) {
     state.league = loadLeague(opts.loadSave);

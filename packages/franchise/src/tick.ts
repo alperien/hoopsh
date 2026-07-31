@@ -237,7 +237,10 @@ function resolveExpiredOfferSheets(league: League): void {
   for (const sheet of due) {
     const incumbent = league.players[sheet.playerId]?.rights?.teamId;
     let matched = false;
-    if (incumbent && incumbent !== league.userTeam) {
+    // a persona-run user seat (career mode, autosims) auto-matches like
+    // any AI team; only a HUMAN GM chair (gm === null) decides by hand
+    const userIsHuman = league.teams[league.userTeam]?.gm === null;
+    if (incumbent && (incumbent !== league.userTeam || !userIsHuman)) {
       const cs = capSheet(league, incumbent);
       const year1 = sheet.contract.years[0]?.salary ?? 0;
       matched = cs.total + year1 <= cs.apron1 && coreRank(league, incumbent, sheet.playerId) <= CORE_RANK;
@@ -405,6 +408,9 @@ function rolloverSeason(league: League, digest: DayDigest): void {
       if (!c) continue;
       const year = c.years.find((y) => y.season === next && (y.teamOption === true || y.playerOption === true));
       if (!year) continue;
+      // the career seam: a controlled player's PLAYER option is his call,
+      // never the AI pass's (team options stay the team's decision)
+      if (year.playerOption === true && league.careerControlled?.includes(pid)) continue;
       const value = perceivedOptionValue(league, pid, next);
       const exercised = year.teamOption === true ? year.salary <= value : year.salary >= value;
       executeOptionDecision(league, tid, pid, year.teamOption === true ? 'team' : 'player', exercised);

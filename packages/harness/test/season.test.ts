@@ -36,7 +36,7 @@ const SCHEDULE = roundRobin(LEAGUE.map((t) => t.id), 1); // 6 games
 // order test goes unexercised (its guard trips loudly by design). 'det' ->
 // 's2' after the scan-wave re-center; 's2' -> 's3' after the release-audit
 // engine fixes reshuffled the streams and 's2' came out 3-0/2-1/1-2/0-3
-// (zero ties); 's3' -> 's6' after the W66 probe flip + W67 hysteresis fix
+// (zero ties); 's3' -> 's6' after the W69 probe flip + W70 hysteresis fix
 // did the same to 's3' (1.00/0.67/0.33/0.00, zero ties). 's6' measured:
 // two 2-1 and two 1-2 teams (probed s3..s12, 2026-07-31). Assertions
 // unchanged.

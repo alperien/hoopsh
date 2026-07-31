@@ -33,6 +33,7 @@ for (const job of jobs) {
     seed: job.seed,
     home: job.home,
     away: job.away,
+    rules: job.rules, // circuit games ride their own pack (career mode); absent = NBA
     collectFrames: wantFrames,
   });
   const folded = foldEvents(job, result.events);

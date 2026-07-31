@@ -268,9 +268,14 @@ export function planDayJobs(league: League): GameJob[] {
   }));
 }
 
-/** 'Q4 2:31' / 'OT 0:03' style game-clock context for a key play. */
-function clockLabel(period: number, clock: number): string {
-  const tag = period <= REGULATION_PERIODS ? `Q${period}` : period === REGULATION_PERIODS + 1 ? 'OT' : `OT${period - REGULATION_PERIODS}`;
+/**
+ * 'Q4 2:31' / 'H2 8:10' / 'OT 0:03' style game-clock context. Regulation
+ * length rides the job's rule pack: circuits play halves and shorter
+ * quarters (career mode), and their labels must say so.
+ */
+function clockLabel(period: number, clock: number, regulation: number): string {
+  const regTag = regulation === 2 ? 'H' : 'Q'; // halves packs label H1/H2 (NCAA)
+  const tag = period <= regulation ? `${regTag}${period}` : period === regulation + 1 ? 'OT' : `OT${period - regulation}`;
   const m = Math.floor(clock / 60);
   const s = Math.floor(clock % 60);
   return `${tag} ${m}:${String(s).padStart(2, '0')}`;
@@ -292,7 +297,7 @@ function surname(names: Record<string, string>, id: string): string {
  * retelling-worthy kinds first so a Q1 run never crowds out the buzzer
  * beater that decided it.
  */
-export function extractKeyPlays(events: GameEvent[], names: Record<string, string>): KeyPlay[] {
+export function extractKeyPlays(events: GameEvent[], names: Record<string, string>, regulation: number = REGULATION_PERIODS): KeyPlay[] {
   const plays: KeyPlay[] = [];
 
   // run tracking: consecutive points by one side with none conceded
@@ -303,7 +308,7 @@ export function extractKeyPlays(events: GameEvent[], names: Record<string, strin
     if (runTeam !== null && runPts >= RUN_POINTS && runLast) {
       plays.push({
         period: runLast.period,
-        clock: clockLabel(runLast.period, runLast.clock),
+        clock: clockLabel(runLast.period, runLast.clock, regulation),
         score: [...runLast.score] as [number, number],
         kind: 'run',
         text: `${surname(names, runLast.scorer)} caps a ${runPts}-0 run`,
@@ -336,7 +341,7 @@ export function extractKeyPlays(events: GameEvent[], names: Record<string, strin
       const zoneText = e.three ? 'from deep' : e.zone === 'rim' ? 'at the rim' : e.zone === 'paint' ? 'in the paint' : 'from midrange';
       plays.push({
         period: e.period,
-        clock: clockLabel(e.period, e.clock),
+        clock: clockLabel(e.period, e.clock, regulation),
         score: [...e.score] as [number, number],
         kind: 'buzzer',
         text: `${surname(names, e.shooter)} beats the horn ${zoneText}`,
@@ -360,7 +365,7 @@ export function extractKeyPlays(events: GameEvent[], names: Record<string, strin
       if (total >= MILESTONE_PTS && total - scored < MILESTONE_PTS) {
         plays.push({
           period: e.period,
-          clock: clockLabel(e.period, e.clock),
+          clock: clockLabel(e.period, e.clock, regulation),
           score: [...e.score] as [number, number],
           kind: 'milestone',
           text: `${surname(names, scoredBy)} reaches ${total} points`,
@@ -382,15 +387,15 @@ export function extractKeyPlays(events: GameEvent[], names: Record<string, strin
             comebackDone[leader] = true;
             plays.push({
               period: e.period,
-              clock: clockLabel(e.period, e.clock),
+              clock: clockLabel(e.period, e.clock, regulation),
               score: [...e.score] as [number, number],
               kind: 'leadChange',
               text: `${surname(names, scoredBy)} completes the comeback from ${maxDeficit[leader]} down`,
             });
-          } else if (e.period >= REGULATION_PERIODS && e.clock <= LATE_CLOCK_SEC) {
+          } else if (e.period >= regulation && e.clock <= LATE_CLOCK_SEC) {
             plays.push({
               period: e.period,
-              clock: clockLabel(e.period, e.clock),
+              clock: clockLabel(e.period, e.clock, regulation),
               score: [...e.score] as [number, number],
               kind: 'leadChange',
               text: `${surname(names, scoredBy)} flips the lead, ${e.score[0]}-${e.score[1]}`,
@@ -426,7 +431,11 @@ export function extractKeyPlays(events: GameEvent[], names: Record<string, strin
  * events do not, except for the user's own games).
  */
 export function foldEvents(job: GameJob, events: GameEvent[]): GameJobResult {
-  const box = boxScore(events, [job.home, job.away]);
+  // pace normalizes to the job's own regulation length: a 32-minute prep
+  // game at NBA pace-per-48 would read absurdly fast (career circuits ride
+  // GameJob.rules; absent = NBA, the franchise's existing behavior)
+  const paceMinutes = job.rules ? job.rules.periods * job.rules.periodMinutes : 48;
+  const box = boxScore(events, [job.home, job.away], { paceMinutes });
   const names: Record<string, string> = {};
   for (const p of job.home.players) names[p.id] = p.name;
   for (const p of job.away.players) names[p.id] = p.name;
@@ -470,10 +479,10 @@ export function foldEvents(job: GameJob, events: GameEvent[]): GameJobResult {
     final: box.finalScore,
     // overtime count derives from folded periods, not from a flag: the
     // stream is the only contract (AGENTS.md §1.3)
-    ot: Math.max(0, box.periods - REGULATION_PERIODS),
+    ot: Math.max(0, box.periods - (job.rules?.periods ?? REGULATION_PERIODS)),
     lines,
     totals: [toLite(0, bigHome), toLite(1, bigAway)],
-    keyPlays: extractKeyPlays(events, names),
+    keyPlays: extractKeyPlays(events, names, job.rules?.periods ?? REGULATION_PERIODS),
     ...(job.detail === 'events' ? { events } : {}),
   };
 }
@@ -591,7 +600,7 @@ export function applyGameResults(league: League, results: GameJobResult[]): Game
 export function simulateJobsInline(jobs: GameJob[]): GameJobResult[] {
   const out: GameJobResult[] = [];
   for (const job of jobs) {
-    const result = simulateGame({ seed: job.seed, home: job.home, away: job.away, collectFrames: false });
+    const result = simulateGame({ seed: job.seed, home: job.home, away: job.away, rules: job.rules, collectFrames: false });
     out.push(foldEvents(job, result.events));
   }
   return out;

@@ -159,7 +159,7 @@ export function updateConcede(s: GameState): void {
       // back — and the next whistle, one made FT later, is over the line
       // and concedes all five straight back out. Ten bodies in ten seconds
       // (measured: the concede-pin-0 fixture at Q4 9:28, m 24 vs bar 24.48,
-      // full thrash cycle inside 10.1 s of game clock — REGISTER W67).
+      // full thrash cycle inside 10.1 s of game clock — REGISTER W70).
       // True hysteresis holds the OBSERVABLE state: a side already fielding
       // a conceded lineup (a full five with ≤1 starter) inside the band
       // STAYS conceded — re-inserting starters into a decided-enough game

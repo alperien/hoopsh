@@ -278,6 +278,10 @@ export function runFreeAgencyDay(league: League): Transaction[] {
 
   klass.forEach((player, rank) => {
     if (player.status !== 'freeAgent') return; // signed already (his rank still shapes the calendar)
+    // the career seam: a controlled player's signing is HIS decision; the
+    // market may court him but never signs him automatically
+    // (League.careerControlled; the career bridge surfaces his offers)
+    if (league.careerControlled?.includes(player.id)) return;
     if (league.offerSheets.some((s) => s.playerId === player.id)) return; // spoken for until the match clock runs
     const base = baseDecisionDay(league, rank, klass.length, open, tailDays);
     if (base > league.day) return; // his day has not come
@@ -391,6 +395,9 @@ export function runAiOffseasonDecisions(league: League): Transaction[] {
         (y) => y.season === target && (y.teamOption === true || y.playerOption === true),
       );
       if (!year) continue;
+      // a career-controlled player answers his own player option (the
+      // career bridge surfaces the decision); team options stay the club's
+      if (year.playerOption === true && league.careerControlled?.includes(pid)) continue;
       const worth = fairAav(league, player);
       const isTeam = year.teamOption === true;
       // a team keeps a year priced at/under its read; a player opts in when

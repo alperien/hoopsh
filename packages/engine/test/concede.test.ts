@@ -131,7 +131,7 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
     expect(fresh.conceded[0]).toBe(false);
   });
 
-  it('the band arms a side already FIELDING a conceded lineup (field-state hysteresis, W67)', () => {
+  it('the band arms a side already FIELDING a conceded lineup (field-state hysteresis, W70)', () => {
     // The measured thrash (concede-pin-0, Q4 9:28): running-clock inbounds
     // host no checkSubs pass, so a side reaches its first Q4 dead ball with
     // a bench floor and a margin a half-point UNDER the moving line — flag
@@ -452,7 +452,7 @@ describe('LIVE default §5.1: no-thrash hysteresis (per-side state machine)', ()
     // The engine's real decision surface: every dead ball where checkSubs
     // runs. TIMEOUTS belong here (sub.timeoutSubRelaxPts exists precisely
     // because timeout dead balls host rotation passes) — the mirror missed
-    // them until the W66 streams produced a legal disarm AT a timeout
+    // them until the W69 streams produced a legal disarm AT a timeout
     // (margin dipped through the exit floor there and recovered), which the
     // point-blind mirror misread as an in-band return (second mirror
     // correction; the first is recorded above).

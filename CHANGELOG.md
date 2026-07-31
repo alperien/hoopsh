@@ -9,7 +9,7 @@ All notable changes to hoopsh are recorded here. The format follows
 Ball movement, priced. The pass-volume probe (concept 8) is live for the
 first time, the concede thrash is fixed, and the real-roster fits close
 their biggest identity gaps. Measurement records in docs/REGISTER.md
-W66-W67 and the W65 update.
+W69-W70 and the W65 update (renumbered past the career landing rows W66-W68, which reached main first).
 
 ### Engine
 

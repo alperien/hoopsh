@@ -2265,7 +2265,7 @@ export const defaultParams: SimParams = {
     // window ramp divides by (1 − probeClockShare), so "window share 1"
     // would be 0/0, not off; the magnitudes below are the off-switch.
     probeClockShare: 0.62,
-    // LIVE at the B2 dose since the W28 pricing landed (REGISTER W66). The
+    // LIVE at the B2 dose since the W28 pricing landed (REGISTER W69). The
     // history: the B2 campaign measured the standalone dose positive
     // (+0.13 passes/poss, fga −1.0 — findings/b2-fit-probe-high/bisect.md)
     // but DESTRUCTIVE beside the live channel-2 coupling (θ 0.098→0.038,
