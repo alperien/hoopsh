@@ -108,8 +108,10 @@ their owning module headers and collected here.
   the development review (RNG-order preserving), so career training rides
   the same growth model the league uses. `distributeGrowth`/`groupMean`
   are exported for the weekly landings.
-- The engine itself is untouched: fingerprint-1 stays 1143 events,
-  CAS 132-116, across the whole career build.
+- The engine itself is untouched by the career build: every wave was
+  verified byte-identical against the then-current fingerprint baseline
+  (1143 events, CAS 132-116, pre-rules-landing; the rules landing that
+  merged alongside re-baselined separately).
 
 
 ## How we prove it works
