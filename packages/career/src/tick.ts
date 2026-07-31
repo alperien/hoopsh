@@ -294,7 +294,25 @@ function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
   const age = me ? career.clock.year - me.bornSeason : 30;
 
   if (phase === 'hs') {
-    const committed = career.recruiting?.offers.find(o => o.id === career.recruiting?.committedTo);
+    let committed = career.recruiting?.offers.find(o => o.id === career.recruiting?.committedTo);
+    if (!committed && career.recruiting) {
+      // signing day passes for the undecided: the best door still open
+      // gets the name (the world moves even when you do not)
+      const open = career.recruiting.offers.filter(o => !career.recruiting!.interest
+        .find(i => i.programId === o.programId)?.closed);
+      // the default door is college; the leap abroad is a choice, never a drift
+      const best = [...open].sort((a, b) =>
+        Number(b.kind === 'college') - Number(a.kind === 'college')
+        || b.coachDev - a.coachDev || b.money - a.money)[0];
+      if (best) {
+        career.recruiting.committedTo = best.id;
+        committed = best;
+        const dest = career.recruiting.programs.find(pr => pr.id === best.programId)?.name
+          ?? best.clubName ?? 'the program';
+        pushEvent(career, 'recruiting',
+          `signing day came with no answer; ${dest} got the name (the best door still open)`);
+      }
+    }
     if (committed) {
       career.clock.phase = committed.kind;
       pushEvent(career, 'phase', committed.kind === 'college'

@@ -21,9 +21,9 @@ import { distributeGrowth, groupMean } from '@hoopsh/franchise';
 import { streamRng } from '@hoopsh/franchise';
 import type { AttrGroup } from '@hoopsh/franchise';
 import type { CareerState, WeekDigest, WeekSlotId } from './types.js';
-import { applyCircuitResults, circuitWeekJobs } from './circuits.js';
+import { applyCircuitResults, circuitWeekJobs, seedBracket } from './circuits.js';
 import { updateAfterGame } from './trust.js';
-import { updateRecruiting } from './recruiting.js';
+import { buildPrograms, updateRecruiting } from './recruiting.js';
 import { updateStock } from './stock.js';
 import { generatePhone } from './phone.js';
 
@@ -69,8 +69,8 @@ export function resolveAllocation(career: CareerState): void {
   const p = career.params.week;
   const rng = streamRng(career.seed, 'career-train', career.clock.year, career.clock.week);
 
-  // practice is mandatory and paid first
-  let energy = career.energy - p.energyCost.practice;
+  // the body recovers on its own first (sleep exists), then practice is paid
+  let energy = career.energy + p.weekBaseRecovery - p.energyCost.practice;
 
   for (const slot of career.weekPlan.slots) {
     energy += slotEnergy(career, slot);
@@ -208,7 +208,21 @@ export async function resolveWeek(career: CareerState, sim: SimulateJobs): Promi
     }
   }
 
-  // weekly system pulses (INERT stubs stay quiet mid-wave)
+  // the regular slate done means the bracket seeds (the postseason is
+  // part of the season; foldSeason archives only at the final horn)
+  if (career.circuit && !career.circuit.complete
+    && career.circuit.bracket.length === 0
+    && career.circuit.schedule.length > 0
+    && career.circuit.schedule.every(g => career.circuit!.results[g.id])) {
+    seedBracket(career, streamRng(career.seed, 'career-bracket', career.clock.year));
+    pushEvent(career, 'phase', 'the regular season is done; the bracket is set');
+  }
+
+  // weekly system pulses; the recruiting board builds itself the first
+  // time anyone looks (creation leaves programs to this seam)
+  if (career.clock.phase === 'hs' && career.recruiting && career.recruiting.programs.length === 0) {
+    career.recruiting.programs = buildPrograms(career, streamRng(career.seed, 'career-recruit-programs'));
+  }
   updateRecruiting(career);
   updateStock(career);
   const msgs = generatePhone(career);

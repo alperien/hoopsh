@@ -57,6 +57,8 @@ export interface CareerParams {
     slotCount: number;                          // FEEL 3
     /** energy costs per slot kind (rest/life restore) */
     energyCost: { practice: number; extraWork: number; film: number; body: number; rest: number; life: number };
+    /** flat weekly recovery before costs (sleep exists); a balanced in-season week roughly holds */
+    weekBaseRecovery: number;                   // CAL 30 (career smoke: costs alone pinned energy at 0)
       // FEEL { practice: 12, extraWork: 16, film: 6, body: 8, rest: -25, life: -12 }
     /** energy cost per game played */
     gameEnergyCost: number;                     // FEEL 14
@@ -215,6 +217,7 @@ export function defaultCareerParams(): CareerParams {
     week: {
       slotCount: 3,
       energyCost: { practice: 12, extraWork: 16, film: 6, body: 8, rest: -25, life: -12 },
+      weekBaseRecovery: 30,
       gameEnergyCost: 14,
       energyFloorInjuryRisk: 30,
       energyLowHazardMult: 1.8,
