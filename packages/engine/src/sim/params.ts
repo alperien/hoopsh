@@ -1248,8 +1248,8 @@ export const defaultParams: SimParams = {
     // and they land near real NBA zone efficiencies:
     // baseRim re-swept at the FLOW landing (f-assembly §3 round 2), paying
     // for the flipped foul/whistle mix; still ≈ 64% at the rim.
-    baseRim: 0.5547486941020601, // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
-    basePaint: -0.4343418182430332,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
+    baseRim: 0.5598383354754366, // sigmoid ≈ 64% at the rim (NBA ~65-68% incl. dunks)
+    basePaint: -0.5433569895541309,   // ≈ 41% floaters/short hooks (NBA ~40-45%)
     baseMid: -0.45,     // ≈ 35% mid-range before skill (NBA ~40%, but the
                         //   distance penalty below and contest terms shift it)
     baseThree: -0.955,   // ≈ 29% raw; skill + open looks lift the league to ~36% (re-centered when skillCoefThree widened)
@@ -1449,19 +1449,19 @@ export const defaultParams: SimParams = {
     // tagged SWEPT but never registered in harness/knobs.ts (unsweepable
     // in practice); registered there now, so the coordinated sweep owns it.
     // SWEPT at the FLOW landing (f-assembly §3 round 2).
-    chargePerDrive: 0.005971976876462406,
+    chargePerDrive: 0.006244936149189068,
     // Per-tick multiplier folded into the charge roll (game.ts tickLive:
     // chargePerDrive × dt × this). FEEL — the ×2 was an inline literal.
     chargeTickMult: 2,
     // Loose-ball fouls per contested rebound scramble. SWEPT.
-    looseBallPerReb: 0.0382566165233726,
+    looseBallPerReb: 0.03573869267120509,
     // Load foul couplings (ffit-rhythm §2 REAL-fit seeds), armed since the
     // FLOW flip (fatigue.loadPerSec 0.011). Registered in knobs.ts
     // ([0.6, 2.0] / [0.2, 0.9]). knot-combo §5.1: only the ORGANIC reach
     // branch carries the loadReachSwing legs, so these swings set how
     // Q4-heavy reach fouls run; trading loadReachSwing down against
     // reachInPerSec up is the unexplored G7-shape lever.
-    loadReachSwing: 1.3,
+    loadReachSwing: 1.7706909623782483,
     loadShootSwing: 0.5
   },
 
@@ -1551,7 +1551,7 @@ export const defaultParams: SimParams = {
     // Raised 0.4532 → 0.55 with the concept-10 OREB read (ffit-grammar:
     // putback-within-6s share 65% vs the 62% floor at this dose). Registered
     // [0.35, 0.8]; the sweep owns it from here.
-    putbackChance: 0.55,
+    putbackChance: 0.5749948213111973,
     // FEEL — putback eligibility: the rebounder must still be right under
     // the basket (within 6 ft of the rim) for the automatic putback roll.
     // Was inline in possession.ts tickScramble (audit H-01, the
@@ -1668,7 +1668,7 @@ export const defaultParams: SimParams = {
     // decision by intervalJitterLo/Hi below). Roughly "how often a player
     // re-reads the floor" — the main lever on how many actions fit in a
     // possession. SWEPT.
-    intervalSec: 0.6571,
+    intervalSec: 0.7070273369202364,
     // FEEL — the cadence jitter: each window is intervalSec × uniform
     // [0.75, 1.3] (−25%/+30%, mildly long-skewed) so decisions never land on
     // a metronome. Was inline in game.ts tickLive (audit H-01; the old
@@ -1717,7 +1717,7 @@ export const defaultParams: SimParams = {
     // Curve exponent: value = max × (shotClock/full)^curve. At 0.22 the value
     // decays slowly then falls off a cliff late — mirroring how real offenses
     // stay patient until roughly 6-8 seconds remain. SWEPT.
-    continuationCurve: 0.142,
+    continuationCurve: 0.14,
     // Inside this many shot-clock seconds, urgency scales the continuation
     // value linearly to zero: any shot beats a violation. REAL rule pressure.
     urgencySec: 5,
@@ -2090,7 +2090,7 @@ export const defaultParams: SimParams = {
     // ramp, above any shot the engine generates, so the holder waits for the
     // urgency window (the boost itself fades inside urgencySec, see
     // concepts.ts, so late-clock offense still fires and violations don't spike)
-    leadHoldMaxBoost: 0.4179006153562141,
+    leadHoldMaxBoost: 0.4147373148320206,
     // full clock-kill up ~8, none by up ~16 — a 3-possession Q4 lead is
     // managed, a 16-point one is garbage time
     leadHoldMarginRef: 8,
@@ -2109,7 +2109,7 @@ export const defaultParams: SimParams = {
     // flip). Registered [0.1, 0.5]; the assembly sweep moved it to ~0.19
     // and the G7 diagnostic moved it back — 0.25 is part of the restored
     // endgame trio that holds the Q4-min shape (f-assembly §6.1).
-    deadGameBoost: 0.25,
+    deadGameBoost: 0.30045967918468036,
     // ~12 s per chase possession-pair; 1.6 net points recoverable per chance
     // (score ~2.2, opponent answers ~0.6 through the foul game)
     chasePossSec: 12,
@@ -2147,7 +2147,7 @@ export const defaultParams: SimParams = {
     // the hunt economy is isolated from the fga/pace absorber; 45.3 itself
     // was the restored inventory value after the band sweep sold the Q4
     // shape through the endgame trio (f-assembly §6.1).
-    foulHuntRateMult: 33.8644,
+    foulHuntRateMult: 33.51348026432238,
     foulHuntStripShare: 0.12,
     foulHuntReachDistFt: 6,
     foulHuntGapFt: 1.5,
@@ -2434,7 +2434,7 @@ export const defaultParams: SimParams = {
     // grenade cut at minimal volume cost (see the session-7 register row).
     passClockGetOffSec: 1.5,
     cutterBonus: 0.5,
-    swingBase: 0.0341,
+    swingBase: 0.045,
     swingPassOutScale: 0.16,
     swingVisionScale: 0.12,
     // FEEL — re-initiation pull: full-clock EV of feeding a teammate 100
@@ -2697,7 +2697,7 @@ export const defaultParams: SimParams = {
     // under 1.0 on purpose: the rim drive must stay the default or the
     // player stops pressuring the basket and the defense stops dropping —
     // which is the very coverage that makes the middy available.
-    driveMidStopChance: 0.5670019316938034,
+    driveMidStopChance: 0.5602641382769502,
     // REAL — 16 ft: the canonical pull-up spot, a step behind the
     // free-throw line's 13.75 ft rim distance and the center of the
     // 14-19.5 ft real-mid band. Matches the elbow spot's radial distance
@@ -2749,7 +2749,7 @@ export const defaultParams: SimParams = {
     //     SWEPT since the FLOW landing (f-assembly §3 round 1): just over
     //     half his screens end in the short pop.
     pnrMidPopScoreCut: 0.1,
-    pnrMidPopChance: 0.5740436431027109,
+    pnrMidPopChance: 0.3722341413102205,
     // FEEL. The throwback: the handler comes off the screen reading the
     // big. The roll half of that read was already priced (the roll is a
     // cut, so the pocket pass earns cutterBonus 0.5); the pop half had no
@@ -2836,7 +2836,7 @@ export const defaultParams: SimParams = {
     // arc (what actually caps an elite shooter's pull-up volume)
     blitzBeyondFt: 20,
     // FEEL — the trailer three: worth ~a quarter point of bias to a shooter
-    transitionPullUpBonus: 0.2602843311131,
+    transitionPullUpBonus: 0.21300953217744822,
     // FEEL — perimeter defenders mostly hold on the shot; rebounding
     // instincts send ~30-50% of them in (defReb-scaled)
     defCrashFarChance: 0.22,
