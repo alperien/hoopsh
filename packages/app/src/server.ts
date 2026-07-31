@@ -28,8 +28,8 @@ import {
   scheduleRow, summary, teamView,
 } from './views.js';
 import {
-  careerGameView, careerSummary, circuitView, epilogueView, meView,
-  planView, recruitingView, stockView,
+  careerGameView, careerSummary, circuitView, draftNightView, epilogueView,
+  meView, planView, recruitingView, stockView,
 } from './career-views.js';
 import type { CareerSimStatus, NewCareerBody, NewLeagueBody, SimStatus } from './protocol.js';
 import { SAVE_FORMAT_VERSION, conferenceSeeds } from '@hoopsh/franchise';
@@ -151,6 +151,7 @@ async function runCareerAdvance(state: AppState, weeks: number, stopOnDecision: 
   cs.weeksDone = 0;
   cs.digests = [];
   cs.stoppedFor = null;
+  const seenWindows = new Set(career.events.filter(e => e.kind === 'contract').map(e => e.id));
   try {
     for (let i = 0; i < weeks; i++) {
       const unansweredBefore = career.phone.filter(m => m.choices?.length && !m.chosen).length;
@@ -174,6 +175,12 @@ async function runCareerAdvance(state: AppState, weeks: number, stopOnDecision: 
         const unansweredNow = career.phone.filter(m => m.choices?.length && !m.chosen).length;
         if (unansweredNow > unansweredBefore) { cs.stoppedFor = 'decision'; break; }
         if (digest.phaseChangedTo) { cs.stoppedFor = 'phase'; break; }
+        const windowOpened = career.events.slice(-8).some(e => e.kind === 'contract');
+        if (windowOpened && career.events.slice(-8).some(e => e.kind === 'contract' && !seenWindows.has(e.id))) {
+          for (const e of career.events.slice(-8)) if (e.kind === 'contract') seenWindows.add(e.id);
+          cs.stoppedFor = 'window';
+          break;
+        }
       }
     }
     if (!cs.stoppedFor) cs.stoppedFor = 'target';
@@ -283,6 +290,12 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
     json(res, 200, { items: all.slice(start, Math.max(start, end)).reverse(), hasMore: start > 0 });
     return true;
   }
+  if (p === '/api/career/draftnight' && req.method === 'GET') {
+    const view = draftNightView(career);
+    if (!view) { json(res, 404, { error: 'no draft has happened yet' }); return true; }
+    json(res, 200, view);
+    return true;
+  }
   if (p === '/api/career/epilogue' && req.method === 'GET') {
     const view = epilogueView(career);
     if (!view) { json(res, 404, { error: 'the story is still going' }); return true; }
@@ -317,7 +330,7 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
   }
 
   const findRecord = (gid: string): GameRecord | undefined =>
-    career.circuit?.results[gid] ?? state.careerGameArchive[gid];
+    career.circuit?.results[gid] ?? state.careerGameArchive[gid] ?? career.league.results[gid];
 
   const gameMatch = p.match(/^\/api\/career\/game\/([\w@.-]+)$/);
   if (gameMatch && req.method === 'GET') {

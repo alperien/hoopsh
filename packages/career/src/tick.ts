@@ -24,11 +24,12 @@ import type { SimulateJobs, TeamId } from '@hoopsh/franchise';
 import { advanceDay, generatePersona, streamRng } from '@hoopsh/franchise';
 import type {
   ApproachCard, CareerChoice, CareerPhase, CareerState, ChoiceResult,
-  CircuitKind, WeekDigest, WeekSlotId,
+  CircuitKind, RoleId, WeekDigest, WeekSlotId,
 } from './types.js';
 import { fastSim } from './fastsim.js';
 import { buildCircuit, summarizeCircuit } from './circuits.js';
 import { resolveWeek } from './week.js';
+import { commitToOffer } from './recruiting.js';
 import { applyPhoneChoice } from './phone.js';
 import { enterDraftClass, runCombineWeek, attendWorkout } from './stock.js';
 import {
@@ -118,11 +119,10 @@ export function applyChoice(career: CareerState, choice: CareerChoice): ChoiceRe
       if (career.recruiting.committedTo) { result = deny('you already committed'); break; }
       const offer = career.recruiting.offers.find(o => o.id === choice.offerId);
       if (!offer) { result = deny('that offer is not on the table'); break; }
-      if (career.clock.week > offer.expiresWeek) { result = deny('that offer expired'); break; }
-      career.recruiting.committedTo = offer.id;
-      const program = career.recruiting.programs.find(pr => pr.id === offer.programId);
-      const dest = program?.name ?? offer.clubName ?? 'the program';
-      pushEvent(career, 'recruiting', `committed: ${dest} (${offer.kind}), role promise ${offer.promisedRole}`);
+      if (career.clock.week >= offer.expiresWeek) { result = deny('that offer expired'); break; }
+      // the module owns the ritual: the commitment line plus every other
+      // door audibly shutting ('came off the board: signed elsewhere')
+      commitToOffer(career, offer.id);
       result = ok();
       break;
     }
@@ -287,6 +287,41 @@ function foldSeason(career: CareerState, digest: WeekDigest): void {
   digest.events.push(career.events[career.events.length - 1]!.id);
 }
 
+
+/** Surnames for generated staff; mirrors creation.ts's pool (module-private there). */
+const STAFF_SURNAMES: readonly string[] = [
+  'Wexler', 'Aldrich', 'Barlowe', 'Casteel', 'Dempsey', 'Fairbank',
+  'Granger', 'Halvorsen', 'Lockridge', 'Marchetti', 'Naughton', 'Pruett',
+  'Rasmussen', 'Stoddard', 'Tillery', 'Youngblood',
+];
+
+/**
+ * A new bench for a new chapter: the next program's coach replaces the
+ * old CoachState wholesale. Trust re-earns from 55; the role STARTS at
+ * the offer's promise (the promise is real on day one; keeping it is
+ * the program's side of the deal, earning more is yours). Fixes the
+ * continuity break where the high school coach silently followed the
+ * player to college.
+ */
+function installNextCoach(career: CareerState, phase: CareerPhase, promisedRole: RoleId | null): void {
+  const rng = streamRng(career.seed, 'career-next-coach', phase, career.clock.year);
+  const personalities = ['playersCoach', 'disciplinarian', 'systems', 'ridesHotHand'] as const;
+  const name = `Coach ${STAFF_SURNAMES[rng.int(STAFF_SURNAMES.length)]}`;
+  const personality = personalities[rng.int(personalities.length)]!;
+  career.coach = {
+    name,
+    personality,
+    trust: 55,
+    role: promisedRole ?? 'bench',
+    plan: career.coach.plan, // recomputed by planFor at the next grade
+    greenLight: false,
+    grades: [],
+    roleClock: { above: 0, below: 0 },
+  };
+  pushEvent(career, 'role',
+    `a new bench: ${name} (${personality}) takes over; the ${promisedRole ?? 'bench'} role is the promise, trust re-earns from 55`);
+}
+
 /** Year-wrap phase transitions; returns the new phase when it moves. */
 function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
   const phase = career.clock.phase;
@@ -318,6 +353,7 @@ function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
       pushEvent(career, 'phase', committed.kind === 'college'
         ? 'moved in: the college year starts'
         : `flew out: the ${committed.kind === 'euro' ? 'European' : 'NBL'} season is the new proving ground`);
+      installNextCoach(career, committed.kind, committed.promisedRole);
       return committed.kind;
     }
     // nobody called: the walk-on door (docs/CAREER.md, recruiting)
@@ -342,6 +378,7 @@ function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
     } else {
       pushEvent(career, 'phase', 'walked on; the college year starts at the bottom of the bench');
     }
+    installNextCoach(career, 'college', 'bench');
     return 'college';
   }
 

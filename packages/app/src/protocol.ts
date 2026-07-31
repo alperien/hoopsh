@@ -89,7 +89,7 @@ export interface CareerSimStatus {
   weeksTotal: number;
   /** week digests completed this run (capped) */
   digests: object[];
-  stoppedFor: 'decision' | 'target' | 'phase' | 'gameNight' | null;
+  stoppedFor: 'decision' | 'target' | 'phase' | 'gameNight' | 'window' | null;
 }
 
 /** The office screen: everything the day view needs in one call. */

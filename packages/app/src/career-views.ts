@@ -27,8 +27,12 @@ const PHASE_LABELS: Record<CareerState['clock']['phase'], string> = {
   retired: 'retired',
 };
 
-function teamName(career: CareerState, circuitTeamId: string): string {
-  return career.circuit?.teams.find(t => t.id === circuitTeamId)?.name ?? circuitTeamId;
+function teamName(career: CareerState, teamId: string): string {
+  const circuitTeam = career.circuit?.teams.find(t => t.id === teamId);
+  if (circuitTeam) return circuitTeam.name;
+  const leagueTeam = career.league.teams[teamId];
+  if (leagueTeam) return `${leagueTeam.city} ${leagueTeam.name}`;
+  return teamId;
 }
 
 function scheduleRow(career: CareerState, g: CircuitGame) {
@@ -124,8 +128,72 @@ export function careerSummary(career: CareerState, opts: { simRunning: boolean }
     phoneUnread: unread,
     eventsTail: career.events.slice(-12).reverse(),
     epilogue: career.epilogue,
+    gradient: gradientFor(career),
+    nextBeat: nextBeatFor(career),
     simRunning: opts.simRunning,
   };
+}
+
+/**
+ * The windshield: what the player is playing FOR right now. Everything
+ * derives from state the systems already keep; the genre's rule is that
+ * the carrot must be visible before the bite, not explained after it.
+ */
+function gradientFor(career: CareerState) {
+  const t = career.params.trust;
+  const roles = ['garbage', 'bench', 'rotation', 'sixthMan', 'starter', 'featured', 'franchise'];
+  const idx = roles.indexOf(career.coach.role);
+  const nearestOffer = career.recruiting && !career.recruiting.committedTo
+    ? career.recruiting.offers
+      .filter(o => career.clock.week < o.expiresWeek)
+      .sort((a, b) => a.expiresWeek - b.expiresWeek)[0] ?? null
+    : null;
+  return {
+    role: {
+      current: career.coach.role,
+      above: career.coach.roleClock.above,
+      below: career.coach.roleClock.below,
+      needed: t.reactGames,
+      next: idx < roles.length - 1 ? roles[idx + 1] : null,
+      danger: idx > 0 ? roles[idx - 1] : null,
+    },
+    stockLast: career.stock?.history[career.stock.history.length - 1] ?? null,
+    nearestOffer: nearestOffer
+      ? {
+        id: nearestOffer.id,
+        dest: career.recruiting!.programs.find(p => p.id === nearestOffer.programId)?.name
+          ?? nearestOffer.clubName ?? 'the program',
+        expiresWeek: nearestOffer.expiresWeek,
+        weeksLeft: nearestOffer.expiresWeek - career.clock.week,
+      }
+      : null,
+  };
+}
+
+/** The next date on the calendar worth living toward. */
+function nextBeatFor(career: CareerState): { label: string; week: number; weeksAway: number } | null {
+  const t = career.params.tick;
+  const phase = career.clock.phase;
+  const week = career.clock.week;
+  const candidates: Array<{ label: string; week: number }> = [];
+
+  if (career.circuit && !career.circuit.complete) {
+    return null; // in season the next game IS the beat; the schedule shows it
+  }
+  if (phase === 'hs') {
+    if (!career.recruiting?.committedTo) candidates.push({ label: 'signing day', week: t.weeksPerYear });
+    candidates.push({ label: 'the college season opens', week: t.weeksPerYear + t.collegeSeasonStartWeek });
+  } else if (phase === 'college') {
+    candidates.push({ label: 'the season opens', week: week < t.collegeSeasonStartWeek ? t.collegeSeasonStartWeek : t.weeksPerYear + t.collegeSeasonStartWeek });
+  } else if (phase === 'euro' || phase === 'nbl' || phase === 'china') {
+    candidates.push({ label: 'the season opens', week: week < t.proSeasonStartWeek ? t.proSeasonStartWeek : t.weeksPerYear + t.proSeasonStartWeek });
+  } else if (phase === 'draftPrep') {
+    if (week < t.combineWeek) candidates.push({ label: 'the combine', week: t.combineWeek });
+    if (week < t.draftWeek) candidates.push({ label: 'draft night', week: t.draftWeek });
+  }
+  const next = candidates.filter(c => c.week > week).sort((a, b) => a.week - b.week)[0];
+  if (!next) return null;
+  return { label: next.label, week: next.week % t.weeksPerYear, weeksAway: next.week - week };
 }
 
 /** My true sheet: attributes and tendencies, ceilings stay hidden. */
@@ -278,5 +346,54 @@ export function epilogueView(career: CareerState) {
     ledger: career.ledger,
     seasons: career.circuitHistory,
     honorsTimeline: career.events.filter(e => e.kind === 'honor'),
+  };
+}
+
+
+/**
+ * The green room: the whole first round as it happened, my pick marked,
+ * the rival's marked, the mock's last read for the gap line. Everything
+ * from league.transactions; nothing invented.
+ */
+export function draftNightView(career: CareerState) {
+  const all = career.league.transactions
+    .filter((t): t is Extract<typeof t, { kind: 'draftSelection' }> => t.kind === 'draftSelection');
+  if (all.length === 0) return null;
+  // MY draft class when I was picked; the latest class otherwise
+  const mine = all.find(p => p.playerId === career.me) ?? null;
+  const season = mine ? mine.date.season : all[all.length - 1]!.date.season;
+  const picks = all.filter(p => p.date.season === season);
+  const rival = picks.find(p => p.playerId === career.rivalId) ?? null;
+  const mockAtEntry = career.stock?.history.length
+    ? career.stock.history[career.stock.history.length - 1]!.rank
+    : null;
+  const rows = picks
+    .filter((p): p is Extract<typeof p, { kind: 'draftSelection' }> => p.kind === 'draftSelection')
+    .map(p => {
+      const player = career.league.players[p.playerId];
+      const team = career.league.teams[p.teamId];
+      return {
+        round: p.round,
+        pick: p.pick,
+        overall: (p.round - 1) * 30 + p.pick,
+        teamId: p.teamId,
+        team: team ? `${team.city} ${team.name}` : p.teamId,
+        colors: team?.colors ?? null,
+        player: player?.name ?? p.playerId,
+        mine: p.playerId === career.me,
+        rival: p.playerId === career.rivalId,
+      };
+    })
+    .sort((a, b) => a.overall - b.overall);
+  const contract = mine ? career.league.players[career.me]?.contract ?? null : null;
+  return {
+    picks: rows,
+    myPick: mine && mine.kind === 'draftSelection' ? (mine.round - 1) * 30 + mine.pick : null,
+    rivalPick: rival && rival.kind === 'draftSelection' ? (rival.round - 1) * 30 + rival.pick : null,
+    mockAtEntry,
+    rookieDeal: contract
+      ? { firstYear: contract.years[0]?.salary ?? null, years: contract.years.length }
+      : null,
+    undrafted: !mine,
   };
 }
