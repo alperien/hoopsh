@@ -103,7 +103,10 @@ describe('crunch covers the OT tip stoppage (audit H-02)', () => {
     // seeds go to OT — if the vacuity floor below trips, re-scan for OT
     // seeds and re-anchor the list; do not weaken the starter assertion.
     let otGames = 0;
-    for (const i of [3, 31, 41, 135, 137, 204]) {
+    // (re-anchored a fourth time at the rules landing: OT threshold +
+    // last-2:00 window + clock stops reshuffled the streams again;
+    // re-scanned otseek-0..300)
+    for (const i of [47, 53, 103, 144, 163, 198]) {
       const { home, away } = sampleMatchup();
       const r = simulateGame({ seed: `otseek-${i}`, home, away, collectFrames: false });
       if (!r.events.some((e) => e.period > r.rules.periods)) continue;

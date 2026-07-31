@@ -194,10 +194,11 @@ describe('mandatory / TV stoppages (forced live)', () => {
   it('the Q4 late cap really blocks spending (0-cap arm) while Q1-Q3 are untouched', () => {
     // control (late cap 2) vs treatment (late cap 0) on the same seeds.
     // Probed: control shows 1-2 late-Q4 timeouts per game, treatment 0.
-    // Seeds re-anchored at the post-audit rebase (rng reshuffle moved the
-    // old 0/1 pair's control games to zero late-Q4 calls by seed luck —
-    // the same re-anchor practice as the audit wave's own fixture shifts).
-    for (const i of [2, 5]) {
+    // Seeds re-anchored at the post-audit rebase, and again at the rules
+    // landing (rng reshuffles moved control games to zero late-Q4 calls by
+    // seed luck — the same re-anchor practice as the audit wave's own
+    // fixture shifts; scouted to-cap-1..16, picked 2 and 4).
+    for (const i of [2, 4]) {
       const { home, away } = sampleMatchup();
       const mk = (late: number): GameResult => simulateGame({
         seed: `to-cap-${i}`, home, away, collectFrames: false,
@@ -534,6 +535,7 @@ describe('endPeriod bookkeeping (hand-built state)', () => {
       wallT: o.period * 720,
       score: o.score,
       teamFoulsPeriod: [2, 3],
+      teamFoulsLate: [0, 0],
       tipWinner: 0,
       endgame: true,
       timeoutsLeft: [4, 1],

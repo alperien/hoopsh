@@ -120,6 +120,8 @@ interface BonusTrip {
   attempts: { n: number; of: number; made: boolean; oneAndOne: boolean }[];
   /** first rebound event after the trip's last FT, before any foul/shot/turnover/period_end */
   nextRebound: { deadBall: boolean } | null;
+  period: number;
+  clock: number;
 }
 
 /**
@@ -134,7 +136,7 @@ function collectBonusTrips(events: GameEvent[]): BonusTrip[] {
   for (let i = 0; i < events.length; i++) {
     const e = events[i]!;
     if (e.type !== 'foul' || !e.inBonus || (e.kind !== 'reach' && e.kind !== 'loose_ball')) continue;
-    const trip: BonusTrip = { teamCount: e.teamCountInPeriod, attempts: [], nextRebound: null };
+    const trip: BonusTrip = { teamCount: e.teamCountInPeriod, period: e.period, clock: e.clock, attempts: [], nextRebound: null };
     for (let j = i + 1; j < events.length; j++) {
       const x = events[j]!;
       if (x.type === 'free_throw') {
@@ -235,9 +237,16 @@ describe('NBA bonus unchanged (control for R1)', () => {
     expect(trips.length).toBeGreaterThan(0);
   });
 
-  it('every bonus trip from 5 team fouls on is a flat two: both attempts, never a one-and-one stamp', () => {
+  it('every bonus trip is a flat two — never a one-and-one stamp — and each cites a live NBA penalty path', () => {
+    const rules = NBA;
     for (const t of trips) {
-      expect(t.teamCount).toBeGreaterThanOrEqual(5);
+      // three NBA penalty paths (rulepack.ts bonusFreeThrowAward): the
+      // period threshold (5), the OT threshold (4), or the last-2:00 window
+      // rule — a trip below the count thresholds must sit inside the window
+      const threshold = t.period > rules.periods ? rules.teamFoulBonusAtOT : rules.teamFoulBonusAt;
+      if (t.teamCount < threshold) {
+        expect(t.clock).toBeLessThanOrEqual(rules.lateWindowSec);
+      }
       expect(t.attempts.length).toBe(2);
       expect(t.attempts[0]!.oneAndOne).toBe(false);
       expect(t.attempts[1]!.oneAndOne).toBe(false);

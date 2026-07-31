@@ -37,6 +37,11 @@ const REC: RulePack = {
   shotClockOffRebSec: 20,
   teamFoulBonusAt: 6,                // ...with an NCAA-style bonus:
   bonusRule: 'oneAndOne',            // make the front end to earn the second
+  teamFoulBonusAtOT: 6,              // no NBA OT drop in this rec league...
+  lateWindowSec: 0,                  // ...and no NBA last-2:00 window penalty
+  lateWindowFoulBonusAt: 0,          // (spreading ...NBA would inherit both —
+                                     // override league-rule fields explicitly,
+                                     // the same discipline the NCAA pack uses)
   doubleBonusAt: 9,
   foulOutAt: 5,                      // stricter disqualification
   three: { arcRadiusFt: 22.15, cornerDistFt: 21.65, cornerBreakFt: 9.85 }
@@ -56,9 +61,9 @@ console.log(`and ${callUnder(REC)} in the ${REC.name}. Same spot, different rule
 console.log('');
 
 // ---- 3. same teams, same seed, two rule books ---------------------------------
-// seed re-anchored at the FLOW rebase: the reshuffled stream left the old
-// 'sunday-run' rec game bonus-quiet (0 front ends); this one shows 4
-const SEED = 'saturday-run';
+// seed re-anchored at the FLOW rebase ('sunday-run' went bonus-quiet), and
+// again at the rules landing ('saturday-run' did the same); this one shows 5
+const SEED = 'rules-demo-1';
 const game = (rules?: RulePack): GameResult => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed: SEED, home, away, rules });

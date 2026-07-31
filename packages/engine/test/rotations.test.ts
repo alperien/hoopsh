@@ -249,13 +249,14 @@ describe('quarter-break wave (constructed boundary stoppage, forced live)', () =
   it('live defaults wave at the fitted cap; a pinned waveMaxPerTeam 0 still swaps zero', () => {
     // the old dormancy pin, inverted at the FLOW flip: the same boundary
     // now waves 2 (the fitted cap) at defaults
+    // bench stints sized past the 420s churn floor (subMinBenchSec, W59)
     const f = rotState(withParams(), { period: 2, clock: 720, t: 720 });
-    for (const id of f.bn) { f.a(id).energy = 100; f.a(id).lastSwapT = 400; }
+    for (const id of f.bn) { f.a(id).energy = 100; f.a(id).lastSwapT = 250; }
     checkSubs(f.s, undefined, { wave: true });
     expect(subsOf(f.s, 0).length).toBe(2);
     // the 0-arm semantics survive behind the explicit override
     const off = rotState(withParams({ sub: { waveMaxPerTeam: 0 } }), { period: 2, clock: 720, t: 720 });
-    for (const id of off.bn) { off.a(id).energy = 100; off.a(id).lastSwapT = 400; }
+    for (const id of off.bn) { off.a(id).energy = 100; off.a(id).lastSwapT = 250; }
     checkSubs(off.s, undefined, { wave: true }); // guard returns
     expect(subsOf(off.s, 0).length).toBe(0);
   });
@@ -581,9 +582,13 @@ describe('post-make sub window + between-FT slot (event-stream shape, forced liv
     while (j >= 0 && ev[j]!.type === 'substitution') j -= 1;
     return ev[j]!;
   };
-  /** subs hosted by a running-clock made-FG dead ball: preceding chain is
-   *  possession_end <- made shot, no timeout between, outside the
-   *  final-period last-2:00 clock stop */
+  /** subs hosted by a RUNNING-clock made-FG dead ball: preceding chain is
+   *  possession_end <- made shot, no timeout between, outside every
+   *  made-basket clock-stop window the pack defines (rules.makeStopClock* —
+   *  the final-period window AND the NBA's last-minute window in earlier
+   *  periods). Frozen-clock make windows legally host subs (that is the
+   *  real rule and the corpus's G8c rows); the TELL this counter measures
+   *  is subs while the clock RUNS. */
   const postMakeSubs = (r: GameResult): number => {
     const ev = r.events;
     let count = 0;
@@ -593,11 +598,11 @@ describe('post-make sub window + between-FT slot (event-stream shape, forced liv
       if (prev.type !== 'possession_end') continue;
       const i = ev.indexOf(prev);
       const before = ev[i - 1];
-      if (
-        before && before.type === 'shot' && before.made &&
-        !(before.period >= 4 && before.clock <= 120)
-      ) {
-        count += 1;
+      if (before && before.type === 'shot' && before.made) {
+        const stopSec = before.period >= r.rules.periods
+          ? r.rules.makeStopClockFinalSec
+          : r.rules.makeStopClockEarlySec;
+        if (before.clock > stopSec) count += 1;
       }
     }
     return count;
@@ -734,7 +739,7 @@ describe('fitted defaults (ffit-rotations) — drift tripwire', () => {
   it('the rotation grammar ships at the ffit-rotations corpus fits', () => {
     const S = defaultParams.sub;
     expect(S.waveMaxPerTeam).toBe(2);
-    expect(S.subMinBenchSec).toBe(300);
+    expect(S.subMinBenchSec).toBe(420); // 300 -> 420 at the rules landing (REGISTER W59: the new legal windows host extra passes; G8d 67.7 -> 62-63.5, in band)
     expect(S.ftroublePersonalOffset).toBe(1);
     expect(S.timeoutSubRelaxPts).toBe(8);
     expect(S.waveStintMinSec).toBe(420);

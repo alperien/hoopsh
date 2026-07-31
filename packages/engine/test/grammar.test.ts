@@ -123,7 +123,7 @@ function mkState(o: StateOpts = {}): { s: GameState; holder: string; arcMate: st
     ball: { holderId: 'off-1', pos: { x: 0, y: 0 }, flight: null },
     period, clock: o.clock ?? 600, t, wallT: t,
     score: o.score ?? [0, 0],
-    teamFoulsPeriod: [0, 0], tipWinner: 0,
+    teamFoulsPeriod: [0, 0], teamFoulsLate: [0, 0], tipWinner: 0,
     endgame: true, timeoutsLeft: [7, 7], runPts: [0, 0],
     timeoutsThisPeriod: [0, 0], timeoutsUsedFinalPeriod: [0, 0],
     timeoutsUsedFinalLate: [0, 0], lastTimeoutT: [-99, -99],

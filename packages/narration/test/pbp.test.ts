@@ -5,7 +5,10 @@ import { buildBroadcastScript, ContextTracker, formatScript, generatePlayByPlay,
 
 describe('narration', () => {
   const { home, away } = sampleMatchup();
-  const result = simulateGame({ seed: 'pbp-1', home, away, collectFrames: false });
+  // pbp-7 (re-scouted at the rules landing): the old pbp-1 stream diverged
+  // to a wire-to-wire blowout with ZERO lead changes, starving the M-37
+  // narrative-moment probe; pbp-7 is a 4-point game with ~10 lead flips
+  const result = simulateGame({ seed: 'pbp-7', home, away, collectFrames: false });
 
   it('renders play-by-play for a full game without gaps or crashes', () => {
     const pbp = generatePlayByPlay(result.events, [home, away], { seed: 'pbp-1' });
