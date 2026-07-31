@@ -65,7 +65,7 @@
  */
 import { clamp } from '@hoopsh/engine';
 import type { FrPlayer, GameLine, GameRecord, TeamId } from '@hoopsh/franchise';
-import { perceivedGroup, streamRng } from '@hoopsh/franchise';
+import { perceivedGroup, streamRng, tapeAdjust } from '@hoopsh/franchise';
 import { positionBlend } from '../../franchise/src/ai/roster.js';
 import type { AttrGroup } from '@hoopsh/franchise';
 import type { CareerPhase, CareerState, CircuitGame } from './types.js';
@@ -434,6 +434,11 @@ function boardScoreOf(
  * observerKey = each team's scoutSeed). Attr reads only, no production:
  * this estimates what franchise draftai.ts will price, and the franchise
  * fog reads the sheet. */
+/**
+ * The tape rides the mirror exactly as it rides the night: the shared
+ * franchise tapeAdjust (one function, no constant drift) applies to every
+ * scored prospect who has real season rows. Generated classmates read 0.
+ */
 function myBoardScore(career: CareerState, teamIds: string[]): number {
   const me = meOf(career);
   let sum = 0;
@@ -442,7 +447,7 @@ function myBoardScore(career: CareerState, teamIds: string[]): number {
     const read = perceiveProspect(career.seed, team.scoutSeed, me, coverageFor(career, tid), career.params);
     sum += boardScoreOf(career, tid, me.pos, read.now, read.ceiling);
   }
-  return sum / Math.max(1, teamIds.length);
+  return sum / Math.max(1, teamIds.length) + tapeAdjust(me);
 }
 
 /** Mean-over-teams board score of a prospect already in the league,
@@ -459,7 +464,7 @@ function leagueProspectScore(career: CareerState, teamIds: string[], pid: string
     }
     sum += boardScoreOf(career, tid, p.pos, now, ceiling);
   }
-  return sum / Math.max(1, teamIds.length);
+  return sum / Math.max(1, teamIds.length) + tapeAdjust(p);
 }
 
 /** Invert CLASS_CURVE: the pick a mean board score reads as, linearly
@@ -511,7 +516,7 @@ function boardTargetFor(career: CareerState): number | null | undefined {
         const read = perceiveProspect(career.seed, team.scoutSeed, rival, coverageFor(career, tid), career.params);
         sum += boardScoreOf(career, tid, rival.pos, read.now, read.ceiling);
       }
-      if (sum / teamIds.length > mine) ahead += 1;
+      if (sum / teamIds.length + tapeAdjust(rival) > mine) ahead += 1;
     }
     const rank = 1 + ahead;
     return rank <= DRAFT_SLOTS ? rank : null;

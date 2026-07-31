@@ -65,7 +65,7 @@ export { generatePersona, reevaluateTimelines } from './ai/persona.js';
 export { playerValue, pickValue, offerNet } from './ai/valuation.js';
 export { respondToOffer, aiTradePulse } from './ai/trade.js';
 export { runFreeAgencyDay, runAiOffseasonDecisions } from './ai/fa.js';
-export { aiSelect } from './ai/draftai.js';
+export { aiSelect, tapeAdjust } from './ai/draftai.js';
 export { depthChart, defaultRotation, aiRosterUpkeep } from './ai/roster.js';
 export { perceivedGroup, buildUserReport, runCombine } from './scouting.js';
 

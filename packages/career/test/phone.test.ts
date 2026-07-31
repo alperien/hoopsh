@@ -981,3 +981,39 @@ describe('determinism and message discipline', () => {
     expect(msg!.id).toBe(`ph-coach-${career.clock.year}w${career.clock.week}-0`);
   });
 });
+
+describe('the closing windows speak (fix wave C, the Amari critique)', () => {
+  it('a program calls once when its offer nears the lapse, and the agent names the chorus', () => {
+    const career = fixtureCareer();
+    career.clock.phase = 'hs';
+    career.recruiting!.committedTo = undefined;
+    career.recruiting!.programs = [
+      { id: 'p1', name: 'Meridian State', tier: 1, coachDev: 80, style: { pace: 55, threeBias: 55 }, promisedRole: 'rotation', nil: 180000, region: 'Midwest' },
+      { id: 'p2', name: 'Cathedral', tier: 2, coachDev: 60, style: { pace: 50, threeBias: 50 }, promisedRole: 'sixthMan', nil: 60000, region: 'Southeast' },
+      { id: 'p3', name: 'Piedmont', tier: 3, coachDev: 45, style: { pace: 48, threeBias: 45 }, promisedRole: 'featured', nil: 15000, region: 'Mid-Atlantic' },
+    ] as never;
+    career.recruiting!.interest = career.recruiting!.programs.map(p => ({
+      programId: p.id, rung: 'offer', perceived: 60, lastMoveWeek: 5, closed: false,
+    })) as never;
+    const wk = career.clock.week;
+    career.recruiting!.offers = career.recruiting!.programs.map((p, i) => ({
+      id: `off-${p.id}`, kind: 'college', programId: p.id, money: p.nil,
+      coachDev: p.coachDev, promisedRole: p.promisedRole, style: p.style,
+      expiresWeek: wk + 2,
+    })) as never;
+
+    const msgs = generatePhone(career);
+    const warnings = msgs.filter(m => m.id.includes('#lapse-'));
+    const chorus = msgs.filter(m => m.id.includes('#lapsechorus-'));
+    expect(warnings.length).toBeGreaterThanOrEqual(1);
+    expect(chorus.length).toBe(1);
+    expect(chorus[0]!.body).toContain('Meridian State');
+    for (const m of warnings) expect(m.body.length).toBeGreaterThan(20);
+
+    // committed: the doors are already chosen; nobody warns about lapses
+    career.phone.push(...msgs);
+    career.recruiting!.committedTo = 'off-p1';
+    const after = generatePhone(career);
+    expect(after.some(m => m.id.includes('#lapse-'))).toBe(false);
+  });
+});
