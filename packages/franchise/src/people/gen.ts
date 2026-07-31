@@ -1,35 +1,38 @@
 /**
  * people/gen.ts - player generation: genesis rosters, draft classes,
- * coaches. OWNER: genesis task. STATUS: implemented (build wave A).
+ * coaches. OWNER: genesis task. STATUS: rewritten (draft realism wave).
  *
- * Method (docs/FRANCHISE.md section 5, docs/ROSTERS.md): start from a
- * coherent archetype profile (@hoopsh/data builders - the calibrated
- * reference points for what ratings MEAN), mutate within CAN/WANT
- * coherence, age-adjust (a 19-year-old arrives raw and discounted toward
- * his ceiling; a 30-year-old vet is his curve's present value), then
- * sample a hidden potential ceiling whose headroom shrinks with age.
- * Anthropometrics are sampled from per-position bands, NOT inherited from
- * the archetype, so the league's height/wingspan distribution holds steady
- * across decades of draft classes (a documented long-sim failure mode in
- * other games - FRANCHISE.md section 5).
+ * Method (docs/FRANCHISE.md section 5, docs/ROSTERS.md, owner brief "the
+ * draft hella realistic"): every player draws a coherent archetype from
+ * people/archetypes.ts (identity: attribute shape + tendencies + build),
+ * levels move together under one quality shift, noise is bounded, and
+ * signature negatives are capped, so a rim-running big can never roll a
+ * live three-ball. Draft classes draw a TALENT TIER first and age
+ * conditional on tier (the real age-talent correlation: the top of a
+ * class skews 19, the back end skews 22-23), under a per-season strength
+ * wave so loaded and weak classes are real. Anthropometrics come from
+ * per-position bands biased by archetype, so the league's height and
+ * wingspan distributions hold steady across decades of classes.
  *
  * Determinism: every draw flows through the caller's Rng and the draw
- * ORDER inside each generator is fixed. Callers use registered stream
- * paths (rng.ts): genesis passes 'genesis:team:<id>' streams;
- * generateDraftClass derives 'class:<season>' itself.
+ * ORDER inside each generator is fixed (conditional branches still draw).
+ * Callers use registered stream paths (rng.ts): genesis passes
+ * 'genesis:team:<id>' streams; generateDraftClass derives 'class:<season>'
+ * and the strength wave derives 'classwave:<season>' (registry addition
+ * proposed in people/INTEGRATION-gen.md).
  */
 import { clamp } from '@hoopsh/engine';
-import type { Attributes, Player, Position, Rng, Tendencies } from '@hoopsh/engine';
-import {
-  ATTR_KEYS, TEND_KEYS,
-  eliteShooter, rimRunner, floorGeneral, threeAndD, scoringWing,
-  postAnchor, comboGuard, glueForward, benchBig, benchScorer, stretchBig,
-} from '@hoopsh/data';
+import type { Attributes, Position, Rng } from '@hoopsh/engine';
+import { ATTR_KEYS } from '@hoopsh/data';
 import type { AttrGroup, Coach, FrPlayer, League, PotentialProfile, Season } from '../types.js';
 import type { FranchiseParams } from '../params.js';
 import { streamRng } from '../rng.js';
-import { generateName, generateNameOfKind } from './names.js';
+import { generateName, generateNameOfKind, personName } from './names.js';
 import type { GeneratedName, NameKind } from './names.js';
+import {
+  pickArchetype, sampleBody, sampleIdentity, stampArchetype,
+} from './archetypes.js';
+import type { Pipeline } from './archetypes.js';
 
 export interface GenPlayerOpts {
   age: number;                 // age at the season being generated for
@@ -40,134 +43,87 @@ export interface GenPlayerOpts {
    * Live parameter set (league.params for callers that hold a league).
    * Required so generation can never silently fall back to
    * defaultFranchiseParams() - the league.params doctrine
-   * (docs/FRANCHISE_INTERNALS.md trap list: sweeps and saves vary params
-   * per league). Added to the frozen opts shape because the original
-   * shape carried no channel for calibration values; flagged in the
-   * genesis task report.
+   * (docs/FRANCHISE_INTERNALS.md trap list).
    */
   params: FranchiseParams;
+  /**
+   * Pipeline the player arrives through. Forces the matching name pool
+   * side and applies the archetype pipeline flavor (the euro pipeline
+   * ships more skill bigs). Absent = the name draw decides (legacy
+   * behavior for genesis, free agents and career circuits).
+   */
+  pipeline?: Pipeline;
 }
-
-// ---------------------------------------------------------------------------
-// archetype catalog
-
-/** Uniform position mix. REAL-ish: NBA rosters carry ~3 players per position. */
-const POSITION_ORDER: readonly Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
-
-interface CatalogEntry {
-  build: (who: { id: string; name: string; pos?: Position; heightIn?: number; weightLb?: number }) => Player;
-  /** plain attribute mean of the unmutated archetype: the quality the profile expresses out of the box */
-  anchor: number;
-}
-
-function attrMeanOf(attr: Attributes): number {
-  let sum = 0;
-  // fixed ATTR_KEYS order keeps float sums bit-stable however the object was built
-  for (const k of ATTR_KEYS) sum += attr[k];
-  return sum / ATTR_KEYS.length;
-}
-
-function entry(build: CatalogEntry['build']): CatalogEntry {
-  // Probe build at module load: anchors derive from the SAME builders the
-  // mutation starts from, so quality targeting stays self-consistent if
-  // @hoopsh/data ever rebalances an archetype (no hand-copied tier table
-  // to go stale). The probe id/name never leave this function.
-  return { build, anchor: attrMeanOf(build({ id: 'anchor-probe', name: 'anchor-probe' }).attr) };
-}
-
-/**
- * Which archetypes can express each position. Wing archetypes straddle
- * neighbor positions the way real players do (a scoring wing plays SG or
- * SF; a stretch big plays PF or C); pure specialists stay home.
- */
-const CATALOG: Record<Position, CatalogEntry[]> = {
-  PG: [entry(floorGeneral), entry(eliteShooter), entry(comboGuard)],
-  SG: [entry(scoringWing), entry(comboGuard), entry(benchScorer), entry(eliteShooter)],
-  SF: [entry(threeAndD), entry(scoringWing), entry(glueForward)],
-  PF: [entry(postAnchor), entry(glueForward), entry(stretchBig)],
-  C: [entry(rimRunner), entry(stretchBig), entry(benchBig), entry(postAnchor)],
-};
-
-// ---------------------------------------------------------------------------
-// anthropometrics
-
-interface BodyBand {
-  hMean: number; hSd: number; hLo: number; hHi: number;
-  /** weight at the position's mean height, pounds */
-  wBase: number;
-}
-
-/**
- * Per-position height bands, inches. REAL-ish: modern-league positional
- * averages (PG ~6'2.5", C ~7'0") with clamps well inside the engine's
- * 60-96 validation bounds. Weight bases are the matching positional
- * averages in pounds.
- */
-const BODY: Record<Position, BodyBand> = {
-  PG: { hMean: 74.5, hSd: 1.8, hLo: 70, hHi: 79, wBase: 190 },
-  SG: { hMean: 77.0, hSd: 1.6, hLo: 73, hHi: 81, wBase: 205 },
-  SF: { hMean: 79.5, hSd: 1.5, hLo: 76, hHi: 83, wBase: 220 },
-  PF: { hMean: 81.5, hSd: 1.5, hLo: 78, hHi: 85, wBase: 235 },
-  C: { hMean: 83.5, hSd: 1.7, hLo: 80, hHi: 89, wBase: 252 },
-};
-
-const LB_PER_INCH = 6;     // REAL-ish: taller frames carry ~6 lb per extra inch across the league
-const WEIGHT_SD = 9;       // FEEL: build variance at a given height (wiry vs sturdy)
-const WEIGHT_LO = 160;     // FEEL: lighter than any modern pro
-const WEIGHT_HI = 310;     // FEEL: heavier than any modern rotation player
-const WING_DELTA_MEAN = 4.5; // REAL-ish: league wingspan exceeds height by ~4-5 inches on average
-const WING_DELTA_SD = 1.8;   // FEEL: spread from even (negative-ape-index outliers exist) to condor arms
 
 // ---------------------------------------------------------------------------
 // generation constants (module-scope, provenance-tagged; the sweepable
 // levers live in params.gen - these are structural shape constants of the
 // generator, the same category as gameday.ts's projection constants)
 
-const QUALITY_DEFAULT_MEAN = 60; // CAL: league-shaped default, lifted +10 by the W59 recentering (generated dials measured 12-18 under the calibration rosters' input level)
+/** Uniform position mix. REAL-ish: NBA rosters carry ~3 players per position. */
+const POSITION_ORDER: readonly Position[] = ['PG', 'SG', 'SF', 'PF', 'C'];
+
+const QUALITY_DEFAULT_MEAN = 60; // CAL: league-shaped default (W59 recentering)
 const QUALITY_DEFAULT_SD = 12;   // FEEL: wide enough to produce fringe and plus players unprompted
 const QUALITY_LO = 20;           // FEEL: below this nobody holds a pro roster spot
-const QUALITY_HI = 90;           // FEEL: generational ceiling for a quality TARGET (dials can still mutate higher)
-const ARCHETYPE_TEMP = 8;        // FEEL: softmax temperature for anchor-vs-quality closeness (rating points)
-const QUALITY_GAIN = 0.8;        // FEEL: how far quality drags the whole profile; below 1 so archetype shape dominates
-const RATING_LO = 1;             // FEEL: generated dials avoid the absolute 0 rail (archetypes bottom out at 1)
-const RATING_HI = 99;            // FEEL: 99 = the unambiguous best (ROSTERS.md anchors); generation never mints a 100
+const QUALITY_HI = 90;           // FEEL: generational ceiling for a quality TARGET
 
 // CAN/WANT coherence (docs/ROSTERS.md: an 85 three with a 5 shotThree
 // never shoots - skill without appetite is incoherent)
-const COHERENT_SKILL = 75;       // FEEL: a 75+ three is a legitimate weapon a real offense weaponizes
+const COHERENT_SKILL = 75;       // FEEL: a 75+ three is a weapon a real offense weaponizes
 const COHERENT_WANT_FLOOR = 15;  // FEEL: below this appetite the weapon never fires
-const RAW_DISCOUNT_PER_YEAR = 2.6; // CAL rating points of current-dial discount per year under 23 (raw arrivals)
+
+const RAW_DISCOUNT_PER_YEAR = 3.0; // CAL: current-dial discount per year under 23, at zero readiness
 const RAW_AGE = 23;              // FEEL: by 23 a prospect's dials are his dials (FRANCHISE.md section 5)
+/**
+ * Readiness: elite talent translates young (the one-and-done lottery pick
+ * is nearly pro-ready at 19, which is WHY he leaves at 19), while a fringe
+ * teenager is all rawness. Scales the raw-arrival discount down as quality
+ * rises: full discount at/below the readiness floor, RAW_READY_MIN of it
+ * at the elite end. REAL-ish: rookie-season production curves by draft
+ * slot show exactly this shape.
+ */
+const RAW_READY_Q_LO = 35;       // CAL: at/below this quality the discount applies in full
+const RAW_READY_Q_HI = 80;       // CAL: quality where readiness maxes out
+const RAW_READY_MIN = 0.4;       // CAL: fraction of the discount an elite teenager still carries
 /**
  * How much of the raw-arrival discount each group carries. Teenagers are
  * already near their athletic tools but lag in craft and reads: skill and
  * mental groups eat the full discount, athleticism barely any.
  */
 const RAW_GROUP_WEIGHT: Record<AttrGroup, number> = {
-  phys: 0.3,        // FEEL: a 19-year-old's speed/vertical mostly arrived with him
+  phys: 0.3,        // FEEL: a 19-year-old's speed and vertical mostly arrived with him
   scoring: 1.0,     // FEEL: shooting touch and shot craft come with reps
   playmaking: 1.0,  // FEEL: pro passing windows are learned
   defense: 1.0,     // FEEL: scheme discipline is the last thing to develop
   rebounding: 0.7,  // FEEL: motor translates early, positioning does not
   mental: 1.2,      // FEEL: decisions lag the most in raw arrivals
 };
-const CEILING_AGE = 27;          // FEEL: headroom is near zero at 27+ (growth is over; dev.ts owns the decline)
+const CEILING_AGE = 27;          // FEEL: headroom is near zero at 27+ (dev.ts owns the decline)
 const CEILING_SPAN = 8;          // FEEL: 27 - 19, the years over which headroom fades linearly
+/**
+ * Ceiling cone width by age: young prospects carry WIDE cones (the draft's
+ * uncertainty lives there), older prospects tight ones. The sd floor keeps
+ * a 23-year-old's ceiling honest instead of frozen.
+ */
+const CEIL_SD_FLOOR = 0.35;      // CAL: fraction of ceilingHeadroomSd left at the fade horizon
 
 // usage-vs-quality coherence (brief: stars 75-95, role players 30-55).
 // Linear map fitted through (quality 80 -> usage 85) and (quality 55 ->
-// usage 42): slope 43/25, intercept 85 - slope * 80.
+// usage 42), then pulled toward the archetype's usage identity: a star
+// floor general carries the offense differently from a star iso creator.
 const USAGE_SLOPE = 1.72;        // FEEL: fitted slope of the quality-to-usage line
 const USAGE_INTERCEPT = -52.6;   // FEEL: fitted intercept of the same line
+const USAGE_ARCH_PULL = 0.35;    // FEEL: points of usage per point the archetype template sits off 50
 const USAGE_SD = 5;              // FEEL: role noise (some stars defer, some role players hunt)
 const USAGE_LO = 15;             // FEEL: even a pure screener consumes some possessions
-const USAGE_HI = 95;             // FEEL: heliocentric load ceiling (ROSTERS.md: 90 is "offense runs through him")
+const USAGE_HI = 95;             // FEEL: heliocentric load ceiling (ROSTERS.md: 90 = "offense runs through him")
 
 const MAX_NAME_REROLLS = 32;     // FEEL: uniqueness re-roll bound; pool cross-product makes exhaustion unreachable
 
 /** Round + clamp a generated rating into the working 1-99 band. */
 function clampRating(x: number): number {
-  return Math.round(clamp(x, RATING_LO, RATING_HI));
+  return Math.round(clamp(x, 1, 99));
 }
 
 /** Attribute keys per potential group - mirrors the PotentialProfile field comments in types.ts. */
@@ -190,17 +146,94 @@ function groupMean(attr: Attributes, g: AttrGroup): number {
 }
 
 // ---------------------------------------------------------------------------
+// draft-class talent tiers (the age-talent mixture)
+//
+// The real shape: the lottery's talent leaves school at 19; four-year
+// seniors arrive at 22-23 because they were never lottery talents. Drawing
+// a TIER first and age conditional on tier reproduces both truths at once.
+// The age tilt reshapes params.gen.prospectAgeMix per tier (a geometric
+// tilt across the [19, 20, 21, 22+] buckets), so the sweepable age mix
+// stays live: the rotation tier IS the param, tiers above skew younger,
+// the fringe tier skews senior.
+
+interface TalentTier {
+  key: 'generational' | 'star' | 'starter' | 'rotation' | 'fringe';
+  weight: number;     // CAL: relative pool share (sums are normalized by rng.weighted)
+  qLo: number;        // CAL: quality target band, pre-wave
+  qHi: number;
+  youthBias: number;  // CAL: geometric age tilt; >1 = younger than the param mix
+}
+
+const TALENT_TIERS: readonly TalentTier[] = [
+  { key: 'generational', weight: 1.2, qLo: 74, qHi: 84, youthBias: 3.6 },
+  { key: 'star', weight: 5.0, qLo: 65, qHi: 78, youthBias: 3.0 },
+  { key: 'starter', weight: 13, qLo: 55, qHi: 67, youthBias: 2.2 },
+  { key: 'rotation', weight: 34, qLo: 45, qHi: 57, youthBias: 1.15 },
+  { key: 'fringe', weight: 46, qLo: 34, qHi: 43, youthBias: 0.26 },
+];
+
+/** Top-two-tier weight response to the class wave. FEEL: a loaded class is loaded at the TOP. */
+const WAVE_TIER_EXP = 4;
+/** Prospect quality never reaches a peak superstar's level on day one. FEEL. */
+const PROSPECT_QUALITY_HI = 82;
+/** Class strength wave clamp. FEEL: historic weak/loaded classes stay inside +-15%. */
+const WAVE_LO = 0.85;
+const WAVE_HI = 1.15;
+/** Share of the 22+ bucket that is 23 (four-year seniors inside the bucket). FEEL. */
+const SENIOR_23_SHARE = 0.3;
+/**
+ * Polish: extra quality by age bucket [19, 20, 21, 22+], plus a little
+ * more for a true 23-year-old senior. The floor side of the age tradeoff:
+ * a senior arrives with four years of reps priced into his day-one game,
+ * while his ceiling cone (fade + narrow sd) is already closing. CAL:
+ * tuned against the top10-vs-45-60 age-gap guard.
+ */
+const POLISH_BY_BUCKET: readonly [number, number, number, number] = [0, 0.4, 1.0, 2.0];
+const POLISH_23_EXTRA = 0.5;
+/**
+ * International age overlay on the [19, 20, 21, 22+] buckets. REAL-ish:
+ * euro prospects declare young (18-21 in the real league; 19 is this
+ * sim's draft-eligible floor, so the mass sits 19-21 and the senior
+ * bucket nearly vanishes).
+ */
+const INTL_AGE_MULT: readonly [number, number, number, number] = [1.15, 1.15, 1.0, 0.15];
+
+/**
+ * The per-season class strength wave, drawn on its own registered stream
+ * ('classwave:<season>', see INTEGRATION-gen.md) so pool-size changes and
+ * generator refactors can never reshuffle which drafts run loaded. One
+ * multiplier, modest spread; exported so news/tools can read a season's
+ * wave without generating the class.
+ */
+export function classStrengthFor(leagueSeed: string, season: Season, params: FranchiseParams): number {
+  const rng = streamRng(leagueSeed, 'classwave', season);
+  return clamp(1 + rng.gaussian(0, params.gen.classStrengthSd), WAVE_LO, WAVE_HI);
+}
+
+/** Tier-conditional age-bucket weights: prospectAgeMix reshaped by the tier's youth tilt. */
+function ageBucketWeights(mix: readonly number[], tier: TalentTier, pipeline: Pipeline): number[] {
+  const out: number[] = [];
+  for (let b = 0; b < 4; b++) {
+    const tilt = Math.pow(tier.youthBias, 3 - b);
+    const intl = pipeline === 'international' ? INTL_AGE_MULT[b]! : 1;
+    out.push((mix[b] ?? 0) * tilt * intl);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // shared helpers for the generation modules (genesis.ts imports these;
 // they are deliberately NOT in the package barrel)
 
 /**
  * Plain mean of all 24 attributes - the generation modules' crude overall
  * ability, used for contract pricing and the genesis starter ordering.
- * ai/roster.ts's depthChart supersedes this for live-league ordering once
- * the ai-team task lands (same doctrine as gameday.ts#abilityScore).
+ * Also the "true overall" the draft-realism calibration guards rank by.
  */
 export function abilityMean(p: FrPlayer): number {
-  return attrMeanOf(p.attr);
+  let sum = 0;
+  for (const k of ATTR_KEYS) sum += p.attr[k];
+  return sum / ATTR_KEYS.length;
 }
 
 function applyName(p: FrPlayer, n: GeneratedName): void {
@@ -224,7 +257,7 @@ function nameKindOf(p: FrPlayer): NameKind {
 export function ensureUniqueName(rng: Rng, p: FrPlayer, used: Set<string>): void {
   const kind = nameKindOf(p);
   for (let i = 0; i < MAX_NAME_REROLLS && used.has(p.name); i++) {
-    applyName(p, generateNameOfKind(rng, kind));
+    applyName(p, generateNameOfKind(rng, kind, { bornYear: p.bornSeason }));
   }
   if (used.has(p.name)) {
     // fail-loud guard, not an expected path: the pools would have to be
@@ -238,94 +271,85 @@ export function ensureUniqueName(rng: Rng, p: FrPlayer, used: Set<string>): void
 // generatePlayer
 
 /**
- * Generate one player: sampled position, archetype base mutated within
- * CAN/WANT coherence, age-adjusted dials, potential ceilings, body,
- * disposition, health. Pure function of (rng state, opts).
+ * Generate one player: sampled position, archetype identity (attributes,
+ * tendencies and build shaped together), age-adjusted dials, potential
+ * ceilings whose cones narrow with age, disposition, health. Pure function
+ * of (rng state, opts).
  *
  * The caller owns: PlayerId uniqueness (opts.idSeq), league-wide name
  * uniqueness (ensureUniqueName), status (returned as 'freeAgent', the
  * neutral unsigned state - genesis flips to 'roster', class generation to
  * 'draftEligible'), and any contract/rights.
+ *
+ * Fixed draw order: position, name, quality, archetype, body, identity,
+ * coherence repairs, usage, potential, disposition block.
  */
 export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
   const gen = opts.params.gen;
-  // --- fixed draw order: position, name, quality, archetype, body, dials ---
   const pos = POSITION_ORDER[rng.int(POSITION_ORDER.length)]!;
-  const name = generateName(rng);
+  // birth year picks the US first-name era cohort (names.ts): a 2007-born
+  // prospect draws Jayden-era names, a 1988-born veteran draws his own
+  const bornYear = opts.season - opts.age;
+  const name = opts.pipeline
+    ? generateNameOfKind(rng, opts.pipeline, { bornYear })
+    : generateName(rng, { bornYear });
   const quality = clamp(
     opts.quality ?? rng.gaussian(QUALITY_DEFAULT_MEAN, QUALITY_DEFAULT_SD),
     QUALITY_LO, QUALITY_HI,
   );
 
-  // archetype: prefer profiles whose out-of-the-box quality sits near the
-  // target, softly (a star-quality center is usually a rim runner, but a
-  // star bench-big profile stays possible)
-  const cands = CATALOG[pos];
-  const weights = cands.map((c) => Math.exp(-Math.abs(c.anchor - quality) / ARCHETYPE_TEMP));
-  const chosen = cands[rng.weighted(weights)]!;
+  // archetype: pipeline flavor comes from the forced pipeline when given,
+  // else from the side the name draw landed on (an organically
+  // international vet leans the same way an intl prospect does)
+  const pipeline: Pipeline = opts.pipeline
+    ?? (name.origin === 'international' ? 'international' : 'domestic');
+  const arch = pickArchetype(rng, pos, quality, pipeline);
 
-  // body: position band, weight tracking height, wingspan over height
-  const body = BODY[pos];
-  const heightIn = Math.round(clamp(rng.gaussian(body.hMean, body.hSd), body.hLo, body.hHi));
-  const weightLb = Math.round(clamp(
-    body.wBase + (heightIn - body.hMean) * LB_PER_INCH + rng.gaussian(0, WEIGHT_SD),
-    WEIGHT_LO, WEIGHT_HI,
-  ));
-  const wingspanIn = Math.round(clamp(
-    heightIn + rng.gaussian(WING_DELTA_MEAN, WING_DELTA_SD),
-    heightIn - 1, // FEEL: negative ape index is rare and never extreme
-    heightIn + 9, // FEEL: the condor tail (real outliers reach ~+10)
-  ));
+  // body: position band + archetype build bias, weight tracking height,
+  // wingspan over height with the rare freak tail
+  const body = sampleBody(rng, pos, arch);
 
-  const id = `p${String(opts.idSeq).padStart(4, '0')}`;
-  const base = chosen.build({ id, name: `${name.first} ${name.last}`, pos, heightIn, weightLb });
+  // identity: template + one quality shift + bounded group/dial noise,
+  // signature caps absolute (archetypes.ts owns the math)
+  const { attr, tend } = sampleIdentity(rng, arch, quality, gen.mutationSd);
 
-  // dials: uniform quality shift preserves the archetype's shape (identity
-  // comes from the profile's internal ratios, not its level), then
-  // per-dial mutation with the calibrated sd
-  const shift = (quality - chosen.anchor) * QUALITY_GAIN;
-  const attr = {} as Attributes;
-  for (const k of ATTR_KEYS) {
-    attr[k] = clampRating(base.attr[k] + shift + rng.gaussian(0, gen.mutationSd));
-  }
-  const tend = {} as Tendencies;
-  for (const k of TEND_KEYS) {
-    // tendencies are appetite, not skill: mutated but never quality-shifted
-    // (wanting the ball harder does not make you better at it)
-    tend[k] = clampRating(base.tend[k] + rng.gaussian(0, gen.mutationSd));
-  }
-
-  // CAN/WANT coherence repair (docs/ROSTERS.md). High-skill/no-appetite on
-  // a non-center: a real coach would weaponize that shooter, so pull the
-  // appetite up. Centers are exempt on this side (the reluctant stretch
-  // five who CAN shoot but lives at the rim is a real player type).
+  // CAN/WANT coherence repair (docs/ROSTERS.md). Both repair values are
+  // drawn every call so the draw pattern never varies with the rolls.
+  const wantRepair = Math.round(rng.range(40, 75)); // FEEL: a real weapon's firing rate
+  const bailRepair = Math.round(rng.range(5, 25));  // FEEL: bail-out attempts only
+  // High-skill/no-appetite on a non-center: a real coach weaponizes that
+  // shooter. Centers are exempt (the reluctant stretch five is real).
   if (pos !== 'C' && attr.three >= COHERENT_SKILL && tend.shotThree <= COHERENT_WANT_FLOOR) {
-    tend.shotThree = Math.round(rng.range(40, 75)); // FEEL: a real weapon's firing rate
+    tend.shotThree = wantRepair;
   }
-  // The mirror incoherence for every position: nobody at pro level keeps
-  // firing threes he cannot make - the appetite gets coached out.
+  // The mirror incoherence: nobody at pro level keeps firing threes he
+  // cannot make - the appetite gets coached out.
   if (attr.three <= COHERENT_WANT_FLOOR && tend.shotThree >= COHERENT_SKILL) {
-    tend.shotThree = Math.round(rng.range(5, 25)); // FEEL: bail-out attempts only
+    tend.shotThree = bailRepair;
   }
 
-  // usage coherent with quality: an offense feeds its best players. Drawn
-  // AFTER coherence repair so the star band (75-95) survives mutation.
+  // usage coherent with quality AND identity: an offense feeds its best
+  // players, but a star hub and a star pest carry load differently.
   tend.usage = Math.round(clamp(
-    USAGE_SLOPE * quality + USAGE_INTERCEPT + rng.gaussian(0, USAGE_SD),
+    USAGE_SLOPE * quality + USAGE_INTERCEPT
+      + (arch.tend.usage - 50) * USAGE_ARCH_PULL
+      + rng.gaussian(0, USAGE_SD),
     USAGE_LO, USAGE_HI,
   ));
 
   // age adjustment, applied to the mutated dials:
-  // - under 23: raw arrival, current dials discounted (the gap to his
+  // - under 23: raw arrival, current dials discounted (the gap to the
   //   ceiling is where draft uncertainty lives - FRANCHISE.md section 5)
   // - past a group's peak: present value of the curve, a gentle linear cut
   //   anchored to the aging model's decline rate (dev.ts owns the real
-  //   accelerating decline going forward; genesis only positions the vet)
+  //   accelerating decline going forward; generation only positions vets)
   const peaks = opts.params.aging.peakAge;
+  const readiness = clamp((quality - RAW_READY_Q_LO) / (RAW_READY_Q_HI - RAW_READY_Q_LO), 0, 1);
+  const rawMult = 1 - (1 - RAW_READY_MIN) * readiness;
   for (const g of GROUPS) {
     let delta = 0;
     if (opts.age < RAW_AGE) {
-      delta -= (RAW_AGE - opts.age) * RAW_DISCOUNT_PER_YEAR * RAW_GROUP_WEIGHT[g];
+      delta -= (RAW_AGE - opts.age) * RAW_DISCOUNT_PER_YEAR * RAW_GROUP_WEIGHT[g] * rawMult;
     }
     const past = opts.age - peaks[g];
     if (past > 0) delta -= past * opts.params.aging.declineBase;
@@ -334,18 +358,22 @@ export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
     }
   }
 
-  // potential ceilings: current group mean plus headroom that fades to
-  // zero by 27 (development pulls dials toward these; scouts only ever see
-  // ranges around them)
+  // potential ceilings: current group mean plus headroom. The cone is
+  // age-shaped twice: the mean fades to zero by 27 (growth ends) and the
+  // sd narrows with age (a 19-year-old is a wide guess, a 23-year-old a
+  // tight one). Older prospects trade ceiling for the higher floor their
+  // smaller raw discount already gave them.
   const fade = clamp((CEILING_AGE - opts.age) / CEILING_SPAN, 0, 1);
+  const coneSd = gen.ceilingHeadroomSd * (CEIL_SD_FLOOR + (1 - CEIL_SD_FLOOR) * fade);
   const potential = {} as PotentialProfile;
   for (const g of GROUPS) {
     const mean = groupMean(attr, g);
-    const headroom = Math.max(0, rng.gaussian(gen.ceilingHeadroomMean, gen.ceilingHeadroomSd)) * fade;
+    const headroom = Math.max(0, rng.gaussian(gen.ceilingHeadroomMean, coneSd)) * fade;
     potential[g] = Math.min(100, Math.max(Math.round(mean), Math.round(mean + headroom)));
   }
 
-  return {
+  const id = `p${String(opts.idSeq).padStart(4, '0')}`;
+  const player: FrPlayer = {
     id,
     name: `${name.first} ${name.last}`,
     pos,
@@ -353,25 +381,23 @@ export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
     birthplace: name.birthplace,
     origin: name.origin,
     originDetail: name.originDetail,
-    heightIn,
-    weightLb,
-    wingspanIn,
+    heightIn: body.heightIn,
+    weightLb: body.weightLb,
+    wingspanIn: body.wingspanIn,
     attr,
     tend,
     potential,
-    workEthic: Math.round(clamp(rng.gaussian(55, 16), 5, 99)),   // FEEL: mean 55 sd 16 - most pros work; gym rats and coasters both exist
+    workEthic: Math.round(clamp(rng.gaussian(55, 16), 5, 99)),   // FEEL: most pros work; gym rats and coasters both exist
     disposition: {
       ambition: Math.round(clamp(rng.gaussian(50, 18), 5, 95)),        // FEEL: wide spread drives varied FA/extension behavior
       loyalty: Math.round(clamp(rng.gaussian(50, 18), 5, 95)),         // FEEL
-      professionalism: Math.round(clamp(rng.gaussian(55, 16), 5, 95)), // FEEL: slight pro-median lean; locker-room problems are the tail
+      professionalism: Math.round(clamp(rng.gaussian(55, 16), 5, 95)), // FEEL: locker-room problems are the tail
       marketPref: Math.round(clamp(rng.gaussian(50, 18), 5, 95)),      // FEEL
     },
     health: {
-      proneness: Math.round(clamp(rng.gaussian(45, 16), 5, 95)), // FEEL: median player mildly durable; glass players are the tail
-      // vets arrive carrying career wear (a 33-year-old with a rookie's
-      // odometer would misread in the injury model): FEEL ~1.2 wear per
-      // pro season after a typical age-22 entry, capped well under the
-      // scale top
+      proneness: Math.round(clamp(rng.gaussian(45, 16), 5, 95)), // FEEL: median player mildly durable
+      // vets arrive carrying career wear: FEEL ~1.2 wear per pro season
+      // after a typical age-22 entry, capped well under the scale top
       wear: Math.round(clamp(Math.max(0, opts.age - 22) * rng.gaussian(1.2, 0.5), 0, 60)),
       injury: null,
       history: [],
@@ -386,6 +412,8 @@ export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
     devLog: [],
     faceSeed: rng.int(2147483647), // 2^31 - 1: full positive int32 space for the portrait hash
   };
+  stampArchetype(player, arch.id);
+  return player;
 }
 
 // ---------------------------------------------------------------------------
@@ -393,10 +421,11 @@ export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
 
 /**
  * A full draft class: params.gen.draftPoolSize prospects with status
- * 'draftEligible', ages per params.gen.prospectAgeMix, an exact
- * international quota per params.gen.intlShare, and a per-class strength
- * multiplier (strong and weak classes are real). Ids continue the league's
- * 'p' sequence; names are unique league-wide.
+ * 'draftEligible', a talent tier drawn per prospect and age conditional on
+ * tier (top of the class young, back end senior), an exact international
+ * quota per params.gen.intlShare with the euro age/archetype flavor, and a
+ * per-season strength wave on its own stream ('classwave:<season>').
+ * Ids continue the league's 'p' sequence; names are unique league-wide.
  *
  * Called by tick.ts at the lottery phase boundary. Mutates the league
  * (players registered, ids pushed onto league.draftClass) AND returns the
@@ -406,11 +435,16 @@ export function generateDraftClass(league: League, season: Season): FrPlayer[] {
   const gen = league.params.gen;
   const rng = streamRng(league.seed, 'class', season); // registered stream (rng.ts)
 
-  // class strength: one multiplier on every prospect's quality target.
-  // Drawn FIRST so pool-size changes never reshuffle it.
-  const strength = clamp(
-    1 + rng.gaussian(0, gen.classStrengthSd),
-    0.85, 1.15, // FEEL: even historic weak/loaded classes stay inside +-15%
+  // class strength: an isolated stream, so the wave a season carries can
+  // never move when the pool size or the generator's draw count changes
+  const wave = classStrengthFor(league.seed, season, league.params);
+
+  // a loaded class is loaded at the top: the wave tilts the elite tier
+  // weights as well as every quality target
+  const tierWeights = TALENT_TIERS.map((t) =>
+    t.key === 'generational' || t.key === 'star'
+      ? t.weight * Math.pow(wave, WAVE_TIER_EXP)
+      : t.weight,
   );
 
   // ids continue the league sequence: scan the existing max rather than
@@ -424,28 +458,28 @@ export function generateDraftClass(league: League, season: Season): FrPlayer[] {
   const used = new Set<string>();
   for (const p of Object.values(league.players)) used.add(p.name);
 
-  // exact international quota (names.ts: callers that must hit a share
-  // force the kind), shuffled so intl prospects land anywhere in the pool
+  // exact international quota, shuffled so intl prospects land anywhere in
+  // the pool; the kind is forced through generatePlayer's pipeline opt
   const intlCount = Math.round(gen.draftPoolSize * gen.intlShare);
-  const kinds: NameKind[] = [];
+  const kinds: Pipeline[] = [];
   for (let i = 0; i < gen.draftPoolSize; i++) kinds.push(i < intlCount ? 'international' : 'domestic');
   rng.shuffle(kinds);
 
   const out: FrPlayer[] = [];
   for (let i = 0; i < gen.draftPoolSize; i++) {
-    // age per the prospect mix; the 22+ bucket is mostly 22 with a senior tail
-    const bucket = rng.weighted(gen.prospectAgeMix);
-    const age = bucket === 3 ? (rng.chance(0.25) ? 23 : 22) : 19 + bucket; // FEEL 0.25: four-year seniors inside the 22+ bucket
-    // prospect quality centers below the league mean - prospects are
-    // unproven; the stars separate through headroom, not day-one dials
-    const quality = clamp(
-      rng.gaussian(44, 11) * strength, // FEEL: mean 44 sd 11 pre-strength
-      QUALITY_LO,
-      82, // FEEL: even a generational prospect arrives below a peak superstar
-    );
-    const p = generatePlayer(rng, { age, season, quality, idSeq: seq++, params: league.params });
-    // enforce the assigned pool side, then league-wide uniqueness
-    if (nameKindOf(p) !== kinds[i]) applyName(p, generateNameOfKind(rng, kinds[i]!));
+    const pipeline = kinds[i]!;
+    // the mixture: tier first, then age conditional on tier, then a
+    // quality target inside the tier band, scaled by the wave
+    const tier = TALENT_TIERS[rng.weighted(tierWeights)]!;
+    const bucket = rng.weighted(ageBucketWeights(gen.prospectAgeMix, tier, pipeline));
+    const age = bucket === 3 ? (rng.chance(SENIOR_23_SHARE) ? 23 : 22) : 19 + bucket;
+    const polish = POLISH_BY_BUCKET[bucket]! + (age === 23 ? POLISH_23_EXTRA : 0);
+    const quality = clamp(rng.range(tier.qLo, tier.qHi) * wave + polish, QUALITY_LO, PROSPECT_QUALITY_HI);
+    const p = generatePlayer(rng, { age, season, quality, idSeq: seq++, params: league.params, pipeline });
+    // belt over the forced pipeline, then league-wide uniqueness
+    if (nameKindOf(p) !== pipeline) {
+      applyName(p, generateNameOfKind(rng, pipeline, { bornYear: p.bornSeason }));
+    }
     ensureUniqueName(rng, p, used);
     p.status = 'draftEligible';
     league.players[p.id] = p;
@@ -466,7 +500,8 @@ export function generateDraftClass(league: League, season: Season): FrPlayer[] {
  * currentDate over it), because a candidate has no hire date yet.
  */
 export function generateCoach(rng: Rng, idSeq: number): Coach {
-  const name = generateName(rng);
+  // staff generator: a 58-year-old coach is Rick or Monty, never Jayden
+  const name = personName(rng, 'coach');
   return {
     // idSeq disambiguates within one shortlist; the drawn suffix keeps ids
     // from colliding across shortlists and genesis (36^4 = 1679616 tags)
@@ -475,8 +510,8 @@ export function generateCoach(rng: Rng, idSeq: number): Coach {
     pace: Math.round(clamp(rng.gaussian(50, 12), 20, 80)),      // FEEL: centered 50 sd 12 - few extremists on the bench
     threeBias: Math.round(clamp(rng.gaussian(50, 12), 20, 80)), // FEEL: same shape
     helpAggr: Math.round(clamp(rng.gaussian(50, 12), 20, 80)),  // FEEL: same shape
-    devQuality: Math.round(rng.range(30, 90)),                  // FEEL: 30-90 spread - developer coaches are a real roster-building edge
-    obedience: Math.round(rng.range(60, 95)),                   // FEEL: 60-95 - every pro coach mostly runs the GM's plan; nobody fully
+    devQuality: Math.round(rng.range(30, 90)),                  // FEEL: developer coaches are a real roster-building edge
+    obedience: Math.round(rng.range(60, 95)),                   // FEEL: every pro coach mostly runs the GM's plan; nobody fully
     hiredOn: { season: 0, day: 0 },                             // placeholder: callers stamp the real date (see JSDoc)
     contractSeasons: 2 + rng.int(3),                            // FEEL: 2-4 year deals, the real league's coach-contract range
   };

@@ -21,6 +21,7 @@ import type { FranchiseParams } from '../params.js';
 import type { Attributes } from '@hoopsh/engine';
 import type { AttrGroup, DevNote, FrPlayer, League, Season } from '../types.js';
 import { streamRng } from '../rng.js';
+import { chemDevFactor, driftedProneness, teamChemistryFor } from './psyche.js';
 
 /**
  * Attribute-group membership. Mirrors the PotentialProfile contract
@@ -161,6 +162,12 @@ export interface DevReviewCtx {
   when: 'midseason' | 'offseason';
   /** staff development quality 0-100; null = no staff (neutral 1.0) */
   coachDev: number | null;
+  /**
+   * team chemistry 0-100 (psyche layer, register F1-A); absent/null = no
+   * room (free agents, circuits, pre-psyche saves): neutral 1.0. Optional
+   * so career-mode callers of reviewPlayerDevelopment are untouched.
+   */
+  chemistry?: number | null;
   dev: FranchiseParams['dev'];
   aging: FranchiseParams['aging'];
 }
@@ -200,6 +207,10 @@ export function reviewPlayerDevelopment(player: FrPlayer, ctx: DevReviewCtx): vo
     const coachF = devQ === null ? 1 : 1 + ((devQ - 50) / 50) * (dev.coachFactorAt100 - 1);
     // Work ethic on the same 50-centered line up to ethicFactorAt100.
     const ethicF = 1 + ((player.workEthic - 50) / 50) * (dev.ethicFactorAt100 - 1);
+    // Chemistry spillover (register F1-A): a good room is a small tailwind
+    // on the work, bounded 0.95-1.05 inside chemDevFactor. Neutral 1.0
+    // when no room is known (free agents, circuits, pre-psyche saves).
+    const chemF = chemDevFactor(ctx.chemistry ?? null);
 
     const deltas: Partial<Record<AttrGroup, number>> = {};
     let skillGain = 0; // scoring + playmaking points applied, feeds the usage drift
@@ -225,7 +236,7 @@ export function reviewPlayerDevelopment(player: FrPlayer, ctx: DevReviewCtx): vo
       // anchor), tapering linearly as the gap closes. FEEL.
       const headroomF = Math.min(1, headroom / 12);
 
-      const earned = dev.growthBase * reviewScale * minutesF * coachF * ethicF
+      const earned = dev.growthBase * reviewScale * minutesF * coachF * ethicF * chemF
         * (breakout ? 1.6 : 1); // FEEL 1.6: a breakout year, visible but not cartoonish
       // Gates multiply the noise too: a closed growth window does not
       // jitter upward, it is closed.
@@ -252,6 +263,9 @@ export function reviewPlayerDevelopment(player: FrPlayer, ctx: DevReviewCtx): vo
       // 70/30: notable-habit thresholds for the card copy only. FEEL.
       if (player.workEthic >= 70) reasons.push(`work ethic ${player.workEthic}: first one in the gym`);
       else if (player.workEthic <= 30) reasons.push(`work ethic ${player.workEthic}: habits slow the work`);
+      // 1.03/0.97: notable-room thresholds for card copy only. FEEL.
+      if (chemF >= 1.03) reasons.push('a good room speeds the work');
+      else if (chemF <= 0.97) reasons.push('a sour room slows the work');
       if (breakout) reasons.push('breakout: took the leap this season');
       if (gateFading) reasons.push(`age ${age}: growth window closing`);
     } else {
@@ -290,6 +304,7 @@ export function runDevelopmentReview(league: League, when: 'midseason' | 'offsea
       day: league.day,
       when,
       coachDev: coachDevQualityFor(league, id),
+      chemistry: teamChemistryFor(league, id),
       dev: league.params.dev,
       aging: league.params.aging,
     });
@@ -297,16 +312,32 @@ export function runDevelopmentReview(league: League, when: 'midseason' | 'offsea
 }
 
 /**
+ * Persistent per-career aging texture (psyche wave): some age gracefully,
+ * some fall off a cliff. ONE hidden trait per player, a pure function of
+ * the registered 'psyche:aging:<playerId>' stream, so it is never
+ * re-rolled: the same player ages the same way in every replay, and the
+ * curve stays a curve (this is a fixed slope on it, not per-season dice;
+ * the research-01 no-dice-collapse law holds). CAL bounds 0.85-1.20 keep
+ * the cliff readable on a card, never a vaporization.
+ */
+export function agingGraceFor(seed: string, playerId: string): number {
+  return 0.85 + 0.35 * streamRng(seed, 'psyche', 'aging', playerId).float();
+}
+
+/**
  * Apply aging decline at season rollover (the spine calls this once per
  * rollover, before the offseason review). Mutates attributes, tend.usage,
- * and devLog. Deterministic on purpose: no rng, decline is a curve, not a
- * roll (dice-driven collapse is the exact failure research 01 flags).
+ * health.proneness (lifestyle drift), and devLog. Deterministic on
+ * purpose: no per-season rng, decline is a curve, not a roll (dice-driven
+ * collapse is the exact failure research 01 flags); the one seeded input
+ * is the per-career grace trait above, fixed for life.
  *
  * Per group past its peak age: decline = declineBase + declineAccelPerYear
- * per year past, scaled up by career wear, softened by elite work ethic.
- * phys declines fastest by construction of the peak ages (peakAge.phys is
- * the youngest), which is the researched order: athleticism goes first,
- * shooting and decision-making hold late (research 05 B2).
+ * per year past, scaled up by career wear, softened by elite work ethic,
+ * tilted by the grace trait. phys declines fastest by construction of the
+ * peak ages (peakAge.phys is the youngest), which is the researched order:
+ * athleticism goes first, shooting and decision-making hold late
+ * (research 05 B2).
  */
 export function applyAging(league: League): void {
   const aging = league.params.aging;
@@ -315,6 +346,12 @@ export function applyAging(league: League): void {
     const player = league.players[id]!;
     if (player.status === 'retired') continue;
     const age = league.season - player.bornSeason;
+
+    // Lifestyle proneness drift (psyche wave): the body keeps the
+    // receipts, +-1 point per season, clamped inside driftedProneness.
+    // No-op until the psyche layer assigns lifestyles.
+    player.health.proneness = driftedProneness(player);
+
     const wear = player.health.wear;
     // Chronic wear accelerates the slide: 1.0 with a clean body up to
     // wearDeclineFactorAt100 at wear 100.
@@ -322,6 +359,7 @@ export function applyAging(league: League): void {
     // FEEL: pros who keep their bodies right age gracefully; work ethic
     // 70+ softens decline by 15%.
     const ethicSoften = player.workEthic >= 70 ? 0.85 : 1;
+    const graceF = agingGraceFor(league.seed, player.id);
 
     const deltas: Partial<Record<AttrGroup, number>> = {};
     let totalDecline = 0;
@@ -333,7 +371,7 @@ export function applyAging(league: League): void {
       // and 3P accuracy decline last of all skills): the mental group never
       // declines before 34. FEEL threshold.
       if (group === 'mental' && age < 34) continue;
-      let decline = (aging.declineBase + aging.declineAccelPerYear * yearsPast) * wearF * ethicSoften;
+      let decline = (aging.declineBase + aging.declineAccelPerYear * yearsPast) * wearF * ethicSoften * graceF;
       // 10-point per-group season cap (FEEL): even a late-30s cliff stays
       // readable on the card instead of vaporizing a player in one summer.
       decline = Math.min(10, decline);
@@ -352,6 +390,9 @@ export function applyAging(league: League): void {
     reasons.push(deltas.phys !== undefined ? `age ${age}: legs first` : `age ${age}: the curve bends down`);
     if (wear >= 40) reasons.push(`wear ${wear} taking its toll`); // 40: visible-mileage threshold for card copy. FEEL
     if (ethicSoften < 1) reasons.push('conditioning slows the slide');
+    // 0.92/1.13: notable-grace thresholds for card copy only. FEEL.
+    if (graceF <= 0.92) reasons.push('aging gracefully');
+    else if (graceF >= 1.13) reasons.push('the slide is steep');
     player.devLog.push({ date: { season: league.season, day: league.day }, deltas, reasons });
 
     // A declining player hands usage back to the offense a point at a
