@@ -69,7 +69,7 @@ describe('starters from games-started (fit-roster.ts assembleTeamPack)', () => {
     // and matches real single-game rotations (240 minutes cannot hold
     // twelve season averages)
     const lines = Array.from({ length: 12 }, (_, i) =>
-      line(`P${String(i).padStart(2, '0')}`, (['PG','SG','SF','PF','C'] as const)[i % 5], 34 - i * 2, 50 - i));
+      line(`P${String(i).padStart(2, '0')}`, (['PG','SG','SF','PF','C'] as const)[i % 5]!, 34 - i * 2, 50 - i));
     const pack = assembleTeamPack(fitsOf(lines), { id: 't', name: 'T', abbrev: 'TTT' });
     const targets = Object.keys(pack.team.rotationMinutes ?? {});
     expect(targets.length).toBe(9);
