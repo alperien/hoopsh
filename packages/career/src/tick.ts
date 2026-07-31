@@ -216,7 +216,7 @@ function seasonStartWeek(career: CareerState): number {
 /** No career draft ever waits on a human chair: backfill AI personas. */
 function ensureAiLeague(career: CareerState): void {
   const rng = streamRng(career.seed, 'career-gm-fill');
-  for (const team of career.league.teams) {
+  for (const team of Object.values(career.league.teams)) {
     if (team.gm === null) team.gm = generatePersona(rng);
   }
 }
@@ -254,7 +254,7 @@ async function resolveDraftNight(career: CareerState, digest: WeekDigest): Promi
     career.nbaTeam = mine.teamId as TeamId;
     career.clock.phase = 'nba';
     digest.phaseChangedTo = 'nba';
-    const teamName = career.league.teams.find(t => t.id === mine.teamId)?.name ?? mine.teamId;
+    const teamName = career.league.teams[mine.teamId]?.name ?? mine.teamId;
     pushEvent(career, 'transaction',
       `drafted: round ${mine.round}, pick ${mine.pick}, ${teamName}`, mine.pick);
     pushEvent(career, 'phase', `the climb reached the league: ${teamName}`);

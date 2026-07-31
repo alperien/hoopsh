@@ -255,7 +255,7 @@ export function stockView(career: CareerState) {
   const s = career.stock;
   if (!s) return null;
   const teams = Object.fromEntries(
-    career.league.teams.map(t => [t.id, `${t.city} ${t.name}`]),
+    Object.values(career.league.teams).map(t => [t.id, `${t.city} ${t.name}`]),
   );
   return {
     rank: s.rank,

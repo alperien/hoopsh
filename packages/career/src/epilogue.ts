@@ -36,7 +36,7 @@ export function harvestSeasonHonors(career: CareerState): void {
     if (career.nbaTeam && archive.champion === career.nbaTeam
       && archive.draftClass !== undefined // a fully stamped archive
       && wasMySeason(career, archive.season)) {
-      const team = career.league.teams.find(t => t.id === archive.champion)?.name ?? archive.champion;
+      const team = career.league.teams[archive.champion]?.name ?? archive.champion;
       push(`ev-honor-ring-${archive.season}`, `NBA champion: ${team}, ${archive.season}`);
     }
     for (const award of archive.awards) {
@@ -99,7 +99,7 @@ export function advanceLegacy(career: CareerState): void {
 
   if (since === 2 && !ep.jerseyRetiredBy && career.nbaTeam && legacyScore(career) >= m.jerseyRetireScore) {
     ep.jerseyRetiredBy = career.nbaTeam;
-    const team = career.league.teams.find(t => t.id === career.nbaTeam)?.name ?? career.nbaTeam;
+    const team = career.league.teams[career.nbaTeam]?.name ?? career.nbaTeam;
     career.events.push({
       id: `ev-honor-rafters-${career.clock.year}`,
       clock: { ...career.clock },

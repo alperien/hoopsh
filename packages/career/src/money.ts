@@ -59,7 +59,7 @@ export function accrueSeason(career: CareerState): void {
     const c = me?.contract;
     if (c && c.years.length > 0) {
       const line = c.years.find(y => y.season === career.league.season) ?? c.years[0]!;
-      const teamName = career.league.teams.find(t => t.id === career.nbaTeam)?.name ?? 'the team';
+      const teamName = (career.nbaTeam && career.league.teams[career.nbaTeam]?.name) || 'the team';
       const label = `${teamName}, contract year ${line.season}`;
       if (!already(label)) recordEarning(career, year, label, line.salary);
     }
