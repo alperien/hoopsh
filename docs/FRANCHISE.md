@@ -454,6 +454,15 @@ the condition for lifting it.
 | F8 | financials stop at payroll/tax/owner patience | no revenue management game | never, possibly; it is a different game |
 | F9 | award voting has taste, not politics | fewer hot-take controversies | narrative memory system |
 | F10 | fictional league only; real players via the modding path | no licensed nostalgia | out of scope by design (ROSTERS.md fitter is the door) |
+| F11 | age is season-granular (no birthdays inside a season) | a February 19th birthday reads as 19 all year | nobody has asked |
+| F12 | pick protections are top-N with a roll-forward, no swaps | some real deal shapes inexpressible | swap resolution logic with almanac coverage |
+| F13 | tiebreakers: head-to-head, division, conference, point diff | the official cascade's division-winner and common-opponent steps are absent | a measured case where the simple cascade mis-seeds |
+| F14 | the waiver wire clears immediately (no claim window or priority) | no waiver-order strategy | claim window with the priority queue |
+| F15 | preseason exists on the calendar but friendlies are not simulated | camp is quiet | cut order says friendlies come back last |
+
+Module headers carry their own local registers in the same discipline
+(cba/cap.ts S1-S4, cba/contracts.ts C1-C8, cba/tradelegal.ts T1-T4,
+transactions.ts X1-X4); this table holds the design-level entries.
 
 ## 14. Build plan
 
