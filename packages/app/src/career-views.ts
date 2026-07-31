@@ -102,7 +102,8 @@ export function careerSummary(career: CareerState, opts: { simRunning: boolean }
       l: myRow?.l ?? 0,
     } : null,
     nbaTeam: career.nbaTeam,
-    nextGame: nextGame && c ? scheduleRow(career, nextGame) : null,
+    nextGame: nextGame && c ? scheduleRow(career, nextGame) : nbaNextGame(career),
+    recentGames: recentGamesFor(career),
     stock: career.stock ? {
       rank: career.stock.rank,
       last: career.stock.history[career.stock.history.length - 1] ?? null,
@@ -132,6 +133,68 @@ export function careerSummary(career: CareerState, opts: { simRunning: boolean }
     nextBeat: nextBeatFor(career),
     simRunning: opts.simRunning,
   };
+}
+
+/** The NBA phase's next-game card: read the league schedule directly. */
+function nbaNextGame(career: CareerState) {
+  if (career.clock.phase !== 'nba' || !career.nbaTeam) return null;
+  const upcoming = career.league.schedule
+    .filter(g => (g.home === career.nbaTeam || g.away === career.nbaTeam)
+      && !career.league.results[g.id]
+      && g.date.season === career.league.season
+      && g.date.day >= career.league.day)
+    .sort((a, b) => a.date.day - b.date.day)[0];
+  if (!upcoming) return null;
+  return {
+    gameId: upcoming.id,
+    week: career.clock.week,
+    type: 'regular' as const,
+    round: null,
+    home: teamName(career, upcoming.home),
+    away: teamName(career, upcoming.away),
+    homeAbbrev: career.league.teams[upcoming.home]?.abbrev ?? '?',
+    awayAbbrev: career.league.teams[upcoming.away]?.abbrev ?? '?',
+    final: null,
+    ot: 0,
+    myGame: true,
+  };
+}
+
+/** My last few finished games, either chair, newest first. */
+function recentGamesFor(career: CareerState) {
+  const rows: Array<{ gameId: string; home: string; away: string; final: [number, number]; win: boolean }> = [];
+  if (career.clock.phase === 'nba' && career.nbaTeam) {
+    const mine = Object.values(career.league.results)
+      .filter(r => r.home === career.nbaTeam || r.away === career.nbaTeam)
+      .sort((a, b) => b.date.season - a.date.season || b.date.day - a.date.day)
+      .slice(0, 3);
+    for (const r of mine) {
+      const homeWin = r.final[0] > r.final[1];
+      const iAmHome = r.home === career.nbaTeam;
+      rows.push({
+        gameId: r.id, home: teamName(career, r.home), away: teamName(career, r.away),
+        final: r.final, win: iAmHome ? homeWin : !homeWin,
+      });
+    }
+    return rows;
+  }
+  const c = career.circuit;
+  if (!c) return rows;
+  const myTeamId = c.teams[c.myTeamIdx]?.id;
+  if (!myTeamId) return rows;
+  const mine = Object.values(c.results)
+    .filter(r => r.home === myTeamId || r.away === myTeamId)
+    .slice(-3)
+    .reverse();
+  for (const r of mine) {
+    const homeWin = r.final[0] > r.final[1];
+    const iAmHome = r.home === myTeamId;
+    rows.push({
+      gameId: r.id, home: teamName(career, r.home), away: teamName(career, r.away),
+      final: r.final, win: iAmHome ? homeWin : !homeWin,
+    });
+  }
+  return rows;
 }
 
 /**
