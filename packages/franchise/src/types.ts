@@ -652,6 +652,12 @@ export interface InboxItem {
 export interface League {
   /** determinism root; every RNG stream derives from this (rng.ts) */
   seed: string;
+  /**
+   * The live parameter set (params.ts). Serialized with the league so a
+   * save keeps its calibration; modules read league.params, never
+   * defaultFranchiseParams() directly (sweeps vary params per league).
+   */
+  params: import('./params.js').FranchiseParams;
   season: Season;
   /** genesis season (display: 'founded 2026') */
   startSeason: Season;

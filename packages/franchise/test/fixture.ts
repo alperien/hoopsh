@@ -121,6 +121,7 @@ export function fixtureLeague(opts: FixtureOpts = {}): League {
   const firstTeam = FRANCHISES[0]!.id;
   return {
     seed: opts.seed ?? 'fixture',
+    params,
     season,
     startSeason: season,
     day: 0,
