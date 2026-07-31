@@ -62,6 +62,23 @@ describe('starters from games-started (fit-roster.ts assembleTeamPack)', () => {
     expect(p2.team.starters[0]).toBe(p2.team.players.find((p) => p.name === 'Big Minutes')!.id);
   });
 
+  it('minutes targets go to the core nine only (the pigeonhole rule, W65)', () => {
+    // twelve fitted players; the mpg-ordered top nine carry targets, the
+    // tail is untargeted fill — the shape that revives the engine's
+    // proactive eager-return (its out-swap requires an untargeted body)
+    // and matches real single-game rotations (240 minutes cannot hold
+    // twelve season averages)
+    const lines = Array.from({ length: 12 }, (_, i) =>
+      line(`P${String(i).padStart(2, '0')}`, (['PG','SG','SF','PF','C'] as const)[i % 5]!, 34 - i * 2, 50 - i));
+    const pack = assembleTeamPack(fitsOf(lines), { id: 't', name: 'T', abbrev: 'TTT' });
+    const targets = Object.keys(pack.team.rotationMinutes ?? {});
+    expect(targets.length).toBe(9);
+    const byName = new Map(pack.team.players.map((p) => [p.id, p.name]));
+    const targetNames = targets.map((id) => byName.get(id)!).sort();
+    // exactly the nine highest-mpg players (P00..P08)
+    expect(targetNames).toEqual(Array.from({ length: 9 }, (_, i) => `P${String(i).padStart(2, '0')}`));
+  });
+
   it('the validator accepts a well-formed gs and rejects a malformed one, when present', () => {
     const base = {
       kind: 'season-lines', provenance: 'unit test',

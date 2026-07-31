@@ -1027,6 +1027,13 @@ export interface SimParams {
     catchContestScale: number;   // openness -> expected catch contest
     // off-ball
     cutRateScale: number;        // per-tick cut chance per unit of motion tendency
+    /** the dunker dive (W64 rim supply): multiplies the dunker-spot
+     *  player's cut rate while his ball-handler is mid-drive-commit — the
+     *  dump-off dive that produces real point-blank catches. The dunker is
+     *  otherwise excluded from cutting entirely. 0 = staged inert: the
+     *  dunker branch short-circuits BEFORE any rng draw, so every stream
+     *  is byte-identical to the exclusion era (the STAGED discipline). */
+    dunkerDiveScale: number;
     cutDurationSec: number;
     crashBase: number;           // offensive rebound crash probability base
     crashTendScale: number;
@@ -2392,6 +2399,8 @@ export const defaultParams: SimParams = {
     passContinuationScale: 0.9,
     catchContestScale: 0.72,
     cutRateScale: 0.003,
+    dunkerDiveScale: 6, // STAGED — the W64 dose ladder owns the flip
+
     cutDurationSec: 1.6,
     crashBase: 0.15,
     crashTendScale: 0.6,
