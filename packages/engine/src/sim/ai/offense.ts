@@ -315,12 +315,26 @@ export function offenseOffBallTick(s: GameState): void {
     // keeps an all-time shooter's offense alive when the catch is taken
     // away.
     const denyCutMult = gravity(s, a) > s.params.ai.denyGravityCut ? s.params.ai.denyBackdoorMult : 1;
-    if (
+    if (s.poss.phase === 'halfcourt' && a.spotKey !== 'dunker') {
+      if (
+        s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale * denyCutMult) &&
+        // only cut from outside cutRunwayFt — a cut needs runway to be worth anything
+        dist(a.pos, rim) > s.params.ai.cutRunwayFt
+      ) {
+        a.cutUntil = s.t + s.params.ai.cutDurationSec;
+        continue;
+      }
+    } else if (
+      // THE DUNKER DIVE (W64): the one spot excluded from ordinary cutting
+      // dives exactly when his ball-handler is committed downhill — the
+      // dump-off timing. No runway check: the dive IS short by design (the
+      // spot sits ~10 ft out and the cut target is the rim). The scale==0
+      // short-circuit precedes the rng draw, so the staged default leaves
+      // every stream byte-identical to the exclusion era.
       s.poss.phase === 'halfcourt' &&
-      a.spotKey !== 'dunker' &&
-      s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale * denyCutMult) &&
-      // only cut from outside cutRunwayFt — a cut needs runway to be worth anything
-      dist(a.pos, rim) > s.params.ai.cutRunwayFt
+      s.params.ai.dunkerDiveScale > 0 &&
+      holder && s.t < holder.driveUntil &&
+      s.rng.chance((a.p.tend.offBallMotion / 100) * s.params.ai.cutRateScale * s.params.ai.dunkerDiveScale)
     ) {
       a.cutUntil = s.t + s.params.ai.cutDurationSec;
       continue;
