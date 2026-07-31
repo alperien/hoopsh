@@ -387,10 +387,23 @@ export async function advanceCareerWeek(career: CareerState, sim: SimulateJobs):
   if (phase === 'nba') {
     digest = await resolveNbaWeek(career, sim);
   } else if (phase === 'retired') {
+    // retirement moves a year at a time: the ball has stopped, the world
+    // has not. One advance = one league season and one legacy tick.
     digest = {
       clock: { ...career.clock }, gamesPlayed: [], messages: [], events: [], energy: career.energy,
     };
-    await fastDays(career, career.params.tick.leagueDaysPerWeek);
+    const fromSeason = career.league.season;
+    let guard = 400;
+    while (career.league.season === fromSeason && guard-- > 0) {
+      await advanceDay(career.league, fastSim);
+    }
+    career.clock.week = 0;
+    career.clock.year += 1;
+    advanceLegacy(career);
+    harvestSeasonHonors(career);
+    digest.clock = { ...career.clock };
+    digest.events = career.events.slice(-4).map(e => e.id);
+    return digest;
   } else {
     // circuit phases and draftPrep share the week engine; one season per
     // year, so a played year (circuitHistory row) never rebuilds

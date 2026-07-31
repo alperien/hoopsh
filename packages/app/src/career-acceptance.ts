@@ -151,7 +151,13 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
       const phase = career.clock.phase;
       if (phase === 'retired' && retiredYearsLived >= 5) break;
 
-      // the script's standing decisions
+      // the script's standing decisions: a sane player rests a drained
+      // body (the band then measures the design, not script stubbornness)
+      if (career.energy < 35 && phase !== 'retired') {
+        applyChoice(career, { kind: 'setWeekPlan', plan: { slots: ['rest', 'rest', 'life'], focus: pilot.plan.focus } as never });
+      } else {
+        applyChoice(career, { kind: 'setWeekPlan', plan: pilot.plan as never });
+      }
       if (career.circuit && !career.circuit.complete) {
         applyChoice(career, { kind: 'setApproach', card: pilot.approach });
       }
@@ -175,7 +181,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
 
       // the boredom audit's raw material
       const newEvents = career.events.length - eventsBefore + digest.messages.length;
-      if (newEvents === 0) {
+      if (newEvents === 0 && phase !== 'retired') {
         zeroStreak += 1;
         report.maxZeroEventStreak = Math.max(report.maxZeroEventStreak, zeroStreak);
       } else {
@@ -187,7 +193,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
         if (career.energy === 0) pinnedWeeks += 1;
       }
       if (phase === 'nba') nbaWeeksLived += 1;
-      if (career.clock.phase === 'retired' && career.clock.week === 0) retiredYearsLived += 1;
+      if (phase === 'retired') retiredYearsLived += 1; // one advance = one retired year
 
       // THE INVARIANT, live: the clocks must never sit at reactGames
       const t = career.params.trust;
