@@ -234,6 +234,40 @@ function fairAavOf(league: League, p: FrPlayer): number {
   return Math.round(pricingCap(league) * share);
 }
 
+// the aging curve and the tape on the market's read of me (fix wave C:
+// the measured defect was a declining 30-year-old commanding a third of an
+// inflated cap because fairAav priced the sheet with no age or form term)
+const AGE_DISCOUNT_START = 28;   // FEEL: the market starts pricing the decline before the sheet shows it
+const AGE_DISCOUNT_PER_YEAR = 0.08; // CAL: age 30 offers ~84 percent of sheet-fair, age 32 ~68
+const AGE_DISCOUNT_FLOOR = 0.45; // FEEL: name value never prices to zero
+const FORM_GP_MIN = 8;
+const FORM_PPG_ANCHOR = 12;      // FEEL: the line where the tape neither helps nor hurts
+const FORM_FACTOR_MIN = 0.8;
+const FORM_FACTOR_MAX = 1.1;
+
+/**
+ * What the market pays against the sheet: an age curve (front offices
+ * price the decline into multi-year money before the attributes move) and
+ * the last real season's tape (points and impact, bounded so a bad year
+ * discounts the offer without erasing the resume).
+ */
+function marketFactorOf(league: League, p: FrPlayer): number {
+  const age = league.season - p.bornSeason;
+  const ageF = age <= AGE_DISCOUNT_START
+    ? 1
+    : Math.max(AGE_DISCOUNT_FLOOR, 1 - AGE_DISCOUNT_PER_YEAR * (age - AGE_DISCOUNT_START));
+  const played = p.seasons.filter(s => s.gp >= FORM_GP_MIN);
+  const last = played[played.length - 1];
+  let formF = 1;
+  if (last) {
+    const ppg = last.pts / last.gp;
+    const pm = last.plusMinus / last.gp;
+    formF = Math.max(FORM_FACTOR_MIN, Math.min(FORM_FACTOR_MAX,
+      1 + (ppg - FORM_PPG_ANCHOR) * 0.01 + pm * 0.01));
+  }
+  return ageF * formF;
+}
+
 /** Contract length by age at signing (header convention; no years on RouteOffer). */
 function yearsForAge(age: number): number {
   if (age <= YOUNG_AGE_MAX) return 3;
@@ -602,7 +636,7 @@ export function buildMyOffers(career: CareerState): RouteOffer[] {
   const value = overallOf(me);
   const min = minSalaryFor(league, me);
   const max = maxSalaryFor(league, me);
-  const fair = fairAavOf(league, me);
+  const fair = Math.round(fairAavOf(league, me) * marketFactorOf(league, me));
   const age = league.season - me.bornSeason;
   const expires = career.clock.week + career.params.recruiting.offerWindowWeeks;
   const sheetSeason = league.capLines[season] ? season : league.season;
@@ -721,7 +755,9 @@ export function applyContractDecision(career: CareerState, decisionId: string, c
       // design (extensions flow through their own executor), so the bounds
       // are enforced here and buildContract + executeExtension do the rest.
       // Franchise register X4 applies: the extension replaces future years.
-      const start = Math.min(Math.max(fairAavOf(league, me), minSalaryFor(league, me)), maxSalaryFor(league, me));
+      const start = Math.min(
+        Math.max(Math.round(fairAavOf(league, me) * marketFactorOf(league, me)), minSalaryFor(league, me)),
+        maxSalaryFor(league, me));
       const years = 4; // REAL-ish: the standard rookie-extension shape
       const contract = buildContract(league, c.teamId, career.me, { years, startSalary: start }, 'extension');
       executeExtension(league, c.teamId, career.me, contract);

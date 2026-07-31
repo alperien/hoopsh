@@ -1570,6 +1570,73 @@ function debutCandidates(career: CareerState, out: Candidate[]): void {
 }
 
 /** Recruiters: one thread per program, each beat driven by the interest ladder's actual rung move this week. Formal on paper, warmer by text, exactly like the real arc. */
+
+/**
+ * The closing windows (fix wave C, the Amari critique): fourteen offers
+ * lapsing unanswered read as illogical because NOBODY SAID ANYTHING. Two
+ * beats close the gap. Per offer: the program itself calls once when its
+ * window is inside LAPSE_WARN_WEEKS (a real staff does not let a committable
+ * offer die silently). Per year: when several windows are closing at once,
+ * the agent names the moment ("pick a door or the year picks for you").
+ * After these, silence is legibly the PLAYER's choice; the signing-day
+ * fallback then reads as the consequence it always was.
+ */
+const LAPSE_WARN_WEEKS = 2;   // FEEL: close enough to feel, far enough to act
+const LAPSE_CHORUS_MIN = 3;   // FEEL: three closing doors is a moment, one is a call
+
+function lapseWarningCandidates(career: CareerState, out: Candidate[]): void {
+  const rec = career.recruiting;
+  if (!rec || career.clock.phase !== 'hs' || rec.committedTo) return;
+  const week = career.clock.week;
+  const closing = rec.offers.filter(o => {
+    const left = o.expiresWeek - week;
+    if (left <= 0 || left > LAPSE_WARN_WEEKS) return false;
+    if (!o.programId) return true; // euro/nbl doors warn too
+    const row = rec.interest.find(i => i.programId === o.programId);
+    return !row?.closed;
+  });
+  if (closing.length === 0) return;
+
+  for (const offer of closing) {
+    const program = rec.programs.find(pr => pr.id === offer.programId);
+    const dest = program?.name ?? offer.clubName ?? 'the program';
+    const surname = program ? recruiterSurname(career, program.id) : 'the club';
+    const weeksLeft = offer.expiresWeek - week;
+    const when = weeksLeft <= 1 ? 'this week' : `in ${weeksLeft} weeks`;
+    out.push({
+      thread: program ? `recruiter:${program.id}` : 'agent',
+      threadRank: program ? 8 : THREAD_RANK.agent!,
+      priority: 88,
+      from: program ? `Coach ${surname} (${dest})` : 'Marta (agent)',
+      capExempt: true, tag: `lapse-${offer.id}`,
+      refs: program ? { programId: program.id } : undefined,
+      variants: program ? [
+        `Being straight with you: the offer comes off the table ${when}. The class is filling and I cannot hold the spot past that. We want an answer either way`,
+        `Our window closes ${when}. If you are waiting on someone else, I understand, but tell me to my face and I will wish you well. If it is us, say so before the board meets`,
+        `The staff meets ${when} to finalize the class. Your name is still on the top of the sheet. It will not be after. What are we doing?`,
+      ] : [
+        `${dest}'s contract window closes ${when}. Overseas paper does not wait on ceremonies. Yes or no, and I make the call either way`,
+        `Heads up: the ${dest} deal expires ${when}. If the plan is college, fine, but let it be a plan and not a lapse`,
+      ],
+    });
+  }
+
+  if (closing.length >= LAPSE_CHORUS_MIN) {
+    const names = closing.slice(0, 3).map(o =>
+      rec.programs.find(pr => pr.id === o.programId)?.name ?? o.clubName ?? 'a club').join(', ');
+    out.push({
+      thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 92,
+      from: 'Uncle Dee (advisor)',
+      capExempt: true, tag: `lapsechorus-${career.clock.year}`,
+      variants: [
+        `${closing.length} windows close inside two weeks (${names}). Holding out is a strategy right up until it is just waiting. Pick a door or the year picks for you`,
+        `The month of closing doors is here: ${names}, all inside two weeks. Silence reads as an answer to these people. Make it YOUR answer`,
+        `Every staff on your board meets this month. ${names} first. You do not owe anyone a yes. You owe yourself a decision`,
+      ],
+    });
+  }
+}
+
 function recruiterCandidates(career: CareerState, out: Candidate[]): void {
   const rec = career.recruiting;
   if (!rec) return;
@@ -1722,6 +1789,7 @@ export function generatePhone(career: CareerState): PhoneMessage[] {
   mentorCandidates(career, candidates);
   wireCandidates(career, candidates);
   recruiterCandidates(career, candidates);
+  lapseWarningCandidates(career, candidates);
   commitmentCandidates(career, candidates);
   draftNightCandidates(career, candidates);
   debutCandidates(career, candidates);

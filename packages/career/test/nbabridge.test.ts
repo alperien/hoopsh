@@ -248,3 +248,32 @@ describe('the choice seams', () => {
     expect(applyContractDecision(career, `option:${next}`, 'decline').ok).toBe(false); // spent
   });
 });
+
+describe('the market prices the decline (fix wave C, the Amari critique)', () => {
+  function faAtAge(age: number, fadingSeason = false): number {
+    const career = fixtureCareer();
+    promoteToFa(career); // moves me into the league pool as a free agent
+    const me = career.league.players[career.me]!;
+    me.bornSeason = career.league.season - age;
+    if (fadingSeason) {
+      me.seasons.push({
+        season: career.league.season - 1, teamId: 'mia', type: 'regular',
+        gp: 60, gs: 20, min: 1200, pts: 420, fgm: 160, fga: 400, tpm: 40, tpa: 130,
+        ftm: 60, fta: 80, orb: 30, drb: 120, ast: 90, stl: 40, blk: 10, tov: 70,
+        pf: 100, plusMinus: -180,
+      } as never);
+    }
+    const offers = buildMyOffers(career).filter(o => o.id.startsWith('nba:'));
+    if (offers.length === 0) return 0;
+    return Math.max(...offers.map(o => o.money));
+  }
+
+  it('the same sheet earns less at 31 than at 25, and a weak last season discounts further', () => {
+    const at25 = faAtAge(25);
+    const at31 = faAtAge(31);
+    const at31fading = faAtAge(31, true);
+    expect(at25).toBeGreaterThan(0);
+    expect(at31).toBeLessThan(at25);       // the age curve alone
+    expect(at31fading).toBeLessThan(at31); // 7 a night at minus 3 shaves the paper again
+  });
+});
