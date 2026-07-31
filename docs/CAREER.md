@@ -403,6 +403,16 @@ Out, registered (the C-register, same discipline as the F-register):
 | C10 | on-court chemistry modifiers | relationships act through role, trust, and the phone | consistent with franchise F1 |
 | C11 | pre-entry NBA seasons on the fast sim | background box scores are statistically crude until you arrive; structure (standings, lotteries, classes, trades) is real | engine throughput or patience |
 
+Build-time additions (registered at the 2026-07-31 landing; details in
+REGISTER.md W66-W68 and docs/CAREER_INTERNALS.md):
+
+| # | Cut | Consequence | Revisit when |
+|---|---|---|---|
+| C12 | past-season circuit game records | live only in the app session archive; 404 after reload | a results archive on CircuitSummary |
+| C13 | NBA minutes priced by career role | the franchise rotation owns minutes; the ladder drives grading, trust, the phone | a minutes seam priced by role |
+| C14 | the AI pricing my trade request | requests move morale and the phone only | a franchise trade-pulse seam |
+| C15 | my RFA offer-sheet match window | outside NBA offers sign directly | the match window lands player-side |
+
 
 ## How we prove it works
 
