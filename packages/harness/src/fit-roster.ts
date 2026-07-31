@@ -735,7 +735,7 @@ export function analyticFit(line: SeasonLine): AnalyticFit {
       a.vertical = F('vertical', Math.max(blkNudge, Math.min(97, floor)), 'formula',
         `max(template+BLK nudge, dunk-gate inversion): ${line.dunks}/g made dunks must clear ` +
         `the dunk-call athlete gate (0.6·vert + 0.4·finishing >= 74, narration shotcall) — ` +
-        `floor = (76 + min(6, dunks·4) − 0.4·finishing)/0.6 with finishing=${Math.round(a.finishing)}`);
+        `floor = (76 + min(6, dunks·4) − 0.4·finishing)/0.6, capped at 97, with finishing=${Math.round(a.finishing)}`);
     } else if (line.dunks !== undefined && line.dunks < 0.15) {
       // real NON-dunker: must NOT clear the gate. A high-finishing guard
       // (layup-package 90s) otherwise lands a blend over 74 and the booth

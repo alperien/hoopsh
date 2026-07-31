@@ -368,8 +368,17 @@ export interface TurnoverEvent extends Base {
  * under a rules.teamFoulsCarryToOT pack (NCAA men, FIBA/EuroLeague), where
  * every OT inherits the prior period's running count and the stamped value
  * keeps climbing (sim/possession.ts endPeriod; audit L-14). Drives
- * `inBonus`, per rules.teamFoulBonusAt — note per FoulKind that 'offensive'
- * fouls do NOT increment this team count. `fouledOut: true` exactly when
+ * `inBonus`: the team's standing penalty state at this whistle, true when
+ * `teamCountInPeriod >= rules.teamFoulBonusAt` (in OT: teamFoulBonusAtOT —
+ * the NBA drops to 4) OR, under a pack with the late-window penalty
+ * (rules.lateWindowSec > 0, NBA Rule 12B VII), when the team's COUNTING
+ * fouls this period whistled with `clock <= rules.lateWindowSec` have
+ * reached rules.lateWindowFoulBonusAt. Both parts are reconstructible from
+ * the stream: count this team's prior foul events in the period (kind
+ * neither 'offensive' nor 'technical'), overall and inside the window —
+ * note per FoulKind that 'offensive' fouls do NOT increment either count,
+ * while their stamped inBonus still reports the standing state.
+ * `fouledOut: true` exactly when
  * `personalCount >= rules.foulOutAt`; when that happens the engine
  * immediately attempts a replacement (sim/fouls.ts recordFoul ->
  * sim/subs.ts replaceFouledOut), so a `fouledOut: true` foul is followed by

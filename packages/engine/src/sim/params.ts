@@ -2017,7 +2017,7 @@ export const defaultParams: SimParams = {
     waveMaxPerTeam: 2, // REAL: per-team boundary swaps 1.3-1.8/period (ffit-rotations)
     waveStintMinSec: 420, // FIT: 7:00 of live clock before wave-eligible (B1 1.5-1.8 held, G8d churn shed; ffit-rotations §2)
     waveReadyRelief: 35, // FIT: reset/wave entries accept energy 53 (readyThreshold 88 − 35) — the Q3-start starter-share binder
-    subMinBenchSec: 420, // FIT: pine before any return — the churn floor, the main G8d dial (ffit-rotations §2; 300 -> 345 at the rules landing: the new Q1-Q3 last-minute windows host extra rotation passes and d ran 67.7 vs corpus 53.2, band top 65)
+    subMinBenchSec: 420, // FIT: pine before any return — the churn floor, the main G8d dial (ffit-rotations §2; 300 -> 420 at the rules landing: the new Q1-Q3 last-minute windows host extra rotation passes and d ran 67.7/g vs corpus 53.2 at 300; 345 measured no relief, 420 reads 62.0-63.5 in band — REGISTER W63)
     ftroublePersonalOffset: 1, // REAL: the classic period+1 foul-trouble bar
     ftroubleIgnoreClockSec: 420, // FIT: a foul inside the last 7:00 rides to the break (the fatigue oscillator re-subs riders within 120s, so the gate sits far above the design's 2:00; ffit-rotations O2)
     timeoutSubRelaxPts: 8, // FEEL: ≈ half the starter/bench leash gap (ffit-rotations)
@@ -2093,11 +2093,12 @@ export const defaultParams: SimParams = {
     // and half of 0.3 didn't clear the continuation bar often enough)
     twoForOneCut: 0.38530755876233497,
     // fouling starts at min(this, one full shot clock per possession needed).
-    // 35 -> 55 at the rules landing: with the last-2:00 window penalty
+    // 35 -> 45 at the rules landing: with the last-2:00 window penalty
     // modeled (rulepack.ts lateWindowSec), hunted grabs actually PAY free
-    // throws, and real teams open the hunt around a minute out at 2-3
-    // possessions down — the 35 s cap was fitted when hunts paid nothing
-    // until the period bonus and mostly donated side-outs (G7 ftClimb).
+    // throws — the 35 s cap was fitted when hunts paid nothing until the
+    // period bonus and mostly donated side-outs. Fitted against the G7
+    // gates at n=20/n=40: 55 bought more FT climb but blew the min-48 band
+    // (7.3 vs 4.4-6.0); 45 is the joint point (REGISTER W63).
     foulTrailMaxClockSec: 45,
     foulMinDeficit: 3,
     foulMaxDeficit: 12,
