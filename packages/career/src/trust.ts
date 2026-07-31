@@ -220,6 +220,21 @@ export function updateAfterGame(
       reason: `under the ${from} line ${t.reactGames} games running`,
       delta: -1,
     });
+  } else if (coach.roleClock.above >= t.reactGames && idx === LADDER.length - 1) {
+    // the ladder's ceiling: there is no bigger job to give, so the clock
+    // resets and the response is belief instead (the invariant's promise
+    // is a response within reactGames, and this IS the response; a clock
+    // that sat here forever would read as the world going deaf, and the
+    // acceptance harness rightly fails that)
+    coach.roleClock.above = 0;
+    coach.trust = clamp(coach.trust + 2, 5, 99);
+    coach.greenLight = coach.trust >= t.greenLightTrust;
+  } else if (coach.roleClock.below >= t.reactGames && idx === 0) {
+    // the ladder's floor: nothing below garbage; the clock resets and the
+    // cost is trust (the seat itself is the response)
+    coach.roleClock.below = 0;
+    coach.trust = clamp(coach.trust - 2, 5, 99);
+    coach.greenLight = coach.trust >= t.greenLightTrust;
   }
 
   if (delta !== 0) {
