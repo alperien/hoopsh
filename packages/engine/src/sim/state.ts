@@ -269,6 +269,11 @@ export interface Possession {
   phase: 'advance' | 'halfcourt' | 'transition';
   startT: number;
   kind: 'inbound' | 'live_rebound' | 'steal' | 'tip';
+  /** W64 channel-3 dose (session-8): this transition possession rolled a
+   *  live leak-out. One draw per live_rebound/steal possession at
+   *  0 < leakOutScale < 1 (heave-guard shape: 0 never draws, >= 1
+   *  short-circuits draw-free). Constant false everywhere else. */
+  leakArmed: boolean;
   /**
    * The period's first possession (fdesign-grammar M1b). Stamped in
    * startPossession: the game clock still reads the period's full value

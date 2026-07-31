@@ -432,6 +432,7 @@ export function offenseOffBallTick(s: GameState): void {
     // honest. leakOutScale is the stage switch, checked FIRST.
     if (
       s.params.ai.leakOutScale > 0 &&
+      s.poss.leakArmed &&
       s.poss.phase === 'transition' &&
       a.p.id === leakerId &&
       defendersBack(s, a.side) < s.params.move.transSetBackCount
