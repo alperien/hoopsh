@@ -36,7 +36,7 @@ function fixtureContract(playerId: PlayerId, teamId: TeamId, season: Season, sal
 
 export function fixturePlayer(id: PlayerId, teamId: TeamId | null, season: Season, i: number): FrPlayer {
   const builder = BUILDERS[i % BUILDERS.length]!;
-  const built = builder(id, `Fixture ${id}`);
+  const built = builder({ id, name: `Fixture ${id}` });
   const age = 22 + (i % 12);
   return {
     id,
