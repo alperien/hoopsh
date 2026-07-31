@@ -40,6 +40,8 @@ const SKIP: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /^git clone /, reason: 'network; the reader already has the tree' },
   { pattern: /^(open|xdg-open|start) /, reason: 'browser open; headless here' },
   { pattern: /^(npm test|npm run test)\b/, reason: 'would recurse the suite from inside itself' },
+  { pattern: /^npm run gm(\s|$)/, reason: 'starts the game server, which runs until closed' },
+  { pattern: /^npm run gm:acceptance\b/, reason: 'a multi-season autosim; minutes to hours by design' },
 ];
 
 function runnableLines(): { line: string; block: number }[] {

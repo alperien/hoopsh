@@ -1,0 +1,249 @@
+/*
+ * theme.css - the two registers of the GM game.
+ *
+ * Register 1, "the desk": league operations documents. Cap sheets are
+ * spreadsheets, scout reports are memos, the transaction wire is a feed.
+ * Cool office white, ink text, tabular numerals, dense tables. Provenance:
+ * the front-office fantasy is paperwork, so the UI is the paperwork.
+ *
+ * Register 2, "game night" (.broadcast scope): telecast graphics. Dark
+ * floor, scorebug strip, team color chips, big clock numerals.
+ * Provenance: the scorebug and lower-third, the one basketball interface
+ * everyone already reads fluently.
+ *
+ * The defended rule-break (blandaid core): the office masthead carries a
+ * broadcast-style "tonight" strip inside the document register, because
+ * tonight's game is the one thing the desk and the arena share.
+ * Plain regions: news and almanac stay unstyled document lists.
+ *
+ * Type scale tops out at the scoreboard numerals (72px) over a 13px table
+ * body: 5.5:1 in the office, 6:1+ on game night. System stacks only: the
+ * repo runs offline and ships no font files.
+ */
+
+:root {
+  --ink: #16181d;          /* office ink */
+  --ink-soft: #4a4e57;
+  --ink-faint: #8a8f99;
+  --paper: #f6f6f3;        /* cool office white, not warm cream */
+  --paper-raised: #ffffff;
+  --rule: #d8d8d2;         /* hairline rules like ledger paper */
+  --rule-strong: #b9b9b1;
+  --league: #12355b;       /* league navy: the letterhead */
+  --accent: var(--team-primary, #12355b);
+  --accent-2: var(--team-secondary, #f4a261);
+  --good: #1a7f37;
+  --bad: #b3261e;
+  --warn: #9a6700;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+/* ---------- frame ---------- */
+#frame { display: grid; grid-template-columns: 208px 1fr; min-height: 100vh; }
+
+#rail {
+  border-right: 1px solid var(--rule-strong);
+  background: var(--paper);
+  padding: 14px 0 24px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+#rail .wordmark {
+  font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: 13px; padding: 4px 16px 2px; color: var(--league);
+}
+#rail .wordmark small { display: block; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.02em; text-transform: none; }
+#rail nav { margin-top: 14px; }
+#rail nav a {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 7px 16px; color: var(--ink-soft); text-decoration: none; font-size: 13.5px;
+  border-left: 3px solid transparent;
+}
+#rail nav a:hover { background: #ecece6; color: var(--ink); }
+#rail nav a.active { border-left-color: var(--accent); color: var(--ink); font-weight: 600; background: #efefe9; }
+#rail nav a .key { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); }
+#rail .rail-note { padding: 10px 16px; color: var(--ink-faint); font-size: 11.5px; border-top: 1px solid var(--rule); margin-top: 12px; }
+
+#main { min-width: 0; }
+
+/* masthead: the letterhead + the tonight strip (the defended break) */
+#masthead {
+  display: flex; align-items: center; gap: 18px;
+  padding: 10px 22px; border-bottom: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  position: sticky; top: 0; z-index: 30;
+}
+#masthead .date { font-size: 13px; color: var(--ink-soft); min-width: 150px; }
+#masthead .date b { display: block; color: var(--ink); font-size: 14.5px; }
+#masthead .record { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-soft); }
+#masthead .record b { color: var(--ink); font-size: 15px; }
+#masthead .spacer { flex: 1; }
+#masthead .phase-chip {
+  font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-faint); border: 1px solid var(--rule-strong);
+  padding: 2px 8px; border-radius: 2px;
+}
+
+/* tonight strip: broadcast element on the desk */
+.tonight {
+  display: flex; align-items: center; gap: 10px;
+  background: #101319; color: #f5f6f8; border-radius: 3px;
+  padding: 6px 12px; font-size: 12.5px;
+}
+.tonight .vs { color: #9aa1ad; }
+.tonight .team { font-weight: 700; letter-spacing: 0.03em; }
+
+button, .btn {
+  font: inherit; font-weight: 600; font-size: 13px;
+  color: var(--paper-raised); background: var(--league);
+  border: none; border-radius: 3px; padding: 7px 14px; cursor: pointer;
+}
+button:hover, .btn:hover { filter: brightness(1.12); }
+button.quiet { background: transparent; color: var(--ink-soft); border: 1px solid var(--rule-strong); }
+button.quiet:hover { color: var(--ink); border-color: var(--ink-faint); filter: none; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.danger { background: var(--bad); }
+
+#content { padding: 20px 22px 60px; max-width: 1240px; }
+
+/* ---------- document furniture ---------- */
+h1.doc {
+  font-size: 26px; margin: 2px 0 4px; font-weight: 800; letter-spacing: -0.01em;
+}
+.doc-sub { color: var(--ink-faint); font-size: 12.5px; margin-bottom: 18px; }
+h2.ledger {
+  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); border-bottom: 2px solid var(--ink);
+  padding-bottom: 4px; margin: 26px 0 8px;
+}
+.cols { display: grid; gap: 22px; }
+.cols.c2 { grid-template-columns: 3fr 2fr; }
+.cols.c3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 980px) { .cols.c2, .cols.c3 { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--paper-raised); border: 1px solid var(--rule);
+  border-radius: 3px; padding: 14px 16px;
+}
+
+/* ---------- tables: the product ---------- */
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; background: var(--paper-raised); }
+table.grid caption { text-align: left; font-size: 12px; color: var(--ink-faint); margin-bottom: 4px; }
+table.grid th {
+  text-align: left; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-soft); border-bottom: 2px solid var(--ink);
+  padding: 6px 8px; white-space: nowrap; cursor: pointer; user-select: none;
+  position: sticky; top: 53px; background: var(--paper-raised); z-index: 5;
+}
+table.grid th.num { text-align: right; }
+table.grid th .arrow { color: var(--accent); font-size: 10px; }
+table.grid td {
+  padding: 5px 8px; border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+table.grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.grid tr.rowlink { cursor: pointer; }
+table.grid tr.rowlink:hover { background: #f0f0ea; }
+table.grid td .sub { color: var(--ink-faint); font-size: 11.5px; }
+.pos-chip { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); }
+.up { color: var(--good); } .down { color: var(--bad); }
+
+/* team chip: color block + abbrev, the scorebug atom */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12.5px;
+}
+.chip .swatch { width: 10px; height: 14px; border-radius: 1px; display: inline-block; }
+
+/* grade dots for ratings: numeric-first, color as a secondary cue */
+.grade { font-variant-numeric: tabular-nums; font-weight: 700; }
+.grade.g9 { color: #0b6bcb; } .grade.g8 { color: var(--good); }
+.grade.g7 { color: var(--ink); } .grade.g6 { color: var(--ink-soft); }
+.grade.g0 { color: var(--ink-faint); }
+
+/* inbox */
+.inbox-item { border-left: 3px solid var(--rule-strong); padding: 8px 12px; margin-bottom: 8px; background: var(--paper-raised); }
+.inbox-item.decision { border-left-color: var(--warn); }
+.inbox-item h4 { margin: 0 0 3px; font-size: 13.5px; }
+.inbox-item p { margin: 0 0 6px; color: var(--ink-soft); font-size: 13px; }
+.inbox-item .choices { display: flex; gap: 8px; }
+
+/* news: a plain region on purpose */
+.news-item { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.news-item .byline { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.news-item h3 { margin: 2px 0 4px; font-size: 16px; }
+.news-item.w3 h3 { font-size: 21px; }
+.news-item p { margin: 0; color: var(--ink-soft); font-size: 13.5px; max-width: 72ch; }
+
+/* forms */
+label.field { display: block; font-size: 12px; color: var(--ink-soft); margin: 10px 0 2px; }
+input, select {
+  font: inherit; font-size: 13.5px; padding: 6px 8px;
+  border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper-raised);
+  color: var(--ink); min-width: 200px;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+
+/* toast + errors */
+#toast {
+  position: fixed; bottom: 18px; right: 18px; z-index: 90;
+  background: var(--ink); color: var(--paper-raised);
+  padding: 9px 14px; border-radius: 3px; font-size: 13px; display: none; max-width: 420px;
+}
+#toast.error { background: var(--bad); }
+
+/* ---------- register 2: game night ---------- */
+.broadcast {
+  background: #0d0f13; color: #eef0f4; border-radius: 4px;
+  padding: 16px 18px; margin: 0 -4px;
+}
+.broadcast .scorebug {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  background: #14171d; border: 1px solid #232833; border-radius: 4px;
+  padding: 10px 16px;
+}
+.broadcast .scorebug .side { display: flex; align-items: center; gap: 10px; }
+.broadcast .scorebug .side.away { justify-content: flex-end; }
+.broadcast .scorebug .bar { width: 6px; height: 40px; border-radius: 1px; }
+.broadcast .scorebug .abbrev { font-weight: 800; letter-spacing: 0.06em; font-size: 15px; }
+.broadcast .scorebug .pts {
+  font-variant-numeric: tabular-nums; font-size: 44px; font-weight: 800; line-height: 1;
+}
+.broadcast .scorebug .clock { text-align: center; color: #aeb6c2; font-size: 12px; }
+.broadcast .scorebug .clock b {
+  display: block; font-family: var(--mono); font-size: 22px; color: #eef0f4;
+}
+.broadcast .final .pts { font-size: 72px; } /* the top of the type scale */
+.broadcast .ticker {
+  margin-top: 12px; max-height: 380px; overflow-y: auto;
+  font-size: 13px; line-height: 1.6;
+}
+.broadcast .ticker .cue { padding: 3px 6px; border-left: 2px solid #232833; margin-bottom: 2px; }
+.broadcast .ticker .cue .t { font-family: var(--mono); color: #7f8794; font-size: 11.5px; margin-right: 8px; }
+.broadcast .ticker .cue.color { color: #aeb6c2; font-style: italic; border-left-color: #3a4252; }
+.broadcast a { color: #9ecbff; }
+.broadcast .controls { display: flex; gap: 8px; margin-top: 10px; }
+.broadcast .controls button { background: #232833; }
+.broadcast iframe { width: 100%; height: 560px; border: 1px solid #232833; border-radius: 4px; background: #000; margin-top: 12px; }
+
+/* keyboard hint bar */
+#keys {
+  position: fixed; bottom: 0; left: 208px; right: 0; z-index: 20;
+  background: var(--paper-raised); border-top: 1px solid var(--rule);
+  padding: 4px 22px; font-size: 11px; color: var(--ink-faint);
+  display: flex; gap: 18px;
+}
+#keys b { font-family: var(--mono); font-weight: 600; color: var(--ink-soft); }
+
+.empty { color: var(--ink-faint); font-size: 13px; padding: 18px 0; }
+.mono { font-family: var(--mono); }
+.money { font-variant-numeric: tabular-nums; }

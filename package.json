@@ -63,7 +63,9 @@
     "example:03": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/03-your-own-team.ts",
     "example:04": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/04-custom-rules.ts",
     "example:05": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/05-commentary-provider.ts",
-    "example:06": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/06-season.ts"
+    "example:06": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs examples/06-season.ts",
+    "gm": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/app/src/main.ts",
+    "gm:acceptance": "node --disable-warning=ExperimentalWarning --import ./tools/register.mjs packages/app/src/acceptance.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
