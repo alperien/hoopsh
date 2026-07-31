@@ -140,9 +140,20 @@ export interface FranchiseParams {
     baePctOfCap: number;              // REAL ~0.033
     /** minimum salary by years of service, as % of cap (owner fills table) */
     minSalaryPctByYos: number[];      // REAL 11 entries (0..10+)
-    /** rookie scale pick-1 first-year salary as % of cap; curve down to pick 30 */
-    rookieScalePick1PctOfCap: number; // REAL ~0.070
-    rookieScaleDecay: number;         // CAL fitted so pick 30 lands near the real scale
+    /**
+     * Rookie scale pick-1 first-year salary as % of cap, at the 120% rate
+     * virtually every pick actually signs for (research 06 §3: 2026-27
+     * pick 1 scale $12.29M, signed $14.75M = 8.94% of the $164.961M cap).
+     */
+    rookieScalePick1PctOfCap: number; // REAL 0.0894
+    /**
+     * Geometric per-pick decay. REAL-fitted: pick 30 signs ~$2.93M, so
+     * (2.93/14.75)^(1/29) = 0.9457; the curve lands the published
+     * endpoints and approximates the middle (research 06 §3: #10 $5.35M
+     * scale; curve at 120% gives ~$8.9M vs real $6.4M, the known gap of a
+     * single-decay fit, register C4).
+     */
+    rookieScaleDecay: number;         // REAL-fitted 0.9457
     rookieScaleYears: number;         // REAL 2 + 2 team options
     /** trade matching: at/under apron1 => 100% + 250k; below tax line wider bands (research 06) */
     tradeMatchBufferDollars: number;  // REAL 250_000
@@ -352,8 +363,8 @@ export function defaultFranchiseParams(): FranchiseParams {
       roomPctOfCap: 0.045,
       baePctOfCap: 0.033,
       minSalaryPctByYos: [0.0074, 0.0119, 0.0133, 0.0138, 0.0143, 0.0155, 0.0170, 0.0185, 0.0190, 0.0191, 0.0210],
-      rookieScalePick1PctOfCap: 0.070,
-      rookieScaleDecay: 0.90,
+      rookieScalePick1PctOfCap: 0.0894,
+      rookieScaleDecay: 0.9457,
       rookieScaleYears: 2,
       tradeMatchBufferDollars: 250_000,
       taxRates: [1.00, 1.25, 3.50, 4.75, 5.25, 5.75, 6.25],
