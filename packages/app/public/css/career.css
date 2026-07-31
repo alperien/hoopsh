@@ -174,5 +174,6 @@ table.grid tr.my-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .broadcast table.grid, .broadcast table.grid th { background: #14171d; color: #eef0f4; }
 .broadcast table.grid th { border-bottom-color: #3a4252; position: static; }
 .broadcast table.grid td { border-bottom-color: #232833; }
+.broadcast table.grid tr.my-row td { background: color-mix(in srgb, var(--accent) 35%, #14171d); color: #eef0f4; }
 .broadcast table.grid caption { color: #7f8794; }
 .broadcast .totals-line { font-size: 12px; color: #aeb6c2; font-variant-numeric: tabular-nums; margin: 4px 0 10px; }
