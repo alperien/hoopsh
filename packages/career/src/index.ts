@@ -27,6 +27,6 @@ export { updateAfterGame, productionScore } from './trust.js';
 export { resolveWeek } from './week.js';
 export { generatePhone, applyPhoneChoice } from './phone.js';
 export { resolveNbaWeek, buildMyOffers, advanceLeagueFast } from './nbabridge.js';
-export { recordEarning, accrueSeason } from './money.js';
-export { buildEpilogue, advanceLegacy } from './epilogue.js';
+export { recordEarning, accrueSeason, careerEarnings } from './money.js';
+export { buildEpilogue, advanceLegacy, harvestSeasonHonors, legacyScore } from './epilogue.js';
 export { applyChoice, advanceCareerWeek } from './tick.js';
