@@ -167,11 +167,22 @@ export interface SeasonLine {
   fixtureId?: string;
 }
 
+export interface TeamRatings {
+  ortg: number | null;
+  drtg: number | null;
+  pace?: number | null;
+  wins?: number | null;
+  losses?: number | null;
+}
+
 export interface SeasonLinesFile {
   kind: 'season-lines';
   /** REQUIRED and honest: where the numbers came from. Files whose numbers
    *  were typed from memory MUST say so (see data/nba/README.md). */
   provenance: string;
+  /** team-level season ratings (bbref team_misc) — the team-strength signal
+   *  a box line cannot carry; drives the fitter's team-context anchors */
+  teamRatings?: TeamRatings;
   team?: { id: string; name: string; abbrev: string };
   players: SeasonLine[];
 }
@@ -1292,6 +1303,19 @@ if (import.meta.main) {
   }
 
   const pack = assembleTeamPack(fits, file.team);
+
+  // ---- team-context strength anchors: REJECTED by held-out verification ----
+  // The flat-league finding is real (a 6-team ordering probe read Spearman
+  // −0.14 vs the real 2025-26 standings: defensive craft is box-invisible
+  // and fits to templates). A DRtg-residual anchor across the defensive
+  // dials ordered the SIX FIT TEAMS at Spearman 0.83 — and then FAILED the
+  // held-out ten-team panel (−0.56), and dose isolation at n=60/arm showed
+  // the defensive dials are a weak, non-dose-responsive team-strength lever
+  // (+5-10pp per ~9 DRtg points where reality pays ~25-30pp; k=2.0 DEGRADES
+  // via aggression side effects) while a decisions-dial offensive anchor
+  // measured null. Shipping the anchor would have been roster overfit; the
+  // deep lever is engine-side defensive-craft economics (REGISTER W72).
+  // The sourced teamRatings stay in the season files for that successor arc.
 
   // ---- optional team-context three-volume calibration (W65) ----
   // The analytic fit maps each player's real 3PA SHARE onto tend.shotThree,

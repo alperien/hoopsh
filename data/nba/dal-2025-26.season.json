@@ -1,5 +1,12 @@
 {
   "kind": "season-lines",
+  "teamRatings": {
+    "ortg": 111.2,
+    "drtg": 116.5,
+    "pace": 101.7,
+    "wins": 26,
+    "losses": 56
+  },
   "provenance": "basketball-reference.com /teams/DAL/2026.html (2025-26 regular season: roster, per-game, and shooting tables), fetched 2026-07-31 by tools/fetch-nba-team.mjs, parsed by tools/parse-nba-team.mjs. Rotation filter: gp>=15, mpg>=12, top 12 by minutes. shotZones renormalize bbref FGA-share distance buckets to 2PA shares; bucket edges differ from the fitter's (bbref 0-3ft as rim<=4ft, bbref 16ft-3P as mid>14ft) — a disclosed approximation.",
   "team": {
     "id": "dal",
