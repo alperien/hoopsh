@@ -23,6 +23,9 @@
  *   scout:<teamId>:<playerId>     scouting error noise (scouting.ts; NOTE:
  *                                 no season/day — a team's read on a player
  *                                 is persistent, not re-rolled)
+ *   scout:<teamId>:<scoutSeed>    per-team bias vector (scouting.ts; keyed by
+ *                                 the team's scoutSeed so bias survives the
+ *                                 player and stays the scout's, not the read's)
  *   news:<season>:<day>           template variety selection (media/news.ts)
  *   coach:<season>:<day>          coach-candidate generation on a firing (tick.ts)
  *   awards:<season>               voting noise (media/awards.ts)

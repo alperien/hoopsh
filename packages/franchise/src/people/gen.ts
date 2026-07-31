@@ -123,7 +123,7 @@ const WING_DELTA_SD = 1.8;   // FEEL: spread from even (negative-ape-index outli
 // levers live in params.gen - these are structural shape constants of the
 // generator, the same category as gameday.ts's projection constants)
 
-const QUALITY_DEFAULT_MEAN = 50; // FEEL: league-shaped default when the caller passes no quality target
+const QUALITY_DEFAULT_MEAN = 60; // CAL: league-shaped default, lifted +10 by the W59 recentering (generated dials measured 12-18 under the calibration rosters' input level)
 const QUALITY_DEFAULT_SD = 12;   // FEEL: wide enough to produce fringe and plus players unprompted
 const QUALITY_LO = 20;           // FEEL: below this nobody holds a pro roster spot
 const QUALITY_HI = 90;           // FEEL: generational ceiling for a quality TARGET (dials can still mutate higher)

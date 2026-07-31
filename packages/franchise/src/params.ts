@@ -36,7 +36,10 @@ export interface FranchiseParams {
   hca: {
     /**
      * CAL uniform attribute debuff applied to the road team at projection.
-     * Probe (2026-07-31, n=40/point): -1 => 53% home wins, -2 => 65%.
+     * Probe (2026-07-31, n=40/point, calibration rosters): -1 => 53% home
+     * wins, -2 => 65%. At league scale with fatigue interactions the 1.5
+     * prior measured only 48-51% home (acceptance, 2 seasons x 1230), so
+     * the dial sits higher; re-measure per REGISTER W60.
      * Real target: 55-60% home wins, +2.5-3.0 margin (research 05).
      */
     roadAttrDebuff: number;
@@ -225,7 +228,8 @@ export interface FranchiseParams {
     wIncumbent: number;               // CAL 0.10
     /** market clearing pace: day 1-3 stars, tail through September */
     starsSignByDay: number;           // FEEL 5 (of free agency)
-    marketTailDays: number;           // FEEL 70
+    /** CAL 38: the tail must fit the calendar's freeAgency window (offseasonDays 40) */
+    marketTailDays: number;
     /** AI overpay variance (winner's curse), sd as fraction of fair AAV */
     bidNoiseSd: number;               // CAL 0.07
     qualifyingOfferDecisionDay: number; // FEEL 2 (days before FA to tender QOs)
@@ -307,7 +311,7 @@ export function defaultFranchiseParams(): FranchiseParams {
       tradeDeadlineDayIndex: 130,
       offseasonDays: 40,
     },
-    hca: { roadAttrDebuff: 1.5 },
+    hca: { roadAttrDebuff: 2.2 },
     fatigue: {
       b2bStaminaDebuff: 8,
       loadDebuffPer60Min: 2,
@@ -413,7 +417,7 @@ export function defaultFranchiseParams(): FranchiseParams {
       wMarket: 0.08,
       wIncumbent: 0.10,
       starsSignByDay: 5,
-      marketTailDays: 70,
+      marketTailDays: 38,
       bidNoiseSd: 0.07,
       qualifyingOfferDecisionDay: 2,
     },

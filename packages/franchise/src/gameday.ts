@@ -30,6 +30,15 @@ import { applyResultToStandings, emptyStanding } from './standings.js';
 // not sweepable levers (the sweepable fatigue/HCA magnitudes live in
 // params.fatigue / params.hca).
 const FATIGUE_DEBUFF_CAP = 25;  // FEEL: even a brutal stretch never zeroes a pro's legs; caps stacked B2B+load debuffs
+
+/**
+ * The dials home court degrades on the road: offensive execution only.
+ * Shooting, finishing, and decision speed travel badly; defense does not
+ * (a uniform debuff self-cancels, W60's league-scale measurement).
+ */
+const HCA_OFFENSE_KEYS = [
+  'finishing', 'midRange', 'three', 'freeThrow', 'passAcc', 'decisions',
+] as const;
 const REGULATION_PERIODS = 4;   // REAL: NBA regulation is four periods; box periods beyond this are overtime
 const TEAM_MINUTES = 240;       // REAL: 5 positions x 48 minutes, the target every rotation renormalizes toward
 const MAX_KEY_PLAYS = 8;        // FEEL: a recap reads like a recap at 3-8 moments, not a play-by-play dump
@@ -137,10 +146,13 @@ export function projectTeam(league: League, teamId: string, opts: { isHome: bool
     debuff += params.fatigue.loadDebuffPer60Min * (trailingLoadMinutes(league, p.id) / 60);
     attr.stamina -= Math.min(debuff, FATIGUE_DEBUFF_CAP);
     if (!opts.isHome) {
-      // Home court as a uniform road debuff keeps the engine side-symmetric
-      // (params.hca.roadAttrDebuff, probe-calibrated toward the real 55-60%
-      // home win rate).
-      for (const k of ATTR_KEYS) attr[k] -= params.hca.roadAttrDebuff;
+      // Home court as a road debuff keeps the engine side-symmetric. A
+      // UNIFORM debuff measured near zero at league scale (two acceptance
+      // seasons read 48-51% home): worse offense and worse defense cancel.
+      // So the debuff hits the offensive-execution dials only, which is
+      // also the empirically real mechanism: road teams shoot and decide
+      // worse, they do not forget how to defend (REGISTER W60).
+      for (const k of HCA_OFFENSE_KEYS) attr[k] -= params.hca.roadAttrDebuff;
     }
     // One final integer pass: projected rosters stay integer-valued like
     // authored packs, and Math.round is platform-deterministic.

@@ -63,22 +63,22 @@ const REBUILD_TEAMS_SPREAD = 3;    // FEEL: int(3) on top of the min -> 5-7
  * a tight starter core, then a long bench tail - real cap sheets and
  * minutes ladders both have this shape.
  */
-const DROP: readonly number[] = [0, 6, 10, 13, 16, 19, 22, 24, 26, 28, 30, 32, 34, 36, 38];
+const DROP: readonly number[] = [0, 5, 8, 11, 14, 17, 20, 22, 24, 26, 28, 30, 32, 34, 36];
 const SLOT_Q_NOISE = 2;            // FEEL: sd of per-slot quality jitter so ladders are not literal staircases
-const Q_SLOT_LO = 30;              // FEEL: nobody on an opening-night roster is below fringe-pro quality
-const Q_SLOT_HI = 85;              // FEEL: quality targets top out below the mutation ceiling
+const Q_SLOT_LO = 42;              // CAL: fringe-pro floor, lifted +12 by the first acceptance measurement (generated league ran pace 86 / scoring 100 / 3PA 24 against the calibration rosters' input level; REGISTER W59)
+const Q_SLOT_HI = 88;              // CAL: lifted with the floor so the pyramid keeps its shape
 
-/** Top-slot quality range per timeline. FEEL: contenders employ a star; rebuilders' best player is a solid starter. */
+/** Top-slot quality range per timeline. CAL: lifted +10 with the W59 recentering; contenders employ a star, rebuilders' best is a solid starter. */
 const TIER_TOP_Q: Record<Timeline, [number, number]> = {
-  contend: [76, 84],
-  retool: [64, 78],
-  rebuild: [58, 66],
+  contend: [84, 90],
+  retool: [74, 86],
+  rebuild: [68, 76],
 };
 /** Roster age bias per timeline. FEEL: contenders buy vets, rebuilders play kids; biases roughly cancel league-wide. */
 const TIER_AGE_BIAS: Record<Timeline, number> = { contend: 1.0, retool: 0.2, rebuild: -1.8 };
 const AGE_LO = 19;                 // REAL: draft-eligible minimum age
 const AGE_HI = 38;                 // FEEL: the oldest opening-night vets
-const STAR_Q = 74;                 // FEEL: quality targets at/above this read as stars
+const STAR_Q = 84;                 // CAL: quality targets at/above this read as stars (moved with the W59 recentering)
 const STAR_AGE_LO = 24;           // REAL-ish: star production window - nobody arrives at genesis as a made 19-year-old star
 const STAR_AGE_HI = 33;           // REAL-ish: same window's back end
 const REBUILD_YOUNG_SLOTS = 2;     // FEEL: a rebuild's slots 1-2 are its young core
@@ -86,10 +86,12 @@ const REBUILD_YOUNG_Q_BOOST = 4;   // FEEL: the young core carries extra promise
 const REBUILD_YOUNG_AGE_LO = 20;   // FEEL: young core range
 const REBUILD_YOUNG_AGE_HI = 23;   // FEEL
 
-// contract pricing (FEEL curve anchored to real cap sheets: ability ~45 is
-// minimum-contract replacement level, ability ~70 is max-contract level)
-const SALARY_ABILITY_FLOOR = 45;   // FEEL: replacement-level ability, the minimum-contract line
-const SALARY_ABILITY_SPAN = 25;    // FEEL: 45 -> 70 spans min money to max money
+// contract pricing (FEEL curve anchored to real cap sheets: ability ~55 is
+// minimum-contract replacement level, ability ~80 is max-contract level;
+// anchors moved +10 with the W59 quality recentering so pricing stays
+// relative and payroll shapes hold)
+const SALARY_ABILITY_FLOOR = 55;   // CAL: replacement-level ability, the minimum-contract line
+const SALARY_ABILITY_SPAN = 25;    // FEEL: floor + 25 spans min money to max money
 const SALARY_CURVE_EXP = 1.6;      // FEEL: convex - star pay grows faster than star skill (scarcity pricing)
 const SALARY_MAX_FRACTION = 0.33;  // FEEL: curve top lands inside the 25-35% star band
 const SALARY_BASE_FRACTION = 0.008;// FEEL: curve bottom sits at vet-minimum scale
@@ -97,10 +99,10 @@ const SALARY_NOISE = 0.12;         // FEEL: +-12% negotiation spread around the 
 
 // per-ability salary bounds, as fractions of cap (clamps that keep the
 // sheet plausible while fitPayroll scales toward the team target)
-const STAR_ABILITY = 70;           // FEEL: ability at/above this is priced as a star
+const STAR_ABILITY = 80;           // CAL: ability at/above this is priced as a star (moved with the W59 recentering)
 const STAR_FRACTION_LO = 0.25;     // REAL-ish: brief's star band - 25-35% of cap (the CBA max tiers)
 const STAR_FRACTION_HI = 0.35;     // REAL: 35% is the 10+ years-of-service max
-const SOLID_ABILITY = 62;          // FEEL: quality-starter line
+const SOLID_ABILITY = 72;          // CAL: quality-starter line (moved with the W59 recentering)
 const SOLID_FRACTION_LO = 0.06;    // FEEL: a real starter never plays for the minimum at genesis
 const SOLID_FRACTION_HI = 0.25;    // FEEL: sub-star money tops out below the max tier
 const ROTATION_ABILITY = 54;       // FEEL: rotation-player line
