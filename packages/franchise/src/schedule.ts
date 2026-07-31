@@ -111,7 +111,11 @@ function buildMatchups(league: League, season: Season): Matchup[] {
  */
 export function generateSchedule(league: League, season: Season, rng: Rng): ScheduledGame[] {
   const p = league.params;
-  const totalDays = p.calendar.regularSeasonDays;
+  // Day indexes are ABSOLUTE calendar days (the spine's convention): the
+  // opener sits right after camp, and params.calendar.allStarDayIndex is
+  // already an absolute index (138 = camp 20 + regular day 118).
+  const firstDay = p.calendar.campDays;
+  const lastDayExclusive = firstDay + p.calendar.regularSeasonDays;
   const asStart = p.calendar.allStarDayIndex;
   // 4 empty days at the break (REAL: the league goes dark around all-star
   // weekend; the exhibition itself is not simulated, register F7).
@@ -127,7 +131,7 @@ export function generateSchedule(league: League, season: Season, rng: Rng): Sche
   // Per-day quota: spread the slate evenly over playable days, remainder
   // to the earliest days (real Octobers run slightly denser than April).
   const playableDays: number[] = [];
-  for (let d = 0; d < totalDays; d++) if (!isBreak(d)) playableDays.push(d);
+  for (let d = firstDay; d < lastDayExclusive; d++) if (!isBreak(d)) playableDays.push(d);
   const totalGames = matchups.length;
   const baseQuota = Math.floor(totalGames / playableDays.length);
   const remainder = totalGames - baseQuota * playableDays.length;

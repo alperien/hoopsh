@@ -24,6 +24,7 @@
  *                                 no season/day — a team's read on a player
  *                                 is persistent, not re-rolled)
  *   news:<season>:<day>           template variety selection (media/news.ts)
+ *   coach:<season>:<day>          coach-candidate generation on a firing (tick.ts)
  *   awards:<season>               voting noise (media/awards.ts)
  *   economy:<season>              cap growth sampling (cba/cap.ts)
  *   game:<gameId>                 reserved: game seeds are the gameId itself

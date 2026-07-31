@@ -25,8 +25,10 @@ export interface FranchiseParams {
     preseasonGames: number;       // FEEL 4 (real is 4-6; keep the camp phase short)
     campDays: number;             // FEEL 20 calendar days before opener
     regularSeasonDays: number;    // REAL ~174 (mid-Oct to mid-Apr)
-    allStarDayIndex: number;      // FEEL day ~118 of the season calendar
-    tradeDeadlineDayIndex: number;// REAL ~day 112 (early Feb; ~2/3 through)
+    /** REAL 138 = camp 20 + regular day 118: Oct 21 to mid-February, the real all-star placement */
+    allStarDayIndex: number;
+    /** REAL 130 = ~8 days before the break: the early-February deadline */
+    tradeDeadlineDayIndex: number;
     offseasonDays: number;        // FEEL compressed dead periods (sim skips fast)
   };
 
@@ -301,8 +303,8 @@ export function defaultFranchiseParams(): FranchiseParams {
       preseasonGames: 4,
       campDays: 20,
       regularSeasonDays: 174,
-      allStarDayIndex: 118,
-      tradeDeadlineDayIndex: 112,
+      allStarDayIndex: 138,
+      tradeDeadlineDayIndex: 130,
       offseasonDays: 40,
     },
     hca: { roadAttrDebuff: 1.5 },
