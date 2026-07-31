@@ -1018,6 +1018,14 @@ export interface SimParams {
     // passing
     passRiskUtilMult: number;    // how strongly turnover risk discounts a pass
     passEVScale: number;         // teammate shot EV weight
+    /** concept 12 — pass-flight clock charge (0..1): how much of the shot
+     *  clock a pass consumes in flight is priced into the chooser's EV term.
+     *  0 = legacy (receiver EV priced at the throw clock, delivery free);
+     *  1 = full urgency mirror at the arrival clock (sc − flight time,
+     *  startPass's success-branch arithmetic). Stage switch: at 0 the
+     *  decide.ts branch short-circuits before any arithmetic (byte-identical
+     *  streams). */
+    passClockCharge: number;
     cutterBonus: number;         // hitting an active cutter
     swingBase: number;           // intrinsic ball-movement value
     swingPassOutScale: number;
@@ -2389,6 +2397,17 @@ export const defaultParams: SimParams = {
     driveTransitionMult: 1.1198,
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
+    // Concept 12 — pass-flight clock charge. FEEL, STAGED at 0 (session-7
+    // pass-volume arc): the wiring lands dark so the default stream stays
+    // byte-identical; the flip is a mechanics-tier change (fingerprints
+    // re-baseline, scouted fixtures re-scout). At 1 the chooser prices the
+    // receiver's shot at the clock he will CATCH with — the world has
+    // charged pass flight to the shot clock since the whistle-free-31s fix
+    // (game.ts), and every measured shot-clock violation today is a
+    // receiver-catch violation (a grenade pass arriving <=1.5s before the
+    // whistle; session-7 verifier's 200-game classification). The mirror of
+    // decide.ts's shot-side urgency collapse, applied at the arrival clock.
+    passClockCharge: 0,
     cutterBonus: 0.5,
     swingBase: 0.0341,
     swingPassOutScale: 0.16,

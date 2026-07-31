@@ -14,7 +14,7 @@
  */
 
 import { clamp } from '../../core/rng.js';
-import { dist, lerp, segmentT, type V2 } from '../../core/vec.js';
+import { add, dist, lerp, scale, segmentT, type V2 } from '../../core/vec.js';
 import { n } from '../../model/derived.js';
 import type { ShotMoveType } from '../../core/events.js';
 import { classifyShot } from '../../geometry/court.js';
@@ -269,8 +269,34 @@ export function decideBall(s: GameState): BallAction {
     // Concept 10: flat kick term (the cutterBonus shape; a team reflex,
     // not a creator read, so no vision scaling); exactly 0 while staged
     const kick = orebCtx && mLoc.zone === 'three' ? A.orebKickBonus * A.scrambleScale : 0;
+    // CONCEPT 12: THE PASS-FLIGHT CLOCK CHARGE — the world charges pass
+    // flight to the shot clock (game.ts tickLive stage 2), so the chooser
+    // must price the receiver's shot at the ARRIVAL clock, not the throw
+    // clock. This mirrors the shot-side urgency collapse (the continuation
+    // curve above) onto the pass EV term: inside the urgency window the
+    // receiver's priced value scales with the clock he will actually catch
+    // with. Flight time reproduces startPass's success-branch arithmetic
+    // (passing.ts: lead target, minFlightFt floor, flat ball speed) — the
+    // same self-consistency rule as the delivery and move-type terms above.
+    // A pass whose arrival outlives the clock (arrivalSc 0) prices to
+    // 1 − charge of its gross value: at the full charge the whistle-eating
+    // grenade is worthless, exactly what resolution will make of it.
+    // Discounts the EV product ONLY — concept terms (a cutter feed at 3 on
+    // the clock is a real read) keep their own clock shapes. Staged 0:
+    // the branch short-circuits before any arithmetic touches the sum
+    // (float-order contract; no rng in either state).
+    let evGross = theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale;
+    if (A.passClockCharge > 0) {
+      const lead = add(m.pos, scale(m.vel, s.params.pass.leadSec));
+      const flightSec =
+        Math.max(s.params.pass.minFlightFt, dist(h.pos, lead)) / s.params.pass.speedFtS;
+      const arrivalSc = Math.max(0, sc - flightSec);
+      if (arrivalSc < D.urgencySec) {
+        evGross *= Math.max(0, 1 - A.passClockCharge * (1 - arrivalSc / D.urgencySec));
+      }
+    }
     const u =
-      theirShot.ev * (1 - risk.turnoverP * A.passRiskUtilMult) * A.passEVScale
+      evGross
       + adv.cutter + adv.swing + adv.pull + adv.passBack + pay.entry + pay.dho + pay.pop
       - continuation * A.passContinuationScale
       + probe.swing
