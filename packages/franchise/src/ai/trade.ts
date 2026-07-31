@@ -550,8 +550,10 @@ export function aiTradePulse(league: League): Transaction[] {
   const offer = assembleOffer(league, pair.buyer, pair.seller, target);
   if (!offer) return [];
 
-  if (pair.seller === league.userTeam) {
-    // the user is the natural counterparty: propose, never execute
+  if (pair.seller === league.userTeam && league.teams[league.userTeam]!.gm === null) {
+    // a HUMAN GM chair is the natural counterparty: propose, never
+    // execute. A persona-run user seat (career mode, autosims) trades
+    // like any AI team and falls through to the AI-AI path below.
     const id = `trade-offer-s${league.season}d${league.day}-${pair.buyer}`;
     if (!league.inbox.some(i => i.id === id)) {
       league.inbox.push({

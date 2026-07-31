@@ -20,6 +20,7 @@
       "@hoopsh/data": ["packages/data/src/index.ts"],
       "@hoopsh/narration": ["packages/narration/src/index.ts"],
       "@hoopsh/franchise": ["packages/franchise/src/index.ts"],
+      "@hoopsh/career": ["packages/career/src/index.ts"],
       "@hoopsh/app": ["packages/app/src/main.ts"],
       // 'vitest' typechecks against the node:test-backed shim INTENTIONALLY —
       // even in CI, where a real vitest is installed. Under `npm test` the
