@@ -953,6 +953,13 @@ export interface SimParams {
     probeClockShare: number;
     /** concept 8: EV added to the pass channel inside the probe window */
     probeSwingBonus: number;
+    /** concept 8: fade the whole probe by the offense's own score-pressure
+     *  magnitude — 0 = no fade (the pre-pricing shape), 1 = the probe dies
+     *  exactly where the coupling expresses (REGISTER W28's interaction
+     *  pricing: the probe's early-shot suppression measured destructive on
+     *  θ and talent keep BECAUSE it blocked the early-offense channel
+     *  game-state pressure works through; fading it there prices the pair) */
+    probePressureFade: number;
     /** concept 8: EV subtracted from uShoot inside the probe window (drives
      *  are deliberately exempt — the FTA protection) */
     probeShootMalus: number;
@@ -2273,6 +2280,7 @@ export const defaultParams: SimParams = {
     // flip these alongside the coupling, and re-measure the interaction
     // (not just the standalone dose) when that arc lands.
     probeSwingBonus: 0,
+    probePressureFade: 0,
     probeShootMalus: 0,
     // FEEL: concept 9 master (the flow fit's budget knob). Registered in
     // knobs.ts only after the fit flips the concept live: bands cannot see

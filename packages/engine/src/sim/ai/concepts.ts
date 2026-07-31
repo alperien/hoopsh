@@ -724,9 +724,17 @@ export function probeCulture(s: GameState, shotClockShare: number): { swing: num
   // the illegal input into a harmless w = 0 instead of a crash (a7 line
   // audit F3).
   const w = clamp((shotClockShare - A.probeClockShare) / Math.max(1e-6, 1 - A.probeClockShare), 0, 1);
+  // The W28 interaction pricing: the probe fades with the OFFENSE's own
+  // score-pressure magnitude, so swing culture runs full in neutral states
+  // and yields exactly where the game-state coupling needs the early-offense
+  // channel (trailing press, leading coast). At probePressureFade 0 the
+  // factor is exactly 1 and every stream is bit-identical to the pre-fade
+  // shape (float-order contract: the fade multiplies INSIDE the existing
+  // product, appended before probeScale).
+  const fade = clamp(1 - A.probePressureFade * Math.abs(scorePressureOf(s, s.poss.team)), 0, 1);
   return {
-    swing: A.probeSwingBonus * w * A.probeScale,
-    shoot: A.probeShootMalus * w * A.probeScale
+    swing: A.probeSwingBonus * w * fade * A.probeScale,
+    shoot: A.probeShootMalus * w * fade * A.probeScale
   };
 }
 

@@ -140,6 +140,7 @@ function parseTeam(abbr) {
     const name = c.name_display?.text;
     if (!name || !row.includes('data-append-csv')) continue; // skips header/Team Totals
     const gp = num(c.games);
+    const gs = num(c.games_started);
     const mpg = num(c.mp_per_g);
     if (gp === null || mpg === null) continue;
     const p = phys.get(name);
@@ -153,6 +154,9 @@ function parseTeam(abbr) {
       heightIn: p.heightIn,
       weightLb: p.weightLb,
       gp,
+      // games started — drives the fitter's starting five (real lineups,
+      // e.g. the OKC double-big front line, are not recoverable from mpg)
+      gs: gs ?? 0,
       mpg,
       pts: num(c.pts_per_g),
       reb: num(c.trb_per_g),
