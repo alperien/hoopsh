@@ -1466,14 +1466,22 @@ export const defaultParams: SimParams = {
   },
 
   pass: {
-    // Base turnover logit for an unpressured pass ≈ 2.7%: passes are
+    // Base turnover logit for an unpressured pass ≈ 2.3%: passes are
     // mostly safe, and turnovers come from the lane-occlusion term below.
     // This is the primary lever on league TOV/game (band 11.5-15.5).
-    // Hand-fit at the FLOW landing (knot-combo §2): -3.95 → -3.6 re-prices
-    // passes to absorb excess fga into tov; -3.6 is the measured fragility
-    // wall (deeper sells ast/astd% through their floors, knot-combo §3).
-    // Sweep-owned, rails [-4.3, -3.3].
-    riskBase: -3.6,
+    // History: -4.1869 → -3.95 (W16 directed search) → -3.6 (FLOW landing,
+    // knot-combo §2: absorbed excess fga into tov; that -3.6 "fragility
+    // wall" was measured in the pre-probe, pre-concept-12 engine) → -3.75
+    // (session-7 re-price, the W19/W69 successor arc): with the probe LIVE
+    // and the pass-flight clock charge pricing delivery honestly, the wall
+    // moved. Dose grid at n=96 on the acceptance base: +0.107 passes/poss;
+    // θ preserved on both w19 cohorts at n=1080; favorite-win -3.0 (inside
+    // the pre-registered -4.0 line that KILLED the deeper -3.82 cell);
+    // assist hierarchy intact (SGA-led, top-3 share flat); OOS 17/17 with
+    // all four previously-registered marginals back in band. Full record:
+    // the session-7 register row. Sweep-owned, rails [-4.1, -3.7]
+    // (narrowed at the same landing — see knobs.ts).
+    riskBase: -3.75,
     // A defender sitting in the passing lane is the real turnover cause:
     // full occlusion adds 1.6 logits (~1.7% → ~8%). SWEPT.
     laneRiskCoef: 1.6,
@@ -2404,16 +2412,19 @@ export const defaultParams: SimParams = {
     driveTransitionMult: 1.1198,
     passRiskUtilMult: 2.4,
     passEVScale: 0.94,
-    // Concept 12 — pass-flight clock charge. FEEL, STAGED at 0 (session-7
-    // pass-volume arc): the wiring lands dark so the default stream stays
-    // byte-identical; the flip is a mechanics-tier change (fingerprints
-    // re-baseline, scouted fixtures re-scout). At 1 the chooser prices the
-    // receiver's shot at the clock he will CATCH with — the world has
-    // charged pass flight to the shot clock since the whistle-free-31s fix
-    // (game.ts), and every measured shot-clock violation today is a
-    // receiver-catch violation (a grenade pass arriving <=1.5s before the
-    // whistle; session-7 verifier's 200-game classification).
-    passClockCharge: 0,
+    // Concept 12 — pass-flight clock charge. FEEL, LIVE at 1 since the
+    // session-7 landing (staged dark first, byte-identity proven on the
+    // corpus; the flip re-baselined fingerprints and re-scouted fixtures).
+    // The chooser prices the receiver's shot at the clock he will CATCH
+    // with — the world has charged pass flight to the shot clock since the
+    // whistle-free-31s fix (game.ts), and before this flip EVERY measured
+    // shot-clock violation was a receiver-catch violation (a grenade pass
+    // arriving <=1.5s before the whistle; session-7 verifier's 200-game
+    // classification). At the flip (n=160 A/B): violations 0.613 → 0.063/g
+    // (-91% on the grenade class, a holder-side share appearing for the
+    // first time), passes/poss -0.001, buzzer-beater rate flat, bands
+    // 17/17.
+    passClockCharge: 1,
     // The get-off window. FEEL, physics-anchored: decision tick (0.1) +
     // catch windup (shot.windupCatchShoot 0.42 / windupCutFinish 0.3) +
     // closeout/re-gather margin. The first cut used the holder's 5 s
