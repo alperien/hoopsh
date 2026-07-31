@@ -6,8 +6,33 @@ All notable changes to hoopsh are recorded here. The format follows
 
 ## [Unreleased]
 
-Pass-volume increments 2 and 3 (REGISTER W74-W75), plan-first with
-adversarial verifier gating (findings/session7-plan*.md).
+Pass-volume increments 2 and 3 (REGISTER W74-W75) and the rim-supply
+session (W76-W77), each plan-first with adversarial verifier gating and,
+for the rim session, a primary-source audit of every reference number the
+sim is compared against (findings/session7-plan*.md, session8-*.md).
+
+### Rim supply (session 8)
+
+- Reference-data audit: every comparison target re-verified against its
+  primary source — the Wayback tracking snapshots reproduce to four
+  decimals, live basketball-reference matches the committed league
+  averages 10/10, the 184-game play-by-play corpus matches live pages
+  verbatim on sampled games with ESPN cross-checks, flow-reference
+  reproduces 217/217 from the committed shards, and the 30 season files
+  match independent outlets exactly. No fabricated numbers anywhere.
+- The lob fusion was built, measured across four shape iterations, and
+  FALSIFIED: the engine's ordinary catch-decide-windup path is its true
+  one-motion finish, and every fusion variant released outside the dunk
+  band (W76). Machinery stripped the same session.
+- The transition leak-out works mechanically — made dunks 3.5 to 8.7 per
+  game and rim share 11.0 to 14.8%, both in the G11 band for the first
+  time — but is BLOCKED by assisted-rim saturation: every leak finish is
+  assisted, and two sweep runs plus a directed probe show the band
+  geometry cannot absorb it without eating the dive channel (W77). The
+  wiring ships STAGED behind a per-possession dose dial; the flip waits
+  on an unassisted-rim supply arc (the sharpened W64 prerequisite).
+- New tests: leak-out pins (sabotage-verified) and the engine-booth
+  dunk-gate mirror.
 
 ### Engine
 
