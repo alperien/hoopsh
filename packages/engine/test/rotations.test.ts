@@ -249,7 +249,7 @@ describe('quarter-break wave (constructed boundary stoppage, forced live)', () =
   it('live defaults wave at the fitted cap; a pinned waveMaxPerTeam 0 still swaps zero', () => {
     // the old dormancy pin, inverted at the FLOW flip: the same boundary
     // now waves 2 (the fitted cap) at defaults
-    // bench stints sized past the 420s churn floor (subMinBenchSec, W59)
+    // bench stints sized past the 420s churn floor (subMinBenchSec, W63)
     const f = rotState(withParams(), { period: 2, clock: 720, t: 720 });
     for (const id of f.bn) { f.a(id).energy = 100; f.a(id).lastSwapT = 250; }
     checkSubs(f.s, undefined, { wave: true });
@@ -739,7 +739,7 @@ describe('fitted defaults (ffit-rotations) — drift tripwire', () => {
   it('the rotation grammar ships at the ffit-rotations corpus fits', () => {
     const S = defaultParams.sub;
     expect(S.waveMaxPerTeam).toBe(2);
-    expect(S.subMinBenchSec).toBe(420); // 300 -> 420 at the rules landing (REGISTER W59: the new legal windows host extra passes; G8d 67.7 -> 62-63.5, in band)
+    expect(S.subMinBenchSec).toBe(420); // 300 -> 420 at the rules landing (REGISTER W63: the new legal windows host extra passes; G8d 67.7 -> 62-63.5, in band)
     expect(S.ftroublePersonalOffset).toBe(1);
     expect(S.timeoutSubRelaxPts).toBe(8);
     expect(S.waveStintMinSec).toBe(420);

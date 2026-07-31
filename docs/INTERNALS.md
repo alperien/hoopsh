@@ -215,7 +215,7 @@ ATO play-calls remain unmodeled · no backcourt/
 8-second violations (travels exist as officiating-vocabulary hazards) · the NBA
 last-2:00 team-foul penalty, the OT bonus threshold drop, and the per-period
 made-basket clock stops ARE modeled since the rules landing (rulepack.ts
-`lateWindow*`, `teamFoulBonusAtOT`, `makeStopClock*`; REGISTER W59) ·
+`lateWindow*`, `teamFoulBonusAtOT`, `makeStopClock*`; REGISTER W63) ·
 team-foul counting hardcodes the NBA rule under every pack (offensive fouls
 are personal-only, sim/fouls.ts `countsTeam`): under NCAA men's rules a
 player-control foul DOES count toward the team-foul/bonus total (while never

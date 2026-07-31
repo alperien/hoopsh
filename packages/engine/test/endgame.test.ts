@@ -222,7 +222,7 @@ describe(`endgame layer ON over ${GAMES} games`, () => {
     // THRESHOLD PROVENANCE (re-measured at the rules landing, n=24 per arm):
     // endgame OFF gives 1.47 FTs per close final-minute, ON gives 3.81 — the
     // 2.6x parade spike survives the last-2:00 window rule (which now pays
-    // in BOTH arms, lifting the OFF baseline; REGISTER W59). The bar sits at
+    // in BOTH arms, lifting the OFF baseline; REGISTER W63). The bar sits at
     // 2.2 — above the OFF arm with margin, below the measured ON magnitude —
     // because the assertion's job is "the parade exists" and a 16-game pool
     // draw can swing the per-close average by ±0.7 (the 2026-07-31 pool drew

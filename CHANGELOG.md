@@ -9,7 +9,7 @@ All notable changes to hoopsh are recorded here. The format follows
 The realism landing: three real NBA rules the packs had simplified away, a
 real-roster data pipeline, and measured movement on the play-by-play
 indistinguishability gates. Full measurement records in docs/REGISTER.md
-W59-W61.
+W63-W65 (renumbered past the franchise landing rows W59-W62, which reached main first).
 
 ### Rules (engine)
 
