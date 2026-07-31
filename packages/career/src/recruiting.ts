@@ -227,7 +227,7 @@ function recentForm(career: CareerState): number | null {
  * visibility) and tier multiplies reach: blue-blood networks see every
  * gym, mid-majors lean on regional tape. */
 function coverageFor(gp: number, tier: 1 | 2 | 3, career: CareerState): number {
-  return clamp(gp * COVERAGE_PER_GAME * career.params.stock.exposure.hs * TIER_COVERAGE_MULT[tier - 1], 0, 100);
+  return clamp(gp * COVERAGE_PER_GAME * career.params.stock.exposure.hs * TIER_COVERAGE_MULT[tier - 1]!, 0, 100);
 }
 
 /** The 0-100 interest score: the params.recruiting-weighted blend of
@@ -237,7 +237,7 @@ function coverageFor(gp: number, tier: 1 | 2 | 3, career: CareerState): number {
 function interestScore(career: CareerState, me: FrPlayer, program: Program, perceived: number, coverage: number): number {
   const p = career.params.recruiting;
   // 50 = perceived exactly at the tier's bar; the slope prices distance from it
-  const perceivedScore = clamp(50 + (perceived - TIER_BAR[program.tier - 1]) * PERCEIVED_SLOPE, 0, 100);
+  const perceivedScore = clamp(50 + (perceived - TIER_BAR[program.tier - 1]!) * PERCEIVED_SLOPE, 0, 100);
   const need = needFor(career.seed, program.id, me.pos);
   const region = program.region === homeRegionOf(career) ? REGION_MATCH : REGION_FAR;
   const exposure = clamp(coverage * EXPOSURE_SCORE_SCALE, 0, 100);
@@ -326,7 +326,7 @@ export function buildPrograms(career: CareerState, rng: Rng): Program[] {
     const pool = pools[tier];
     const nameIdx = rng.int(Math.max(1, pool.length)); // draw even on an empty pool: fixed draw count
     const region = REGIONS[rng.int(REGIONS.length)]!;
-    const coachDev = Math.round(clamp(COACH_DEV_BASE[tier - 1] + rng.gaussian(0, COACH_DEV_SD), COACH_DEV_MIN, COACH_DEV_MAX));
+    const coachDev = Math.round(clamp(COACH_DEV_BASE[tier - 1]! + rng.gaussian(0, COACH_DEV_SD), COACH_DEV_MIN, COACH_DEV_MAX));
     const pole = STYLE_POLES[i % STYLE_POLES.length]!; // cycling the poles inside each tier block keeps both styles present at every prestige level
     const pace = Math.round(clamp(pole.pace + rng.gaussian(0, STYLE_JITTER_SD), STYLE_MIN, STYLE_MAX));
     const threeBias = Math.round(clamp(pole.threeBias + rng.gaussian(0, STYLE_JITTER_SD), STYLE_MIN, STYLE_MAX));

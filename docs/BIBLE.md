@@ -120,6 +120,24 @@ npm run gm -- --load my-league   # boot straight into a save
 npm run gm:acceptance -- --seasons 5   # the multi-season league-health report
 ```
 
+### Or live one career instead
+
+The same app has a second chair: create a seventeen-year-old and climb.
+A high-school senior season played possession by possession under prep
+rules, recruiting boards that watch your actual box scores, the fork to
+college, the EuroLeague, or the NBL, the combine, and a draft night run
+by the same AI front offices that run the GM game. After that it is the
+real league from the player's side of the desk: a pre-game approach
+card projected onto your true tendencies, a coach whose plan you play
+inside or against, a phone that only rings when the world has something
+real to say, and a role that answers sustained production within six
+games, always. Careers are a pure function of `(seed, choice log)`.
+
+```bash
+npm run gm                                      # choose "Live a career" on first run
+npm run gm:career-acceptance -- --careers 3     # whole scripted careers, judged: gates and bands
+```
+
 Advance day by day (the `a` key), set the rotation, work the trade desk,
 watch your games as a two-voice broadcast ticker or in the 2D viewer.
 Saves are plain JSON under `out/saves/`; a league is a pure function of
@@ -142,6 +160,7 @@ The viewer needs a browser — there is no terminal renderer. On a headless box
 | `@hoopsh/narration` | Template play-by-play with run/milestone awareness + LLM commentary interfaces |
 | `@hoopsh/harness` | Batch runner, NBA acceptance bands, benchmarks, calibration tooling |
 | `@hoopsh/franchise` | Deterministic GM/franchise league layer: calendar, CBA, AI front offices, development, injuries, news, history (docs/FRANCHISE.md) |
+| `@hoopsh/career` | Deterministic career mode: one created player from the high-school gym to the league and out the far end (docs/CAREER.md) |
 | `@hoopsh/app` | The GM game app: local web server, worker-pool game execution, saves, and the browser UI |
 | `packages/viewer` | Single-file 2D canvas replay viewer (embed tool + drag-and-drop) |
 

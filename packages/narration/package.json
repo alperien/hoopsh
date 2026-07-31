@@ -1,6 +1,6 @@
 {
   "name": "@hoopsh/narration",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Broadcast layer for hoopsh: template play-by-play with game-context awareness, plus LLM color-commentary interfaces. TypeScript source, no build \u2014 see docs/EMBEDDING.md.",
   "type": "module",
   "license": "MIT",

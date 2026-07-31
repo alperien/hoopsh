@@ -953,6 +953,13 @@ export interface SimParams {
     probeClockShare: number;
     /** concept 8: EV added to the pass channel inside the probe window */
     probeSwingBonus: number;
+    /** concept 8: fade the whole probe by the offense's own score-pressure
+     *  magnitude — 0 = no fade (the pre-pricing shape), 1 = the probe dies
+     *  exactly where the coupling expresses (REGISTER W28's interaction
+     *  pricing: the probe's early-shot suppression measured destructive on
+     *  θ and talent keep BECAUSE it blocked the early-offense channel
+     *  game-state pressure works through; fading it there prices the pair) */
+    probePressureFade: number;
     /** concept 8: EV subtracted from uShoot inside the probe window (drives
      *  are deliberately exempt — the FTA protection) */
     probeShootMalus: number;
@@ -2258,22 +2265,24 @@ export const defaultParams: SimParams = {
     // window ramp divides by (1 − probeClockShare), so "window share 1"
     // would be 0/0, not off; the magnitudes below are the off-switch.
     probeClockShare: 0.62,
-    // STAGED — the two probe magnitudes stay at 0 (the provably inert
-    // staging: the window terms are exactly +0 appended at the END of the
-    // shoot/pass utility sums, x − 0 and x + 0 bit-identical through the
-    // softmax). The B2 measurement campaign priced them and DEFERRED the
-    // flip: standalone the mechanism is positive (+0.13 passes/poss,
-    // fga −1.0, every gated band in position at the selected 0.15/0.08
-    // dose — findings/b2-fit-probe-high/bisect.md) but DESTRUCTIVE in
-    // combination with the live channel-2 coupling: θ 0.098→0.038 and
-    // talent-drift keep 91%→28% on the fixed pools
-    // (findings/b2-trial-setB.md vs setC) — the probe's early-shot
-    // suppression blocks exactly the channel talent expresses through.
-    // Deferred to its own arc with an interaction-aware design; do not
-    // flip these alongside the coupling, and re-measure the interaction
-    // (not just the standalone dose) when that arc lands.
-    probeSwingBonus: 0,
-    probeShootMalus: 0,
+    // LIVE at the B2 dose since the W28 pricing landed (REGISTER W69). The
+    // history: the B2 campaign measured the standalone dose positive
+    // (+0.13 passes/poss, fga −1.0 — findings/b2-fit-probe-high/bisect.md)
+    // but DESTRUCTIVE beside the live channel-2 coupling (θ 0.098→0.038,
+    // talent-drift keep 91%→28% on the fixed pools; b2-trial-setB vs setC):
+    // the probe's early-shot suppression blocked exactly the early-offense
+    // channel game-state pressure expresses through. The pricing arc's
+    // answer is probePressureFade — the probe yields precisely where the
+    // coupling works. Measured at the flip (fitted-roster cohorts, n=360
+    // per cohort per arm, seeds w19-*): θ preserved on BOTH cohorts
+    // (self +0.014 ± 0.033, gap +0.002 ± 0.034 vs control), favorite win%
+    // 64.2 → 62.5 (± 3.6, noise-compatible), buy +0.047-0.050 passes/poss,
+    // fga ±0.2, tov +0.3-0.5, fta −0.5, |m| −0.4. The unpriced flip was
+    // re-measured DESTRUCTIVE on the same cohorts first (gap θ → −0.013,
+    // win → 55.9) — the fade is load-bearing, not decorative.
+    probeSwingBonus: 0.15,
+    probePressureFade: 1,
+    probeShootMalus: 0.08,
     // FEEL: concept 9 master (the flow fit's budget knob). Registered in
     // knobs.ts only after the fit flips the concept live: bands cannot see
     // opener timing, so an early registration would let a sweep zero the

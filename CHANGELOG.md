@@ -4,6 +4,39 @@ All notable changes to hoopsh are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html). Dates are ISO 8601.
 
+## [0.3.0] - 2026-07-31
+
+Ball movement, priced. The pass-volume probe (concept 8) is live for the
+first time, the concede thrash is fixed, and the real-roster fits close
+their biggest identity gaps. Measurement records in docs/REGISTER.md
+W69-W70 and the W65 update (renumbered past the career landing rows W66-W68, which reached main first).
+
+### Engine
+
+- Concept 8 (probe culture) is LIVE at the B2 dose (swing 0.15, malus
+  0.08) with the new pressure fade: the probe yields exactly where the
+  game-state coupling expresses (`ai.probePressureFade`). Measured at
+  n=360 per cohort on fitted rosters: +0.05 passes per possession, theta
+  and the favorite's win rate preserved, and the acceptance bands read
+  17/17 at n=48 — the assisted-share residual from 0.2.0 is back in band
+  (54.1-54.2 vs the 54.0 floor), exactly the upstream-swing protection the
+  probe's design predicted. The unpriced flip was re-measured destructive
+  first; the fade is load-bearing.
+- Field-state hysteresis on the concede band: a full floor with at most
+  one starter inside the band stays conceded, ending the measured ten-body
+  thrash cycle (five starters returned and re-benched within ten game
+  seconds on a knife-edge margin). Sub-grammar volume moved another point
+  toward the corpus.
+
+### Fitting (real rosters)
+
+- Starting fives come from basketball-reference games-started, not
+  minutes; all 30 season files carry the column.
+- `rosters:fit --calibrate-three N` closes the tendency-versus-EV loop in
+  team context: SGA's simulated three-point volume went from 0.5 to 3.8
+  attempts per game (real 4.4), Fox from 0.6 to 3.6 (real 5.5).
+  Saturation cases are reported honestly as engine levers.
+
 ## [0.2.0] - 2026-07-31
 
 The realism landing: three real NBA rules the packs had simplified away, a
@@ -117,5 +150,6 @@ a game is a file you can replay, diff, and share.
   a strict typecheck, the same suite under real vitest, and a
   documentation-drift check.
 
+[0.3.0]: https://github.com/alperien/hoopsh/releases/tag/v0.3.0
 [0.2.0]: https://github.com/alperien/hoopsh/releases/tag/v0.2.0
 [0.1.0]: https://github.com/alperien/hoopsh/releases/tag/v0.1.0

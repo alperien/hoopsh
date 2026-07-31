@@ -149,6 +149,32 @@ export function updateConcede(s: GameState): void {
     const m = Math.abs(lead);
     if (m >= enterAt) s.conceded[side] = true;
     else if (m < enterAt - P.concedeExitPts) s.conceded[side] = false;
+    else if (!s.conceded[side]) {
+      // Inside the band [enterAt − exit, enterAt) the FLAG holds — but the
+      // flag is not the whole state. The engine evaluates concede only at
+      // dead balls, and running-clock make-inbounds host no pass at all, so
+      // a side can arrive at its first Q4 stoppage with a bench-shaped
+      // floor (ordinary Q3-fatigue lineups) and a margin a HALF-POINT under
+      // the moving line: flag false, rotation free, five starters flood
+      // back — and the next whistle, one made FT later, is over the line
+      // and concedes all five straight back out. Ten bodies in ten seconds
+      // (measured: the concede-pin-0 fixture at Q4 9:28, m 24 vs bar 24.48,
+      // full thrash cycle inside 10.1 s of game clock — REGISTER W70).
+      // True hysteresis holds the OBSERVABLE state: a side already fielding
+      // a conceded lineup (a full five with ≤1 starter) inside the band
+      // STAYS conceded — re-inserting starters into a decided-enough game
+      // requires the margin to actually fall through the exit floor,
+      // exactly like the flag's own contract one line up. The five-body
+      // guard keeps degenerate states (direct-unit fixtures) on the plain
+      // flag contract.
+      const bodies = onCourt(s, side);
+      if (bodies.length === 5) {
+        let startersOn = 0;
+        const starters = new Set(s.teams[side].starters);
+        for (const a of bodies) if (starters.has(a.p.id)) startersOn++;
+        if (startersOn <= 1) s.conceded[side] = true;
+      }
+    }
     // inside [enterAt − concedeExitPts, enterAt): hold the current state
   }
 }

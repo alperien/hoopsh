@@ -35,12 +35,13 @@ const SCHEDULE = roundRobin(LEAGUE.map((t) => t.id), 1); // 6 games
 // draw must contain winPct ties or the diff-tiebreak tier of the ranked-
 // order test goes unexercised (its guard trips loudly by design). 'det' ->
 // 's2' after the scan-wave re-center; 's2' -> 's3' after the release-audit
-// engine fixes (H-02/M-02/M-09..M-11/L-11 et al.) reshuffled the streams
-// and 's2' came out 3-0/2-1/1-2/0-3 (zero ties). 's3' measured: two 2-1
-// and two 1-2 teams, both tie pairs diff-decided (probed over 10 candidate
-// bases, 2026-07-30). Assertions unchanged.
-const seasonA = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's3' });
-const seasonB = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's3' });
+// engine fixes reshuffled the streams and 's2' came out 3-0/2-1/1-2/0-3
+// (zero ties); 's3' -> 's6' after the W69 probe flip + W70 hysteresis fix
+// did the same to 's3' (1.00/0.67/0.33/0.00, zero ties). 's6' measured:
+// two 2-1 and two 1-2 teams (probed s3..s12, 2026-07-31). Assertions
+// unchanged.
+const seasonA = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's6' });
+const seasonB = await runSeason({ teams: LEAGUE, schedule: SCHEDULE, seedBase: 's6' });
 
 const BASE = cascadiaBreakers();
 const TWIN = cloneTeamWithIds(cascadiaBreakers(), 'twin');
@@ -125,7 +126,7 @@ describe('season determinism', () => {
 
   it('per-game seeds derive from base + schedule position + matchup', () => {
     expect(gameSeed('s', 3, 'h', 'a')).toBe('s:g3:a@h');
-    const tasks = buildTasks(LEAGUE, SCHEDULE, 's3'); // matches the fixture's seedBase
+    const tasks = buildTasks(LEAGUE, SCHEDULE, 's6'); // matches the fixture's seedBase
     expect(new Set(tasks.map((t) => t.seed)).size).toBe(tasks.length);
     expect(tasks.map((t) => t.seed)).toEqual(seasonA.outcomes.map((o) => o.seed));
   });

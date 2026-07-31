@@ -5,7 +5,7 @@
  *
  * Run: npm run rosters:fit -- --in data/nba/example-stars.season.json
  *        [--out out/fitted] [--iters 8] [--cands 2] [--games 4]
- *        [--no-refine] [--compare-fixtures] [--seed fit]
+ *        [--no-refine] [--compare-fixtures] [--seed fit] [--calibrate-three 3]
  *      npm run rosters:fit -- --benchmarks     (fidelity-fixture validation)
  *
  * ── THE TWO LAYERS ─────────────────────────────────────────────────────────
@@ -113,12 +113,13 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  Rng, clamp, defaultParams, makePlayer, sigmoid,
+  Rng, clamp, defaultParams, makePlayer, sigmoid, simulateGame,
   type Player, type Position, type Team
 } from '@hoopsh/engine';
+import { boxScore } from '@hoopsh/stats';
 import {
   benchBig, benchScorer, comboGuard, glueForward, postAnchor, rimRunner,
-  scoringWing, threeAndD, toTeamPack, validateTeamPack, type TeamPack
+  sampleMatchup, scoringWing, threeAndD, toTeamPack, validateTeamPack, type TeamPack
 } from '@hoopsh/data';
 import { runBenchmark, BENCHMARKS, type AggLine } from './fidelity.js';
 import { checkFlags, flagNumber, flagValue } from './args.js';
@@ -156,6 +157,11 @@ export interface SeasonLine {
   /** made dunks per game (bbref shooting table fg_dunk / games) — drives the
    *  vertical floor so real dunkers clear the dunk-call athlete gate */
   dunks?: number;
+  /** games started (bbref) — the starting five is the top five HERE, not by
+   *  minutes: real lineups (the OKC double-big front line) are not
+   *  recoverable from mpg, and a starter wrongly benched loses his minutes
+   *  to the positional rotation (the Hartenstein 8-minute incident, W65) */
+  gs?: number;
   shotZones?: ShotZoneSplits;
   /** optional id of a fidelity.ts benchmark fixture to diff against */
   fixtureId?: string;
@@ -223,7 +229,7 @@ export function validateSeasonLines(raw: unknown): { file: SeasonLinesFile | nul
     // and crashed mid-fit deep in the rate math, and a negative orb silently
     // skewed the rebounding profile — the exact silent-default class this
     // validator exists to reject.
-    for (const k of ['wingspanIn', 'orb', 'pf', 'dunks'] as const) {
+    for (const k of ['wingspanIn', 'orb', 'pf', 'dunks', 'gs'] as const) {
       const v = pl[k];
       if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v) || v < 0)) {
         issues.push({ path: `${at}.${k}`, message: 'optional, but when present must be a finite number >= 0' });
@@ -1128,7 +1134,11 @@ export function assembleTeamPack(
     players.push(mk({ id: `${id}-cast-${castIdx + 1}`, name: `Cast ${castIdx + 1}`, pos: 'SF' }));
     castIdx++;
   }
-  const byMpg = [...fits].sort((x, y) => y.line.mpg - x.line.mpg);
+  // starters: games-started first (the real lineup), minutes as tiebreak
+  // and as the whole story when no gs data exists (older season files)
+  const byMpg = [...fits].sort(
+    (x, y) => (y.line.gs ?? 0) - (x.line.gs ?? 0) || y.line.mpg - x.line.mpg
+  );
   const starters = byMpg.slice(0, 5).map((f) => f.player.id);
   for (const p of players) {
     if (starters.length >= 5) break;
@@ -1196,7 +1206,7 @@ if (import.meta.main) {
   const argv = process.argv.slice(2);
   // declared vocabulary — a typo'd or `=`-spelled flag dies here instead of
   // silently fitting with the defaults (args.ts checkFlags, audit H-03)
-  checkFlags(argv, ['--benchmarks', '--in', '--out', '--no-refine', '--compare-fixtures', '--iters', '--cands', '--games', '--seed']);
+  checkFlags(argv, ['--benchmarks', '--in', '--out', '--no-refine', '--compare-fixtures', '--iters', '--cands', '--games', '--seed', '--calibrate-three']);
   const benchmarks = argv.includes('--benchmarks');
   const inPath = flagValue(argv, '--in', benchmarks ? 'data/nba/example-stars.season.json' : '');
   const outDir = flagValue(argv, '--out', 'out/fitted');
@@ -1209,6 +1219,7 @@ if (import.meta.main) {
     refine,
     seedBase: flagValue(argv, '--seed', 'fit')
   };
+  const calibrateThreeRounds = flagNumber(argv, '--calibrate-three', 0);
   if (!inPath) {
     console.error('fit-roster: pass --in <file.season.json> (or --benchmarks). See the header of');
     console.error('packages/harness/src/fit-roster.ts for the input schema; examples in data/nba/.');
@@ -1281,6 +1292,52 @@ if (import.meta.main) {
   }
 
   const pack = assembleTeamPack(fits, file.team);
+
+  // ---- optional team-context three-volume calibration (W65) ----
+  // The analytic fit maps each player's real 3PA SHARE onto tend.shotThree,
+  // and the bounded refinement checks him in a NEUTRAL cast — but in his
+  // own team context the EV loop can starve a slasher's self-created threes
+  // entirely (measured: SGA 0.5 sim 3PA vs 4.4 real; Fox 0.9 vs 5.5). This
+  // pass closes the loop IN CONTEXT: simulate the assembled team, compare
+  // each player's 3PA/g to his real line, and walk tend.shotThree by a
+  // damped log2 step. Players that saturate at 99 without reaching their
+  // real volume are reported honestly — that residual is an ENGINE lever
+  // (the drilled pull-up-three light), not a fitting miss.
+  if (calibrateThreeRounds > 0) {
+    const { away: sparring } = sampleMatchup();
+    const realTpa = new Map(file.players.map((l) => [slug(l.name), l.tpa]));
+    for (let round = 1; round <= calibrateThreeRounds; round++) {
+      const G = 10;
+      const sim3 = new Map<string, number>();
+      for (let g = 0; g < G; g++) {
+        const r = simulateGame({ seed: `${opts.seedBase}-cal3-${round}-${g}`, home: pack.team, away: sparring });
+        const box = boxScore(r.events, [r.teams[0], r.teams[1]]);
+        for (const row of box.players) {
+          if (row.team !== 0) continue;
+          sim3.set(row.id, (sim3.get(row.id) ?? 0) + row.tpa);
+        }
+      }
+      console.log(`  three-volume calibration, round ${round}/${calibrateThreeRounds} (${G} games):`);
+      let adjusted = 0;
+      for (const p of pack.team.players) {
+        const key = p.id.replace(/^fit-/, '');
+        const real = realTpa.get(key);
+        if (real === undefined || real < 0.5) continue; // sub-volume shooters: leave the analytic fit
+        const sim = (sim3.get(p.id) ?? 0) / G;
+        const ratio = real / Math.max(sim, 0.15);
+        const step = Math.max(-18, Math.min(22, Math.round(14 * Math.log2(ratio))));
+        const before = p.tend.shotThree;
+        if (round < calibrateThreeRounds && Math.abs(step) >= 2) {
+          p.tend.shotThree = Math.round(clamp(before + step, 3, 99));
+          adjusted++;
+        }
+        const saturated = p.tend.shotThree >= 99 && ratio > 1.3 ? '  SATURATED (engine lever, not a fit miss)' : '';
+        console.log(`    ${p.name.padEnd(26)} real ${String(real).padStart(4)} sim ${sim.toFixed(1).padStart(4)}  shotThree ${String(before).padStart(2)} -> ${String(p.tend.shotThree).padStart(2)}${saturated}`);
+      }
+      if (round < calibrateThreeRounds && adjusted === 0) { console.log('    converged.'); break; }
+    }
+  }
+
   const packIssues = validateTeamPack(pack);
   if (packIssues.length > 0) {
     console.error('fit-roster: assembled pack FAILED validateTeamPack — refusing to write:');

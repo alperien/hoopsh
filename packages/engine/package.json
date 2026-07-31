@@ -1,6 +1,6 @@
 {
   "name": "@hoopsh/engine",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Deterministic 2D spatial basketball simulation engine. Pure, zero-dependency, runs in Node and browsers. Ships TypeScript source (no build): consume inside the monorepo, via file:-symlink install + loader hook, or through a bundler \u2014 see docs/EMBEDDING.md.",
   "type": "module",
   "license": "MIT",
