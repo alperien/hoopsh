@@ -1,6 +1,6 @@
 {
   "name": "@hoopsh/stats",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Folds hoopsh engine event streams into box scores, advanced stats, and shot charts. TypeScript source, no build \u2014 see docs/EMBEDDING.md.",
   "type": "module",
   "license": "MIT",

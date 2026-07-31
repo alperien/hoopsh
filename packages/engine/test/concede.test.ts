@@ -131,6 +131,53 @@ describe('concede hysteresis (direct updateConcede, live thresholds)', () => {
     expect(fresh.conceded[0]).toBe(false);
   });
 
+  it('the band arms a side already FIELDING a conceded lineup (field-state hysteresis, W67)', () => {
+    // The measured thrash (concede-pin-0, Q4 9:28): running-clock inbounds
+    // host no checkSubs pass, so a side reaches its first Q4 dead ball with
+    // a bench floor and a margin a half-point UNDER the moving line — flag
+    // false, rotation mass-returns five starters, and one made FT later the
+    // line is crossed and concede pulls all five back out: ten bodies in
+    // ten seconds. The fix: inside the band, a FULL floor with <=1 starter
+    // on it IS the conceded state and stays armed; a starter-fielded floor
+    // and any non-5-body (degenerate fixture) state keep the plain
+    // flag-hold contract.
+    const withFloor = (starterCount: number): GameState => {
+      // 6:00, margin 16: band is [15, 21) for the leader
+      const st = hState(live, { clock: 360, score: [96, 80] });
+      // onCourt(s, side) = s.lineup[side] ids resolved through agent(s, id)
+      const starters: string[] = [];
+      const floor: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const id = `h${i}`;
+        if (i < starterCount) starters.push(id);
+        floor.push(id);
+        (st.agents as Map<string, unknown>).set(id, { p: { id }, side: 0, onCourt: true });
+      }
+      for (let i = starterCount; i < 5; i++) {
+        const id = `hs${i}`;
+        starters.push(id);
+        (st.agents as Map<string, unknown>).set(id, { p: { id }, side: 0, onCourt: false });
+      }
+      (st.lineup as string[][])[0] = floor;
+      (st.teams as { starters: string[] }[])[0]!.starters = starters;
+      return st;
+    };
+    const benchFloor = withFloor(0); // five bench bodies out there
+    updateConcede(benchFloor);
+    expect(benchFloor.conceded[0]).toBe(true); // the field IS the state
+    const tokenStarter = withFloor(1); // the <=1 allowance (FT protect class)
+    updateConcede(tokenStarter);
+    expect(tokenStarter.conceded[0]).toBe(true);
+    const starterFloor = withFloor(4);
+    updateConcede(starterFloor);
+    expect(starterFloor.conceded[0]).toBe(false); // starters in the band hold false
+    // degenerate: fewer than five bodies (the direct-unit fixtures) keep
+    // the pure flag contract — no spurious arming
+    const bodiless = hState(live, { clock: 360, score: [96, 80] });
+    updateConcede(bodiless);
+    expect(bodiless.conceded[0]).toBe(false);
+  });
+
   it("the trailer's exit floor keeps him lagged too", () => {
     // 6:00: trailer entry 25, exit floor 19
     const hold = hState(live, { clock: 360, score: [81, 100], conceded: [true, true] });
@@ -402,9 +449,16 @@ describe('LIVE default §5.1: no-thrash hysteresis (per-side state machine)', ()
     // a legalized exit, or a return inside the band — is what fails here.
     // The guaranteed-execution pin for return legality remains the
     // constructed collapse suite below.
+    // The engine's real decision surface: every dead ball where checkSubs
+    // runs. TIMEOUTS belong here (sub.timeoutSubRelaxPts exists precisely
+    // because timeout dead balls host rotation passes) — the mirror missed
+    // them until the W66 streams produced a legal disarm AT a timeout
+    // (margin dipped through the exit floor there and recovered), which the
+    // point-blind mirror misread as an in-band return (second mirror
+    // correction; the first is recorded above).
     const isDecisionPoint = (e: GameEvent): boolean =>
       e.type === 'substitution' || e.type === 'period_start' ||
-      e.type === 'free_throw' ||
+      e.type === 'free_throw' || e.type === 'timeout' ||
       (e.type === 'possession_start' && e.kind === 'inbound');
     let armedWavesPool = 0;
     for (const g of pool) {
@@ -425,6 +479,7 @@ describe('LIVE default §5.1: no-thrash hysteresis (per-side state machine)', ()
           if (flag[side]) {
             waves[side]++;
             armedWavesPool++;
+            if (!exitLegalized[side]) console.log('DIAG2', JSON.stringify({ side, clock: e.clock, m, bar, type: e.type }));
             expect(exitLegalized[side]).toBe(true); // no wave without a legalized exit
             exitLegalized[side] = false;
           }
@@ -432,6 +487,7 @@ describe('LIVE default §5.1: no-thrash hysteresis (per-side state machine)', ()
           state[side] = 'high';
           if (flag[side]) {
             const belowExit = m < bar - D.concedeExitPts + 2;
+            if (!(belowExit || crunch)) console.log('DIAG3', JSON.stringify({ side, clock: e.clock, m, bar, exit: bar - D.concedeExitPts, type: e.type }));
             expect(belowExit || crunch).toBe(true); // returns only past the floor or in crunch
           }
         }

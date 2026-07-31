@@ -1,7 +1,7 @@
 {
   "name": "hoopsh",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "hoopsh \u2014 a modular, deterministic 2D spatial basketball simulation core",
   "license": "MIT",
   "author": "alperien <emailadrss@proton.me>",
