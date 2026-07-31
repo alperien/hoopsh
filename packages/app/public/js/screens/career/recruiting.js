@@ -2,7 +2,10 @@
  * screens/career/recruiting.js - the recruiting board (docs/CAREER.md,
  * Recruiting): programs holding scouted ranges on me, the interest
  * ladder rung by rung, and the offers with real terms. Committing is
- * the fork of the whole journey, so it asks once before it takes.
+ * the fork of the whole journey, so it gets a staged in-screen ritual
+ * instead of a browser dialog: the program in display type, the terms,
+ * the hats you are not picking, and two buttons. Dry and diegetic; the
+ * aftermath renders from the fresh payload once the ink lands.
  */
 import { registerScreen, store } from '../../app.js';
 import { api } from '../../api.js';
@@ -58,32 +61,69 @@ registerScreen('career-recruiting', {
     const destName = (offer) =>
       view.programs.find(p => p.id === offer.programId)?.name ?? offer.clubName ?? 'the program';
 
-    const errBox = el('div');
-    const accept = async (offer, btn) => {
-      const dest = destName(offer);
-      const line = offer.kind === 'college'
-        ? `Commit to ${dest}? Role promise: ${offer.promisedRole}. NIL ${money(offer.money)} a season. The journey forks here.`
-        : `Sign with ${dest}? ${money(offer.money)} a season, ${offer.promisedRole} role, grown men every night. The journey forks here.`;
-      if (!window.confirm(line)) return;
-      btn.disabled = true;
-      errBox.replaceChildren();
-      try {
-        const kind = offer.kind === 'college' ? 'commitCollege' : 'acceptOffer';
-        const result = await api.careerChoice({ kind, offerId: offer.id });
-        if (!result.ok) { errBox.replaceChildren(errorBox(result.errors)); btn.disabled = false; return; }
-        toast(offer.kind === 'college' ? `committed: ${dest}` : `signed: ${dest}`);
-        await store.refresh();
-        rerender();
-      } catch (err) {
-        toast(err.message, true);
-        btn.disabled = false;
-      }
-    };
-
     // offer windows are same-year week numbers; once the phase turns the
     // whole market is history, whatever the counter says
     const openOffers = inHs ? view.offers.filter(o => o.expiresWeek >= clock.week) : [];
     const expiredCount = view.offers.length - openOffers.length;
+
+    // ---- the signing ritual (no browser dialogs; the screen stages it)
+    const ritualBox = el('div');
+    let ritualOffer = null;
+
+    const signNow = async (offer, btn) => {
+      const dest = destName(offer);
+      btn.disabled = true;
+      const err = ritualBox.querySelector('.ritual-err');
+      if (err) err.replaceChildren();
+      try {
+        const kind = offer.kind === 'college' ? 'commitCollege' : 'acceptOffer';
+        const result = await api.careerChoice({ kind, offerId: offer.id });
+        if (!result.ok) {
+          if (err) err.replaceChildren(errorBox(result.errors));
+          btn.disabled = false;
+          return;
+        }
+        toast(offer.kind === 'college' ? `committed: ${dest}` : `signed: ${dest}`);
+        ritualOffer = null;
+        await store.refresh();
+        rerender();
+      } catch (ex) {
+        if (err) err.replaceChildren(errorBox([ex.message]));
+        btn.disabled = false;
+      }
+    };
+
+    const renderRitual = () => {
+      if (!ritualOffer) { ritualBox.replaceChildren(); return; }
+      const o = ritualOffer;
+      const others = openOffers.filter(x => x.id !== o.id);
+      const termBits = [
+        `promised ${o.promisedRole}`,
+        o.kind === 'college' ? `NIL ${money(o.money)} a season` : `${money(o.money)} a season`,
+      ];
+      const signBtn = el('button', { onclick: (e) => signNow(o, e.target) }, 'sign');
+      ritualBox.replaceChildren(el('div', { class: 'ritual' },
+        el('div', { class: 'ritual-word' }, o.kind === 'college' ? 'signing day' : 'the contract'),
+        el('div', { class: 'ritual-name' }, destName(o)),
+        el('div', { class: 'ritual-terms' },
+          termBits.join(' · '), ' · teaching ', teachingLetter(o.coachDev),
+          ` · ${styleWords(o.style)} · window closes week ${o.expiresWeek}`),
+        others.length ? el('div', { class: 'hat-row' },
+          others.map(h => el('div', { class: 'hat-card' },
+            el('b', {}, destName(h)),
+            el('span', {}, `${h.kind} · ${money(h.money)}`)))) : null,
+        others.length
+          ? el('div', { class: 'ritual-line' },
+              `the ink is the fork: ${others.length === 1 ? 'the other hat comes' : `these ${others.length} hats come`} off the board.`)
+          : el('div', { class: 'ritual-line' }, 'one door on the table. the ink still forks the journey.'),
+        el('div', { class: 'ritual-err' }),
+        el('div', { class: 'ritual-actions' },
+          signBtn,
+          el('button', { class: 'quiet', onclick: () => { ritualOffer = null; renderRitual(); } }, 'not yet'),
+        ),
+      ));
+      if (ritualBox.scrollIntoView) ritualBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
 
     const offerCard = (o) => el('div', { class: 'offer-card' },
       el('div', { style: 'display:flex;justify-content:space-between;align-items:baseline' },
@@ -95,17 +135,34 @@ registerScreen('career-recruiting', {
         ` · ${styleWords(o.style)} · window closes week ${o.expiresWeek}`),
       view.committedTo
         ? null
-        : el('button', { onclick: (e) => accept(o, e.target) }, o.kind === 'college' ? 'commit' : 'sign'),
+        : el('button', { onclick: () => { ritualOffer = o; renderRitual(); } }, o.kind === 'college' ? 'commit' : 'sign'),
     );
+
+    // ---- the aftermath: the doors that audibly shut when the ink landed
+    const closures = view.committedTo
+      ? [
+          ...view.programs
+            .filter(p => p.closed && p.closedReason === 'signed elsewhere')
+            .map(p => `${p.name} came off the board: signed elsewhere`),
+          ...view.offers
+            .filter(o => o.id !== view.committedTo && !o.programId && o.expiresWeek <= clock.week)
+            .map(o => `${o.clubName ?? 'the club'} came off the board`),
+        ]
+      : [];
 
     root.replaceChildren(
       el('h1', { class: 'doc' }, 'recruiting'),
       el('div', { class: 'doc-sub' },
         inHs ? 'they see ranges, not your sheet. your box scores move them.' : 'the book is closed; the record stays.'),
-      view.committedTo ? el('div', { class: 'commit-banner' },
-        el('b', {}, 'committed: '),
-        committedOffer ? `${destName(committedOffer)} (${committedOffer.kind})` : view.committedTo,
-        committedOffer && committedOffer.kind === 'college' ? ` · NIL ${money(committedOffer.money)} a season` : '',
+      view.committedTo ? el('div', { class: 'aftermath' },
+        el('div', { class: 'commit-banner', style: 'margin-bottom:0' },
+          el('b', {}, 'committed: '),
+          committedOffer ? `${destName(committedOffer)} (${committedOffer.kind})` : view.committedTo,
+          committedOffer && committedOffer.kind === 'college' ? ` · NIL ${money(committedOffer.money)} a season` : '',
+        ),
+        closures.length
+          ? el('div', { class: 'closure-lines' }, closures.map(line => el('div', { class: 'closure' }, line)))
+          : null,
       ) : null,
       ledger('the board', `${view.programs.length} programs know the name`),
       view.programs.length ? el('table', { class: 'grid' },
@@ -131,8 +188,8 @@ registerScreen('career-recruiting', {
         )))) : el('div', { class: 'empty' }, 'no program has the name yet'),
       inHs ? el('div', {},
         ledger('offers', view.committedTo ? 'the ink is dry' : 'committable, while the window holds'),
-        errBox,
-        openOffers.length
+        ritualBox,
+        openOffers.length && !view.committedTo
           ? el('div', {}, openOffers.map(offerCard))
           : el('div', { class: 'empty' }, view.committedTo ? 'the rest of the board moved on' : 'no live offers. climb the ladder.'),
         expiredCount > 0

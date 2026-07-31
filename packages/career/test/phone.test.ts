@@ -4,11 +4,18 @@
  * prose: silence on empty weeks, real numbers quoted, season caps held,
  * choices that mutate real state with explained consequences, and
  * byte-identical generation for identical careers.
+ *
+ * Wave C additions prove the narrative fix: the ghost guard (recruiting
+ * threads never resurrect outside the HS courtship), the summit beats
+ * (bracket seed, the title final, commitment day, draft night, the NBA
+ * debut), the wire thread with real numbers under its own cap, the
+ * role-promise grievance on the params grace period, sender dedupe, and
+ * the anti-repeat window.
  */
 import { describe, expect, it } from 'vitest';
-import type { GameLine, GameRecord } from '@hoopsh/franchise';
+import type { GameLine, GameRecord, PlayerSeasonRow } from '@hoopsh/franchise';
 import { applyPhoneChoice, generatePhone } from '../src/phone.js';
-import type { CareerState, PhoneMessage, Program } from '../src/types.js';
+import type { CareerState, PhoneMessage, Program, RouteOffer } from '../src/types.js';
 import { fixtureCareer } from './fixture.js';
 
 const MY_TEAM = 'hs-oakridge';
@@ -72,11 +79,49 @@ function deliver(career: CareerState, msgs: PhoneMessage[]): PhoneMessage[] {
   return msgs;
 }
 
-function mkProgram(id = 'prog-cb'): Program {
+function mkProgram(id = 'prog-cb', name = 'Carolina Baptist'): Program {
   return {
-    id, name: 'Carolina Baptist', tier: 1, coachDev: 70,
+    id, name, tier: 1, coachDev: 70,
     style: { pace: 55, threeBias: 55 }, promisedRole: 'starter',
     nil: 180_000, region: 'South',
+  };
+}
+
+/** A positive rung-move event in recruiting.ts's own shape (the phone requires the corroboration). */
+function pushRungEvent(career: CareerState, programName: string, rung: 'letter' | 'texts' | 'visit' | 'offer'): void {
+  const reason = rung === 'letter' ? `${programName} sent a letter from the head coach off summer-circuit tape`
+    : rung === 'texts' ? `${programName} opened a text thread: an assistant checks in weekly now`
+      : rung === 'visit' ? `${programName} scheduled an in-home visit: the head coach is coming`
+        : `${programName} put a committable offer on the table: starter role, $180k NIL, held to signing day`;
+  career.events.push({
+    id: `rec-test-${career.events.length}`,
+    clock: { ...career.clock },
+    kind: 'recruiting',
+    reason,
+    delta: 1,
+  });
+}
+
+function mkCollegeOffer(over: Partial<RouteOffer> = {}): RouteOffer {
+  return {
+    id: 'off-prog-cb',
+    kind: 'college',
+    programId: 'prog-cb',
+    money: 180_000,
+    coachDev: 70,
+    promisedRole: 'starter',
+    style: { pace: 55, threeBias: 55 },
+    expiresWeek: 50,
+    ...over,
+  };
+}
+
+function mkSeasonRow(over: Partial<PlayerSeasonRow> & { season: number; teamId: string }): PlayerSeasonRow {
+  return {
+    type: 'regular', gp: 10, gs: 10, min: 280, pts: 150,
+    fgm: 55, fga: 120, tpm: 15, tpa: 40, ftm: 25, fta: 30,
+    orb: 10, drb: 40, ast: 30, stl: 10, blk: 5, tov: 20, pf: 20, plusMinus: 40,
+    ...over,
   };
 }
 
@@ -159,6 +204,474 @@ describe('season caps hold under a flood', () => {
     expect(count('coach')).toBe(career.params.phone.capsPerSeason.coach);
     expect(count('media')).toBe(career.params.phone.capsPerSeason.media);
   });
+
+  it('the wire narrates under its own season cap', () => {
+    const career = fixtureCareer();
+    const start = career.clock.week;
+    // an honor lands every second week (folds and harvests are lumpy in
+    // real careers too); 15 honors offered, the cap must hold at 10
+    for (let i = 0; i < 30; i++) {
+      career.clock.week = start + i;
+      if (i % 2 === 0) {
+        career.events.push({
+          id: `ev-honor-test-${i}`,
+          clock: { ...career.clock },
+          kind: 'honor',
+          reason: `all-circuit honor number ${i}`,
+        });
+      }
+      deliver(career, generatePhone(career));
+    }
+    const wire = career.phone.filter(m => m.thread === 'wire');
+    expect(wire.length).toBe(10);
+    for (const m of wire) {
+      expect(m.from).toBe('K. Osei, The Ledger');
+      expect(m.body).toContain('all-circuit honor number');
+    }
+  });
+});
+
+describe('the ghosts stay dead', () => {
+  it('an NBA-phase career gets zero recruiter messages, even on a stale week collision', () => {
+    const career = fixtureCareer();
+    career.clock.phase = 'nba';
+    const program = mkProgram();
+    career.recruiting = {
+      programs: [program],
+      interest: [{
+        programId: program.id, rung: 'offer', perceived: 70,
+        lastMoveWeek: career.clock.week, closed: false, // the ghost setup: caps reset, weeks collide
+      }],
+      offers: [mkCollegeOffer()],
+    };
+    pushRungEvent(career, program.name, 'offer'); // even a forged fresh event cannot beat the phase guard
+    const msgs = generatePhone(career);
+    expect(msgs.filter(m => m.thread.startsWith('recruiter:'))).toEqual([]);
+  });
+
+  it('a stale lastMoveWeek in a later HS year says nothing without a fresh rung event', () => {
+    const career = fixtureCareer();
+    career.clock.year += 1; // the per-year caps just reset; the old bug resurrected here
+    const program = mkProgram();
+    career.recruiting = {
+      programs: [program],
+      interest: [{
+        programId: program.id, rung: 'texts', perceived: 60,
+        lastMoveWeek: career.clock.week, closed: false,
+      }],
+      offers: [],
+    };
+    expect(generatePhone(career).filter(m => m.thread.startsWith('recruiter:'))).toEqual([]);
+  });
+
+  it('commitment ends the courtship: after the door-close week, recruiter silence', () => {
+    const career = fixtureCareer();
+    const winner = mkProgram('prog-cb', 'Carolina Baptist');
+    const loser = mkProgram('prog-ms', 'Meridian State');
+    career.recruiting = {
+      programs: [winner, loser],
+      interest: [
+        { programId: winner.id, rung: 'offer', perceived: 75, lastMoveWeek: career.clock.week, closed: false },
+        { programId: loser.id, rung: 'offer', perceived: 70, lastMoveWeek: career.clock.week, closed: true, closedReason: 'signed elsewhere' },
+      ],
+      offers: [mkCollegeOffer()],
+      committedTo: 'off-prog-cb',
+    };
+    pushRungEvent(career, winner.name, 'offer'); // stale state that would have spoken pre-fix
+    const week1 = deliver(career, generatePhone(career));
+    const recruiterMsgs = week1.filter(m => m.thread.startsWith('recruiter:'));
+    expect(recruiterMsgs.length).toBe(1); // the losing finalist's one door-close, nothing else
+    expect(recruiterMsgs[0]!.thread).toBe('recruiter:prog-ms');
+    career.clock.week += 1;
+    const week2 = generatePhone(career);
+    expect(week2.filter(m => m.thread.startsWith('recruiter:'))).toEqual([]);
+  });
+});
+
+describe('the commitment burst', () => {
+  function committedCareer(): CareerState {
+    const career = fixtureCareer();
+    const winner = mkProgram('prog-cb', 'Carolina Baptist');
+    const loser = mkProgram('prog-ms', 'Meridian State');
+    career.recruiting = {
+      programs: [winner, loser],
+      interest: [
+        { programId: winner.id, rung: 'offer', perceived: 75, lastMoveWeek: career.clock.week - 2, closed: false },
+        { programId: loser.id, rung: 'offer', perceived: 70, lastMoveWeek: career.clock.week - 2, closed: true, closedReason: 'signed elsewhere' },
+      ],
+      offers: [mkCollegeOffer()],
+      committedTo: 'off-prog-cb',
+    };
+    return career;
+  }
+
+  it('fires mom, the rival, and the losing finalist, quoting the real program', () => {
+    const career = committedCareer();
+    const msgs = deliver(career, generatePhone(career));
+    const mom = msgs.find(m => m.thread === 'family');
+    const rival = msgs.find(m => m.thread === 'rival');
+    const close = msgs.find(m => m.thread === 'recruiter:prog-ms');
+    expect(mom).toBeDefined();
+    expect(mom!.body).toContain('Carolina Baptist');
+    expect(rival).toBeDefined();
+    expect(rival!.body).toContain('Carolina Baptist');
+    expect(close).toBeDefined();
+    expect(close!.from).toContain('Meridian State');
+    expect(close!.refs?.programId).toBe('prog-ms');
+  });
+
+  it('fires exactly once, and rides outside the family season cap', () => {
+    const career = committedCareer();
+    // mom already spent her whole season budget on ordinary weeks
+    for (let i = 0; i < career.params.phone.capsPerSeason.family; i++) {
+      career.phone.push({
+        id: `ph-family-${career.clock.year}w${i + 1}-0`,
+        clock: { phase: 'hs', year: career.clock.year, week: i + 1 },
+        thread: 'family', from: 'Mom', body: `an earlier text ${i}`,
+      });
+    }
+    const first = deliver(career, generatePhone(career));
+    expect(first.filter(m => m.thread === 'family').length).toBe(1); // signing day still lands
+    career.clock.week += 1;
+    const second = generatePhone(career);
+    expect(second.filter(m => m.id.includes('#commit#'))).toEqual([]);
+  });
+});
+
+describe('draft night', () => {
+  function draftedCareer(): CareerState {
+    const career = fixtureCareer();
+    career.clock.phase = 'nba';
+    career.nbaTeam = 'nye';
+    const me = career.players[career.me]!;
+    delete career.players[career.me];
+    me.status = 'roster';
+    career.league.players[career.me] = me;
+    career.stock!.rank = 21; // the final pre-draft mock: the gap the agent names
+    career.league.transactions.push(
+      { kind: 'draftSelection', date: { season: career.league.season, day: 200 }, teamId: 'nye', playerId: career.me, round: 1, pick: 4 },
+      { kind: 'draftSelection', date: { season: career.league.season, day: 200 }, teamId: 'bos', playerId: career.rivalId, round: 1, pick: 11 },
+    );
+    return career;
+  }
+
+  it('the burst quotes the real pick, team, mock gap, and the rival numbers', () => {
+    const career = draftedCareer();
+    const msgs = deliver(career, generatePhone(career));
+
+    const agent = msgs.find(m => m.thread === 'agent');
+    expect(agent).toBeDefined();
+    expect(agent!.from).toBe('Marta (agent)');
+    expect(agent!.body).toContain('21'); // the mock the boards printed
+    expect(/\b4\b/.test(agent!.body)).toBe(true); // the pick the room called
+    expect(agent!.refs?.teamId).toBe('nye');
+
+    const mom = msgs.find(m => m.thread === 'family');
+    expect(mom).toBeDefined();
+    expect(/New York Excelsiors|[Pp]ick 4/.test(mom!.body)).toBe(true);
+
+    const rival = msgs.find(m => m.thread === 'rival');
+    expect(rival).toBeDefined();
+    expect(/\b11\b/.test(rival!.body)).toBe(true); // his real pick
+    expect(/\b4\b/.test(rival!.body)).toBe(true);  // against mine
+
+    const wire = msgs.find(m => m.thread === 'wire');
+    expect(wire).toBeDefined();
+    expect(wire!.from).toBe('K. Osei, The Ledger');
+    expect(wire!.body).toContain('Testville, Ohio'); // the birthplace arc
+    expect(/\b4\b/.test(wire!.body)).toBe(true);
+  });
+
+  it('fires exactly once even though the transaction stays in the ledger forever', () => {
+    const career = draftedCareer();
+    deliver(career, generatePhone(career));
+    career.clock.week += 1;
+    const second = generatePhone(career);
+    expect(second.filter(m => m.id.includes('#draftnight#'))).toEqual([]);
+  });
+
+  it('two identical draft nights read byte-identical', () => {
+    const a = generatePhone(draftedCareer());
+    const b = generatePhone(draftedCareer());
+    expect(a.length).toBeGreaterThan(0);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it('an undrafted night gets the agent morning-after, once', () => {
+    const career = fixtureCareer();
+    career.clock.phase = 'draftPrep';
+    career.circuit = null;
+    career.events.push({
+      id: 'ev-stock-undrafted',
+      clock: { ...career.clock },
+      kind: 'stock',
+      reason: 'sixty names, none of them yours: undrafted. The phone still works',
+    });
+    const msgs = deliver(career, generatePhone(career));
+    const agent = msgs.find(m => m.thread === 'agent');
+    expect(agent).toBeDefined();
+    expect(agent!.id.includes('#undrafted#')).toBe(true);
+    career.clock.week += 1;
+    expect(generatePhone(career).filter(m => m.id.includes('#undrafted#'))).toEqual([]);
+  });
+});
+
+describe('the summit beats', () => {
+  it('the bracket seed gets the coach beat naming the opener', () => {
+    const career = fixtureCareer();
+    career.circuit!.standings.find(s => s.teamIdx === 0)!.w = 10;
+    career.circuit!.standings.find(s => s.teamIdx === 0)!.l = 2;
+    career.circuit!.bracket.push({
+      id: 'g-qf', week: career.clock.week + 1, homeIdx: 0, awayIdx: 2, type: 'bracket', round: 'QF',
+    });
+    const msgs = generatePhone(career);
+    const coach = msgs.find(m => m.thread === 'coach');
+    expect(coach).toBeDefined();
+    expect(coach!.body).toContain('Mercer County');
+    expect(coach!.body.toLowerCase()).toContain('bracket');
+  });
+
+  it('the title win gets the proudest family text and the coach postmortem', () => {
+    const career = fixtureCareer();
+    career.circuit!.standings.find(s => s.teamIdx === 0)!.w = 12;
+    career.circuit!.standings.find(s => s.teamIdx === 0)!.l = 2;
+    career.circuit!.bracket.push({
+      id: 'g-final', week: career.clock.week, homeIdx: 0, awayIdx: 2, type: 'bracket', round: 'F',
+    });
+    const rec = mkRecord(career, 'g-final', {
+      away: 'hs-mercer', final: [70, 61],
+      lines: [mkLine(career.me, MY_TEAM, { pts: 24 })],
+    });
+    career.circuit!.results['g-final'] = rec;
+    const msgs = deliver(career, generatePhone(career));
+    const mom = msgs.find(m => m.thread === 'family');
+    expect(mom).toBeDefined();
+    expect(mom!.body).toContain('state champion'); // the actual finish string
+    const coach = msgs.find(m => m.thread === 'coach');
+    expect(coach).toBeDefined();
+    expect(coach!.id.includes('#post')).toBe(true);
+    expect(/12-2|70-61/.test(coach!.body)).toBe(true); // the season named honestly
+  });
+
+  it('the title loss keeps the ticket anyway', () => {
+    const career = fixtureCareer();
+    career.circuit!.bracket.push({
+      id: 'g-final', week: career.clock.week, homeIdx: 0, awayIdx: 2, type: 'bracket', round: 'F',
+    });
+    const rec = mkRecord(career, 'g-final', {
+      away: 'hs-mercer', final: [58, 62],
+      lines: [mkLine(career.me, MY_TEAM, { pts: 19 })],
+    });
+    career.circuit!.results['g-final'] = rec;
+    const msgs = generatePhone(career);
+    const mom = msgs.find(m => m.thread === 'family');
+    expect(mom).toBeDefined();
+    expect(/ticket|62-58/.test(mom!.body)).toBe(true);
+  });
+
+  it('the NBA debut sends mom, the coach with the actual line, and the vet mentor', () => {
+    const career = fixtureCareer();
+    career.clock.phase = 'nba';
+    career.nbaTeam = 'nye';
+    career.circuit = null;
+    const me = career.players[career.me]!;
+    delete career.players[career.me];
+    me.status = 'roster';
+    me.seasons.push(mkSeasonRow({ season: career.league.season, teamId: 'nye', gp: 1, pts: 18 }));
+    career.league.players[career.me] = me;
+    career.league.day = 7;
+    const rec = mkRecord(career, 'g-debut', {
+      home: 'nye', away: 'bos',
+      lines: [mkLine(career.me, 'nye', { pts: 18, ast: 4, orb: 1, drb: 4 })],
+    });
+    rec.date = { season: career.league.season, day: 5 };
+    career.league.results['g-debut'] = rec;
+
+    const msgs = deliver(career, generatePhone(career));
+    const mom = msgs.find(m => m.thread === 'family');
+    expect(mom).toBeDefined();
+    expect(mom!.body).toContain('18');
+    const coach = msgs.find(m => m.thread === 'coach');
+    expect(coach).toBeDefined();
+    expect(coach!.body).toContain('18');
+    const mentor = msgs.find(m => m.thread === 'mentor');
+    expect(mentor).toBeDefined();
+    expect(mentor!.from).toContain('(vet)');
+
+    // the second week is not a debut
+    career.clock.week += 1;
+    career.league.day = 14;
+    expect(generatePhone(career).filter(m => m.id.includes('#debut#'))).toEqual([]);
+  });
+});
+
+describe('the wire quotes real numbers', () => {
+  it('a career scoring milestone crossing files the story', () => {
+    const career = fixtureCareer();
+    const me = career.players[career.me]!;
+    me.seasons.push(mkSeasonRow({ season: career.clock.year, teamId: MY_TEAM, gp: 39, pts: 1010 }));
+    const rec = mkRecord(career, 'g-mile', {
+      lines: [mkLine(career.me, MY_TEAM, { pts: 26 })],
+    });
+    career.circuit!.results[rec.id] = rec;
+    const msgs = generatePhone(career);
+    const wire = msgs.find(m => m.thread === 'wire');
+    expect(wire).toBeDefined();
+    expect(wire!.from).toBe('K. Osei, The Ledger');
+    expect(wire!.body).toContain('1,000'); // the crossed mark
+    expect(wire!.body).toContain('26');    // the night that crossed it
+  });
+
+  it('no crossing, no story', () => {
+    const career = fixtureCareer();
+    const me = career.players[career.me]!;
+    me.seasons.push(mkSeasonRow({ season: career.clock.year, teamId: MY_TEAM, gp: 30, pts: 800 }));
+    const rec = mkRecord(career, 'g-nomile', {
+      lines: [mkLine(career.me, MY_TEAM, { pts: 26 })],
+    });
+    career.circuit!.results[rec.id] = rec;
+    // the opener beat may fire; the wire must not
+    expect(generatePhone(career).filter(m => m.thread === 'wire')).toEqual([]);
+  });
+
+  it('honor events land as one-line stories, on the one-week lag', () => {
+    const career = fixtureCareer();
+    career.events.push({
+      id: 'ev-honor-scoring-2026',
+      clock: { phase: 'hs', year: career.clock.year, week: career.clock.week - 1 },
+      kind: 'honor',
+      reason: 'circuit scoring leader',
+    });
+    const msgs = generatePhone(career);
+    const wire = msgs.find(m => m.thread === 'wire');
+    expect(wire).toBeDefined();
+    expect(wire!.body).toContain('circuit scoring leader');
+  });
+});
+
+describe('the promise grievance', () => {
+  function collegeWithPromise(over: { role?: CareerState['coach']['role']; gp?: number } = {}): CareerState {
+    const career = fixtureCareer();
+    career.clock.phase = 'college';
+    career.coach.role = over.role ?? 'rotation';
+    career.recruiting = {
+      programs: [mkProgram()],
+      interest: [],
+      offers: [mkCollegeOffer({ promisedRole: 'starter' })],
+      committedTo: 'off-prog-cb',
+    };
+    career.circuitHistory.push({
+      year: career.clock.year - 1, kind: 'college', teamName: 'Carolina Baptist',
+      w: 12, l: 6,
+      myLine: { gp: over.gp ?? 21, min: 560, pts: 300, reb: 90, ast: 60, stl: 20, blk: 5, tpm: 30, fgPct: 0.46 },
+      finish: '3rd in conference', honors: [],
+    });
+    return career;
+  }
+
+  it('fires after the grace games with the role still below the promise', () => {
+    const career = collegeWithPromise({ role: 'rotation', gp: 21 });
+    expect(career.params.nbabridge.promiseGraceGames).toBe(20); // the consumed lever
+    const msgs = generatePhone(career);
+    const grievance = msgs.find(m => m.thread === 'agent' && m.choices !== undefined);
+    expect(grievance).toBeDefined();
+    expect(grievance!.body).toContain('starter');   // the promise, named
+    expect(grievance!.body).toContain('rotation');  // the reality, named
+    expect(grievance!.body).toContain('21');        // the games counted
+    expect(grievance!.choices!.map(c => c.id)).toEqual(['promise-let-go', 'promise-make-known', 'promise-demand']);
+  });
+
+  it('stays quiet inside the grace period', () => {
+    const career = collegeWithPromise({ role: 'rotation', gp: 10 });
+    expect(generatePhone(career).filter(m =>
+      m.thread === 'agent' && m.choices?.some(c => c.id === 'promise-let-go'))).toEqual([]);
+  });
+
+  it('never grieves a kept promise', () => {
+    const career = collegeWithPromise({ role: 'starter', gp: 30 });
+    expect(generatePhone(career).filter(m =>
+      m.thread === 'agent' && m.choices?.some(c => c.id === 'promise-let-go'))).toEqual([]);
+  });
+
+  it('sends the satisfied beat when the role rises to meet the promise, once', () => {
+    const career = collegeWithPromise({ role: 'starter', gp: 12 });
+    career.events.push({
+      id: 'ev-role-test', clock: { ...career.clock }, kind: 'role',
+      reason: 'outproduced the rotation role 6 games running', delta: 1,
+    });
+    const msgs = deliver(career, generatePhone(career));
+    const kept = msgs.find(m => m.thread === 'agent');
+    expect(kept).toBeDefined();
+    expect(kept!.body).toContain('starter');
+    expect(kept!.choices).toBeUndefined();
+    // a later promotion week does not repeat the beat for the same promise
+    career.clock.week += 1;
+    career.events.push({
+      id: 'ev-role-test-2', clock: { ...career.clock }, kind: 'role',
+      reason: 'outproduced the starter role 6 games running', delta: 1,
+    });
+    expect(generatePhone(career).filter(m => m.id.includes('#kept-'))).toEqual([]);
+  });
+
+  it('conducts the NBA grievance off the signing event and the coach ledger', () => {
+    const career = fixtureCareer();
+    career.clock.phase = 'nba';
+    career.nbaTeam = 'nye';
+    career.circuit = null;
+    const me = career.players[career.me]!;
+    delete career.players[career.me];
+    me.status = 'roster';
+    career.league.players[career.me] = me;
+    career.coach.role = 'bench';
+    career.events.push({
+      id: 'ev-contract-sign', clock: { ...career.clock }, kind: 'contract',
+      reason: 'signed: New York Excelsiors, 2y starting at $4,000,000 (starter role promised)',
+    });
+    for (let g = 0; g < 21; g++) {
+      career.coach.grades.push({
+        gameId: `nba-g${g}`, adherence: 100, production: 0, trustDelta: 0,
+        note: 'did not play; nothing to grade', // buried IS the case
+      });
+    }
+    const msgs = generatePhone(career);
+    const grievance = msgs.find(m => m.thread === 'agent' && m.choices !== undefined);
+    expect(grievance).toBeDefined();
+    expect(grievance!.body).toContain('starter');
+    expect(grievance!.body).toContain('bench');
+    expect(grievance!.refs?.teamId).toBe('nye');
+  });
+
+  it('every grievance answer mutates real state with explained events', () => {
+    const career = collegeWithPromise({ role: 'rotation', gp: 21 });
+    const me = career.players[career.me]!;
+    const msgs = deliver(career, generatePhone(career));
+    const grievance = msgs.find(m => m.thread === 'agent' && m.choices !== undefined)!;
+
+    const trustBefore = career.coach.trust;
+    const moraleBefore = me.morale;
+    const evBefore = career.events.length;
+    expect(applyPhoneChoice(career, grievance.id, 'promise-make-known').ok).toBe(true);
+    expect(career.coach.trust).toBe(trustBefore - 2);
+    expect(me.morale).toBe(Math.min(100, moraleBefore + 1));
+    expect(career.events.length).toBe(evBefore + 2);
+    for (const ev of career.events.slice(evBefore)) expect(ev.reason.length).toBeGreaterThan(0);
+
+    // a second answer refuses: the grievance is conducted once
+    const again = applyPhoneChoice(career, grievance.id, 'promise-demand');
+    expect(again.ok).toBe(false);
+    expect(again.errors[0]).toContain('already answered');
+  });
+
+  it('letting it go settles the person', () => {
+    const career = collegeWithPromise({ role: 'rotation', gp: 21 });
+    const me = career.players[career.me]!;
+    const msgs = deliver(career, generatePhone(career));
+    const grievance = msgs.find(m => m.thread === 'agent' && m.choices !== undefined)!;
+    const moraleBefore = me.morale;
+    expect(applyPhoneChoice(career, grievance.id, 'promise-let-go').ok).toBe(true);
+    expect(me.morale).toBe(Math.min(100, moraleBefore + 2));
+    expect(career.events[career.events.length - 1]!.kind).toBe('morale');
+  });
 });
 
 describe('applyPhoneChoice', () => {
@@ -173,6 +686,7 @@ describe('applyPhoneChoice', () => {
       }],
       offers: [],
     };
+    pushRungEvent(career, program.name, 'texts'); // the rung move's own event, as recruiting.ts logs it
     const msgs = deliver(career, generatePhone(career));
     const ask = msgs.find(m => m.thread === `recruiter:${program.id}`);
     if (!ask) throw new Error('test setup: the visit ask never generated');
@@ -329,6 +843,60 @@ describe('applyPhoneChoice', () => {
   });
 });
 
+describe('anti-repeat and sender discipline', () => {
+  it('mom never repeats a body across consecutive empty-tank weeks', () => {
+    const career = fixtureCareer();
+    const start = career.clock.week;
+    for (let i = 0; i < career.params.phone.capsPerSeason.family; i++) {
+      career.clock.week = start + i;
+      career.events.push({
+        id: `ev-energy-${i}`, clock: { ...career.clock }, kind: 'energy',
+        reason: 'running on empty (22): the body is one bad landing from trouble',
+      });
+      deliver(career, generatePhone(career));
+    }
+    const bodies = career.phone.filter(m => m.thread === 'family').map(m => m.body);
+    expect(bodies.length).toBe(career.params.phone.capsPerSeason.family);
+    expect(new Set(bodies).size).toBe(bodies.length); // the measured defect: 4 straight identical weeks
+  });
+
+  it('no sender lands two messages in one week, even across a summit pile-up', () => {
+    const career = fixtureCareer();
+    // commitment week AND a head-to-head the same week: mom and the rival
+    // both have two reasons to text
+    const winner = mkProgram('prog-cb', 'Carolina Baptist');
+    const loser = mkProgram('prog-ms', 'Meridian State');
+    career.recruiting = {
+      programs: [winner, loser],
+      interest: [
+        { programId: winner.id, rung: 'offer', perceived: 75, lastMoveWeek: career.clock.week - 1, closed: false },
+        { programId: loser.id, rung: 'offer', perceived: 70, lastMoveWeek: career.clock.week - 1, closed: true, closedReason: 'signed elsewhere' },
+      ],
+      offers: [mkCollegeOffer()],
+      committedTo: 'off-prog-cb',
+    };
+    const h2h = mkRecord(career, 'g-h2h', {
+      final: [55, 63],
+      lines: [
+        mkLine(career.me, MY_TEAM, { pts: 18 }),
+        mkLine(career.rivalId, RIVAL_TEAM, { pts: 29 }),
+      ],
+    });
+    career.circuit!.results[h2h.id] = h2h;
+    const rec = mkRecord(career, 'g-opener2', {
+      lines: [mkLine(career.me, MY_TEAM, { pts: 22 })],
+    });
+    career.circuit!.results[rec.id] = rec;
+
+    const msgs = generatePhone(career);
+    const froms = msgs.map(m => m.from);
+    expect(new Set(froms).size).toBe(froms.length);
+    const perThread = new Map<string, number>();
+    for (const m of msgs) perThread.set(m.thread, (perThread.get(m.thread) ?? 0) + 1);
+    for (const n of perThread.values()) expect(n).toBe(1);
+  });
+});
+
 describe('determinism and message discipline', () => {
   function richWeek(career: CareerState): CareerState {
     const w = career.clock.week;
@@ -357,12 +925,13 @@ describe('determinism and message discipline', () => {
       week: w, year: career.clock.year, rank: 41,
       reason: 'the mock boards print his name for the first time, pick 41',
     });
-    // the letter rung move (recruiter)
+    // the letter rung move (recruiter), corroborated by its own event
     career.recruiting!.programs.push(mkProgram());
     career.recruiting!.interest.push({
       programId: 'prog-cb', rung: 'letter', perceived: 55,
       lastMoveWeek: w, closed: false,
     });
+    pushRungEvent(career, 'Carolina Baptist', 'letter');
     // the injury (family)
     const me = career.players[career.me]!;
     me.health.injury = {

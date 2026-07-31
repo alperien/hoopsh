@@ -41,12 +41,12 @@ import { generateName, generatePlayer, streamRng } from '@hoopsh/franchise';
 import type {
   FrPlayer, GameJob, GameJobResult, GameRecord, PlayerId, PlayerSeasonRow,
 } from '@hoopsh/franchise';
-import { applyApproach } from './approach.js';
+import { applyApproach, applyLegs } from './approach.js';
 import { PACKS } from './packs.js';
 import type { CareerParams } from './params.js';
 import type {
   ApproachCard, CareerState, Circuit, CircuitGame, CircuitKind,
-  CircuitSummary, CircuitTeam, PackId, RouteOffer,
+  CircuitSummary, CircuitTeam, PackId, RoleId, RouteOffer,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -587,11 +587,29 @@ function tacticsFor(career: CareerState, circuit: Circuit, teamIdx: number): Tea
 }
 
 /**
+ * The roles that own a place in the starting five. Below this line a
+ * promotion is minutes and a longer leash; AT it the promotion is the
+ * opening tip (docs/CAREER.md pillar 1: a role move must be felt in the
+ * next box score). garbage/bench/rotation/sixthMan come off the bench -
+ * the sixth man by definition, the rest by the depth chart.
+ */
+const STARTING_ROLES: ReadonlySet<RoleId> = new Set(['starter', 'featured', 'franchise']);
+
+/**
  * Project one circuit team into an engine Team. Circuit players are not
  * league members, so attributes and tendencies project DIRECTLY (no
  * injury/fatigue/HCA pipeline; that projection depth belongs to the
- * franchise gameday and, for me, to the week task's energy economy). ME:
- * the approach card shifts my tendencies via shiftForApproach.
+ * franchise gameday). ME, the felt loop's whole surface:
+ *  - the approach card shifts my tendencies (approach.ts applyApproach,
+ *    the one projection source; playing hurt dulls the whole sheet);
+ *  - tired legs dull my attributes (approach.ts applyLegs on
+ *    career.energy: the week economy's teeth on the floor);
+ *  - MY ROLE OWNS MY MINUTES (params.trust.minutesByRole): the coach's
+ *    target rides Team.rotationMinutes - the engine's real minutes
+ *    controller (subs.ts leash + eager return) - scaled from the table's
+ *    48-minute shape to this pack's game length, and the starting five
+ *    is role-gated by STARTING_ROLES. A promotion changes the next box
+ *    score's shape by mechanism, not by label.
  */
 function projectCircuitTeam(career: CareerState, circuit: Circuit, teamIdx: number): Team {
   const t = circuit.teams[teamIdx];
@@ -608,10 +626,9 @@ function projectCircuitTeam(career: CareerState, circuit: Circuit, teamIdx: numb
     const p = career.players[pid];
     if (!p) throw new Error(`circuits: roster references unknown player '${pid}'`);
     if (pid === career.me) {
-      // the one projection source (approach.ts): the card moves my
-      // tendencies through the wiring table, and playing hurt dulls the
-      // whole sheet for the night
-      const projected = applyApproach(p, career.nextApproach ?? career.approach, career.params);
+      // card first (tendencies + hurt debuff), then the legs tax (attrs)
+      const carded = applyApproach(p, career.nextApproach ?? career.approach, career.params);
+      const projected = applyLegs(carded, career.energy, career.params);
       return {
         id: p.id, name: p.name, pos: p.pos,
         heightIn: p.heightIn, weightLb: p.weightLb, wingspanIn: p.wingspanIn,
@@ -625,19 +642,70 @@ function projectCircuitTeam(career: CareerState, circuit: Circuit, teamIdx: numb
     };
   });
   let starters = [...t.starters];
-  if (starters.includes(career.me) && !available.includes(career.me)) {
-    const bench = available.filter(pid => !starters.includes(pid));
-    const sub = bench.sort((a, b) =>
+  const bestBench = (exclude: readonly string[]): string | undefined =>
+    available.filter(pid => !exclude.includes(pid)).sort((a, b) =>
       abilityScoreOf(career.players[b]!) - abilityScoreOf(career.players[a]!) || (a < b ? -1 : 1))[0];
+  if (starters.includes(career.me) && !available.includes(career.me)) {
+    const sub = bestBench(starters);
     starters = sub
       ? starters.map(pid => (pid === career.me ? sub : pid))
       : starters.filter(pid => pid !== career.me);
   }
+
+  // minutes follow the role (my team's whole sheet; the felt-loop fix)
+  let rotationMinutes: Record<string, number> | undefined;
+  if (teamIdx === circuit.myTeamIdx && available.includes(career.me)) {
+    const role = career.coach.role;
+    if (STARTING_ROLES.has(role) && !starters.includes(career.me)) {
+      // the job says I start: the weakest incumbent yields the spot
+      const weakest = [...starters].sort((a, b) =>
+        abilityScoreOf(career.players[a]!) - abilityScoreOf(career.players[b]!) || (a < b ? -1 : 1))[0];
+      starters = starters.map(pid => (pid === weakest ? career.me : pid));
+    } else if (!STARTING_ROLES.has(role) && starters.includes(career.me)) {
+      // the job says I watch the tip: the best bench body starts instead
+      const sub = bestBench(starters);
+      if (sub) starters = starters.map(pid => (pid === career.me ? sub : pid));
+    }
+    // The coach's minutes sheet, a real document: gameMinutes x 5 slots
+    // split across the dressed roster. MY line is the role's target
+    // (params.trust.minutesByRole), scaled from the table's NBA 48-minute
+    // shape to this pack's game (prep 32, FIBA/NCAA 40): a garbage role
+    // in prep is ~2.7 minutes of mop-up, a franchise role ~25 of 32.
+    // TEAMMATES fill the remainder by ability rank. The whole-team sheet
+    // matters mechanically: with only MY line targeted, the engine's
+    // quarter wave kept re-inserting the freshest body (me) regardless of
+    // pace, and a garbage role measured 16.7 minutes; with every line
+    // targeted, behind-pace teammates outrank me for every re-entry and
+    // the role gradient is real (measured 5.7 / 12.6 / 22.7 / 25.6 min
+    // at garbage / rotation / starter / franchise in prep).
+    const pack = PACKS[circuit.packId];
+    const gameMinutes = pack.periods * pack.periodMinutes;
+    const myTarget = Math.max(1, career.params.trust.minutesByRole[role] * (gameMinutes / 48));
+    rotationMinutes = { [career.me]: Math.round(myTarget * 10) / 10 };
+    const mates = available.filter(pid => pid !== career.me).sort((a, b) =>
+      abilityScoreOf(career.players[b]!) - abilityScoreOf(career.players[a]!) || (a < b ? -1 : 1));
+    // rank weights n..1 in a waterfall: each share caps at the game
+    // length and the overflow stays in the pot for the smaller weights
+    // (weights descend, so the waterfall is exact in one pass); floors at
+    // 1 minute because an explicit 0 target is the engine's DNP-scratch
+    // semantics (subs.ts), and the end of a rotation is not a scratch
+    let rest = gameMinutes * 5 - myTarget;
+    let wSum = (mates.length * (mates.length + 1)) / 2;
+    mates.forEach((pid, i) => {
+      const w = mates.length - i;
+      const share = Math.min(gameMinutes, Math.max(1, rest * w / wSum));
+      rotationMinutes![pid] = Math.round(share * 10) / 10;
+      rest -= share;
+      wSum -= w;
+    });
+  }
+
   return {
     id: t.id, name: t.name, abbrev: t.abbrev,
     players,
     starters,
     tactics: tacticsFor(career, circuit, teamIdx),
+    ...(rotationMinutes ? { rotationMinutes } : {}),
   };
 }
 

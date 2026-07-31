@@ -378,6 +378,16 @@ export interface CareerState {
   /** 0-100; the week economy's currency */
   energy: number;
   weekPlan: WeekPlan;
+  /**
+   * Fractional training progress banked per attribute group (week.ts pity
+   * timer): expected weekly gains accumulate here and land as a
+   * deterministic +1 when a group's bank reaches 1.0, so training never
+   * goes silent for a measured 10+ week drought again. OPTIONAL and
+   * additive: old saves load with it absent and week.ts treats absent as
+   * empty. The only post-freeze shape change, sanctioned by the felt-loop
+   * fix.
+   */
+  trainingBank?: Partial<Record<AttrGroup, number>>;
   coach: CoachState;
   recruiting: RecruitState | null;
   stock: StockState | null;

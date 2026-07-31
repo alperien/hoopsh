@@ -7,13 +7,16 @@
 import './week.js';
 import './phone.js';
 import './plan.js';
+import './me.js';
 import './circuit.js';
 import './recruiting.js';
 import './stock.js';
 import './money.js';
+import './office.js';
 import './journey.js';
 import './new.js';
 import './game.js';
+import './draftnight.js';
 
 const CSS_HREF = '/css/career.css';
 if (!document.querySelector(`link[href="${CSS_HREF}"]`)) {

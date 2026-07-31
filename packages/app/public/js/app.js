@@ -101,7 +101,7 @@ function renderChrome() {
   document.getElementById('mh-energy').hidden = !career;
   const legend = career
     ? [['a', 'advance week'], ['w', 'sim ahead'], ['s', 'save'], ['p', 'phone'],
-       ['m', 'me'], ['g', 'game plan'], ['c', 'circuit'], ['j', 'journey']]
+       ['m', 'me'], ['g', 'game plan'], ['o', 'office'], ['c', 'circuit'], ['j', 'journey']]
     : [['a', 'advance'], ['w', 'sim ahead'], ['s', 'save'], ['o', 'office'],
        ['r', 'roster'], ['l', 'league'], ['t', 'trade'], ['n', 'news']];
   document.getElementById('keys').replaceChildren(
@@ -185,6 +185,13 @@ function renderCareerMasthead() {
         ? el('span', { class: 'team' }, mineHome ? g.away : g.home)
         : el('span', { class: 'vs' }, `at ${g.homeAbbrev}`),
       el('span', { class: 'vs' }, `wk ${g.week}`),
+    ));
+  } else if (s.nextBeat) {
+    // no game on the calendar: the next beat worth living toward
+    tonight.replaceChildren(el('span', { class: 'tonight' },
+      el('span', {}, 'next'),
+      el('span', { class: 'team' }, s.nextBeat.label),
+      el('span', { class: 'vs' }, `wk ${s.nextBeat.week}`),
     ));
   } else {
     tonight.replaceChildren();
@@ -272,6 +279,36 @@ async function advanceDays(days) {
   }
 }
 
+/** The green room fires once per app load, only off a real draft. */
+let draftNightStaged = false;
+
+/**
+ * When the sim stop that just landed is the draft turning the phase to
+ * the league, stage the green room instead of a toast. Returns true when
+ * it navigated (the hashchange rerenders; the caller should stop).
+ */
+async function maybeStageDraftNight(status) {
+  if (draftNightStaged) return false;
+  if (status?.stoppedFor !== 'phase' || store.career?.phaseLabel !== 'the league') return false;
+  try {
+    const dn = await api.careerDraftnight();
+    if (!dn || !dn.picks || !dn.picks.some(p => p.mine)) return false;
+    draftNightStaged = true;
+    navigate('/career-draftnight');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Real words for why the sim stopped short of its target. */
+function noteSimStop(status) {
+  const stopped = status?.stoppedFor;
+  if (stopped === 'decision') toast('the phone needs an answer');
+  else if (stopped === 'window') toast('a contract decision waits');
+  else if (stopped === 'phase') toast(`the world turned: ${store.career?.phaseLabel ?? 'a new chapter'}`);
+}
+
 async function advanceWeeks(weeks) {
   if (advancing) return;
   if (store.mode !== 'career') { toast('no career loaded', true); return; }
@@ -279,13 +316,16 @@ async function advanceWeeks(weeks) {
   setAdvanceDisabled(true);
   try {
     await api.careerAdvance(weeks, true);
+    let status = null;
     for (;;) {
-      const status = await api.careerSimStatus();
+      status = await api.careerSimStatus();
       emit('sim-progress', status);
       if (!status.running) break;
       await new Promise(r => setTimeout(r, 300));
     }
     await refresh();
+    if (await maybeStageDraftNight(status)) return;
+    noteSimStop(status);
     rerender();
   } catch (err) {
     toast(err.message, true);
@@ -380,6 +420,7 @@ const CAREER_KEYS = {
   p: () => navigate('/career-phone'),
   m: () => navigate('/career-me'),
   g: () => navigate('/career-plan'),
+  o: () => navigate('/career-office'),
   c: () => navigate('/career-circuit'),
   j: () => navigate('/career-journey'),
   l: () => navigate('/league'),

@@ -64,9 +64,19 @@ export interface CareerParams {
     gameEnergyCost: number;                     // FEEL 14
     energyFloorInjuryRisk: number;              // CAL 30 (below this, injury hazard multiplies)
     energyLowHazardMult: number;                // CAL 1.8
+    /**
+     * Energy on the floor: below this energy, game-night attributes take a
+     * linear debuff (approach.ts applyLegs, consumed in the circuits ME
+     * projection). The A/B that forced this: 41 weeks at 0 energy cost
+     * nothing measurable when the only consumer was the injury multiplier,
+     * so grinding was strictly dominant and rest was never a real choice.
+     */
+    energyLegsFloor: number;                    // FEEL 40 (fresh legs above this)
+    /** attr debuff at energy 0, scaling linearly to 0 at energyLegsFloor */
+    energyLegsDebuff: number;                   // FEEL 8 (playHurtDialDebuff's scale: empty tank ~= playing hurt)
     /** weekly training dev gain at full focus, rating points toward group ceiling */
-    trainingGainBase: number;                   // CAL 0.16 (season-scale ~= a real offseason review share)
-    filmGainBase: number;                       // CAL 0.10 (mental group only)
+    trainingGainBase: number;                   // CAL 0.16 (season-scale ~= a real offseason review share; banked per week.ts pity timer, landing +1 every ceil(1/rate) weeks)
+    filmGainBase: number;                       // CAL 0.10 (mental group only; banked the same way)
     bodyWearTrim: number;                       // CAL 0.35 (wear points removed per body slot)
     lifeMoraleGain: number;                     // FEEL 4
     gradesFloor: number;                        // FEEL 2 life slots/month keeps eligibility (HS/college)
@@ -74,8 +84,15 @@ export interface CareerParams {
 
   /** owner: approach.ts + trust.ts (approach task) */
   trust: {
-    /** projection: max tendency delta at a dial's extreme (0 or 100) */
-    approachTendencyMax: number;                // CAL 22 (rating points of tendency swing)
+    /**
+     * Projection: max tendency delta at a dial's extreme (0 or 100).
+     * CAL 32, raised from 22 by the felt-loop A/B: at 22 a 70 range dial
+     * moved threes by +0.8 attempts a game (sd 2.6, invisible) and only
+     * the 100/100 extreme was felt (+1.8 3PA, +2.7 pts). At 32 the 70
+     * dial's tendency swing (12.8 points) lands in the felt band and the
+     * extreme reads as a genuinely different game plan.
+     */
+    approachTendencyMax: number;                // CAL 32 (rating points of tendency swing)
     /** plan range width by role (garbage narrowest... franchise widest) */
     planWidthByRole: Record<RoleId, number>;    // FEEL { garbage: 10, bench: 16, rotation: 22, sixthMan: 28, starter: 34, featured: 44, franchise: 54 }
     /** trust deltas */
@@ -221,6 +238,8 @@ export function defaultCareerParams(): CareerParams {
       gameEnergyCost: 14,
       energyFloorInjuryRisk: 30,
       energyLowHazardMult: 1.8,
+      energyLegsFloor: 40,
+      energyLegsDebuff: 8,
       trainingGainBase: 0.16,
       filmGainBase: 0.10,
       bodyWearTrim: 0.35,
@@ -228,7 +247,7 @@ export function defaultCareerParams(): CareerParams {
       gradesFloor: 2,
     },
     trust: {
-      approachTendencyMax: 22,
+      approachTendencyMax: 32,
       planWidthByRole: { garbage: 10, bench: 16, rotation: 22, sixthMan: 28, starter: 34, featured: 44, franchise: 54 },
       adherenceTrustGain: 1.2,
       deviationTrustLoss: 2.6,

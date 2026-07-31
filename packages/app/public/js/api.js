@@ -57,6 +57,7 @@ export const api = {
   careerOffers: () => call('GET', '/api/career/offers'),
   careerLedger: () => call('GET', '/api/career/ledger'),
   careerEvents: (page = 0) => call('GET', `/api/career/events?page=${page}`),
+  careerDraftnight: () => call('GET', '/api/career/draftnight'),
   careerEpilogue: () => call('GET', '/api/career/epilogue'),
   careerGame: (id) => call('GET', `/api/career/game/${id}`),
   careerBroadcast: (id) => call('GET', `/api/career/game/${id}/broadcast`),

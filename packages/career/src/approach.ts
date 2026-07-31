@@ -25,6 +25,19 @@ export const APPROACH_DIALS: readonly ApproachDial[] = [
  * so a maxed dial reads as a clearly different game, not a different
  * player: shot-diet identity stays his (the GM game's development rule,
  * applied to nights).
+ *
+ * Playmaking wiring (felt-loop A/B, 140 paired games per arm, fourstar
+ * SG): the old passOut-only wiring moved assists +0.0 at a 65 dial, and
+ * the isolation sweep found WHY - box assists are insensitive to every
+ * tendency the card can reach (passOut +/-38 measured -0.07/-0.03 ast;
+ * drive +32 -0.14; iso +32 -0.15; usage composites worse). Assist volume
+ * routes through the creation hierarchy's ATTRIBUTES (passVision,
+ * delivery quality), which the card must never touch. So the dial now
+ * expresses the half the engine CAN feel: passOut 1.2 (swing appetite,
+ * visibly a willing passer), usage -0.4 (the extra pass costs MY shots:
+ * measured -1.0 fga at the extreme), iso -0.7 (clear-outs are the
+ * anti-pass). The assist-response defect is reported upstream: it needs
+ * an engine-side lever (swingPassOutScale-order), not louder wiring.
  */
 const WIRING: Record<ApproachDial, Array<{ key: keyof FrPlayer['tend']; w: number }>> = {
   assertiveness: [
@@ -33,9 +46,10 @@ const WIRING: Record<ApproachDial, Array<{ key: keyof FrPlayer['tend']; w: numbe
     { key: 'passOut', w: -0.4 },
   ],
   range: [
-    { key: 'shotThree', w: 1.0 },
+    { key: 'shotThree', w: 1.2 },
     { key: 'pullUp', w: 0.7 },
     { key: 'shotRim', w: -0.5 },
+    { key: 'shotMid', w: -0.6 },
   ],
   motor: [
     { key: 'crashOffReb', w: 0.9 },
@@ -47,7 +61,8 @@ const WIRING: Record<ApproachDial, Array<{ key: keyof FrPlayer['tend']; w: numbe
     { key: 'foulAggr', w: 0.6 },
   ],
   playmaking: [
-    { key: 'passOut', w: 1.0 },
+    { key: 'passOut', w: 1.2 },
+    { key: 'usage', w: -0.4 },
     { key: 'iso', w: -0.7 },
   ],
 };
@@ -76,6 +91,38 @@ export function applyApproach(me: FrPlayer, card: ApproachCard & { playingHurt?:
     for (const k of Object.keys(out.attr) as Array<keyof FrPlayer['attr']>) {
       out.attr[k] = clamp(Math.round(out.attr[k] - d), 0, 100);
     }
+  }
+  return out;
+}
+
+/**
+ * The legs tax at game time, in attribute points: 0 at or above
+ * params.week.energyLegsFloor, rising linearly to params.week
+ * .energyLegsDebuff at energy 0. Pure math, exported for tests and UI
+ * (the pre-game screen can show the exact cost of a grind week).
+ */
+export function legsDebuffAt(energy: number, params: CareerParams): number {
+  const floor = params.week.energyLegsFloor;
+  if (floor <= 0 || energy >= floor) return 0;
+  return params.week.energyLegsDebuff * (floor - Math.max(0, energy)) / floor;
+}
+
+/**
+ * A copy of me with tired legs: every attribute dulls by legsDebuffAt
+ * (same whole-sheet shape as playing hurt, deliberately - an empty tank
+ * and a bad ankle read the same on the floor). Tendencies never move: a
+ * tired player still WANTS his game, he just executes it worse. This is
+ * the week economy's teeth on the floor (the felt-loop A/B measured 41
+ * zero-energy weeks costing nothing when hazard was the only consumer).
+ * Called from the circuits ME projection with career.energy; a no-op
+ * copy above the floor.
+ */
+export function applyLegs(me: FrPlayer, energy: number, params: CareerParams): FrPlayer {
+  const d = legsDebuffAt(energy, params);
+  const out: FrPlayer = { ...me, attr: { ...me.attr } };
+  if (d <= 0) return out;
+  for (const k of Object.keys(out.attr) as Array<keyof FrPlayer['attr']>) {
+    out.attr[k] = clamp(Math.round(out.attr[k] - d), 0, 100);
   }
   return out;
 }

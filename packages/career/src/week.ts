@@ -6,17 +6,39 @@
  * every consequence into the event log (docs/CAREER.md pillar 2).
  *
  * Streams (career.seed root): 'career-train:<year>:<week>' weekly
- * training landings; 'career-injury:<year>:<week>' my post-game hazard.
+ * training landings (reserved; the pity timer below is deterministic);
+ * 'career-injury:<gameId>' my post-game hazard - keyed by GAME, not
+ * (year, week), because both games of a doubleheader week sharing one
+ * draw halved my effective hazard (measured felt-loop defect).
  *
- * Training design note: weekly gains are small (params.week
- * .trainingGainBase); instead of fractional bookkeeping they LAND
- * probabilistically as whole points at the expected rate, so progress is
- * visible and legible when it happens ('extra work paid: +1 scoring')
- * and zero-noise when it does not. The RPG number goes up some weeks;
- * the season-scale rate is the calibrated truth.
+ * THE CARD IS STICKY (felt-loop fix): resolveWeek captures the week's
+ * card ONCE (nextApproach if dialed, else the standing approach), the
+ * engine simulates every one of my games with it, and EVERY grade of the
+ * week is judged against that same card (trust.ts updateAfterGame takes
+ * it explicitly). At week's end a dialed card FOLDS INTO career.approach
+ * and nextApproach clears: the card persists until changed. Dialing is
+ * setting your game, not burning a one-night token that silently reverts
+ * to neutral 50s (the old semantics, measured grading adherence 0/100
+ * alternating all season). playingHurt never persists: gutting a night
+ * out is a per-week decision, re-made while the listing lasts.
+ *
+ * TRAINING PITY TIMER (felt-loop fix): weekly gains are small
+ * (params.week.trainingGainBase), and the old probabilistic +1 landings
+ * at p ~0.15/slot produced measured 10+ week droughts on the default
+ * plan. Expected progress now BANKS per attribute group
+ * (career.trainingBank, absent = empty for old saves) and a whole point
+ * lands DETERMINISTICALLY when a group's bank reaches 1.0 ('extra work
+ * paid: +1 scoring'), so with one extraWork slot the visible tick lands
+ * at least every ceil(1/rate) weeks and the season-scale rate is exactly
+ * the calibrated truth. Zero rng: the pity timer cannot be streaky.
+ *
+ * ENERGY ON THE FLOOR: below params.week.energyLegsFloor my game-night
+ * attributes take the linear applyLegs debuff (approach.ts, applied in
+ * the circuits ME projection), so a grind week is paid in that week's
+ * box scores, not only in a rare hazard multiplier.
  */
 import { clamp } from '@hoopsh/engine';
-import type { GameRecord, SimulateJobs } from '@hoopsh/franchise';
+import type { FrPlayer, GameRecord, SimulateJobs } from '@hoopsh/franchise';
 import { distributeGrowth, groupMean } from '@hoopsh/franchise';
 import { streamRng } from '@hoopsh/franchise';
 import type { AttrGroup } from '@hoopsh/franchise';
@@ -59,15 +81,46 @@ function slotEnergy(career: CareerState, slot: WeekSlotId): number {
 }
 
 /**
- * Resolve the allocation: energy, training landings, wear trim, morale.
- * Exported for tick's NBA phase, which runs the same allocation around
- * league game days.
+ * The pity timer's whole mechanism: bank a slot's expected gain for its
+ * group and land whole points DETERMINISTICALLY when the bank crosses
+ * 1.0 (module header). A finished group (mean at ceiling) banks nothing;
+ * a landing that overshoots the ceiling spends the bank anyway (the
+ * shortfall is a ceiling fact, not saved progress). devReason, when
+ * given, also writes the devLog (the extraWork path's existing record).
+ */
+function accrueTraining(
+  career: CareerState, me: FrPlayer,
+  group: AttrGroup, gain: number, label: string, devReason?: string,
+): void {
+  const ceiling = me.potential[group];
+  if (groupMean(me.attr, group) >= ceiling) return;
+  const bank = career.trainingBank ?? (career.trainingBank = {});
+  const banked = (bank[group] ?? 0) + Math.max(0, gain);
+  const whole = Math.floor(banked);
+  // 6-decimal snap: repeated float adds must never stall a bank at 0.999...
+  bank[group] = Math.round((banked - whole) * 1e6) / 1e6;
+  if (whole < 1) return;
+  const applied = distributeGrowth(me.attr, group, ceiling, whole);
+  if (applied <= 0) return;
+  pushEvent(career, 'dev', `${label} paid: +${applied} ${group}`, applied);
+  if (devReason) {
+    me.devLog.push({
+      date: { season: career.clock.year, day: career.clock.week },
+      deltas: { [group]: applied },
+      reasons: [devReason],
+    });
+  }
+}
+
+/**
+ * Resolve the allocation: energy, training banking (pity timer), wear
+ * trim, morale. Exported for tick's NBA phase, which runs the same
+ * allocation around league game days.
  */
 export function resolveAllocation(career: CareerState): void {
   const me = career.players[career.me] ?? career.league.players[career.me];
   if (!me) throw new Error('career/week: my player is missing from both pools');
   const p = career.params.week;
-  const rng = streamRng(career.seed, 'career-train', career.clock.year, career.clock.week);
 
   // the body recovers on its own first (sleep exists), then practice is paid
   let energy = career.energy + p.weekBaseRecovery - p.energyCost.practice;
@@ -75,30 +128,14 @@ export function resolveAllocation(career: CareerState): void {
   for (const slot of career.weekPlan.slots) {
     energy += slotEnergy(career, slot);
     if (slot === 'extraWork') {
-      // probabilistic integer landing at the expected weekly rate, scaled
-      // by staff quality on the same 50-centered line the GM game uses
+      // expected weekly rate, scaled by staff quality on the same
+      // 50-centered line the GM game uses, banked toward the focus group
       const staff = coachDevFor(career);
       const staffF = 1 + ((staff - 50) / 50) * 0.35; // FEEL: mirrors dev.coachFactorAt100's slope
-      const gain = p.trainingGainBase * staffF;
-      const focus = career.weekPlan.focus;
-      const ceiling = me.potential[focus];
-      if (groupMean(me.attr, focus) < ceiling && rng.chance(clamp(gain, 0, 1))) {
-        const applied = distributeGrowth(me.attr, focus, ceiling, 1);
-        if (applied > 0) {
-          pushEvent(career, 'dev', `extra work paid: +${applied} ${focus}`, applied);
-          me.devLog.push({
-            date: { season: career.clock.year, day: career.clock.week },
-            deltas: { [focus]: applied },
-            reasons: ['extra work in the gym'],
-          });
-        }
-      }
+      accrueTraining(career, me, career.weekPlan.focus, p.trainingGainBase * staffF,
+        'extra work', 'extra work in the gym');
     } else if (slot === 'film') {
-      const ceiling = me.potential.mental;
-      if (groupMean(me.attr, 'mental') < ceiling && rng.chance(clamp(p.filmGainBase, 0, 1))) {
-        const applied = distributeGrowth(me.attr, 'mental', ceiling, 1);
-        if (applied > 0) pushEvent(career, 'dev', `film study paid: +${applied} mental`, applied);
-      }
+      accrueTraining(career, me, 'mental', p.filmGainBase, 'film study');
     } else if (slot === 'body') {
       const before = me.health.wear;
       me.health.wear = Math.max(0, Math.round((me.health.wear - p.bodyWearTrim) * 100) / 100);
@@ -114,21 +151,30 @@ export function resolveAllocation(career: CareerState): void {
   }
 }
 
-/** My post-game injury roll: the franchise hazard, energy-scaled. */
-function rollMyInjury(career: CareerState, myMinutes: number, gameId: string): void {
+/**
+ * My post-game injury roll: the franchise hazard (people/injury.ts
+ * hazardFor's exact factor forms: age, proneness, wear, each floored at
+ * 0.25), energy-scaled. Streamed per GAME ('career-injury:<gameId>'):
+ * the old (year, week) key gave both games of a doubleheader one shared
+ * draw, halving effective hazard (measured felt-loop defect). The wear
+ * term was also missing here while franchise players paid it - a career
+ * odometer now prices the same risk.
+ */
+function rollMyInjury(career: CareerState, myMinutes: number, gameId: string, playingHurt: boolean): void {
   const me = career.players[career.me] ?? career.league.players[career.me]!;
   if (me.health.injury) return; // already listed
   const inj = career.league.params.injury; // the league's calibrated hazard table
   const age = career.clock.year - me.bornSeason;
   let hazard = inj.basePer36 * (myMinutes / 36);
   if (age > 28) hazard *= 1 + inj.ageFactorPerYearOver28 * (age - 28);
-  hazard *= 1 + ((me.health.proneness - 50) / 50) * (inj.pronenessFactorAt100 - 1);
+  hazard *= Math.max(0.25, 1 + ((me.health.proneness - 50) / 50) * (inj.pronenessFactorAt100 - 1));
+  hazard *= Math.max(0.25, 1 + ((me.health.wear - 50) / 50) * (inj.wearFactorAt100 - 1));
   if (career.energy < career.params.week.energyFloorInjuryRisk) {
     hazard *= career.params.week.energyLowHazardMult; // tired bodies break (the week economy's teeth)
   }
-  if (career.nextApproach?.playingHurt) return; // playing hurt wears, it does not re-roll (wear handled at grading)
+  if (playingHurt) return; // playing hurt wears, it does not re-roll (wear handled at grading)
 
-  const rng = streamRng(career.seed, 'career-injury', career.clock.year, career.clock.week);
+  const rng = streamRng(career.seed, 'career-injury', gameId);
   if (!rng.chance(clamp(hazard, 0, 0.5))) return;
 
   // severity and time out ride the same franchise tables
@@ -180,6 +226,11 @@ export async function resolveWeek(career: CareerState, sim: SimulateJobs): Promi
 
   resolveAllocation(career);
 
+  // THE WEEK'S CARD, captured once before any sim (module header): the
+  // projection (circuitWeekJobs) reads the same nextApproach ?? approach,
+  // so what the engine simulates is exactly what every grade judges
+  const cardUsed = career.nextApproach ?? { ...career.approach };
+
   // circuit game days (engine-real, my games carry full events)
   if (career.circuit && !career.circuit.complete) {
     const jobs = circuitWeekJobs(career, career.clock.week);
@@ -194,14 +245,14 @@ export async function resolveWeek(career: CareerState, sim: SimulateJobs): Promi
         if (record.home === myTeamId || record.away === myTeamId) {
           const myLine = record.lines.find(l => l.playerId === career.me);
           const played = myLine && myLine.min > 0;
-          updateAfterGame(career, record);
+          updateAfterGame(career, record, cardUsed);
           if (played) {
             career.energy = clamp(career.energy - career.params.week.gameEnergyCost, 0, 100);
-            if (career.nextApproach?.playingHurt || me.health.injury) {
+            if (cardUsed.playingHurt || me.health.injury) {
               // gutting it out compounds the odometer through the real model
               me.health.wear += career.params.trust.playHurtWearMult * 0.5; // FEEL 0.5 base per hurt game
             }
-            rollMyInjury(career, myLine.min, record.id);
+            rollMyInjury(career, myLine.min, record.id, cardUsed.playingHurt === true);
           }
         }
       }
@@ -231,6 +282,18 @@ export async function resolveWeek(career: CareerState, sim: SimulateJobs): Promi
       career.phone.push(m);
       digest.messages.push(m.id);
     }
+  }
+
+  // THE CARD IS STICKY (module header): a dialed card becomes the
+  // standing card at week's end - it persists until changed. playingHurt
+  // is deliberately dropped: gutting it out is re-decided each week.
+  if (career.nextApproach) {
+    const n = career.nextApproach;
+    career.approach = {
+      assertiveness: n.assertiveness, range: n.range, motor: n.motor,
+      defense: n.defense, playmaking: n.playmaking,
+    };
+    career.nextApproach = null;
   }
 
   digest.events = career.events.slice(eventsBefore).map(e => e.id);
