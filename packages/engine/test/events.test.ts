@@ -26,13 +26,13 @@
  * every flow-vocabulary event type live. Re-scouted at the rules landing
  * (OT bonus threshold + last-2:00 window penalty + made-basket clock stops
  * reshuffled every stream; same re-anchor doctrine as the prior two
- * re-scouts). Scanned evstream-1..240 on the probe-live tree (W66 flip):
- *   evstream-17 — regulation; 1 DEFENSE-won and 2 OFFENSE-won mid-game
- *                 jump balls, 4 offensive fouls, 1 technical, 1 violation,
- *                 3 replay reviews.
- *   evstream-58 — reaches OVERTIME (period 5) with a tied Q4 period_end;
- *                 1 DEFENSE-won jump ball, 6 offensive fouls, 1 technical,
- *                 2 violations, 2 replay reviews.
+ * re-scouts). Scanned evstream-1..240 on the dunker-dive tree (W73 flip):
+ *   evstream-57  — regulation; 2 DEFENSE-won and 1 OFFENSE-won mid-game
+ *                  jump balls, 4 offensive fouls, 2 violations, 2 replay
+ *                  reviews.
+ *   evstream-149 — reaches OVERTIME (period 5) with a tied Q4 period_end;
+ *                  1 DEFENSE-won jump ball, 1 offensive foul, 1 technical,
+ *                  1 violation, 6 replay reviews.
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
@@ -50,7 +50,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-17', 'evstream-58'].map((seed) => {
+const pool: GameResult[] = ['evstream-57', 'evstream-149'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -911,8 +911,8 @@ describe('turnover and foul bookkeeping', () => {
       }
     }
     expect(bad).toBe(0);
-    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 10 at the probe flip
-    expect(techs).toBeGreaterThanOrEqual(1); // re-scouted 2 at the probe flip
+    expect(offensives).toBeGreaterThanOrEqual(2); // re-scouted 5 at the dive flip
+    expect(techs).toBeGreaterThanOrEqual(1); // re-scouted 1 at the dive flip
   });
 
   // events.ts:293-296 — oneAndOne "is stamped on every attempt of such a
