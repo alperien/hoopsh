@@ -17,6 +17,7 @@
  * share the stream; the offseason review consumes a breakout roll first,
  * so its draw sequence never mirrors the midseason one.
  */
+import type { FranchiseParams } from '../params.js';
 import type { Attributes } from '@hoopsh/engine';
 import type { AttrGroup, DevNote, FrPlayer, League, Season } from '../types.js';
 import { streamRng } from '../rng.js';
@@ -87,7 +88,7 @@ function coachDevQualityFor(league: League, playerId: string): number | null {
  * the group within this call so the group total survives rounding.
  * Returns the applied integer sum.
  */
-function distributeGrowth(attr: Attributes, group: AttrGroup, ceiling: number, delta: number): number {
+export function distributeGrowth(attr: Attributes, group: AttrGroup, ceiling: number, delta: number): number {
   const keys = ATTR_GROUPS[group];
   const weights: number[] = [];
   let total = 0;
@@ -140,28 +141,41 @@ function distributeDecline(attr: Attributes, group: AttrGroup, decline: number):
 }
 
 /**
- * Run a development review for every non-retired player. Called by the
- * spine twice per season (params.dev.reviewsPerSeason): at the all-star
- * break ('midseason') and at rollover ('offseason'). Mutates player
- * attributes, tend.usage, and devLog; touches nothing else.
- *
- * Growth per group = growthBase, scaled by review weight, minutes earned,
- * coach devQuality, work ethic, ceiling headroom, and the age gate, plus
- * small gaussian noise; bounded per group per review so arcs read smooth
- * (research 01 finding 1). Decline never happens here (applyAging owns it).
+ * The review math: growth per group = growthBase, scaled by review weight,
+ * minutes earned, staff devQuality, work ethic, ceiling headroom, and the
+ * age gate, plus small gaussian noise; bounded per group per review so
+ * arcs read smooth (research 01 finding 1). Decline never happens here
+ * (applyAging owns it). Mutates attributes, tend.usage, devLog only.
  */
-export function runDevelopmentReview(league: League, when: 'midseason' | 'offseason'): void {
-  const dev = league.params.dev;
-  const peaks = league.params.aging.peakAge;
+/**
+ * Context for one player's development review, decoupled from League so
+ * the career mode can develop circuit players (its own root seed, its own
+ * staff quality) through the exact same curves. Extracted additively from
+ * runDevelopmentReview; the loop below delegates here and the math is
+ * unchanged (the franchise autosim determinism test pins it).
+ */
+export interface DevReviewCtx {
+  seed: string;
+  season: Season;
+  day: number;
+  when: 'midseason' | 'offseason';
+  /** staff development quality 0-100; null = no staff (neutral 1.0) */
+  coachDev: number | null;
+  dev: FranchiseParams['dev'];
+  aging: FranchiseParams['aging'];
+}
+
+/** One player's review: mutates attr, tend.usage, devLog. Draw order fixed. */
+export function reviewPlayerDevelopment(player: FrPlayer, ctx: DevReviewCtx): void {
+  const dev = ctx.dev;
+  const peaks = ctx.aging.peakAge;
+  const when = ctx.when;
   // The offseason program is where structural gains land; the midseason
   // review is a practice-time checkpoint worth 40% of one. FEEL 0.40.
   const reviewScale = when === 'offseason' ? 1 : 0.40;
-
-  for (const id of Object.keys(league.players).sort()) {
-    const player = league.players[id]!;
-    if (player.status === 'retired') continue;
-    const rng = streamRng(league.seed, 'dev', league.season, id);
-    const age = league.season - player.bornSeason;
+  {
+    const rng = streamRng(ctx.seed, 'dev', ctx.season, player.id);
+    const age = ctx.season - player.bornSeason;
 
     // Breakout roll: drawn at EVERY offseason review (and only honored for
     // players 24 and under, FEEL: the leap window; past it a summer
@@ -175,14 +189,14 @@ export function runDevelopmentReview(league: League, when: 'midseason' | 'offsea
 
     // Minutes teach: linear from minutesFactorFloor at zero minutes to
     // minutesFactorCeil at a full starter workload (params.dev.minutesForCeil).
-    const totals = regularSeasonTotals(player, league.season);
+    const totals = regularSeasonTotals(player, ctx.season);
     const minutesF = dev.minutesFactorFloor
       + (dev.minutesFactorCeil - dev.minutesFactorFloor) * Math.min(1, totals.min / dev.minutesForCeil);
 
     // Staff quality: the line runs through 1.0 at a league-average staff
     // (rating 50) up to coachFactorAt100; below-average staffs land under
     // 1.0 on the same line. Free agents have no staff: neutral 1.0.
-    const devQ = coachDevQualityFor(league, id);
+    const devQ = ctx.coachDev;
     const coachF = devQ === null ? 1 : 1 + ((devQ - 50) / 50) * (dev.coachFactorAt100 - 1);
     // Work ethic on the same 50-centered line up to ethicFactorAt100.
     const ethicF = 1 + ((player.workEthic - 50) / 50) * (dev.ethicFactorAt100 - 1);
@@ -245,7 +259,7 @@ export function runDevelopmentReview(league: League, when: 'midseason' | 'offsea
     }
     // fresh date object per note: the log is persisted career state and
     // must never share mutable structure across players
-    const note: DevNote = { date: { season: league.season, day: league.day }, deltas, reasons };
+    const note: DevNote = { date: { season: ctx.season, day: ctx.day }, deltas, reasons };
     player.devLog.push(note);
 
     // Earning shots follows earning skill: a player visibly leveling up in
@@ -258,6 +272,27 @@ export function runDevelopmentReview(league: League, when: 'midseason' | 'offsea
     if (skillGain >= 3 && groupMean(player.attr, 'scoring') >= 60) {
       player.tend.usage = clamp(Math.round(player.tend.usage + 1), 0, 100);
     }
+  }
+}
+
+/**
+ * Run a development review for every non-retired player (the spine calls
+ * this twice per season). Delegates per player to reviewPlayerDevelopment;
+ * behavior and draw order are unchanged by the extraction.
+ */
+export function runDevelopmentReview(league: League, when: 'midseason' | 'offseason'): void {
+  for (const id of Object.keys(league.players).sort()) {
+    const player = league.players[id]!;
+    if (player.status === 'retired') continue;
+    reviewPlayerDevelopment(player, {
+      seed: league.seed,
+      season: league.season,
+      day: league.day,
+      when,
+      coachDev: coachDevQualityFor(league, id),
+      dev: league.params.dev,
+      aging: league.params.aging,
+    });
   }
 }
 

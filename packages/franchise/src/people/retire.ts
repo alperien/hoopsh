@@ -108,6 +108,12 @@ export function runRetirements(league: League): string[] {
   for (const id of Object.keys(league.players).sort()) {
     const player = league.players[id]!;
     if (player.status === 'retired') continue;
+    // the career seam: a human-run career CHOOSES retirement, the hazard
+    // never imposes it (League.careerControlled; docs/CAREER.md pillar 1).
+    // Skipping also skips his draw, which shifts later draws on this
+    // shared stream: fine, the controlled set is stable within a save and
+    // empty on GM saves (draw order there is untouched).
+    if (league.careerControlled?.includes(id)) continue;
     const age = league.season - player.bornSeason;
     if (age < league.params.retire.minLeagueAge) continue; // no draw spent on the young
     const h = retireHazardFor(league.params, {

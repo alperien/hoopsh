@@ -37,6 +37,34 @@
  *   POST /api/sim/advance          -> { days?: number; toDate?: LeagueDate; stopOnInbox?: boolean }; { started: true }
  *   GET  /api/sim/status           -> SimStatus (poll during advance)
  *   POST /api/sim/watch/:gameId    -> { ok: true } (mark today's user game for full-event watch mode)
+ *
+ * CAREER ROUTES (the second chair; docs/CAREER.md). While a career is
+ * loaded, its NBA world mounts as the current league, so every read
+ * route above works against it; the franchise time controls
+ * (/api/sim/advance, /api/action, /api/new) return 409 because career
+ * time moves only through /api/career/advance.
+ *
+ *   POST /api/career/new           -> body NewCareerBody; { ok: true }
+ *   POST /api/career/load          -> { name: string }; { ok: true }
+ *   POST /api/career/save          -> { name?: string }; { ok: true; name }
+ *   GET  /api/career/summary       -> the dashboard payload (careerSummary)
+ *   GET  /api/career/me            -> my true sheet (ceilings stay hidden)
+ *   GET  /api/career/plan          -> tonight's plan, dials, grades ledger
+ *   GET  /api/career/circuit       -> standings, schedule, bracket, history
+ *   GET  /api/career/phone         -> { messages } newest first
+ *   GET  /api/career/recruiting    -> programs + interest ladder + offers
+ *   GET  /api/career/stock         -> rank, history, boards, invites
+ *   GET  /api/career/offers        -> { offers } (route offers / FA market view)
+ *   GET  /api/career/ledger        -> { entries, earnings }
+ *   GET  /api/career/events?page=  -> { items, hasMore } (the explained record)
+ *   GET  /api/career/epilogue      -> epilogue view or 404 before retirement
+ *   GET  /api/career/game/:id      -> circuit game center (box, grade, names)
+ *   GET  /api/career/game/:id/replay    -> replay JSON or 404
+ *   GET  /api/career/game/:id/broadcast -> { cues } or 404
+ *   GET  /api/career/game/:id/viewer    -> baked 2D viewer HTML or 404
+ *   POST /api/career/choice        -> { choice: CareerChoice }; ChoiceResult
+ *   POST /api/career/advance       -> { weeks?: number; stopOnDecision?: boolean }; { started: true }
+ *   GET  /api/career/sim/status    -> CareerSimStatus (poll during advance)
  */
 import type {
   CapSheet, DayDigest, DraftPick, GameLine, InboxItem, LeagueDate, NewsItem,
@@ -46,6 +74,23 @@ import type {
 export interface SaveSummary { name: string; savedAtDay: LeagueDate; userTeam: string; seasonLabel: string; }
 
 export interface NewLeagueBody { seed?: string; userTeam: string; name: string; startSeason?: number; }
+
+/** POST /api/career/new body; spec matches @hoopsh/career CreationSpec. */
+export interface NewCareerBody {
+  seed?: string;
+  name: string;          // save name
+  spec: object;          // CreationSpec (career package owns the shape)
+}
+
+export interface CareerSimStatus {
+  running: boolean;
+  clock: { phase: string; year: number; week: number };
+  weeksDone: number;
+  weeksTotal: number;
+  /** week digests completed this run (capped) */
+  digests: object[];
+  stoppedFor: 'decision' | 'target' | 'phase' | 'gameNight' | null;
+}
 
 /** The office screen: everything the day view needs in one call. */
 export interface Summary {

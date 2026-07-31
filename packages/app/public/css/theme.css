@@ -247,3 +247,41 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .empty { color: var(--ink-faint); font-size: 13px; padding: 18px 0; }
 .mono { font-family: var(--mono); }
 .money { font-variant-numeric: tabular-nums; }
+
+/* ---------- the second chair: career shell (additive) ----------
+ * Same document register: the career masthead reads like a training
+ * log line, not a HUD. The phone screens own their own .phone-*
+ * classes (screens/career/); only shared primitives live here. */
+
+/* the energy bar: a thin factual meter in the masthead */
+#mh-energy { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-soft); }
+#mh-energy[hidden] { display: none; }
+#mh-energy b { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink); }
+.energy-bar {
+  display: inline-block; width: 90px; height: 5px;
+  background: var(--rule); border-radius: 2px; overflow: hidden;
+}
+.energy-bar i { display: block; height: 100%; background: var(--good); }
+.energy-bar.low i { background: var(--bad); }
+
+/* save rows carry their chair */
+.badge-kind {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid var(--rule-strong); color: var(--ink-soft);
+  padding: 1px 6px; border-radius: 2px; white-space: nowrap;
+}
+.badge-kind.career { border-color: var(--league); color: var(--league); }
+
+/* the first-run fork: two chairs, two doors */
+.fork { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; max-width: 860px; }
+@media (max-width: 720px) { .fork { grid-template-columns: 1fr; } }
+.fork .choice { cursor: pointer; padding: 26px 24px; }
+.fork .choice:hover { border-color: var(--accent); }
+.fork .choice h2 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em; }
+.fork .choice p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+/* dials: range inputs opt out of the text-input frame */
+input[type="range"] {
+  border: none; padding: 0; background: transparent;
+  min-width: 120px; accent-color: var(--accent);
+}

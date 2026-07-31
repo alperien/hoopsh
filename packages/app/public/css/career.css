@@ -1,0 +1,178 @@
+/*
+ * career.css - the career chair's register, layered over theme.css.
+ * Same broadsheet language as the desk; three career-native shapes on
+ * top: the phone (chat bubbles, the one intimate surface), the week
+ * (tactile slot rows and meters), and the plan dials (a band on a
+ * track: the coach's latitude versus your intent, readable at a
+ * glance). Loaded by js/screens/career/index.js; theme.css stays
+ * untouched.
+ */
+
+/* ---------- meters: energy, trust ---------- */
+.meter { display: flex; align-items: center; gap: 10px; }
+.meter .track { flex: 1; height: 8px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+.meter .fill { height: 100%; background: var(--accent); }
+.meter .fill.ok { background: var(--good); }
+.meter .fill.low { background: var(--warn); }
+.meter .fill.bad { background: var(--bad); }
+.meter .val { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 30px; text-align: right; font-size: 13px; }
+
+/* ---------- the week planner ---------- */
+.slot-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.slot-row .slot-tag { width: 58px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: right; }
+.slot-row select { min-width: 150px; }
+.slot-row .fixed { font-size: 13px; color: var(--ink-soft); border: 1px dashed var(--rule-strong); border-radius: 3px; padding: 6px 8px; min-width: 150px; }
+.slot-row .why { font-size: 11.5px; color: var(--ink-faint); }
+
+/* ---------- event feed / journey ---------- */
+.kind-chip {
+  display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-soft); border: 1px solid var(--rule-strong);
+  border-radius: 2px; padding: 0 5px; margin-right: 8px; vertical-align: 1px;
+}
+.kind-chip[data-kind="injury"] { color: var(--bad); border-color: var(--bad); }
+.kind-chip[data-kind="money"] { color: var(--good); border-color: var(--good); }
+.kind-chip[data-kind="honor"] { color: var(--warn); border-color: var(--warn); }
+.kind-chip[data-kind="phase"] { color: var(--league); border-color: var(--league); }
+.kind-chip[data-kind="role"] { color: var(--warn); border-color: var(--rule-strong); }
+.kind-chip[data-kind="trust"] { color: var(--accent); border-color: var(--rule-strong); }
+.evt { padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+.evt .stamp { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-right: 8px; }
+.evt .delta { font-variant-numeric: tabular-nums; margin-left: 6px; }
+
+/* ---------- the phone ---------- */
+.ph-thread { margin-bottom: 20px; }
+.ph-thread-head {
+  font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule-strong); padding-bottom: 3px; margin-bottom: 2px;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.ph-thread-head .count { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); text-transform: none; letter-spacing: 0; }
+.ph-msg {
+  max-width: 62ch; background: var(--paper-raised); border: 1px solid var(--rule);
+  border-radius: 8px 8px 8px 2px; padding: 8px 12px; margin: 8px 0;
+}
+.ph-msg.ph-need { border-left: 3px solid var(--warn); }
+.ph-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--ink-faint); }
+.ph-meta .from { font-weight: 700; color: var(--ink-soft); }
+.ph-body { font-size: 13.5px; margin: 3px 0 0; }
+.ph-choices { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.ph-deadline { font-size: 11px; color: var(--warn); margin-top: 6px; }
+.ph-you { max-width: 62ch; text-align: right; font-size: 12.5px; color: var(--ink-faint); font-style: italic; margin: -2px 0 10px; }
+
+/* ---------- the plan dials ---------- */
+.dial-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.dial-row .dial-name { width: 104px; font-size: 12.5px; color: var(--ink-soft); }
+.dial-row .dial-val { width: 30px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; }
+.dial-row .dial-range-label { width: 56px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: right; }
+.dial-wrap { position: relative; flex: 1; height: 24px; }
+.dial-track { position: absolute; left: 0; right: 0; top: 10px; height: 4px; background: var(--rule); border-radius: 2px; }
+.dial-band { position: absolute; top: 7px; height: 10px; background: rgba(18, 53, 91, 0.14); background: color-mix(in srgb, var(--accent) 18%, transparent); border: 1px solid var(--accent); border-radius: 3px; }
+input[type="range"].dial {
+  position: absolute; left: 0; top: 0; width: 100%; height: 24px; margin: 0; padding: 0;
+  min-width: 0; -webkit-appearance: none; appearance: none; background: transparent; border: none;
+}
+input[type="range"].dial:focus { outline: none; }
+input[type="range"].dial::-webkit-slider-runnable-track { background: transparent; height: 24px; }
+input[type="range"].dial::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; margin-top: 5px; border-radius: 50%;
+  background: var(--ink); border: 2px solid var(--paper-raised); box-shadow: 0 0 0 1px var(--ink); cursor: pointer;
+}
+input[type="range"].dial::-moz-range-track { background: transparent; height: 24px; }
+input[type="range"].dial::-moz-range-thumb {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--ink); border: 2px solid var(--paper-raised); box-shadow: 0 0 0 1px var(--ink); cursor: pointer;
+}
+.deviation-line { font-size: 13px; margin: 10px 0 4px; }
+.deviation-line b { font-variant-numeric: tabular-nums; }
+.deviation-line.hot { color: var(--bad); }
+.deviation-line.warm { color: var(--warn); }
+
+/* green light */
+.gl-chip {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--good); border: 1px solid var(--good); border-radius: 2px; padding: 1px 6px;
+}
+
+/* ---------- recruiting ---------- */
+.rungs { display: inline-flex; gap: 4px; align-items: center; }
+.rung { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--rule-strong); background: var(--paper); }
+.rung.on { background: var(--accent); border-color: var(--accent); }
+.rung-word { font-size: 11px; color: var(--ink-soft); margin-left: 6px; }
+.offer-card { background: var(--paper-raised); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 3px; padding: 10px 14px; margin-bottom: 8px; }
+.offer-card .terms { font-size: 12.5px; color: var(--ink-soft); margin: 2px 0 8px; }
+.commit-banner {
+  background: var(--paper-raised); border: 1px solid var(--good); border-left: 4px solid var(--good);
+  border-radius: 3px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px;
+}
+tr.closed-row td { color: var(--ink-faint); }
+tr.closed-row td:first-child { text-decoration: line-through; }
+
+/* ---------- tables: my row ---------- */
+table.grid tr.my-row td { background: #eef1e9; background: color-mix(in srgb, var(--accent) 8%, var(--paper-raised)); font-weight: 600; }
+table.grid tr.my-row td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* schedule strips */
+.sched-row { display: flex; align-items: baseline; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+.sched-row .wk { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); width: 36px; }
+.sched-row .score { font-variant-numeric: tabular-nums; }
+.sched-row.mine { font-weight: 600; }
+.sched-row .round { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 0 4px; }
+
+/* history cards */
+.hist-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.hist-card { background: var(--paper-raised); border: 1px solid var(--rule); border-radius: 3px; padding: 10px 12px; }
+.hist-card .hc-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-soft); }
+.hist-card .hc-team { font-size: 14.5px; font-weight: 700; margin: 2px 0; }
+.hist-card .hc-line { font-size: 12.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.hist-card .hc-honors { font-size: 12px; color: var(--warn); margin-top: 4px; }
+
+/* ---------- stock ---------- */
+.stock-head { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.stock-move { padding: 5px 0; border-bottom: 1px solid var(--rule); font-size: 13px; display: flex; gap: 10px; align-items: baseline; }
+.stock-move .rk { font-family: var(--mono); font-size: 12px; width: 44px; font-variant-numeric: tabular-nums; }
+
+/* ---------- creation ---------- */
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin: 6px 0 2px; }
+.pick-card {
+  background: var(--paper-raised); border: 1px solid var(--rule-strong); border-radius: 3px;
+  padding: 8px 11px; cursor: pointer; font-size: 12.5px; color: var(--ink-soft);
+}
+.pick-card b { display: block; color: var(--ink); font-size: 13px; margin-bottom: 1px; }
+.pick-card:hover { border-color: var(--ink-faint); }
+.pick-card.on { border: 2px solid var(--accent); padding: 7px 10px; color: var(--ink-soft); }
+.pick-card.off { opacity: 0.45; cursor: default; }
+.budget-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+.budget-row .bg-name { width: 96px; font-size: 12.5px; color: var(--ink-soft); }
+.budget-row .bg-level { width: 52px; font-family: var(--mono); font-size: 12px; text-align: right; }
+.budget-row button.step { padding: 2px 8px; font-size: 13px; background: transparent; color: var(--ink-soft); border: 1px solid var(--rule-strong); font-family: var(--mono); }
+.budget-row button.step:hover { color: var(--ink); border-color: var(--ink-faint); filter: none; }
+.budget-row .bg-alloc { width: 30px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+.budget-remaining { font-size: 13px; margin: 8px 0; }
+.budget-remaining b { font-variant-numeric: tabular-nums; }
+.budget-remaining.bad { color: var(--bad); }
+.form-errors { border-left: 3px solid var(--bad); background: var(--paper-raised); padding: 8px 12px; margin: 12px 0; }
+.form-errors div { color: var(--bad); font-size: 13px; }
+.slider-line { display: flex; align-items: center; gap: 12px; }
+.slider-line input[type="range"] { min-width: 0; flex: 1; padding: 0; }
+.slider-line .readout { font-family: var(--mono); font-size: 12.5px; width: 74px; text-align: right; }
+
+/* ---------- epilogue ---------- */
+.epilogue-card { background: var(--paper-raised); border: 1px solid var(--rule-strong); border-top: 4px solid var(--league); border-radius: 3px; padding: 16px 18px; }
+.epilogue-card .ep-head { font-size: 20px; font-weight: 800; margin-bottom: 2px; }
+.epilogue-card .ep-line { font-size: 13px; color: var(--ink-soft); margin: 3px 0; }
+.epilogue-card .ep-honors { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.epilogue-banner {
+  background: var(--paper-raised); border: 1px solid var(--league); border-left: 4px solid var(--league);
+  border-radius: 3px; padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px;
+}
+
+/* grade card on the game center (dark register) */
+.broadcast .grade-card { background: #14171d; border: 1px solid #232833; border-radius: 4px; padding: 10px 14px; margin-top: 12px; font-size: 13px; }
+.broadcast .grade-card .gc-nums { display: flex; gap: 18px; font-variant-numeric: tabular-nums; margin: 4px 0; }
+.broadcast .grade-card .gc-note { color: #aeb6c2; font-style: italic; }
+.broadcast table.grid, .broadcast table.grid th { background: #14171d; color: #eef0f4; }
+.broadcast table.grid th { border-bottom-color: #3a4252; position: static; }
+.broadcast table.grid td { border-bottom-color: #232833; }
+.broadcast table.grid caption { color: #7f8794; }
+.broadcast .totals-line { font-size: 12px; color: #aeb6c2; font-variant-numeric: tabular-nums; margin: 4px 0 10px; }
