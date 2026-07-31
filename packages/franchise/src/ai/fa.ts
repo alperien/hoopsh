@@ -395,6 +395,9 @@ export function runAiOffseasonDecisions(league: League): Transaction[] {
         (y) => y.season === target && (y.teamOption === true || y.playerOption === true),
       );
       if (!year) continue;
+      // a career-controlled player answers his own player option (the
+      // career bridge surfaces the decision); team options stay the club's
+      if (year.playerOption === true && league.careerControlled?.includes(pid)) continue;
       const worth = fairAav(league, player);
       const isTeam = year.teamOption === true;
       // a team keeps a year priced at/under its read; a player opts in when

@@ -357,13 +357,14 @@ function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
     return undefined;
   }
 
-  if (phase === 'euro' || phase === 'nbl') {
+  if ((phase === 'euro' || phase === 'nbl') && career.nbaTeam === null && !career.epilogue) {
+    // the showcase route only: a descent veteran abroad is not a prospect
     career.clock.phase = 'draftPrep';
     pushEvent(career, 'phase', 'the showcase year is over; automatically eligible. The pre-draft window opens');
     return 'draftPrep';
   }
 
-  if (phase === 'china' && age >= 40) {
+  if ((phase === 'china' || phase === 'euro' || phase === 'nbl') && age >= 40) {
     career.clock.phase = 'retired';
     career.epilogue = buildEpilogue(career);
     pushEvent(career, 'phase', 'the body decided at forty: retired');

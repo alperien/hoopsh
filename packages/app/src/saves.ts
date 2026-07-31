@@ -68,7 +68,13 @@ export function loadCareer(name: string): CareerState {
   if (save.formatVersion !== CAREER_SAVE_FORMAT_VERSION) {
     throw new Error(`career save format ${save.formatVersion} is not supported (current ${CAREER_SAVE_FORMAT_VERSION})`);
   }
-  return save.career;
+  const career = save.career;
+  // an abroad phase holds ME in both maps as ONE object; JSON forked it
+  // into two copies, so the load rebinds them (the nbabridge hazard note)
+  if (career.players[career.me] && career.league.players[career.me]) {
+    career.players[career.me] = career.league.players[career.me]!;
+  }
+  return career;
 }
 
 export interface SaveRow {
