@@ -1,7 +1,7 @@
 {
   "name": "@hoopsh/data",
-  "version": "0.1.0",
-  "description": "Player/team schemas, validation, and sample fictional data packs for hoopsh. TypeScript source, no build — see docs/EMBEDDING.md.",
+  "version": "0.2.0",
+  "description": "Player/team schemas, validation, and sample fictional data packs for hoopsh. TypeScript source, no build \u2014 see docs/EMBEDDING.md.",
   "type": "module",
   "license": "MIT",
   "repository": {
