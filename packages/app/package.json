@@ -1,0 +1,22 @@
+{
+  "name": "@hoopsh/app",
+  "version": "0.1.0",
+  "description": "The hoopsh GM game app: local web server, worker-pool game execution, saves, and the browser UI. All I/O for @hoopsh/franchise lives here — see docs/FRANCHISE.md.",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alperien/hoopsh.git",
+    "directory": "packages/app"
+  },
+  "keywords": ["basketball", "simulation", "franchise", "gm", "game"],
+  "engines": { "node": ">=24" },
+  "main": "src/main.ts",
+  "dependencies": {
+    "@hoopsh/engine": "*",
+    "@hoopsh/data": "*",
+    "@hoopsh/stats": "*",
+    "@hoopsh/narration": "*",
+    "@hoopsh/franchise": "*"
+  }
+}
