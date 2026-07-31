@@ -352,6 +352,25 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     json(res, 200, { cues });
     return true;
   }
+  const viewerMatch = p.match(/^\/api\/game\/([\w@.-]+)\/viewer$/);
+  if (viewerMatch && req.method === 'GET') {
+    // bake the frozen 2D viewer around this game's replay, in memory,
+    // exactly the way packages/viewer/embed.mjs does on disk
+    const record = league.results[viewerMatch[1]!];
+    if (!record?.replayFile || !existsSync(record.replayFile)) {
+      json(res, 404, { error: 'no replay kept for that game' });
+      return true;
+    }
+    const template = readFileSync(path.join(HERE, '..', '..', 'viewer', 'index.html'), 'utf8');
+    const MARK = '/*HOOPSH_REPLAY*/null'; // the viewer template's bake marker (embed.mjs)
+    const replayJson = readFileSync(record.replayFile, 'utf8').replace(/</g, '\\u003c');
+    const idx = template.indexOf(MARK);
+    if (idx < 0) { json(res, 500, { error: 'viewer template is missing the bake marker' }); return true; }
+    const html = template.slice(0, idx) + replayJson + template.slice(idx + MARK.length);
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(html);
+    return true;
+  }
   const watchMatch = p.match(/^\/api\/sim\/watch\/([\w@.-]+)$/);
   if (watchMatch && req.method === 'POST') {
     // v1: the spine already keeps events for the user's games; this

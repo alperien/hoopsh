@@ -276,7 +276,10 @@ function processDraft(league: League, order: ReturnType<typeof draftOrder>): boo
     const slot = order[made]!;
     const board = availableProspects(league);
     if (board.length === 0) break;
-    if (slot.teamId === league.userTeam) {
+    // pause only for a HUMAN chair: gm === null means the user runs this
+    // team; an autosim that installs a persona in the user seat drafts
+    // straight through (the acceptance harness does exactly that)
+    if (slot.teamId === league.userTeam && league.teams[slot.teamId]!.gm === null) {
       pushInbox(league, {
         id: draftPauseId(league.season, made + 1),
         date: currentDate(league),
@@ -287,6 +290,15 @@ function processDraft(league: League, order: ReturnType<typeof draftOrder>): boo
         resolved: false,
       });
       return false;
+    }
+    const team = league.teams[slot.teamId]!;
+    if (team.roster.length >= league.params.cba.rosterMax) {
+      // the draft-night squeeze: a full fifteen cannot sign the pick, so
+      // the front office cuts its weakest body first (real teams waive
+      // camp deals on draft night for exactly this reason)
+      const weakest = [...team.roster]
+        .sort((a, b) => abilityScore(league.players[a]!) - abilityScore(league.players[b]!))[0]!;
+      executeWaive(league, slot.teamId, weakest, false);
     }
     const chosen = aiSelect(league, slot.teamId, board);
     executeDraftSelection(league, slot.teamId, chosen, slot.round, slot.pickInRound);
@@ -302,6 +314,50 @@ function processDraft(league: League, order: ReturnType<typeof draftOrder>): boo
   league.draftClass = [];
   league.phase = 'moratorium';
   return true;
+}
+
+/**
+ * July 1 in contract terms: shed every contract year through `ended` and
+ * send players whose deals ran out to the market, incumbents holding
+ * simplified Bird rights (3+ bird years = 'bird', 2 = 'earlyBird', else
+ * 'nonBird'; cap hold at a flat 150% of last salary clamped by the max;
+ * expiring rookie scale = restricted, with the QO priced immediately).
+ * Called at the LOTTERY transition so the class hits its own July market
+ * (a season's free agents shopping a year late was a measured defect),
+ * and again from the rollover as an idempotent backstop: the second pass
+ * finds the years already shed and releases nobody twice.
+ */
+function releaseExpiredContracts(league: League, ended: Season): void {
+  for (const pid of Object.keys(league.players)) {
+    const p = league.players[pid]!;
+    const c = p.contract;
+    if (!c || p.status === 'retired') continue;
+    const shed = c.years.filter((y) => y.season <= ended);
+    c.years = c.years.filter((y) => y.season > ended);
+    if (c.years.length > 0) continue;
+    if (shed.length === 0) continue; // backstop pass: already released
+    // expired: to the market, incumbent holding rights
+    const lastSalary = shed[shed.length - 1]!.salary;
+    // Bird continuity simplified to signing tenure + seasons served under
+    // this deal (a midseason trade preserving Bird years is folded in by
+    // assuming continuity; register-style simplification).
+    const birdYears = c.birdYearsAtSigning + (ended - c.signedOn.season + 1);
+    const tier = birdYears >= 3 ? 'bird' : birdYears === 2 ? 'earlyBird' : 'nonBird';
+    const restricted = c.kind === 'rookieScale'; // expiring rookie scale = restricted FA (REAL)
+    const capHold = Math.min(Math.round(lastSalary * CAP_HOLD_MULT), maxSalaryFor(league, p));
+    p.contract = null;
+    p.status = 'freeAgent';
+    p.rights = {
+      teamId: c.teamId, tier, capHold, restricted,
+      ...(restricted ? { qualifyingOffer: qualifyingOfferFor(league, pid) } : {}),
+    };
+    const team = league.teams[c.teamId];
+    if (team) {
+      team.roster = team.roster.filter((id) => id !== pid);
+      team.twoWay = team.twoWay.filter((id) => id !== pid);
+    }
+    if (!league.freeAgents.includes(pid)) league.freeAgents.push(pid);
+  }
 }
 
 /**
@@ -323,35 +379,7 @@ function rolloverSeason(league: League, digest: DayDigest): void {
   runDevelopmentReview(league, 'offseason');
   for (const id of runRetirements(league)) executeRetirement(league, id, currentDate(league));
 
-  for (const pid of Object.keys(league.players)) {
-    const p = league.players[pid]!;
-    const c = p.contract;
-    if (!c || p.status === 'retired') continue;
-    const shed = c.years.filter((y) => y.season <= ended);
-    c.years = c.years.filter((y) => y.season > ended);
-    if (c.years.length > 0) continue;
-    // expired: to the market, incumbent holding rights
-    const lastSalary = shed.length > 0 ? shed[shed.length - 1]!.salary : 0;
-    // Bird continuity simplified to signing tenure + seasons served under
-    // this deal (a midseason trade preserving Bird years is folded in by
-    // assuming continuity; register-style simplification).
-    const birdYears = c.birdYearsAtSigning + (ended - c.signedOn.season + 1);
-    const tier = birdYears >= 3 ? 'bird' : birdYears === 2 ? 'earlyBird' : 'nonBird';
-    const restricted = c.kind === 'rookieScale'; // expiring rookie scale = restricted FA (REAL)
-    const capHold = Math.min(Math.round(lastSalary * CAP_HOLD_MULT), maxSalaryFor(league, p));
-    p.contract = null;
-    p.status = 'freeAgent';
-    p.rights = {
-      teamId: c.teamId, tier, capHold, restricted,
-      ...(restricted ? { qualifyingOffer: qualifyingOfferFor(league, pid) } : {}),
-    };
-    const team = league.teams[c.teamId];
-    if (team) {
-      team.roster = team.roster.filter((id) => id !== pid);
-      team.twoWay = team.twoWay.filter((id) => id !== pid);
-    }
-    if (!league.freeAgents.includes(pid)) league.freeAgents.push(pid);
-  }
+  releaseExpiredContracts(league, ended); // backstop; the lottery transition did the real release
 
   // two-way game counters are a per-season allowance
   for (const pid of Object.keys(league.players)) {
@@ -381,6 +409,21 @@ function rolloverSeason(league: League, digest: DayDigest): void {
       const exercised = year.teamOption === true ? year.salary <= value : year.salary >= value;
       executeOptionDecision(league, tid, pid, year.teamOption === true ? 'team' : 'player', exercised);
     }
+  }
+
+  // the archive was written at the finals horn, BEFORE that season's
+  // lottery and draft happened: stamp both into the closing season's book
+  // now, so the almanac shows the order and the class the cycle produced
+  const closingArchive = league.archives.find((a) => a.season === league.season);
+  if (closingArchive) {
+    if (league.lottery) closingArchive.lottery = league.lottery;
+    closingArchive.draftClass = league.transactions
+      .filter((tx) => tx.kind === 'draftSelection' && tx.date.season === league.season)
+      .map((tx) => (tx.kind === 'draftSelection'
+        ? { pick: tx.pick, round: tx.round, teamId: tx.teamId, playerId: tx.playerId }
+        : null))
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => a.round - b.round || a.pick - b.pick);
   }
 
   league.season = next;
@@ -877,6 +920,11 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
       // lines (cba/contracts.ts signingSeason). Roll them now; the call is
       // idempotent so the rollover backstop stays safe.
       rollCapLines(league, league.season + 1);
+      // ...and the league year turns in CONTRACT terms too: deals whose
+      // last season just ended release NOW, so this class shops in its
+      // own July instead of a year late (a measured defect, Boardman's
+      // out-of-scope finding during the build wave)
+      releaseExpiredContracts(league, league.season);
       const prospects = generateDraftClass(league, league.season);
       for (const p of prospects) {
         if (!league.players[p.id]) league.players[p.id] = p;
