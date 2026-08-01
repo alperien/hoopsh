@@ -209,6 +209,22 @@ export function explainIssue(pack, issue) {
     out.fix = 'list the opening five, e.g. your first five players[].id values';
     return out;
   }
+  // A dead rotationMinutes key is a load-time rejection (issue #60: the #39
+  // self-play rig lost 85% of its games to a dead rotation map — the engine
+  // skips a key it can't match without any error, so the target silently
+  // never applies). Until #60 this class was computeWarnings'
+  // rotation-unknown-id plausibility warning; the did-you-mean suggestion
+  // carries over from it.
+  if (p.startsWith('$.team.rotationMinutes.') && m.includes('matches no player id')) {
+    const bad = m.match(/^rotationMinutes key (.+) matches no player id$/)?.[1];
+    const rosterIds = (pack?.team?.players ?? []).map((pl) => pl?.id).filter(Boolean);
+    const guess = bad ? closest(bad, rosterIds) : null;
+    out.legal = `one of: ${rosterIds.join(', ')}`;
+    out.fix = guess
+      ? `did you mean "${guess}"?`
+      : 'fix the id or remove the entry (players without a target sub on fatigue alone)';
+    return out;
+  }
   if (p.startsWith('$.team.rotationMinutes')) {
     out.legal = 'finite minutes >= 0 per player id';
     out.fix = 'e.g. "rotationMinutes": { "your-star-id": 36 } — or delete the field to sub on fatigue alone';
@@ -358,16 +374,12 @@ export function computeWarnings(pack) {
       'nobody wants the offense — possessions will be aimless swings; give somebody the keys (usage 60-80)');
   }
 
-  // rotationMinutes sanity (only when the author opted into targets)
+  // rotationMinutes sanity (only when the author opted into targets). Keys
+  // matching no player id are NOT warned here anymore: since issue #60 a
+  // dead key is a validateTeamPack rejection, and warnings only run on
+  // valid packs — the did-you-mean suggestion lives in explainIssue now.
   if (team.rotationMinutes) {
-    const ids = new Set(team.players.map((pl) => pl.id));
     for (const [rid, mins] of Object.entries(team.rotationMinutes)) {
-      if (!ids.has(rid)) {
-        const guess = closest(rid, [...ids]);
-        warn('rotation-unknown-id', `rotationMinutes.${rid}`,
-          'no such player id — the engine silently ignores it',
-          guess ? `did you mean "${guess}"?` : 'remove it or fix the id');
-      }
       if (mins > 48) {
         warn('rotation-implausible', `rotationMinutes.${rid}`, `${mins} minutes`,
           'regulation is 48 minutes — a target above that is unreachable and pins the player to the floor all game');
