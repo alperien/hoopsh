@@ -14,8 +14,10 @@
  *                  midseason development review at the all-star mark
  *   postseason     advancePostseason schedules the bracket's next games
  *   transitions    calendar marks and real outcomes move league.phase;
- *                  draft night can PAUSE the day on the user's pick
- *   rollover       the last free-agency day closes the season
+ *                  draft night can PAUSE the day on the user's pick; a
+ *                  second desk pass prints the night's picks (#118)
+ *   rollover       the last free-agency day closes the season; a second
+ *                  desk pass prints the retirements it logs (#118)
  *
  * Determinism: a league is a pure function of (seed, action log). advanceDay
  * reads only league state, draws randomness only through registered
@@ -384,6 +386,11 @@ function rolloverSeason(league: League, digest: DayDigest): void {
   applyAging(league);
   runDevelopmentReview(league, 'offseason');
   for (const id of runRetirements(league)) executeRetirement(league, id, currentDate(league));
+  // retirements land AFTER the day's pulse: a second desk pass prints the
+  // retrospectives the day they happen, idempotent by story id (#118).
+  // Must precede the season/day reset below; the desk dates and dedups
+  // from league.season/league.day.
+  appendNews(league, writeDailyNews(league));
 
   releaseExpiredContracts(league, ended); // backstop; the lottery transition did the real release
 
@@ -830,6 +837,11 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
     && league.inbox.some((i) => i.id.startsWith(draftPausePrefix(league.season)))
   ) {
     const done = processDraft(league, draftOrder(league));
+    // the paused day's pulse ran before the war room did: a second desk
+    // pass prints the picks just made, or they never print at all (#118).
+    // Deterministic per-day story ids keep the repeat idempotent under
+    // appendNews's guard.
+    appendNews(league, writeDailyNews(league));
     if (done) league.day += 1;
     return finish();
   }
@@ -952,6 +964,10 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
     }
   } else if (league.phase === 'draft' && draftIdx >= 0 && league.day >= draftIdx) {
     const done = processDraft(league, draftOrder(league));
+    // draft-night selections (and any roster-squeeze waives) land AFTER
+    // today's pulse: a second desk pass prints them the night they happen,
+    // idempotent by story id (#118)
+    appendNews(league, writeDailyNews(league));
     if (!done) return finish(); // the user is on the clock: the day holds
   } else if (league.phase === 'moratorium') {
     const morEnd = markDay(cal, 'moratoriumEnds');
