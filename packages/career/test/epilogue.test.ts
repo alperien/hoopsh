@@ -159,4 +159,35 @@ describe('harvestSeasonHonors ring accuracy', () => {
     harvestSeasonHonors(career);
     expect(career.events.filter(e => e.id === 'ev-honor-ring-11').length).toBe(1);
   });
+
+  it('grants a ring for a mid-season departure from the eventual champion (C16)', () => {
+    // Season rows are keyed (season, teamId, type) in franchise/src/gameday.ts,
+    // so a mid-season trade leaves the old-team row in place: the player carries
+    // rows on both BOS and ATL for season 12. BOS wins the title; the player
+    // finishes the year on ATL. The BOS row grants the ring.
+    //
+    // Chosen semantics, pinned per the PR #32 review (2026-08-01): the archive
+    // stores no roster, so a season-row predicate cannot see who was on the
+    // champion at the title, and real teams often award rings to departed
+    // mid-season contributors at their discretion. Registered as C16 in
+    // docs/CAREER.md; trap comment at the predicate in epilogue.ts.
+    //
+    // Red on unfixed code: the current-team-pointer check compared 'atl' to
+    // champion 'bos' and granted nothing (actual 0, expected 1).
+    const career = minimalCareer({
+      phase: 'nba',
+      nbaTeam: 'atl', // reactToTransactions moved the pointer at the trade
+      mySeasonRows: [
+        { season: 12, teamId: 'bos' },
+        { season: 12, teamId: 'atl' },
+      ],
+      archives: [{ season: 12, champion: 'bos' }],
+    });
+
+    harvestSeasonHonors(career);
+
+    const rings = career.events.filter(e => e.id.startsWith('ev-honor-ring-'));
+    expect(rings.length).toBe(1);
+    expect(rings[0]!.reason).toContain('Boston Celtics');
+  });
 });
