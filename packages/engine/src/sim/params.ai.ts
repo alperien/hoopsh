@@ -577,12 +577,19 @@ export const aiDefaults: AiParams = {
   dunkBlendVert: 0.6,
   dunkBlendFin: 0.4,
   leakFinishRadiusFt: 7,
-  // #74 increment 1 — STAGED at 0 (the flip is this increment's landing
-  // dose, FEEL at landing; knobs.ts carries the range). The carry is the
-  // geometry half the probe localized: booking already follows from the
-  // booth's own rule (shotcall.ts DUNK_MAX_FT + the sync-pinned athlete
-  // gate above) once the gather arrives at the plane.
-  transCarryScale: 0,
+  // #74 increment 1 landing dose — FEEL, selected on the n=96 paired dose
+  // ladder (0/0.25/0.5/0.75/1, acceptance base + i74dose replicate)
+  // against the pre-#56 bands. Measured economy: the carry trades
+  // assisted jumpers for unassisted rim finishes at roughly 1:1 makes
+  // (carried finishes recycle fewer misses, so hit-ahead catch-and-shoot
+  // volume pays the bill), which leaves fgPct FLAT at every dose — the
+  // priced ceiling breach never materializes and no re-sweep is owed.
+  // The binding window is the issue's priced astd purchase (-0.7..-2.1pp):
+  // 0.5 lands astd -1.6..-2.5pp, dunks +0.5..+0.9/g, unassisted makes
+  // +0.8/team-game, all inside the priced ranges; 0.75+ overshoots the
+  // astd window (-2.8pp). Half the beaten breaks carrying is also honest
+  // basketball: not every 2-on-1 ends at the rim.
+  transCarryScale: 0.5,
   cutterBonus: 0.5,
   swingBase: 0.045,
   swingPassOutScale: 0.16,

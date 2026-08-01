@@ -27,13 +27,15 @@
  * (OT bonus threshold + last-2:00 window penalty + made-basket clock stops
  * reshuffled every stream; same re-anchor doctrine as the prior two
  * re-scouts; re-anchored again at the session-7 pass-volume flip, scanned
- * evstream-1..240 on that tree):
- *   evstream-182 — regulation; 2 DEFENSE-won and 1 OFFENSE-won mid-game
- *                  jump balls, 1 offensive foul, 3 technicals, 2
- *                  violations, 3 replay reviews.
- *   evstream-77  — reaches OVERTIME (period 5) with a tied Q4 period_end;
- *                  1 DEFENSE-won jump ball, 4 offensive fouls, 1 technical,
- *                  1 violation, 5 replay reviews.
+ * evstream-1..240 on that tree; re-anchored again at the #74 landing-dose
+ * flip, scanned evstream-1..300 on that tree):
+ *   evstream-7  — regulation; 3 DEFENSE-won and 1 OFFENSE-won mid-game
+ *                 jump balls, 4 offensive fouls, 1 technical, 2
+ *                 violations, 5 replay reviews.
+ *   evstream-21 — reaches OVERTIME (period 6, a double-OT) with a tied Q4
+ *                 period_end; 1 DEFENSE-won jump ball, 4 offensive fouls,
+ *                 0 technicals (the regulation seed carries that floor),
+ *                 1 violation, 4 replay reviews.
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
@@ -51,7 +53,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-182', 'evstream-77'].map((seed) => {
+const pool: GameResult[] = ['evstream-7', 'evstream-21'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -187,12 +189,12 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
         }
       }
     }
-    // Vacuity floor: the evstream-48 OT game contributes its tied Q4 horn.
+    // Vacuity floor: the evstream-21 OT game contributes its tied Q4 horn.
     expect(tiedEndsSeen).toBeGreaterThanOrEqual(1);
   });
 
   // Existence floor for every OT-conditional assert in this file. Scouted:
-  // evstream-48 plays period 5. If an rng-sequence change reshuffles this
+  // evstream-21 plays periods 5-6. If an rng-sequence change reshuffles this
   // seed back to regulation, re-scout a fresh OT seed (see file header).
   it('the pool reaches overtime (existence floor for the OT legs)', () => {
     const otPeriods = pool.reduce(
@@ -616,7 +618,8 @@ describe('per-type field contract', () => {
     // Vacuity floors — every type the pinned seeds deterministically emit
     // actually appeared (timeout included: endgame defaults ON,
     // events.ts:394-397; the flow trio re-scouted 2 jump_balls, 3
-    // violations, 7 replay_reviews across the pool). held_ball and
+    // violations, 7 replay_reviews across the pool; the #74 re-scout
+    // reads 5 jump_balls, 3 violations, 9 replay_reviews). held_ball and
     // off_goaltend never occur on these seeds — their forced-rate emission
     // floors are officiating.test.ts's job, not this file's.
     for (const t of ['game_start', 'tip_off', 'period_start', 'period_end', 'game_end',

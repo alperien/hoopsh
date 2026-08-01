@@ -62,9 +62,10 @@ console.log('');
 
 // ---- 3. same teams, same seed, two rule books ---------------------------------
 // seed re-anchored at the FLOW rebase ('sunday-run' went bonus-quiet), at
-// the rules landing ('saturday-run' did the same), and at the session-7
-// pass-volume flip ('rules-demo-1' followed suit); this one shows 5
-const SEED = 'rules-demo-4';
+// the rules landing ('saturday-run' did the same), at the session-7
+// pass-volume flip ('rules-demo-1' followed suit), and at the #74
+// transition-carry landing ('rules-demo-4' too); this one shows 4
+const SEED = 'rules-demo-10';
 const game = (rules?: RulePack): GameResult => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed: SEED, home, away, rules });

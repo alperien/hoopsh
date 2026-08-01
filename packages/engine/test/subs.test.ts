@@ -104,8 +104,9 @@ describe('crunch covers the OT tip stoppage (audit H-02)', () => {
     // seeds and re-anchor the list; do not weaken the starter assertion.
     let otGames = 0;
     // (re-anchored a seventh time at the session-7 pass-volume flip — the
-    // standing cost of behavioral landings; re-scanned otseek-0..300)
-    for (const i of [17, 61, 81, 114, 121, 154]) {
+    // standing cost of behavioral landings; re-scanned otseek-0..300 —
+    // and an eighth time at the #74 landing-dose flip, same scan window)
+    for (const i of [28, 45, 79, 186, 194, 263]) {
       const { home, away } = sampleMatchup();
       const r = simulateGame({ seed: `otseek-${i}`, home, away, collectFrames: false });
       if (!r.events.some((e) => e.period > r.rules.periods)) continue;
