@@ -215,10 +215,15 @@ the reacting-world invariant: sustained production forces a role
 response within a bounded number of games, and the acceptance harness
 fails the build if a hot player stays buried.
 
-Playing hurt is an approach-level choice when you carry a listed injury:
-gut it out (debuffed dials that night, wear risk through the real injury
-model) or sit (miss the game, protect the body, watch the stock and
-trust dynamics move). The body report keeps the long-term cost visible.
+Playing hurt shipped narrower than designed. A listed player always
+sits in both phases: circuit availability and the NBA gameday pool
+bench you while an injury lists you, without consulting the card. The
+card's playingHurt flag currently has effects only for a healthy player
+who sets it (the dulled sheet, the wear compound at grading, the
+skipped post-game injury re-roll). The designed gut-it-out choice on a
+real listing is unreachable in v1; the cut is registered as C17, and
+making it reachable is a mechanics-tier availability seam. The body
+report keeps the long-term cost visible.
 
 Registered honestly: mid-game approach changes (timeout adjustments)
 need an engine seam because games simulate atomically today. The design
@@ -382,10 +387,9 @@ Europe and NBL routes as compact leagues on their packs; combine,
 workouts, stock ladder, green room draft night; the full NBA career
 inside the shipped franchise sim; the approach system (pre-game) with
 coach trust and role logic under the reacting-world invariant; the
-weekly allocation loop; the phone with seven thread types; playing-hurt
-choices on the real wear model; late-career China and Europe forks;
-retirement epilogue, HOF vote, same-save GM unlock; deterministic
-careers; an auto-career acceptance harness.
+weekly allocation loop; the phone with seven thread types; late-career
+China and Europe forks; retirement epilogue, HOF vote, same-save GM
+unlock; deterministic careers; an auto-career acceptance harness.
 
 Out, registered (the C-register, same discipline as the F-register):
 
@@ -403,8 +407,10 @@ Out, registered (the C-register, same discipline as the F-register):
 | C10 | on-court chemistry modifiers | relationships act through role, trust, and the phone | consistent with franchise F1 |
 | C11 | pre-entry NBA seasons on the fast sim | background box scores are statistically crude until you arrive; structure (standings, lotteries, classes, trades) is real | engine throughput or patience |
 
-Build-time additions (registered at the 2026-07-31 landing; details in
-REGISTER.md W66-W68 and docs/CAREER_INTERNALS.md):
+Build-time additions (C12-C15 registered at the 2026-07-31 landing, details
+in REGISTER.md W66-W68 and docs/CAREER_INTERNALS.md; C16 registered at the
+PR #32 ring-harvest review; C17 registered at the #84 docs correction
+from the optimization audit):
 
 | # | Cut | Consequence | Revisit when |
 |---|---|---|---|
@@ -412,6 +418,8 @@ REGISTER.md W66-W68 and docs/CAREER_INTERNALS.md):
 | C13 | NBA minutes priced by career role | the franchise rotation owns minutes; the ladder drives grading, trust, the phone | a minutes seam priced by role |
 | C14 | the AI pricing my trade request | requests move morale and the phone only | a franchise trade-pulse seam |
 | C15 | my RFA offer-sheet match window | outside NBA offers sign directly | the match window lands player-side |
+| C16 | exact championship-roster membership for rings | rings key on season stat rows, which a mid-season trade leaves in place; a player traded away from the eventual champion still earns the ring, as real teams often do at their discretion | the archive records championship rosters |
+| C17 | playing hurt while listed | unreachable in v1: circuit availability and the NBA gameday pool sit a listed player without consulting the card, so the playingHurt flag acts only for a healthy player (dulled sheet, wear compound at grading, skipped post-game injury re-roll); the designed gut-it-out choice never fires | an availability seam that consults the card (mechanics tier) |
 
 
 ## How we prove it works

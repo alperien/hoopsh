@@ -18,7 +18,8 @@ import {
   attackedRim, emit, liveOnCourt, onCourt, other, round1,
   type Agent, type GameState, type Phase
 } from './state.js';
-import { assignMatchups, assignSpots, onOrebSecured } from './ai.js';
+import { assignMatchups, assignSpots, clearsDunkGate, onOrebSecured } from './ai.js';
+import { classifyShot } from '../geometry/court.js';
 import { resolveRebound, resolveTeamReboundSide } from './resolve.js';
 import { checkSubs } from './subs.js';
 import { advanceClock, applyFatigue, integrateMovement } from './movement.js';
@@ -139,6 +140,16 @@ export function startPossession(
     (kind === 'live_rebound' || kind === 'steal') &&
     leakScale > 0 &&
     (leakScale >= 1 || s.rng.chance(leakScale));
+  // #74 transition-carry dose: the carry arms per TRANSITION possession —
+  // the exact leakArmed shape above (0 never reaches the draw, >= 1
+  // short-circuits it draw-free). Rolled AFTER the leak draw, so at the
+  // staged default nothing is appended to the stream and both mechanisms'
+  // byte-identity ladders hold independently.
+  const carryScale = s.params.ai.transCarryScale;
+  const carryArmed =
+    (kind === 'live_rebound' || kind === 'steal') &&
+    carryScale > 0 &&
+    (carryScale >= 1 || s.rng.chance(carryScale));
   s.poss = {
     team,
     shotClock: s.rules.shotClockSec,
@@ -146,6 +157,7 @@ export function startPossession(
     startT: s.t,
     kind,
     leakArmed,
+    carryArmed,
     // the period's first possession: the game clock still reads the full
     // period value here (the opening dead ball never runs it, advanceClock
     // is the only clock writer, and any prior possession consumes live
@@ -471,6 +483,38 @@ export function tickDead(s: GameState, dt: number): void {
 }
 
 /**
+ * #86: does this secured offensive rebound resolve as the STRONG putback —
+ * the putback dunk class? The full gate in short-circuit order: the stage
+ * switch (shot.putbackStrongLogit, checked FIRST — the staged-zero
+ * contract), the restricted-area read (the rim zone's 4 ft bracket via
+ * classifyShot — the court model's registered stand-in for the RA arc,
+ * court.ts), and the booth's athlete gate (clearsDunkGate — the
+ * dunkAthleteGate blend mirror). The booth sync is ONE-DIRECTIONAL, not
+ * set equality: every engine-strong make books the booth's putback
+ * dunk, but the booth's putback-dunk set is strictly larger at every
+ * knob value — the decide-layer sibling and the pre-existing
+ * 1.6-2.25 ft window book dunk without this class, and the booth's
+ * dunk-before-tip-in order reads no knob, so it is live at knob 0
+ * (measured ~0.2 relabeled dunks/g there; PR #91 review round 2). Pure
+ * read: no rng, no writes, no side effects on GameState. Called from
+ * tickScramble's putback branch AFTER the putbackChance and goaltend
+ * rolls, so the draw order is untouched at every knob value — the class
+ * moves the make threshold, never the draw count. Deliberately scoped to
+ * the AUTOMATIC putback (the instant rise off the grab): the decide-layer
+ * sibling (ai/decide.ts, the surveyed second-chance look after
+ * delayOrebSec) keeps the generic logit in both its EV and its
+ * resolution. Exported so putbackstrong.test.ts can pin it
+ * condition-by-condition on hand-built states (the carriesToRim/F2 shape).
+ */
+export function putbackResolvesStrong(s: GameState, rebounder: Agent): boolean {
+  return (
+    s.params.shot.putbackStrongLogit > 0 &&
+    classifyShot(s.rules, s.court, attackedRim(s, rebounder.side), rebounder.pos).zone === 'rim' &&
+    clearsDunkGate(s, rebounder)
+  );
+}
+
+/**
  * Per-tick driver for the `scramble` phase (loose ball after a miss).
  * Dispatched from `game.ts`'s tick switch every tick while
  * `s.phase.kind === 'scramble'`. Nudges the ball toward its landing spot,
@@ -708,7 +752,22 @@ export function tickScramble(s: GameState, dt: number): void {
         deadBall(s, other(winner.side), { clockRuns: false, reviewable: 'oob' });
         return;
       }
-      startShot(s, winner, 'putback');
+      // THE STRONG PUTBACK (#86, unassisted-creation arc increment 2): a
+      // gate-clearing rebounder who secured the board inside the
+      // restricted area doesn't tap the ball back toward the rim — he
+      // rises and throws it down. The finish reuses the #74 carry
+      // construction (startShot carryRim): the RELEASE moves to the rim
+      // plane, the CONTEST still reads off the body, and the make logit
+      // gains shot.putbackStrongLogit — the one new knob. Everything
+      // upstream is untouched: same putbackChance roll, same goaltend
+      // roll, same draw order at every knob value, so knob 0 is
+      // byte-identical by construction. Who crashes and how often is not
+      // this increment's business (crash/positioning untouched, per the
+      // issue's gates). Dunk-class then books through the booth's own
+      // deterministic rule — the sync contract extended, not duplicated
+      // (shotcall.ts: the slam outranks the tip-in for gate-clearing
+      // putback makes; dunkgate-sync.test.ts pins the pair).
+      startShot(s, winner, 'putback', undefined, putbackResolvesStrong(s, winner));
       return;
     }
     // delayOrebSec: a beat longer than a normal possession's decision delay

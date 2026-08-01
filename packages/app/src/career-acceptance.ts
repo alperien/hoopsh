@@ -7,9 +7,11 @@
  *
  *   GATES  (exit 1 on failure):
  *     - careers complete their scripted arcs without throwing
- *     - THE REACTING-WORLD INVARIANT: the role clocks never reach
- *       reactGames unanswered (sustained production always moves the
- *       job; docs/CAREER.md pillar 1, the flagship gate)
+ *     - THE REACTING-WORLD INVARIANT: sustained production moves the
+ *       job within reactGames, verified by an independent replay of the
+ *       graded record (role-response.ts; docs/CAREER.md pillar 1, the
+ *       flagship gate). The old roleClock re-read was tautological,
+ *       issue #41: trust.ts resets that clock before returning.
  *     - the explained-consequence lint: every event, grade, and ledger
  *       row carries its reason
  *     - determinism: a career recorded from creation through the draft
@@ -32,6 +34,7 @@ import {
 import type {
   ApproachCard, CareerState, CreationSpec, LoggedChoice, PresetId, SimulateJobs,
 } from '@hoopsh/career';
+import { createRoleTracker, observeRoleResponses } from './role-response.js';
 import { makeWorkerPool } from './runner.js';
 import { replayCareerFromLog } from './career-replay.js';
 import type { ReplayCheckpoint } from './career-replay.js';
@@ -106,6 +109,7 @@ interface CareerReport {
   earnings: number;
   honors: number;
   invariantBreaches: number;
+  invariantNotes: string[];
   lintFailures: number;
   crashed: string | null;
 }
@@ -163,7 +167,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
     pilot: pilot.name, seed, finalPhase: 'hs', years: 0, draft: 'undrafted', pick: null,
     hsPpg: 0, lastPrePpg: 0, events: 0, phone: 0,
     maxZeroEventStreak: 0, meanEventsPerWeek: 0, inSeasonEnergyMin: 100, pinnedWeeksPct: 0,
-    earnings: 0, honors: 0, invariantBreaches: 0, lintFailures: 0, crashed: null,
+    earnings: 0, honors: 0, invariantBreaches: 0, invariantNotes: [], lintFailures: 0, crashed: null,
   };
   let career: CareerState;
   try {
@@ -173,6 +177,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
     return report;
   }
   applyChoice(career, { kind: 'setWeekPlan', plan: pilot.plan as never });
+  const roleTracker = createRoleTracker(career);
 
   const startYear = career.clock.year;
   let weeks = 0;
@@ -214,10 +219,14 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
       if (phase === 'nba') nbaWeeksLived += 1;
       if (phase === 'retired') retiredYearsLived += 1; // one advance = one retired year
 
-      // THE INVARIANT, live: the clocks must never sit at reactGames
-      const t = career.params.trust;
-      if (career.coach.roleClock.above >= t.reactGames || career.coach.roleClock.below >= t.reactGames) {
+      // THE INVARIANT, live: replay the graded record independently and
+      // demand the role response (role-response.ts; the roleClock re-read
+      // this replaces was tautological, issue #41)
+      for (const breach of observeRoleResponses(roleTracker, career)) {
         report.invariantBreaches += 1;
+        if (report.invariantNotes.length < 3) {
+          report.invariantNotes.push(`week ${weeks} (${phase}): ${breach}`);
+        }
       }
     }
   } catch (err) {
@@ -385,7 +394,7 @@ async function main(): Promise<void> {
   // GATES over the fleet
   for (const r of reports) {
     if (r.crashed) gateFailures.push(`${r.pilot}: crashed: ${r.crashed}`);
-    if (r.invariantBreaches > 0) gateFailures.push(`${r.pilot}: reacting-world invariant breached ${r.invariantBreaches}x (role clock sat at reactGames)`);
+    if (r.invariantBreaches > 0) gateFailures.push(`${r.pilot}: reacting-world invariant breached ${r.invariantBreaches}x (${r.invariantNotes.join(' | ')})`);
     if (r.lintFailures > 0) gateFailures.push(`${r.pilot}: ${r.lintFailures} unexplained consequences (empty reasons)`);
     if (r.finalPhase === 'hs' || r.finalPhase === 'college') gateFailures.push(`${r.pilot}: career stalled in ${r.finalPhase}`);
   }

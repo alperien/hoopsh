@@ -35,6 +35,12 @@ export interface ShotParams {
   movePost: number;
   movePutback: number;
   moveHeave: number;
+  /** #86 strong-putback finish class (the putback dunk): logit ADDED to
+   *  movePutback when a gate-clearing rebounder inside the restricted area
+   *  resolves the automatic putback as a rim-plane throw-down
+   *  (possession.ts putbackResolvesStrong). 0 = the class is staged OFF —
+   *  the hard-zero short-circuit, checked before anything else. */
+  putbackStrongLogit: number;
   /** rim finishing bonus per foot of height advantage over contester */
   rimHeightCoef: number;
   /** input clamp on that height advantage: |reach edge| beyond this many ft stops counting */
@@ -144,6 +150,27 @@ export const shotDefaults: ShotParams = {
   movePost: -0.05,      // FEEL — back-to-basket craft costs a touch vs a clean look
   movePutback: 0.1,     // already inside, defense scrambling
   moveHeave: -2.6,      // ≈ 7% — a desperation launch, correctly awful
+  // #86 (unassisted-creation arc, increment 2): the strong-putback class.
+  // A gate-clearing rebounder (the booth's dunk-gate mirror, ai/offense.ts
+  // clearsDunkGate) who secures the board inside the restricted area (the
+  // rim zone's 4 ft bracket) doesn't tap the ball back toward the rim — he
+  // rises and throws it down. The release moves to the rim plane (startShot
+  // carryRim, the #74 construction) and this logit prices the throw-down
+  // over the generic tap, ON TOP of movePutback. The off-switch is exact:
+  // 0 short-circuits the whole class in putbackResolvesStrong (checked
+  // FIRST — no stream touches at 0), and the class adds no rng draws at
+  // ANY value: it moves the make threshold, never the draw count. FEEL,
+  // landed at 0.3. The n=96 paired ladder reads that selected this dose
+  // (astd -0.34pp acceptance, -0.40pp i86dose, mid-window on both) did
+  // not survive their exact supersets at n=288: pooled astd -0.04pp (se
+  // 0.16), consistent with zero. The dose claims no astd purchase and
+  // consumes approximately zero astd headroom. What stands for 0.3: the
+  // saturation direction (the geometry fires at any positive logit, the
+  // dose only moves make-p, higher doses only inflate putback FG%), zero
+  // measured wall pressure (17/17 bands on every n>=48 read, every base,
+  // both arms), and the delivered channel (dunk booking and putback FG%).
+  // Registered in harness/knobs.ts [0, 1.2].
+  putbackStrongLogit: 0.3,
   // Size at the rim: per foot of standing-reach advantage over the
   // contester. A 7-footer finishing over a guard gains real percentage;
   // clamped to ±rimHeightAdvClampFt in the model so it can't run away. FEEL.
@@ -255,6 +282,7 @@ export const shotProvenance: Record<keyof ShotParams, Provenance> = {
   movePost: 'FEEL',
   movePutback: 'FEEL',
   moveHeave: 'FEEL',
+  putbackStrongLogit: 'FEEL',
   rimHeightCoef: 'FEEL',
   rimHeightAdvClampFt: 'FEEL',
   rimHeightUncontestedFt: 'FEEL',

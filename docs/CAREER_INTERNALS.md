@@ -51,6 +51,7 @@ careers, and the acceptance harness replays that equality as a gate.
 | `saves.ts` | One directory, two shapes (`league` vs `career` key); list rows carry their chair; loadCareer rebinds me to one object when an abroad save forked the two maps. |
 | `career-acceptance.ts` | `npm run gm:career-acceptance`: scripted pilots live whole careers; gates and bands below. |
 | `career-replay.ts` | The choice-log replay driver: rebuild the creation-time state, apply each recorded choice at its logged clock, advance, byte-compare checkpoints. The determinism gate and the app test suite both replay through it. |
+| `role-response.ts` | The reacting-world gate's independent witness (issue #41): replays coach.grades through the documented clock arithmetic and demands the observable role response at each mid-ladder firing. Ladder edges answer silently by design; a coach change is the legal reset. |
 | `public/js/screens/career/` | The player-chair screens (creation, the week, the phone, the plan, the season, the game center, recruiting, stock, money, the journey). The shell (`app.js`) is mode-aware; scenery screens (league, news, almanac) are shared between chairs. |
 
 
@@ -109,6 +110,11 @@ their owning module headers and collected here.
   the development review (RNG-order preserving), so career training rides
   the same growth model the league uses. `distributeGrowth`/`groupMean`
   are exported for the weekly landings.
+- `transactions.executeRetirement` — both career retire seams (the chosen
+  retirement and the age-40 forced wrap) close my league file through the
+  spine's own executor, so the retired-phase season advances run a world
+  without me in it (issue #68: a still-rostered me kept playing ghost
+  seasons and harvesting honors).
 - The engine itself is untouched by the career build: every wave was
   verified byte-identical against the then-current fingerprint baseline
   (1143 events, CAS 132-116, pre-rules-landing; the rules landing that
@@ -128,10 +134,13 @@ byte determinism), nbabridge (the swap leak check, offers, determinism).
 design): scripted pilots (phenom-aggressive, fourstar-balanced,
 walkon-grinder) live whole careers on the worker pool.
 
-GATES (exit 1): careers complete their arcs without throwing; the role
-clocks never sit at reactGames unanswered (the reacting-world invariant
-at fleet scale); every event, grade, and ledger row carries a nonempty
-reason (the explained-consequence lint); a career recorded from
+GATES (exit 1): careers complete their arcs without throwing; the
+reacting-world invariant at fleet scale (role-response.ts replays the
+graded record independently and demands the role move plus its event at
+every mid-ladder firing; the roleClock re-read it replaced was
+tautological, issue #41: trust.ts resets that clock before returning);
+every event, grade, and ledger row carries a nonempty reason (the
+explained-consequence lint); a career recorded from
 creation through the draft into NBA game weeks replays byte-identical
 from its choice log alone (career-replay.ts — abroad phases, the
 descent, retirement, and the epilogue sit outside the replayed
