@@ -214,7 +214,7 @@ docs/history/franchise-research/05-realism-catalog.md.
 
 ## Open items — fidelity exit-code landing (registered 2026-08-01)
 
-Registered at the issue #43 landing (branch `fix/fidelity-exit-code`).
+Registered at the issue #43 landing (branch `fix/fidelity-exit-code-quarantine`).
 Source finding: H-validate-1 and the adjacent MEDIUM (fidelity.ts:332) in
 findings/opt-validate.md, branch `review/optimization-audit` — the 40-game
 precision tier of the two-tier fidelity gate had no red state. Numbering
