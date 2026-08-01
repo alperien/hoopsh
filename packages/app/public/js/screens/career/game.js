@@ -115,6 +115,11 @@ registerScreen('career-game', {
               ...game.keyPlays.map(k => el('div', { class: 'cue', style: 'padding:3px 6px' },
                 el('span', { class: 't' }, k.clock), k.text)))
           : null,
+        // the crew line (realism wave): NBA games carry named officials
+        spoiled && game.officials
+          ? el('div', { style: 'margin-top:10px;font-size:12px;color:#7f8794;letter-spacing:.02em' },
+              `Crew: ${game.officials.crew.join(', ')}`)
+          : null,
       );
     };
     renderBelow();
