@@ -29,6 +29,7 @@
  *                                 the team's scoutSeed so bias survives the
  *                                 player and stays the scout's, not the read's)
  *   news:<season>:<day>           template variety selection (media/news.ts)
+ *   moments:<season>:<day>        phase-transition stories (media/moments.ts)
  *   officials:crews               crew pool generation at genesis (officials.ts)
  *   officials:<season>:<day>      per-day crew assignment shuffle (officials.ts)
  *   officials:game:<gameId>       per-game tightness jitter (officials.ts)

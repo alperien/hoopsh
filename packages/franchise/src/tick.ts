@@ -62,6 +62,7 @@ import { aiRosterUpkeep } from './ai/roster.js';
 import { aiSelect } from './ai/draftai.js';
 import { runCombine } from './scouting.js';
 import { writeDailyNews } from './media/news.js';
+import { championshipNews, lotteryNightNews } from './media/moments.js';
 import { recapGame } from './media/recap.js';
 import { selectAllStars, updateAwardRaces, voteSeasonAwards } from './media/awards.js';
 import { archiveSeason, updateRecords } from './media/almanac.js';
@@ -919,6 +920,9 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
       for (const award of voteSeasonAwards(league)) league.awards.push(award);
       const archive = archiveSeason(league);
       if (archive && !league.archives.some((a) => a.season === archive.season)) league.archives.push(archive);
+      // the desk's championship story counts banners from the archives:
+      // append AFTER the push so tonight's title is in the count (#111)
+      appendNews(league, championshipNews(league));
       league.phase = 'lottery';
     }
   } else if (league.phase === 'lottery') {
@@ -941,6 +945,9 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
       }
       league.draftClass = prospects.map((p) => p.id);
       runCombine(league);
+      // the order story and the class preview print the night the order
+      // exists; the daily pulse already ran for today, so append here (#111)
+      appendNews(league, lotteryNightNews(league));
       league.phase = 'draft';
     }
   } else if (league.phase === 'draft' && draftIdx >= 0 && league.day >= draftIdx) {
