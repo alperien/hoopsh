@@ -35,7 +35,7 @@ describe('save routes 409 while sim is running', () => {
       const res = await fetch(`http://localhost:${svr.port}/api/career/save`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: '{}',
+        body: '{"name":"test-guard-career"}',
       });
       expect(res.status).toBe(409);
       const body = await res.json() as { error?: string };
@@ -60,7 +60,7 @@ describe('save routes 409 while sim is running', () => {
       const res = await fetch(`http://localhost:${svr.port}/api/save`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: '{}',
+        body: '{"name":"test-guard-league"}',
       });
       expect(res.status).toBe(409);
       const body = await res.json() as { error?: string };
