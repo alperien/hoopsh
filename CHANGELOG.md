@@ -26,6 +26,22 @@ sim is compared against (findings/session7-plan*.md, session8-*.md).
   knob (FEEL, hard-zero short-circuit checked first, heave-guard arming
   draw, knobs.ts range in the same PR); params-provenance pins
   re-baselined; off-state streams byte-identical.
+- Amended pre-merge on the PR #75 Red Team probe (Lead ruling, four
+  findings). F1: the carry's reach was uncapped up to the drive-label
+  range and the frame ball rode the sliding body — fixed with
+  `ai.transCarryGatherFt` (4.5 ft FEEL, the carry's own decide-time
+  reach gate; SHAPE, deliberately not sweepable) plus the carried
+  windup's honest ball path (decide-spot -> rim lerp; the release-tick
+  frame-ball -> booking gap collapsed from p50 4.87 / max 9.95 ft to
+  p50 0.51 / max 2.01). F2: the phase and commit gates pinned
+  condition-by-condition on hand-built states (`carriesToRim` extracted
+  as the seam; probe mutants verified red). F3: the arming-draw region
+  pinned with exact stream checksums at an intermediate scale and the
+  draw-free top (both probe mutants verified red; re-anchored to the
+  landing dose at the dose commit). F4: the scout denominator defined —
+  pool counts are per team-game (24 seeds = 48 team-games). The 0.5
+  dose landing was reverted first (amendments precede dose selection);
+  re-selection on the amended mechanism rides the re-run ladder.
 
 ### Rim supply (session 8)
 

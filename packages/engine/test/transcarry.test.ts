@@ -23,14 +23,30 @@
  *   4. The scope guard: possessions that start from makes/inbounds/tips
  *      show NO plane-release rise — the carry's gate is phase
  *      'transition', which only live_rebound/steal possessions enter.
+ *   5. F2 (below): the gate itself, condition by condition, on
+ *      hand-built states — phase, commit, arming, stage, label, retreat,
+ *      and the F1 gather gate. Stream-side tests cannot see these.
+ *   6. F3 (below): the arming-draw region — exact stream checksums at an
+ *      intermediate scale and the draw-free top.
  *
- * Scouted at the staged landing (out/i74/scout.mjs, pool
- * transcarry-1..24): staged arm 5 plane drive releases on transition-kind
+ * DENOMINATOR CONVENTION (probe F4, Lead-ruled): scout counts on the
+ * transcarry-1..24 pool are raw sums over 24 single games with BOTH
+ * TEAMS POOLED — a "per 48" rate is per TEAM-GAME (one game contributes
+ * two team-games), so 238/48 = 4.96 per team-game = 9.92 per game. The
+ * PR #75 probe's independent n=144 per-game reads reconcile at exactly
+ * 2x the naive per-game division; state the convention wherever these
+ * figures are quoted.
+ *
+ * Scouted at the staged landing (pool transcarry-1..24, per-team-game
+ * denominator): staged arm 5 plane drive releases on transition-kind
  * possessions and 238 transition-kind drive attempts; flipped arm 180
  * plane releases (+175); opener-context plane drives 6 staged vs 5
- * flipped. Floors sit well under scout (vacuity >= 60 vs 238; margin
- * >= +55 vs the +175 gap; opener guard <= staged + 6). Re-anchor: re-run
- * the scout, same safety shape as the leakout row.
+ * flipped. Re-scouted on the F1-amended mechanism (same pool): flipped
+ * plane 134 (+129 vs the +55 floor), transition-kind drive attempts
+ * 231, opener 6 vs 6; the staged arm byte-reproduces 5/238/6. Floors
+ * sit well under both scouts (vacuity >= 60 vs 238; margin >= +55;
+ * opener guard <= staged + 6). Re-anchor: re-run the scout, same safety
+ * shape as the leakout row.
  */
 import { describe, expect, it } from 'vitest';
 import {
