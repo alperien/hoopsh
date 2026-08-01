@@ -15,6 +15,35 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Franchise: late-transaction news (#122, issue #118)
+
+- Draft night and the rollover logged transactions AFTER the day's news
+  pulse had already run, so their stories existed in the desk but never
+  printed: 60 draft selections produced 0 pick stories and 33
+  retirements produced 0 retrospectives on the issue's probe (seed
+  probe-draftnews, one fake-sim year). The three seams that create
+  transactions past the pulse (the transitions block's draft branch, the
+  paused draft's re-entry path, which skipped the pulse entirely, and
+  the rollover's retirement loop) now run a second same-day desk pass.
+  Story ids are deterministic per (day, ledger position) and appendNews
+  guards by id, so the repeat is idempotent: every pre-existing item
+  stays byte-identical and only the new stories land.
+- A pick's rookie-deal signing row is the selection's mechanism, not its
+  own story: the desk now skips it (the draft story carries the contract
+  line), keeping draft night at one story per pick plus the real
+  squeeze-waive coverage. No new rng streams; no new draws on existing
+  streams; the engine untouched; the NewsItem shape unchanged, so saves
+  and the replay format carry.
+- Verified at the landing: 7 new gates (newsdesk.test.ts: an AI-run
+  fake-sim year with a determinism twin, and a human-chair year through
+  the draft pause so the re-entry path prints the war room's picks);
+  full suite green (1619 tests, 1617 pass, 2 todo); engine fingerprint
+  untouched (fingerprint-1: 1277 events, 115-126); fingerprint corpus
+  28/28 byte-identical; the issue's probe re-run before and after (60/60
+  pick stories, 33/33 retrospectives, all 1646 pre-existing news items
+  byte-identical, additions confined to draft night and the rollover
+  day).
+
 ### Franchise: phase-transition news (#117, issue #111)
 
 - The news desk was silent between the finals and the draft: the title
