@@ -46,6 +46,7 @@ discrepancy (AGENTS.md §2.10 applies here unchanged).
 | `ai/draftai.ts` | AI draft boards | built from their own scouts' wrong numbers |
 | `ai/roster.ts` | depth charts, rotations, roster upkeep | |
 | `media/news.ts` | the news desk | template pools, seeded variety, fixed bylines; numbers only from sim data |
+| `media/moments.ts` | phase-transition stories | championship, lottery order, draft preview; written at the transitions (tick.ts) because the daily pulse runs before them |
 | `media/recap.ts` | game recaps | reads GameRecord, never raw events |
 | `media/awards.ts` | races, voting, all-star | 65-game rule in params |
 | `media/almanac.ts` | records book, season archives | |

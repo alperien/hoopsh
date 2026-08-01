@@ -75,6 +75,7 @@ export { perceivedGroup, buildUserReport, runCombine } from './scouting.js';
 
 // media & history
 export { writeDailyNews } from './media/news.js';
+export { championshipNews, lotteryNightNews } from './media/moments.js';
 export { recapGame } from './media/recap.js';
 export {
   initOfficials, officialsStateOf, dayAssignments, crewForGame,

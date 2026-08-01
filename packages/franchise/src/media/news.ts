@@ -153,7 +153,7 @@ function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number
   }
 }
 
-function ordinal(n: number): string {
+export function ordinal(n: number): string {
   const rem10 = n % 10, rem100 = n % 100;
   if (rem10 === 1 && rem100 !== 11) return `${n}st`;
   if (rem10 === 2 && rem100 !== 12) return `${n}nd`;

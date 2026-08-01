@@ -15,6 +15,32 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Franchise: phase-transition news (#117, issue #111)
+
+- The news desk was silent between the finals and the draft: the title
+  clincher existed only as a plain game recap, and lottery night wrote
+  nothing. `media/moments.ts` now writes the calendar's loudest dates at
+  their phase transitions in tick.ts: the championship story at the horn
+  (series score, seed, regular-season record, banner count from the
+  archives, the finals scoring leader folded from the results ledger),
+  the lottery order the night it is drawn (movement framing, settled
+  pick conveyance, the full first-round board, all 30 teams on the
+  story's team filter), and a consensus draft preview (every room's
+  perceived current-plus-ceiling blend through the draftai position
+  lens, averaged, plus the public tape; a class one strength-sd off the
+  mean gets an adjective).
+- One new registered rng stream (`moments:<season>:<day>`); no new draws
+  on any existing stream; the engine untouched. Reserved NewsType values
+  `lottery`, `preview`, and `review` are produced for the first time;
+  the NewsItem shape is unchanged, so saves and the replay format carry.
+- Verified at the landing: 5 new gates (moments.test.ts, two fake-sim
+  league years); full suite green (1611 tests, 1609 pass, 2 todo);
+  engine fingerprint untouched (fingerprint-1: 1277 events, 115-126);
+  fingerprint corpus 28/28 byte-identical; the issue's pt-gm1 repro
+  re-run before and after (news page 0 bit-identical at the lottery and
+  draft stops before; differing after, with every pre-existing item
+  byte-unchanged).
+
 ### Unassisted-creation supply arc, increment 1 (#74, REGISTER W82)
 
 - The transition carry, STAGED at `ai.transCarryScale: 0`: on a
