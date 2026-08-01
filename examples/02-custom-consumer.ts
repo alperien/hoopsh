@@ -22,7 +22,10 @@ import type { GameEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
 const { home, away } = sampleMatchup();
-const result = simulateGame({ seed: 'crunch-time', home, away });
+// demo seed re-anchored at the #74 amended-dose landing ('crunch-time'
+// went lead-change-quiet on the reshuffled stream; this one shows 4
+// changes and 17-0 / 10-0 runs)
+const result = simulateGame({ seed: 'crunch-time-2', home, away });
 const abbrev = [home.abbrev, away.abbrev] as const;
 
 const clockOf = (e: GameEvent): string => {

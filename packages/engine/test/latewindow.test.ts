@@ -142,10 +142,11 @@ function scanFouls(g: GameResult): {
 describe('the last-2:00 window on real streams (REGISTER W63)', () => {
   // seeds scouted per the re-anchor protocol (a reshuffle that starves the
   // vacuity floors fails loudly; re-scan latewin-1..80). Current anchor:
-  // the W69+W70 tree — 38 and 50 host two paid trips each, 43 and 7 one
-  // (6 total; trips run ~0.2-0.3/game by nature — below-threshold teams
-  // with two window fouls)
-  const pool = [game('latewin-38'), game('latewin-50'), game('latewin-43'), game('latewin-7')];
+  // the #74 amended-dose landing — 62 and 73 host three paid trips each,
+  // 9 and 26 two (10 total, 0 unpaid anywhere on the 80-seed scan; trips
+  // run ~0.2-0.3/game by nature — below-threshold teams with two window
+  // fouls)
+  const pool = [game('latewin-62'), game('latewin-73'), game('latewin-9'), game('latewin-26')];
 
   it('window trips exist, and every one of them pays free throws', () => {
     let paid = 0;

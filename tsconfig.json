@@ -8,6 +8,12 @@
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
+    // AGENTS.md §1.7 enforced by the compiler (issue #62): the runtime is
+    // Node type stripping with NO import elision, so an unmarked type-only
+    // import is a latent runtime error. This flag turns that (and other
+    // non-erasable syntax, e.g. `import x = require()`) into a types-job
+    // failure instead of a deferred crash in whatever loads the module first.
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,

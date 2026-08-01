@@ -147,6 +147,33 @@ export interface AiParams {
    *  stamps): the cutter bonus and the chooser's cut_finish pricing apply
    *  where they are honest — at the finish, never on a 60 ft hit-ahead */
   leakFinishRadiusFt: number;
+  /** #74 (unassisted-creation arc, increment 1) — the transition carry.
+   *  0 = no carry (staged, checked FIRST); at >0 a beaten break's
+   *  committed drive finish GATHERS THROUGH its windup — the handler
+   *  keeps carrying at the rim while the ball comes up, so the release
+   *  plane is the arrived position instead of the behind-plane stop the
+   *  cadence lands (the #74 probe: beaten-retreat transition finishes at
+   *  median 4.8 ft against the booth's 2.25 ft book boundary, 0-8% at the
+   *  plane, while plane releases convert at 59-67%). Same decides, same
+   *  labels, same make model — only the release geometry moves.
+   *  Per-possession arming draw in the heave-guard shape (0 never draws,
+   *  >= 1 short-circuits draw-free), rolled in startPossession, consumed
+   *  by executeAction's shoot branch (game.ts). */
+  transCarryScale: number;
+  /** #74 F1 amendment (PR #75 probe, Lead-ruled) — the carry's own reach:
+   *  a committed drive finish carries to the rim-plane release only when
+   *  the decide-time body-to-rim gap is at most this many feet. Before
+   *  this gate the carry's only distance cap was decide.driveShotRangeFt
+   *  (12 ft — the drive LABEL gate, a knob the carry's docs never named):
+   *  17.5% of scale-1 carries booked the ball at the rim with the body
+   *  6+ ft away at release (gap p90 7.44 ft, max 10.06 — past any human
+   *  extension). Inside the gather gate the windup's own travel covers
+   *  the gap, so a booked carry is a body that arrived at the plane or
+   *  crossed it on the slide; the residual release discontinuity is
+   *  bounded by this gate on the short side and by one windup of slide
+   *  (~7 ft at 16 ft/s x 0.45 s) on the long side — both stated in W82.
+   *  SHAPE, not dose: deliberately off the sweep surface (knobs.ts). */
+  transCarryGatherFt: number;
   cutterBonus: number;         // hitting an active cutter
   swingBase: number;           // intrinsic ball-movement value
   swingPassOutScale: number;
@@ -564,6 +591,27 @@ export const aiDefaults: AiParams = {
   dunkBlendVert: 0.6,
   dunkBlendFin: 0.4,
   leakFinishRadiusFt: 7,
+  // #74 increment 1 — LANDED at 0.5 (FEEL per the increment doctrine;
+  // knobs.ts carries the range) on the F1-AMENDED mechanism, re-measured
+  // after the PR #75 probe amendments: n=96 paired arms on TWO bases put
+  // the 0.5 astd purchase inside the issue's priced window on each base
+  // independently (-1.46pp acceptance / -1.95 i74dose vs priced
+  // -0.7..-2.1) with fgPct FLAT at every dose (the priced ceiling breach
+  // never materializes — the Lead's re-measure note, confirmed), while
+  // 0.75's pooled read sits ON the window edge (-2.18 ± ~0.3) with the
+  // step disagreeing across bases — the increment lands inside windows,
+  // not on their boundaries. Full basis: W82 landing extension + PR #75.
+  // The carry is the geometry half the probe localized: booking already
+  // follows from the booth's own rule (shotcall.ts DUNK_MAX_FT + the
+  // sync-pinned athlete gate above) once the gather arrives at the plane.
+  transCarryScale: 0.5,
+  // #74 F1 — FEEL: one windup of drive cover at well under full sprint
+  // (full sprint 16 ft/s covers 7.2 ft in the 0.45 s windup; 4.5 ft needs
+  // only 10 ft/s), so a gated carry arrives whatever fatigue does, and it
+  // sits above the decide-time medians the carry exists for (p50 2.1 /
+  // p90 3.9 ft, probe n=585 carries) — the carried population survives
+  // while the driveShotRangeFt tail (decides out to 12 ft) is severed.
+  transCarryGatherFt: 4.5,
   cutterBonus: 0.5,
   swingBase: 0.045,
   swingPassOutScale: 0.16,
@@ -1119,6 +1167,8 @@ export const aiProvenance: Record<keyof AiParams, Provenance> = {
   dunkBlendVert: 'FEEL',
   dunkBlendFin: 'FEEL',
   leakFinishRadiusFt: 'FEEL',
+  transCarryScale: 'FEEL',
+  transCarryGatherFt: 'FEEL',
   cutterBonus: 'FEEL',
   swingBase: 'FEEL',
   swingPassOutScale: 'FEEL',

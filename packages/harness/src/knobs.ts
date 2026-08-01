@@ -225,6 +225,19 @@ export const SWEEPABLE: Knob[] = [
   // assisted-share floor margin (center 54.7 vs floor 54), so a sweep
   // moving this dial should watch astdShare with it.
   { path: 'ai.pullUpThreeBonus', lo: 0.35, hi: 1.0 },
+  // #74 transition carry (unassisted-creation arc, increment 1): the
+  // per-possession arming chance of the beaten-break gather-through-windup
+  // carry — pure dose, so the whole [0, 1] interval is legal. The landing
+  // value is FEEL (the increment selects it against the fgPct ceiling; see
+  // the params.ai comment); registered so the coordinated re-sweep can
+  // trade the carry's make surplus against the jumper economy it funds.
+  // The beaten-break SHAPE (defendersBack < transSetBackCount, the gather
+  // riding the existing windup) is definition, not calibration, and stays
+  // off the surface — as does the F1 gather gate (ai.transCarryGatherFt):
+  // reach is part of what a carry IS, and a sweep pushing it outward
+  // would re-create the unbounded release-gap tail the bound exists to
+  // remove (PR #75 probe F1).
+  { path: 'ai.transCarryScale', lo: 0, hi: 1 },
 
   // Endgame layer (params.endgame; live only under GameConfig.endgame) —
   // registered for the flag-ON coordinated re-sweep: the n=1260/arm flag-on
