@@ -59,6 +59,31 @@ describe('gradeTarget — the CLI exit-code classification (issue #43)', () => {
   it('a quarantined miss reports loudly but does not gate (QUAR)', () => {
     expect(gradeTarget(row({ quarantine: 'W29' }), 9)).toBe('quarantined-miss');
   });
+
+  // Inventory over the LIVE rows, zero simulation (PR #73 review). The
+  // quarantine value is the exit-code bypass key, and node's type stripping
+  // means an arbitrary truthy string RUNS here even though tsc rejects the
+  // `W${number}` type. This assertion is the enforcement that reaches every
+  // local `npm test`, where tsc is unavailable by design. At-most-one-flag is
+  // gradeTarget's documented precondition: a row carrying both flags grades
+  // ratchet-miss and leaves the tripwire, so the CI coverage the quarantine
+  // paperwork promises would be silently void for that row.
+  it('quarantine inventory: every flag names a register row (W-number) and never doubles with ratchet', () => {
+    const badRefs: string[] = [];
+    const doubled: string[] = [];
+    for (const [starId, rows] of Object.entries(TARGETS)) {
+      for (const t of rows) {
+        if (t.quarantine !== undefined && !/^W\d+$/.test(t.quarantine)) {
+          badRefs.push(`${starId} ${t.label}: ${t.quarantine}`);
+        }
+        if (t.ratchet && t.quarantine !== undefined) {
+          doubled.push(`${starId} ${t.label}`);
+        }
+      }
+    }
+    expect(badRefs).toEqual([]);
+    expect(doubled).toEqual([]);
+  });
 });
 
 describe(`player-fidelity gate (measured-noise widths, ${GAMES} games per benchmark)`, () => {

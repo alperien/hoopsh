@@ -195,8 +195,12 @@ export interface Target {
    *  loud-but-not-gating shape as ratchet, different meaning — ratchet: the
    *  mechanism has not landed; quarantine: the ruling on WHICH side moves
    *  (target vs fixture/engine) is pending. Set at most one of the two.
-   *  Remove the flag when the ruling lands, whichever way it goes. */
-  quarantine?: string;
+   *  Remove the flag when the ruling lands, whichever way it goes.
+   *  The register-reference shape is enforced twice (PR #73 review): the
+   *  template literal type gates the types CI job, and the zero-simulation
+   *  inventory test in fidelity.test.ts gates every local `npm test`, where
+   *  tsc is unavailable by design. */
+  quarantine?: `W${number}`;
   get: (l: AggLine) => number;
 }
 
