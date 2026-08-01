@@ -191,6 +191,13 @@ reacting-world, and explained-consequence gates all holding.
   one value changed. Provenance (`REAL`/`SWEPT`/`FEEL`) is now machine-readable
   (`paramProvenance` + `params.provenance.ts`), and a new coverage test makes
   AGENTS.md DO-NOT rule 1 a checked property instead of an honor system.
+- `verbatimModuleSyntax` is on in the root tsconfig (#80, issue #62):
+  unmarked type-only imports and the other non-erasable syntax AGENTS.md 1.7
+  bans now fail `npm run typecheck` instead of erroring at runtime under
+  type stripping. The audit found zero violating sites; the diff is the flag
+  plus its comment. Re-verified: fingerprint corpus 28/28 byte-identical,
+  test counts identical (1542 tests, 1540 pass, 2 todo), typecheck green
+  before and after.
 
 ### Fixed
 
@@ -209,6 +216,14 @@ reacting-world, and explained-consequence gates all holding.
   pre-entry rings and restoring descent-phase earned rings (#32).
   Re-verified: two of four new epilogue tests red on unfixed code and green
   on the fix, fingerprint corpus 28/28 byte-identical.
+- Team packs carrying `rotationMinutes` keys that match no player id are
+  rejected at load: `validateTeamPack` checks each key against the pack's
+  player ids, ending the silent acceptance behind the #39 dead-rotation-map
+  incident class (85% self-play loss). roster:validate drops the orphaned
+  rotation-unknown-id warning and moves its did-you-mean suggestion into
+  the rejection explainer (#79, issue #60). Re-verified: test counts 1542
+  to 1544 (the two new validation tests), fingerprint corpus 28/28
+  byte-identical.
 
 ### Docs
 
