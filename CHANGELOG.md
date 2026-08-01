@@ -11,6 +11,22 @@ session (W76-W77), each plan-first with adversarial verifier gating and,
 for the rim session, a primary-source audit of every reference number the
 sim is compared against (findings/session7-plan*.md, session8-*.md).
 
+### Unassisted-creation supply arc, increment 1 (#74, REGISTER W82)
+
+- The transition carry, STAGED at `ai.transCarryScale: 0`: on a
+  live-rebound/steal possession with the retreat beaten, a committed
+  drive finish releases at the rim plane by construction instead of the
+  behind-plane stop-out. The pre-diff probe on #74 localized the G11
+  deficit to release geometry (beaten-break finishes at median 4.8 ft
+  against the booth's 2.25 ft book boundary, 0-8% at the plane; plane
+  releases convert at 59-67%), and branch instrumentation localized the
+  artifact to the sprinting body's stopping distance. Same decides, same
+  labels, same make model; the contest still reads off the body at
+  release; dunk-class books through the booth's existing rule. One new
+  knob (FEEL, hard-zero short-circuit checked first, heave-guard arming
+  draw, knobs.ts range in the same PR); params-provenance pins
+  re-baselined; off-state streams byte-identical.
+
 ### Rim supply (session 8)
 
 - Reference-data audit: every comparison target re-verified against its
