@@ -134,6 +134,8 @@ export function updateAfterGame(
   if (!line || line.min <= 0) {
     const grade: GameGrade = {
       gameId: record.id, adherence: 100, production: 0, trustDelta: 0,
+      // the acceptance gate's independent replay skips DNP grades by this
+      // note's prefix (app/src/role-response.ts); reword them together
       note: 'did not play; nothing to grade',
     };
     coach.grades.push(grade);
@@ -177,7 +179,10 @@ export function updateAfterGame(
   coach.trust = clamp(Math.round((coach.trust + delta) * 10) / 10, 5, 99);
   coach.greenLight = coach.trust >= t.greenLightTrust;
 
-  // role clocks
+  // role clocks. The acceptance harness replays coach.grades through this
+  // same arithmetic and demands the observable response at each firing
+  // (app/src/role-response.ts, issue #41); a change to the clock, ladder,
+  // or event semantics here updates that gate with it.
   if (production >= t.promoteAt) {
     coach.roleClock.above += 1;
     coach.roleClock.below = 0;

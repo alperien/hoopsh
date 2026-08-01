@@ -146,13 +146,36 @@ describe('schema rejection paths — team-level fields', () => {
     expect(has(validateTeamPack(bad), '$.team.rotationMinutes.brk-mercer', 'finite number >= 0')).toBe(true);
   });
 
-  it('rotationMinutes keys naming unknown ids are NOT a rejection (schema.ts:296-299: engine ignores them; roster-validate warning territory)', () => {
-    // spec: "Keys pointing at ids not on the roster are ignored harmlessly
-    // by the engine, so those are a roster-validate warning rather than a
-    // rejection here" (also docs/ROSTERS.md's two inexpressible-rules note)
-    const pack = freshPack();
-    pack.team.rotationMinutes = { ghost: 20 };
-    expect(validateTeamPack(pack)).toEqual([]);
+  it('a rotationMinutes key matching no player id is rejected at the offending key (issue #60)', () => {
+    // spec: schema.ts — "Keys must match a player id on the roster". The
+    // engine skips a dead key without error, so the author's minutes plan
+    // silently never applies: the #39 self-play rig lost 85% of its games to
+    // a dead rotation map before the cause was found. Until issue #60 this
+    // suite pinned the opposite contract (NOT-a-rejection, deferring to a
+    // roster-validate plausibility warning the load path never runs); the
+    // incident overturned that judgment.
+    const bad = freshPack();
+    bad.team.rotationMinutes = { ghost: 20 };
+    expect(has(validateTeamPack(bad), '$.team.rotationMinutes.ghost', 'matches no player id')).toBe(true);
+
+    // a key matching a rostered player is untouched — no behavior change
+    // for valid packs
+    const ok = freshPack();
+    ok.team.rotationMinutes = { [ok.team.players[5].id]: 20 };
+    expect(validateTeamPack(ok)).toEqual([]);
+  });
+
+  it('the dead-key check needs a roster to check against: non-array players skips it, like the starters checks (issue #60)', () => {
+    // spec: schema.ts — `ids` stays null when players isn't an array, so the
+    // reference check is skipped rather than flagging every rotationMinutes
+    // key on a pack whose real problem is the roster itself; the value check
+    // still runs (20 is a legal target, so no rotation issue at all here)
+    const bad = freshPack();
+    bad.team.players = 'nope';
+    bad.team.rotationMinutes = { ghost: 20 };
+    const issues = validateTeamPack(bad);
+    expect(has(issues, '$.team.players', `need at least ${MIN_PLAYERS} players`)).toBe(true);
+    expect(issues.some((i) => i.path === '$.team.rotationMinutes.ghost')).toBe(false);
   });
 });
 
