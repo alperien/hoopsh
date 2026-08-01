@@ -195,11 +195,12 @@ describe('mandatory / TV stoppages (forced live)', () => {
     // control (late cap 2) vs treatment (late cap 0) on the same seeds.
     // Probed: control shows 1-2 late-Q4 timeouts per game, treatment 0.
     // Seeds re-anchored at the post-audit rebase, at the rules landing,
-    // and again at the #74 amended-dose landing (rng reshuffles moved
-    // control games to zero late-Q4 calls by seed luck — the same
-    // re-anchor practice as the audit wave's own fixture shifts; scouted
-    // to-cap-1..16, picked 1 and 7 — control late-Q4 counts 4 and 3).
-    for (const i of [1, 7]) {
+    // at the #74 amended-dose landing, and again at the #86 landing
+    // (strong-putback outcome flips moved seed 1's control game to zero
+    // late-Q4 calls by seed luck — the same re-anchor practice as the
+    // audit wave's own fixture shifts; scouted to-cap-1..16, picked 7
+    // and 8 — control late-Q4 counts 3 and 3).
+    for (const i of [7, 8]) {
       const { home, away } = sampleMatchup();
       const mk = (late: number): GameResult => simulateGame({
         seed: `to-cap-${i}`, home, away, collectFrames: false,

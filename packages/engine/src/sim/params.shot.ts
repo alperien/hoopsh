@@ -156,14 +156,19 @@ export const shotDefaults: ShotParams = {
   // rim zone's 4 ft bracket) doesn't tap the ball back toward the rim — he
   // rises and throws it down. The release moves to the rim plane (startShot
   // carryRim, the #74 construction) and this logit prices the throw-down
-  // over the generic tap, ON TOP of movePutback. STAGED at hard zero: 0
-  // short-circuits the whole class in putbackResolvesStrong (checked FIRST
-  // — no stream touches at 0), and the class adds no rng draws at ANY
-  // value: it moves the make threshold, never the draw count. FEEL at
-  // landing — the increment selects the dose against the astd window
-  // (#86 priced −0.3..−0.6pp pre-sweep at increment 1's measured exchange
-  // rate). Registered in harness/knobs.ts [0, 1.2].
-  putbackStrongLogit: 0,
+  // over the generic tap, ON TOP of movePutback. The off-switch is exact:
+  // 0 short-circuits the whole class in putbackResolvesStrong (checked
+  // FIRST — no stream touches at 0), and the class adds no rng draws at
+  // ANY value: it moves the make threshold, never the draw count. FEEL —
+  // landed at 0.3 against the astd window (#86 priced −0.3..−0.6pp
+  // pre-sweep at increment 1's measured exchange rate): the n=96 paired
+  // ladder read astd −0.34pp on the acceptance base and −0.40pp on the
+  // independent i86dose base at 0.3 (mid-window on both, 17/17 bands),
+  // −0.24 at 0.15 (under the window), and flat-to-−0.37 at 0.6/0.9 (the
+  // purchase saturates: the geometry fires at any positive logit, the
+  // dose only moves make-p — paying more buys only putback-FG% inflation).
+  // Registered in harness/knobs.ts [0, 1.2].
+  putbackStrongLogit: 0.3,
   // Size at the rim: per foot of standing-reach advantage over the
   // contester. A 7-footer finishing over a guard gains real percentage;
   // clamped to ±rimHeightAdvClampFt in the model so it can't run away. FEEL.

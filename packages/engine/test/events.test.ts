@@ -28,16 +28,22 @@
  * reshuffled every stream; same re-anchor doctrine as the prior two
  * re-scouts; re-anchored again at the session-7 pass-volume flip, scanned
  * evstream-1..240 on that tree):
- *   evstream-182 — regulation; 2 DEFENSE-won and 1 OFFENSE-won mid-game
- *                  jump balls, 1 offensive foul, 3 technicals, 2
- *                  violations, 3 replay reviews.
- *   evstream-168 — reaches OVERTIME with a tied Q4 period_end; 1
- *                  DEFENSE-won and 1 OFFENSE-won jump ball, 7 offensive
- *                  fouls, 2 technicals, 1 violation, 3 replay reviews.
- *                  (Slot re-anchored at the #74 amended-dose landing —
- *                  the arming draw on every transition possession
- *                  reshuffled the streams and evstream-77 fell back to
- *                  regulation; re-scanned evstream-1..300, slot 1 held.)
+ *   evstream-182 — regulation; 1 DEFENSE-won and 1 OFFENSE-won mid-game
+ *                  jump ball, 5 offensive fouls, 1 technical, 1
+ *                  violation, 0 replay reviews (reviews ride slot 2 on
+ *                  this anchor; counts re-scouted on the #86 stream).
+ *   evstream-268 — reaches OVERTIME with a tied Q4 period_end; 1
+ *                  DEFENSE-won and 2 OFFENSE-won jump balls, 8 offensive
+ *                  fouls, 1 technical, 0 violations, 2 replay reviews.
+ *                  (Slot re-anchored twice: at the #74 amended-dose
+ *                  landing — the arming draw reshuffled every stream,
+ *                  evstream-77 fell back to regulation, 168 took the
+ *                  slot — and at the #86 landing, where strong-putback
+ *                  outcome flips reshuffled the default streams and 168
+ *                  fell back to regulation too; re-scanned
+ *                  evstream-1..300 — OT candidates 19/214/260/268 —
+ *                  and 268 carries the richest vocabulary. Slot 1 held
+ *                  green both times.)
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
@@ -55,7 +61,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-182', 'evstream-168'].map((seed) => {
+const pool: GameResult[] = ['evstream-182', 'evstream-268'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -191,12 +197,12 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
         }
       }
     }
-    // Vacuity floor: the evstream-48 OT game contributes its tied Q4 horn.
+    // Vacuity floor: the evstream-268 OT game contributes its tied Q4 horn.
     expect(tiedEndsSeen).toBeGreaterThanOrEqual(1);
   });
 
   // Existence floor for every OT-conditional assert in this file. Scouted:
-  // evstream-48 plays period 5. If an rng-sequence change reshuffles this
+  // evstream-268 plays period 5. If an rng-sequence change reshuffles this
   // seed back to regulation, re-scout a fresh OT seed (see file header).
   it('the pool reaches overtime (existence floor for the OT legs)', () => {
     const otPeriods = pool.reduce(

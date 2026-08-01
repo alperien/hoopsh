@@ -120,13 +120,14 @@ describe('params provenance metadata (#36)', () => {
     // Captured from the pre-split monolith at 46b0e318; re-baselined at #74
     // increment 1 (ai.transCarryScale joined the surface), at the #74 F1
     // amendment (ai.transCarryGatherFt joined), at the amended-dose
-    // landing (ai.transCarryScale 0 -> 0.5), and at #86 increment 2
-    // (shot.putbackStrongLogit joined the surface, staged 0) — the
-    // sanctioned named-knob condition each time. See the header for the
-    // re-baseline doctrine.
-    expect(json.length).toBe(10881);
-    expect(fnv1a(json)).toBe('27dfcf27');
-    expect(djb2(json)).toBe('a26cb5c7');
+    // landing (ai.transCarryScale 0 -> 0.5), at #86 increment 2
+    // (shot.putbackStrongLogit joined the surface, staged 0), and at the
+    // #86 landing (shot.putbackStrongLogit 0 -> 0.3) — the sanctioned
+    // named-knob condition each time. See the header for the re-baseline
+    // doctrine.
+    expect(json.length).toBe(10883);
+    expect(fnv1a(json)).toBe('829b06a4');
+    expect(djb2(json)).toBe('9f7e24e8');
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);
