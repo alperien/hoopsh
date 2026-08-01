@@ -49,7 +49,7 @@ NCAA bonus free throw earned only by making the first).
 | Term | Plain meaning | Where it lives / is used |
 |---|---|---|
 | fingerprint | the docs-tier identity check: `npm run sim -- --seed fingerprint-1` event count + final score, plus `npm test` counts — identical before/after proves a no-behavior change | AGENTS §4.1/§4.3, PLAYBOOK step 3 |
-| golden corpus | 28 seeds' events+frames SHA-256 hashes, checked in — the refactor tripwire; regenerated only at deliberate re-baselines | packages/harness/golden/fingerprints.json, fingerprint.ts |
+| golden corpus | 28 seeds' events+frames SHA-256 hashes, checked in — the pure-refactor tier's byte-identity reference (`npm run fingerprint`) and the seed set for CI's determinism gate (corpus built twice per run, `fingerprint:determinism`). Not a gameplay gate since issue #33 — bands + invariants own that; regenerate on demand at a refactor base or a deliberate re-baseline | packages/harness/golden/fingerprints.json, fingerprint.ts |
 | acceptance bands | the league-mean ranges (pace, FG%, 3PA share, …) a batch run is graded against | harness/src/bands.ts `NBA_BANDS`; `npm run batch` |
 | band lock / "locked" | at 40+ games, every band's measured CENTER sits inside its band — necessary, not sufficient (the sweep tunes the same knobs the bands grade) | docs/CALIBRATION.md |
 | sweep | the parameter optimizer: searches `knobs.ts` ranges over `SimParams` against the bands; its printed diff gets baked into params.ts | harness/src/sweep.ts; `npm run sweep` |

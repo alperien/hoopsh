@@ -132,7 +132,7 @@ modules an agent is likely to be pointed at):
 | `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
 | `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
 | `parallel.ts` | worker-pool game runner; determinism across worker counts is the acceptance test |
-| `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
+| `fingerprint.ts` | golden fingerprint corpus — the pure-refactor byte-identity tripwire (default mode, run locally) and the CI determinism gate (`--determinism`: corpus double-built in-process, the two runs must match; not a gameplay gate since issue #33) |
 | `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
 | `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
 
