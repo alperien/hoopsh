@@ -50,6 +50,7 @@ careers, and the acceptance harness replays that equality as a gate.
 | `server.ts` | The `/api/career/*` routes; a loaded career mounts its NBA world as the current league so every franchise read route serves scenery for free, while the franchise time controls 409 (career time moves only through the choice log). |
 | `saves.ts` | One directory, two shapes (`league` vs `career` key); list rows carry their chair; loadCareer rebinds me to one object when an abroad save forked the two maps. |
 | `career-acceptance.ts` | `npm run gm:career-acceptance`: scripted pilots live whole careers; gates and bands below. |
+| `career-replay.ts` | The choice-log replay driver: rebuild the creation-time state, apply each recorded choice at its logged clock, advance, byte-compare checkpoints. The determinism gate and the app test suite both replay through it. |
 | `public/js/screens/career/` | The player-chair screens (creation, the week, the phone, the plan, the season, the game center, recruiting, stock, money, the journey). The shell (`app.js`) is mode-aware; scenery screens (league, news, almanac) are shared between chairs. |
 
 
@@ -130,8 +131,11 @@ walkon-grinder) live whole careers on the worker pool.
 GATES (exit 1): careers complete their arcs without throwing; the role
 clocks never sit at reactGames unanswered (the reacting-world invariant
 at fleet scale); every event, grade, and ledger row carries a nonempty
-reason (the explained-consequence lint); a 40-week scripted career
-replays byte-identical.
+reason (the explained-consequence lint); a career recorded from
+creation through the draft into NBA game weeks replays byte-identical
+from its choice log alone (career-replay.ts — abroad phases, the
+descent, retirement, and the epilogue sit outside the replayed
+segment, and the gate fails rather than pass with less coverage).
 
 BANDS (reported, never fatal): draft outcomes track creation quality;
 the boredom audit (content pulse per week, zero-event streaks, phone
