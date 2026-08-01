@@ -33,8 +33,13 @@
  * the scout, same safety shape as the leakout row.
  */
 import { describe, expect, it } from 'vitest';
-import { simulateGame, type GameEvent, type GameResult } from '@hoopsh/engine';
+import {
+  NBA, makeCourt, simulateGame, withParams,
+  type GameEvent, type GameResult, type ShotMoveType
+} from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
+import { carriesToRim } from '../src/sim/game.js';
+import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
 
 /** the booth's book boundary (narration shotcall.ts DUNK_MAX_FT — real
  *  dunks live at 0-2 ft, 61/62 in the reference corpus); inline the same
@@ -111,5 +116,115 @@ describe('the transition carry (#74, game.ts driving branch)', () => {
     for (const g of staged) stagedOpener += signatures(g).opener;
     for (const g of live) liveOpener += signatures(g).opener;
     expect(liveOpener).toBeLessThanOrEqual(stagedOpener + 6);
+  });
+});
+
+// ------------------------------------------------------------------ F2 pins
+
+/**
+ * F2 (PR #75 probe comment, Lead-ruled amendment): the gate, condition by
+ * condition, on hand-built states. The pooled pins above bucket by
+ * possession START kind and arming is kind-scoped, so a WITHIN-possession
+ * gate regression is invisible to them: the probe's phase-gate mutant
+ * (`s.poss.phase === 'transition'` -> `true`) passed this whole file while
+ * leaking 0.25 halfcourt-phase carries per game — the beaten-containment
+ * channel W64 assigns to a separate arc — and its commit-gate mutant
+ * (`s.t < h.driveUntil` -> `true`) passed while binding nowhere. Phase is
+ * not in the event stream, so no stream-side test can pin either. These
+ * cases drive the extracted predicate (game.ts carriesToRim) directly,
+ * one condition at a time, in the grammar.test.ts stub shape. All three
+ * gate mutants (phase drop, commit drop, gather-gate deletion) were
+ * re-applied and verified RED against these pins before landing — the
+ * mutation-shields.test.ts doctrine.
+ *
+ * The stub builds only what the predicate reads: params, court, period,
+ * the defenders' lineup side (defendersBack scans the defense within
+ * move.transBackRadiusFt = 30 ft of the attacked rim), poss
+ * carryArmed/phase, the clock, and the holder's pos/driveUntil. Values
+ * pin the shipped defaults on purpose: gather boundary cases sit 0.1 ft
+ * either side of ai.transCarryGatherFt = 4.5, and the retreat cases sit
+ * either side of move.transSetBackCount = 4.
+ */
+describe('F2: the carry gate, condition by condition (hand-built states)', () => {
+  interface GateOpts {
+    scale?: number;                          // ai.transCarryScale, default 1
+    armed?: boolean;                         // poss.carryArmed, default true
+    moveType?: ShotMoveType;                 // default 'drive'
+    commitLeft?: number;                     // driveUntil - t, default +1 (live)
+    phase?: 'transition' | 'halfcourt' | 'advance';
+    back?: number;                           // defenders inside the retreat radius, default 0
+    holderFt?: number;                       // decide-time body-to-rim ft, default 2
+  }
+
+  function gateCase(o: GateOpts = {}): boolean {
+    const params = withParams({ ai: { transCarryScale: o.scale ?? 1 } });
+    const court = makeCourt(NBA);
+    const t = 100; // mid-Q2, any live moment: the predicate reads no clock but t itself
+    const agents = new Map<string, Agent>();
+    const lineup: [string[], string[]] = [[], []];
+    const s = {
+      params, rules: NBA, court, period: 2, t, agents, lineup,
+      poss: { carryArmed: o.armed ?? true, phase: o.phase ?? 'transition' }
+    } as unknown as GameState;
+    const rim = attackedRim(s, 0);
+    const inward = rim.x > court.midX ? -1 : 1; // toward midcourt
+    // five defenders: `back` of them 10 ft from the attacked rim (inside
+    // the 30 ft retreat radius), the rest parked 55 ft out (beyond it)
+    for (let i = 0; i < 5; i++) {
+      const backOne = i < (o.back ?? 0);
+      agents.set(`d-${i}`, {
+        pos: { x: rim.x + inward * (backOne ? 10 : 55), y: rim.y - 4 + i * 2 },
+        onCourt: true, fouledOut: false
+      } as unknown as Agent);
+      lineup[1].push(`d-${i}`);
+    }
+    const h = {
+      side: 0,
+      pos: { x: rim.x + inward * (o.holderFt ?? 2), y: rim.y },
+      driveUntil: t + (o.commitLeft ?? 1)
+    } as unknown as Agent;
+    return carriesToRim(s, h, o.moveType ?? 'drive');
+  }
+
+  it('carries when every gate holds: transition, armed, drive, live commit, beaten, in reach', () => {
+    expect(gateCase()).toBe(true);
+  });
+
+  it('the PHASE gate: halfcourt phase on the same armed possession never carries', () => {
+    // the probe mutant that passed the whole pre-F2 file (0.25/g leak)
+    expect(gateCase({ phase: 'halfcourt' })).toBe(false);
+    expect(gateCase({ phase: 'advance' })).toBe(false);
+  });
+
+  it('the COMMIT gate: an expired driveUntil never carries', () => {
+    // the probe's second mutant — binds rarely, regresses invisibly
+    expect(gateCase({ commitLeft: -0.1 })).toBe(false);
+    expect(gateCase({ commitLeft: 0 })).toBe(false); // strict <: expiry is exclusive
+  });
+
+  it('the ARMING gate: an unarmed possession never carries at any live scale', () => {
+    expect(gateCase({ armed: false })).toBe(false);
+    expect(gateCase({ armed: false, scale: 0.5 })).toBe(false);
+  });
+
+  it('the STAGE switch: scale 0 never carries, armed or not', () => {
+    expect(gateCase({ scale: 0 })).toBe(false);
+  });
+
+  it('the LABEL gate: only drive finishes carry', () => {
+    expect(gateCase({ moveType: 'pull_up' })).toBe(false);
+    expect(gateCase({ moveType: 'catch_shoot' })).toBe(false);
+    expect(gateCase({ moveType: 'putback' })).toBe(false);
+  });
+
+  it('the RETREAT gate: a set defense (transSetBackCount back) never carries', () => {
+    expect(gateCase({ back: 4 })).toBe(false); // move.transSetBackCount = 4
+    expect(gateCase({ back: 3 })).toBe(true);  // one short of set is still beaten
+  });
+
+  it('the F1 GATHER gate: reach is the carry\'s own bound, not driveShotRangeFt', () => {
+    expect(gateCase({ holderFt: 4.4 })).toBe(true);
+    expect(gateCase({ holderFt: 4.6 })).toBe(false); // in (gather 4.5, label 12): the F1 tail class
+    expect(gateCase({ holderFt: 10 })).toBe(false);  // the probed teleport class, now unreachable
   });
 });
