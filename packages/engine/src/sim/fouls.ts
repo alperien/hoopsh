@@ -10,6 +10,7 @@
  */
 
 import { attackedRim, agent, emit, liveOnCourt, onCourt, other, round1, type Agent, type GameState, type Phase } from './state.js';
+import { lerp, type V2 } from '../core/vec.js';
 import type { FoulKind, TeamSide } from '../core/events.js';
 import { bonusFreeThrowAward, type BonusAward } from '../rules/rulepack.js';
 import { freeThrowP, sampleMissLanding, sampleScrambleSec } from './resolve.js';
@@ -144,6 +145,24 @@ export function recordFoul(
 // ------------------------------------------------------------- free throws
 
 /**
+ * The trip's line spot — where the shooter sets up and where the ball ends
+ * up — plus the rim/direction pair the lane formation builds from. The
+ * free-throw-line-to-rim-center distance is derived from the rule pack
+ * (NBA: 19 − 5.25 = 13.75 ft) — was a hardcoded 13.75 that silently
+ * diverged from any custom pack's ftLineFt/rimInsetFt. One derivation,
+ * shared by trip entry and the tick carry (#82 C1), so the carry's arrival
+ * write lands on coordinates bit-identical to the spot entry aimed
+ * everyone at. Rim/side/rules never change mid-trip, so entry-time and
+ * tick-time calls return identical values.
+ */
+function ftLineSpot(s: GameState, side: TeamSide): { rim: V2; dir: number; ftSpot: V2 } {
+  const rim = attackedRim(s, side);
+  const dir = rim.x > s.court.midX ? -1 : 1;
+  const ftDistFt = s.rules.ftLineFt - s.rules.rimInsetFt;
+  return { rim, dir, ftSpot: { x: rim.x + dir * ftDistFt, y: s.court.centerY } };
+}
+
+/**
  * Set up a free-throw sequence: parks the ball dead, switches the phase to
  * `freethrows`, and arranges cosmetic lane positions for everyone else.
  * Called wherever a foul (or and-one) awards free throws — shooting fouls,
@@ -199,6 +218,12 @@ export function enterFreeThrows(
     // set — slightly quicker than a full dead-ball delay since the whistle
     // already stopped the action
     nextIn: s.params.move.ftSetupSec,
+    // #82 C1 — the carry pair: where the whistle caught the ball, and the
+    // entry stamp on the WALL axis (the ritual exists only there; see the
+    // field docs in state.ts). tickFreeThrows walks the ball spot→line
+    // across the ftSetupSec lead-in instead of the entry snap this replaces.
+    carryFrom: { x: s.ball.pos.x, y: s.ball.pos.y },
+    carryT0: s.wallT,
     oneAndOne,
     // conditional spread, the oneAndOne byte-discipline pattern: a no-tech
     // trip's phase object (and everything downstream) is shaped exactly as
@@ -228,19 +253,17 @@ export function enterFreeThrows(
   // cosmetic positioning around the key — none of this affects the free-throw
   // probability model (that's purely rating-based in resolve.ts), it's just
   // so the replay doesn't show players standing wherever the whistle caught them
-  const rim = attackedRim(s, shooter.side);
-  const dir = rim.x > s.court.midX ? -1 : 1;
-  // free-throw-line-to-rim-center distance, derived from the rule pack
-  // (NBA: 19 - 5.25 = 13.75 ft) — was a hardcoded 13.75 that silently
-  // diverged from any custom pack's ftLineFt/rimInsetFt
-  const ftDistFt = s.rules.ftLineFt - s.rules.rimInsetFt;
-  const ftSpot = { x: rim.x + dir * ftDistFt, y: s.court.centerY };
+  const { rim, dir, ftSpot } = ftLineSpot(s, shooter.side);
   shooter.target = ftSpot;
-  // the ball waits at the line with the shooter. Without this it sat wherever
-  // the whistle caught it for the whole ritual — median 14 ft, worst-case
-  // 35 ft (backcourt) from the man shooting, a visible replay tell. No
-  // probability model reads ball.pos in this phase; frames/viewer only.
-  s.ball.pos = { ...ftSpot };
+  // The ball is deliberately NOT snapped to the line here. The old entry
+  // snap (added so the ball didn't sit a median 14 ft from the shooter all
+  // ritual) was itself the frame stream's largest teleport class — issue
+  // #82: 25.4 foul-crossing single-frame ball jumps/g, p50 13.9 ft, max
+  // ~75 ft on backcourt whistles. tickFreeThrows now carries the ball
+  // whistle-spot→line across the same ftSetupSec lead-in, via the
+  // carryFrom/carryT0 pair stamped on the phase above. No probability
+  // model reads ball.pos in this phase (frames/viewer only) — that is
+  // what keeps the carry frames-only.
   let lane = 0;
   for (const a of [...onCourt(s, shooter.side), ...onCourt(s, other(shooter.side))]) {
     if (a.p.id === shooter.p.id) continue;
@@ -290,6 +313,30 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   // landed with the M1 margin re-sweep (docs/REGISTER.md D4)
   applyFatigue(s, dt);
   ph.nextIn -= dt;
+  // #82 C1 — the ball walks to the line instead of teleporting there: lerp
+  // whistle-spot→line across the ftSetupSec lead-in, then hold the spot for
+  // the rest of the ritual (the between-attempts park the old entry snap
+  // provided). Keyed on wallT, NEVER game-clock t: the clock is frozen
+  // through the ritual, so a t-keyed lerp would freeze at zero (the AGENTS
+  // §1.5 trap — this is F1's carry shape from game.ts on the opposite
+  // axis). Worst case is a ~75 ft backcourt whistle: ~53 ft/s across the
+  // 1.4 s lead-in, a relay at pass speed, replacing a ~370 ft/s
+  // single-frame snap. The arrival write is the byte-exact { ...ftSpot }
+  // and is ALSO gated on the attempt's own predicate (nextIn <= 0), so in
+  // every float outcome the ball sits exactly on the spot at or before the
+  // first attempt — technical prefixes fire on the same countdown, so they
+  // are covered — and every downstream hand-off (miss rim seed, made-FT
+  // dead ball, technical resume) reads exactly the position the old snap
+  // produced. A timeout huddle at entry stretches nextIn, never the carry
+  // window: the ball arrives early and waits out the huddle at the line.
+  if (ph.carryFrom !== undefined && ph.carryT0 !== undefined) {
+    const { ftSpot } = ftLineSpot(s, ph.side);
+    const dur = s.params.move.ftSetupSec;
+    const elapsed = s.wallT - ph.carryT0;
+    s.ball.pos = elapsed >= dur || ph.nextIn <= 0
+      ? { ...ftSpot }
+      : lerp(ph.carryFrom, ftSpot, elapsed / dur);
+  }
   if (ph.nextIn > 0) return;
 
   // Technical prefix attempt (officiating wave; reachable only when a tech
