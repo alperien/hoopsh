@@ -114,12 +114,10 @@ describe('roster:validate warnings', () => {
     expect(codes(under)).toContain('usage-vacuum');
   });
 
-  it('rotationMinutes: unknown id (with typo suggestion), >48 target, overbooked total', () => {
+  it('rotationMinutes: >48 target and overbooked total (dead keys are validator rejections since issue #60, not warnings)', () => {
     const pack = scaffold();
-    pack.team.rotationMinutes = { 'warn-lab-p1': 30, 'warn-lab-p01': 52 };
+    pack.team.rotationMinutes = { 'warn-lab-p01': 52 };
     const warns = computeWarnings(pack);
-    const unknown = warns.find((w: { code: string }) => w.code === 'rotation-unknown-id');
-    expect(unknown?.why).toContain('warn-lab-p01');
     expect(warns.some((w: { code: string }) => w.code === 'rotation-implausible')).toBe(true);
 
     const booked = scaffold();
@@ -169,6 +167,16 @@ describe('roster:validate error enrichment', () => {
     expect(explained.find((e) => e.path.endsWith('heightIn'))?.fix).toContain('81'); // 206cm -> 81in
     expect(explained.find((e) => e.path.endsWith('tend.usage'))?.fix).toContain('"usage": 50');
     expect(explained.find((e) => e.path === '$.team.starters')?.fix).toContain('"warn-lab-p05"');
+  });
+
+  it('a dead rotationMinutes key rejects with an id suggestion (issue #60 — formerly the rotation-unknown-id warning)', () => {
+    const pack = scaffold();
+    pack.team.rotationMinutes = { 'warn-lab-p1': 30 }; // typo for warn-lab-p01
+    const issues = validateTeamPack(pack);
+    const explained = issues.map((i) => explainIssue(pack, i) as any);
+    const dead = explained.find((e) => e.path === '$.team.rotationMinutes.warn-lab-p1');
+    expect(dead?.message).toContain('matches no player id');
+    expect(dead?.fix).toContain('did you mean "warn-lab-p01"');
   });
 
   it('unknown attr/tend keys: typo gets a suggestion, annotation gets the no-comments explanation', () => {
