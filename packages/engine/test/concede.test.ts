@@ -634,33 +634,15 @@ describe('LIVE default §5.1: a close game never concedes', () => {
     // behavior contract is asserted where a checkSubs pass has actually
     // run: the dead-ball settlement markers, the same device the
     // composition pin above uses.
-    //
-    // Second measurement correction at the #74 landing dose (same latency
-    // class, one marker deeper): the reshuffled stream produced a legally
-    // conceded side (armed-holding at m 11-12, exit floor ~10.7) whose
-    // comeback cut m 9 -> 8 across a shooting whistle and its and-one FT
-    // at the SAME clock (88s) — zero elapsed game seconds between the
-    // legal disarm and the first close-margin marker, so no re-insertion
-    // slot could exist yet (concede-live-7 at transCarryScale 0.5). The
-    // flag arithmetic itself is exhaustively proven above (no m <= 8 can
-    // enter or hold at any clock). The device therefore asserts from the
-    // SECOND consecutive close-margin marker inside the window — the same
-    // settled-by-then convention the composition pin above documents. A
-    // genuine misfire fields a bench unit across MANY consecutive close
-    // dead balls and still fails here at the second one.
     let sampled = 0;
     for (const g of pool) {
-      const closeAtPrior: [boolean, boolean] = [false, false];
-      foldFinalPeriod(g, ({ e, side, m, count }) => {
-        if (!isDeadBall(e) || e.clock > 240) return;
-        const wasClose = closeAtPrior[side];
-        closeAtPrior[side] = m <= 8;
-        if (m <= 8 && wasClose) {
+      foldFinalPeriod(g, ({ e, m, count }) => {
+        if (isDeadBall(e) && e.clock <= 240 && m <= 8) {
           sampled++;
           expect(count).toBeGreaterThanOrEqual(1);
         }
       });
     }
-    expect(sampled).toBeGreaterThan(100); // re-probed 166 marker events at the #74 flip (consecutive pairs are rarer than the 366 single markers)
+    expect(sampled).toBeGreaterThan(100); // probed 366 marker events: close endings are common
   });
 });

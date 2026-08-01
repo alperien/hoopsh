@@ -119,13 +119,11 @@ describe('params provenance metadata (#36)', () => {
     const json = JSON.stringify(defaultParams);
     // Captured from the pre-split monolith at 46b0e318; re-baselined at #74
     // increment 1 (ai.transCarryScale joined the surface — the sanctioned
-    // condition: a knob-surface change that names its knob), and again at
-    // the #74 landing dose (transCarryScale 0 -> 0.5, the named-knob value
-    // change the increment exists to land). See the header for the
-    // re-baseline doctrine.
-    expect(json.length).toBe(10833);
-    expect(fnv1a(json)).toBe('39abb4da');
-    expect(djb2(json)).toBe('beaa67a8');
+    // condition: a knob-surface change that names its knob). See the header
+    // for the re-baseline doctrine.
+    expect(json.length).toBe(10831);
+    expect(fnv1a(json)).toBe('26b56df5');
+    expect(djb2(json)).toBe('39b864a5');
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);

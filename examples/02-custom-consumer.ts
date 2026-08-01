@@ -22,9 +22,7 @@ import type { GameEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
 const { home, away } = sampleMatchup();
-// seed re-anchored at the #74 transition-carry landing ('crunch-time' went
-// lead-change-quiet on the new streams); this one shows 17 lead changes
-const result = simulateGame({ seed: 'crunch-time-1', home, away });
+const result = simulateGame({ seed: 'crunch-time', home, away });
 const abbrev = [home.abbrev, away.abbrev] as const;
 
 const clockOf = (e: GameEvent): string => {
