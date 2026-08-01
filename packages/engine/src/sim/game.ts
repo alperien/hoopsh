@@ -573,7 +573,10 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       // behind-plane release IS the sprinting body's stopping distance —
       // a 16 ft/s carry slides 4-6 ft during the 0.45 s windup whatever
       // the steering target says, and no movement shape can land the
-      // plane. The finish's extension at the rim has to be constructed,
+      // plane. The 0.45 s is the windupDrive param; the effective windup
+      // is 0.50 s on every released carry, the param tick-quantized to
+      // the next 0.1 s boundary. The finish's extension at the rim has
+      // to be constructed,
       // exactly as the approved sketch words it. The CONTEST still reads
       // off the body at release (startShot), so a carry into traffic
       // prices as the heavily-contested rim attempt it is — probabilistic
