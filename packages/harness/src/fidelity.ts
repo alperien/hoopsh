@@ -223,7 +223,14 @@ export const TARGETS: Record<string, Target[]> = {
   'fid-jokic': [
     { label: 'PTS', lo: 19.5, hi: 28.5, get: per((l) => l.pts) },
     { label: 'AST', lo: 7, hi: 11, get: per((l) => l.ast) },
-    { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) }, // ratchet EARNED: minutes controller + guard-crash economy
+    // Enforced floor with an OPEN owner ruling (REGISTER W29): the 10.0
+    // ratchet was EARNED by the minutes controller + guard-crash economy,
+    // but the n40 center has measured under it since the B2 landing — 9.62
+    // at 4bd7a72, 9.02 at the 6c98849 floor (~10.7se out; issue #42 report).
+    // The ruling (accept garbage-rested centers vs nudge the fixture's
+    // rotationMinutes 35 → 36) is the owner's; the band does not move here
+    // (issue #43 scope). Until it lands, this row is the gate's expected red.
+    { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) },
     { label: 'FG%', lo: 0.52, hi: 0.64, pct: true, get: (l) => l.fgm / Math.max(1, l.fga) },
     { label: '3PA', lo: 2, hi: 5.5, get: per((l) => l.tpa) },
     // ratchet: the 1.8 floor was never met — measured @40: 1.10 at this
@@ -330,4 +337,15 @@ if (import.meta.main) {
     console.log('');
   }
   console.log(failures === 0 ? 'All enforced benchmark lines inside their ranges.' : `${failures} enforced range misses.`);
+  // The exit code IS the gate — same doctrine as cli.ts's band gate: a FAIL
+  // report that exits 0 makes the tier decorative. This runner used to count
+  // misses and fall off the end of the file, so every scripted caller read
+  // success (H-validate-1, findings/opt-validate.md; issue #43). Ratchet
+  // rows stay advisory: RTCH prints, nothing gates. Trap, registered W32:
+  // on Node 24.0/24.1 import.meta.main is undefined and this entire block —
+  // gate included — silently no-ops.
+  if (failures > 0) {
+    console.error(`FIDELITY GATE: ${failures} enforced target(s) outside range`);
+    process.exit(1);
+  }
 }
