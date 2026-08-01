@@ -83,5 +83,6 @@ export {
   DEFAULT_OFFICIALS_PARAMS,
 } from './officials.js';
 export type { RefCrew, OfficialsState, GameOfficials, OfficialsParams } from './officials.js';
+export { confidencePhrase, lifestylePhrase, updatePsyche, initPsyche } from './people/psyche.js';
 export { updateAwardRaces, voteSeasonAwards, selectAllStars } from './media/awards.js';
 export { updateRecords, archiveSeason } from './media/almanac.js';
