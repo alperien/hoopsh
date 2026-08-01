@@ -221,6 +221,7 @@ function initState(cfg: GameConfig): GameState {
       phase: 'advance',
       startT: 0,
       kind: 'tip',
+      leakArmed: false,
       // pre-tip placeholder; the tip possession itself is stamped by
       // startPossession like every period start
       opener: false,

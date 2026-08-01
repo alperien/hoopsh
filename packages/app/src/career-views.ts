@@ -335,6 +335,7 @@ export function careerGameView(career: CareerState, record: GameRecord, hasRepla
     totals: record.totals,
     keyPlays: record.keyPlays,
     grade: career.coach.grades.find(g => g.gameId === record.id) ?? null,
+    officials: record.officials ?? null,
     me: career.me,
     hasReplay,
     hasBroadcast: hasReplay,

@@ -11,6 +11,7 @@
  */
 import { Rng } from '@hoopsh/engine';
 import type { GameLine, GameRecord, League, NewsItem } from '../types.js';
+import { officialsRecapLine } from '../officials.js';
 
 /** Wire byline for recaps (fixed voice, see media/news.ts for the others). */
 export const WIRE = 'Association Wire';
@@ -140,6 +141,9 @@ export function recapGame(league: League, record: GameRecord): NewsItem | null {
       sentences.push(`The series is ${lead}.`);
     }
   }
+
+  const crewLine = officialsRecapLine(league, record);
+  if (crewLine) sentences.push(crewLine);
 
   const userGame = record.home === league.userTeam || record.away === league.userTeam;
   const milestone = (wStar && wStar.pts >= 40) || record.keyPlays.some(k => k.kind === 'milestone' || k.kind === 'buzzer');

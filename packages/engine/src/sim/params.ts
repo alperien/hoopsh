@@ -235,6 +235,7 @@ export interface SimParams {
     longPassFt: number;
     /** logit risk added per 10 ft of pass length beyond longPassFt */
     longPassPer10Ft: number;
+
     /** receiver lead: the pass targets where a moving receiver WILL be,
      *  this many seconds of his current velocity ahead */
     leadSec: number;
@@ -1033,6 +1034,26 @@ export interface SimParams {
      *  release freezes the clock — so ~0.5 s arrivals are whistle bait while
      *  ~2 s arrivals convert. */
     passClockGetOffSec: number;
+    /** W64 channel 3 (session-8 rim-supply arc) — the transition leak-out.
+     *  0 = nobody leaks (staged, checked FIRST); at >0 the fastest
+     *  gate-clearing non-handler abandons his spot for the far rim during
+     *  live-rebound/steal transitions while the defense is not set. The
+     *  finish rides the ORDINARY catch path — the session-8 lob-fusion
+     *  experiment measured the fused rise WORSE than the normal
+     *  catch->decide->windup coast (36% vs 51-55% FG; the register's
+     *  channel-2 falsification row) and was stripped.
+     *  KEEP IN SYNC: dunkAthleteGate and the blend weights mirror narration
+     *  shotcall.ts DUNK_ATHLETE_SCORE / its 0.6/0.4 blend (the booth's own
+     *  definition of who dunks IS who leaks); the engine cannot import
+     *  narration, so a sync test pins the pair. */
+    leakOutScale: number;
+    dunkAthleteGate: number;
+    dunkBlendVert: number;
+    dunkBlendFin: number;
+    /** inside this rim radius the leaker counts as a CUTTER (cutUntil
+     *  stamps): the cutter bonus and the chooser's cut_finish pricing apply
+     *  where they are honest — at the finish, never on a 60 ft hit-ahead */
+    leakFinishRadiusFt: number;
     cutterBonus: number;         // hitting an active cutter
     swingBase: number;           // intrinsic ball-movement value
     swingPassOutScale: number;
@@ -1516,6 +1537,7 @@ export const defaultParams: SimParams = {
     //   Beyond 25 ft each extra 10 ft adds 0.12 logits (~3 pp TO rate). FEEL.
     longPassFt: 25,            // FEEL — cross-court skip distance threshold
     longPassPer10Ft: 0.12,     // FEEL — logit per 10 ft beyond longPassFt
+
     // Delivery geometry (were inline in passing.ts startPass, audit H-01 —
     // they shape flight time and where failed passes land, so they feed the
     // turnover/steal path):
@@ -2433,6 +2455,16 @@ export const defaultParams: SimParams = {
     // {1.0, 1.5, 2.5} re-measured the trade and the chosen value keeps the
     // grenade cut at minimal volume cost (see the session-7 register row).
     passClockGetOffSec: 1.5,
+    // W64 channel 3 — STAGED at 0 (session-8 arc): the flip is a
+    // mechanics-tier change (fingerprints re-baseline, fixtures re-scout).
+    // The gate/blend mirror shotcall.ts DUNK_ATHLETE_SCORE (sync-tested);
+    // the finish rides the ordinary catch path (the lob-fusion experiment
+    // is the register's channel-2 falsification row).
+    leakOutScale: 0,
+    dunkAthleteGate: 74,
+    dunkBlendVert: 0.6,
+    dunkBlendFin: 0.4,
+    leakFinishRadiusFt: 7,
     cutterBonus: 0.5,
     swingBase: 0.045,
     swingPassOutScale: 0.16,

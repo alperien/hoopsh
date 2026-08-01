@@ -50,10 +50,14 @@ export {
 } from './transactions.js';
 
 // people
-export { generateName } from './people/names.js';
-export type { GeneratedName } from './people/names.js';
-export { generatePlayer, generateDraftClass, generateCoach } from './people/gen.js';
+export { generateName, generateNameOfKind, isFamousName, personName } from './people/names.js';
+export type { GeneratedName, NameKind, NameOpts, PersonRole } from './people/names.js';
+export { generatePlayer, generateDraftClass, generateCoach, classStrengthFor } from './people/gen.js';
 export type { GenPlayerOpts } from './people/gen.js';
+export {
+  ARCHETYPES, archetypeById, archetypeOf, archetypeLabelOf,
+} from './people/archetypes.js';
+export type { Archetype, ArchetypeId } from './people/archetypes.js';
 export { runDevelopmentReview, reviewPlayerDevelopment, applyAging, distributeGrowth, groupMean, ATTR_GROUPS } from './people/dev.js';
 export type { DevReviewCtx } from './people/dev.js';
 export { rollPostGameInjuries, advanceRecoveries } from './people/injury.js';
@@ -72,5 +76,12 @@ export { perceivedGroup, buildUserReport, runCombine } from './scouting.js';
 // media & history
 export { writeDailyNews } from './media/news.js';
 export { recapGame } from './media/recap.js';
+export {
+  initOfficials, officialsStateOf, dayAssignments, crewForGame,
+  gameTightness, crewAttrDelta, officiatingParamsFor, officialsJobExtras,
+  officialsStamp, officialsRecapLine, officialsNewsFor, officialsParamsOf,
+  DEFAULT_OFFICIALS_PARAMS,
+} from './officials.js';
+export type { RefCrew, OfficialsState, GameOfficials, OfficialsParams } from './officials.js';
 export { updateAwardRaces, voteSeasonAwards, selectAllStars } from './media/awards.js';
 export { updateRecords, archiveSeason } from './media/almanac.js';

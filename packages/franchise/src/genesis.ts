@@ -30,10 +30,11 @@ import type {
 } from './types.js';
 import type { FranchiseParams } from './params.js';
 import { withFranchiseParams } from './params.js';
+import { initOfficials } from './officials.js';
 import { streamRng } from './rng.js';
 import { FRANCHISES } from './teamdata.js';
 import { generatePersona } from './ai/persona.js';
-import { generateName } from './people/names.js';
+import { personName } from './people/names.js';
 import { abilityMean, ensureUniqueName, generateCoach, generatePlayer } from './people/gen.js';
 
 export interface CreateLeagueOpts {
@@ -452,7 +453,7 @@ export function createLeague(opts: CreateLeagueOpts): League {
 
     // front office: owner, GM persona (user team runs its own front
     // office), coach stamped with the genesis date
-    const ownerName = generateName(rng); // owners draw from the same era-neutral pools; only first/last are used
+    const ownerName = personName(rng, 'gm'); // owners draw from the executive age cohort; only first/last are used
     const appetite = tier === 'contend' ? OWNER_TAX_APPETITE_CONTEND : OWNER_TAX_APPETITE_OTHER;
     const owner: Owner = {
       name: `${ownerName.first} ${ownerName.last}`,
@@ -513,6 +514,7 @@ export function createLeague(opts: CreateLeagueOpts): League {
   return {
     seed: opts.seed,
     params,
+    officials: initOfficials(opts.seed, params),
     season,
     startSeason: season,
     day: 0,
