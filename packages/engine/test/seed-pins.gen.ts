@@ -22,27 +22,27 @@ export const SEED_PINS = {
     "note": "Anchors consumed by events.test.ts (evstreamPool), subs.test.ts (otseek, audit H-02), timeouts.test.ts (tocap), leakout.test.ts (leakout). Assertions and floors live in the tests; this file only answers which seeds currently exhibit the pinned phenomena."
   },
   "evstreamPool": {
-    "regulation": "evstream-182",
-    "overtime": "evstream-168",
-    "provenance": "anchored 2026-08-01 by hand at the #74 amended-dose landing (re-scanned evstream-1..300, slot 1 held; re-anchor trail in the events.test.ts header). Slot semantics: one regulation game rich in the flow vocabulary + one overtime game; the pooled floors are enumerated in reanchor.ts EVSTREAM_FLOORS."
+    "regulation": "evstream-4",
+    "overtime": "evstream-214",
+    "provenance": "re-anchored 2026-08-01 by the helper (scanned evstream-1..240; the qualifying pair with the widest minimum floor headroom, 1.00x). evstream-4 — regulation; 1 def-won + 1 off-won jumps, 3 offensive fouls, 0 technicals, 2 violations, 1 replay reviews. evstream-214 — overtime; 3 def-won + 0 off-won jumps, 1 offensive fouls, 1 technicals, 2 violations, 2 replay reviews."
   },
   "otseek": {
     "seeds": [
-      "otseek-60",
+      "otseek-35",
+      "otseek-59",
       "otseek-126",
       "otseek-157",
-      "otseek-196",
-      "otseek-205",
-      "otseek-209"
+      "otseek-162",
+      "otseek-179"
     ],
-    "provenance": "anchored 2026-08-01 by hand at the #74 amended-dose landing (re-scanned otseek-0..300, 7 OT seeds found, list carries the first six; eighth re-anchor — trail in the subs.test.ts H-02 header). Doctrine: 6/6 reach overtime at anchor; the test floor is >= 2 so reshuffle luck has headroom."
+    "provenance": "re-anchored 2026-08-01 by the helper (scanned otseek-0..179 of the 0..1200 ceiling, first 6 OT-reaching seeds — the H-02 doctrine; hand-anchor trail in the subs.test.ts header). 6/6 reach overtime at anchor; the test floor is >= 2."
   },
   "tocap": {
     "seeds": [
-      "to-cap-1",
-      "to-cap-7"
+      "to-cap-2",
+      "to-cap-4"
     ],
-    "provenance": "anchored by hand at the #74 amended-dose landing (scouted to-cap-1..16, picked 1 and 7, control late-Q4 counts 4 and 3 — timeouts.test.ts header). Qualification per seed: the control arm (late cap 2) spends >= 1 late-Q4 timeout, the 0-cap arm spends none there and still spends >= 4 in Q1-Q3."
+    "provenance": "re-anchored 2026-08-01 by the helper (scanned to-cap-1..32, first 2 qualifying). Qualification per seed: the control arm (late cap 2) spends >= 1 late-Q4 timeout, the 0-cap arm spends none there and still spends >= 4 in Q1-Q3."
   },
   "leakout": {
     "scout": {

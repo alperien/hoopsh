@@ -93,6 +93,19 @@ export const SWEEPABLE: Knob[] = [
   // the optimizer pinned ORtg 122-126 with every other dial at boundary.
   { path: 'shot.contestCoef', lo: -2.0, hi: -0.82 },
   { path: 'shot.blockBase', lo: 0.18, hi: 0.45 },
+  // #86 strong-putback class (unassisted-creation arc, increment 2): the
+  // throw-down's make-logit premium over the generic tap, applied only when
+  // possession.ts putbackResolvesStrong fires. Pure finish pricing, so the
+  // hi rail brackets believable conversion: at 1.2 a wide-open strong
+  // putback tops out around the low-90s make% (baseRim + movePutback + 1.2
+  // + typical rim terms), the top of the real putback-dunk range. Landing
+  // value is FEEL (the increment selects it against the astd window; see
+  // params.shot); registered so the coordinated re-sweep can trade the
+  // class's make surplus against the putback economy's registered pair
+  // (reb.putbackChance / putbackRadiusFt). The class SHAPE — the
+  // restricted-area read and the booth's athlete gate — is definition, not
+  // calibration, and stays off the surface (the transCarryGatherFt rule).
+  { path: 'shot.putbackStrongLogit', lo: 0, hi: 1.2 },
   // ftBasePct's floor was the fitted value itself ("explore up only"),
   // authored when league FT% read low. Post-endgame the league mix sits
   // ~2pp ABOVE the real 78.4% (league-averages-2023-24.json) and the 2026-07-28
