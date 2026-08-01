@@ -122,14 +122,15 @@ describe('params provenance metadata (#36)', () => {
     // amendment (ai.transCarryGatherFt joined), at the amended-dose
     // landing (ai.transCarryScale 0 -> 0.5), at #86 increment 2
     // (shot.putbackStrongLogit joined the surface, staged 0), at the
-    // #86 landing (shot.putbackStrongLogit 0 -> 0.3), and at #114
+    // #86 landing (shot.putbackStrongLogit 0 -> 0.3), at #114
     // (ai.blowByCarryScale staged 0 + the blowByBeatenFt/blowByLaneMax/
-    // blowByGatherFt shape gates joined the surface) — the sanctioned
-    // named-knob condition each time. See the header for the re-baseline
-    // doctrine.
-    expect(json.length).toBe(10964);
-    expect(fnv1a(json)).toBe('0df4af2d');
-    expect(djb2(json)).toBe('6c150b05');
+    // blowByGatherFt shape gates joined the surface), and at the #114
+    // landing (ai.blowByCarryScale 0 -> 0.5, the dose-ladder selection)
+    // — the sanctioned named-knob condition each time. See the header
+    // for the re-baseline doctrine.
+    expect(json.length).toBe(10966);
+    expect(fnv1a(json)).toBe('627fdc82');
+    expect(djb2(json)).toBe('bf1a35c8');
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);

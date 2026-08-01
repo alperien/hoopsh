@@ -650,11 +650,22 @@ export const aiDefaults: AiParams = {
   // probe n=585 carries) — the carried population survives while the
   // driveShotRangeFt tail (decides out to 12 ft) is severed.
   transCarryGatherFt: 4.5,
-  // #114 — STAGED at 0 for the hard-zero contract (zero draws, zero
-  // gate work, byte-identical to the pre-mechanism engine); the
-  // increment's dose ladder selects the landing value in this PR's tune
-  // commit.
-  blowByCarryScale: 0,
+  // #114 (arc #58 increment 3) — LANDED at 0.5 (FEEL per the increment
+  // doctrine; knobs.ts carries the range) on the probe-selected identity
+  // gates. Rungs at n=96 on two bases read the supply channel monotone
+  // (plane drive releases 1.5 -> 3.6/TG across the dial) with
+  // drive-labeled attempts flat at every rung (the W64 gate); the fgPct
+  // 49.5 ceiling was straddled by rung noise at doses >= 0.5 and
+  // resolved UNDER the ceiling at n=288 exact supersets on all three
+  // bases (48.96-49.29, 17/17 everywhere), while 0.75 breached
+  // fgPct+ortg at rung level and sits on the #56 corrected astd floor —
+  // the increment lands inside windows, not on their boundaries. The
+  // astd purchase at 0.5: pooled 864/arm -0.25pp (cross-base scatter se
+  // 0.38); fresh never-touched base n=1152/arm -0.63pp (paired se
+  // 0.22), coherent with the arc exchange rate on the measured +0.32
+  // unassisted makes/TG. The dose scales arming frequency only; what a
+  // blow-by IS lives in the three FEEL shape gates below.
+  blowByCarryScale: 0.5,
   // #114 — FEEL: the honest beaten center from the localization probe's
   // threshold grid (n=192 games, commit a1d6325 instrumentation): 1 ft
   // admits the blurred p80 boundary where "won the edge" is ambiguous

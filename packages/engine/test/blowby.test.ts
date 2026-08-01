@@ -276,3 +276,96 @@ describe('F2: the blow-by gate, condition by condition (hand-built states)', () 
     expect(gateCase({ holderFt: 10 })).toBe(false);  // the teleport class, unreachable by construction
   });
 });
+
+// ------------------------------------------------------------------ F3 pins
+
+/**
+ * F3 (the transcarry.test.ts F3 shape): the arming-draw region, pinned.
+ * Every pooled case above runs at the dial ends (0 and 1), both
+ * draw-free by the heave-guard shape — so the per-possession arming
+ * DRAW is live exactly where nothing looked, and the landing dose sits
+ * there. The blow-by's arming has NO kind scope (it arms on every start
+ * kind, by design), so the transcarry kind-scope mutant has no sibling
+ * here; its two live arming mutants are pinned elsewhere and here:
+ * dropping the scale-0 guard (`blowByScale > 0 &&`) draws on every
+ * possession at the staged default and breaks the hard-zero contract —
+ * caught RED by the golden fingerprint corpus (verified before
+ * landing); dropping the draw-free short-circuit (`blowByScale >= 1 ||
+ * chance` -> `chance`) adds one draw per possession at scale 1 and
+ * shifts every scale-1 stream — caught RED by the scale-1 rows below
+ * (verified before landing, the mutation-shields doctrine).
+ *
+ * The pins are exact stream checksums — event count, final score, and
+ * FNV-1a over JSON.stringify({e: events, f: frames}) with frames on
+ * (the transcarry hashing convention; frames included so the shared
+ * carry ball path stays pinned from this file too). RE-ANCHOR: any
+ * commit that legitimately reorders these streams (a landed draw
+ * upstream, a movement change) re-runs this file and copies the
+ * printed actuals in, saying so in the commit — the goldens doctrine.
+ * The intermediate scale IS the landing dose (0.5), per the transcarry
+ * F3 ruling — one pinned scale in (0, 1), anchored where the shipped
+ * default actually lives.
+ */
+describe('F3: the arming-draw region is pinned (landing dose + draw-free top)', () => {
+  const fnv1a = (str: string): string => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  };
+
+  const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
+    { seed: 'bb3pin-1', scale: 0.5, events: 1245, final: '105-120', hash: '8e49bed6' },
+    { seed: 'bb3pin-2', scale: 0.5, events: 1190, final: '116-113', hash: '8cd9f0ed' },
+    { seed: 'bb3pin-3', scale: 0.5, events: 1177, final: '121-120', hash: '938b498a' },
+    { seed: 'bb3pin-4', scale: 0.5, events: 1234, final: '110-115', hash: 'b27285d7' },
+    { seed: 'bb3pin-1', scale: 1, events: 1195, final: '120-106', hash: '6f9a636c' },
+    { seed: 'bb3pin-2', scale: 1, events: 1275, final: '126-133', hash: '0f56bbc9' }
+  ];
+
+  for (const pin of PINNED) {
+    it(`${pin.seed} at scale ${pin.scale} streams exactly the baked checksum`, () => {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({
+        seed: pin.seed, home, away, collectFrames: true,
+        params: { ai: { blowByCarryScale: pin.scale } }
+      });
+      const last = r.events[r.events.length - 1]!;
+      expect(r.events.length).toBe(pin.events);
+      expect(`${last.score[0]}-${last.score[1]}`).toBe(pin.final);
+      expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe(pin.hash);
+    });
+  }
+});
+
+// ------------------------------------------------- landed-default pin
+
+/**
+ * The landing existence pin (the putbackstrong.test.ts shape): the
+ * SHIPPED default fires. Every stream-side arm above pins the dial
+ * through explicit overrides, so none of them would notice a reverted
+ * default — the provenance serialization pin would, but from the params
+ * surface, not the mechanism. This pool runs DEFAULT params (the landing
+ * dose, ai.blowByCarryScale 0.5 — the dose ladder's selection, see
+ * params.ai.ts) and requires the class to exist on the shipped engine
+ * end to end. Scouted at the landing: blowbydef-1..8 at default read 9
+ * plane drive releases on inbound/tip-kind possessions over 63 such
+ * drive attempts (the staged organic rate on the blowby-1..24 pool was
+ * 9 over 24 games — a third of this pool's per-game rate). The floor at
+ * 3 survives rng reshuffles; a zero would mean the shipped default no
+ * longer fires. Re-anchor: re-run the scout, same safety shape.
+ */
+describe('the landed default fires (shipped-params existence pin)', () => {
+  it('plane drive releases exist on inbound/tip-kind possessions at default params', () => {
+    let plane = 0;
+    for (let i = 1; i <= 8; i++) {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({ seed: `blowbydef-${i}`, home, away, collectFrames: false });
+      const sig = signatures(r);
+      plane += sig.plane;
+    }
+    expect(plane).toBeGreaterThanOrEqual(3);
+  });
+});
