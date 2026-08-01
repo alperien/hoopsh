@@ -34,6 +34,7 @@ for (const job of jobs) {
     home: job.home,
     away: job.away,
     rules: job.rules, // circuit games ride their own pack (career mode); absent = NBA
+    params: job.params, // officiating tightness override when the game has a crew (officials.ts)
     collectFrames: wantFrames,
   });
   const folded = foldEvents(job, result.events);

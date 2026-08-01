@@ -200,6 +200,7 @@ export function gameView(league: League, record: GameRecord, hasReplay: boolean)
     totals: record.totals,
     keyPlays: record.keyPlays,
     recap: league.news.find(n => n.gameId === record.id && n.type === 'recap') ?? null,
+    officials: record.officials ?? null,
     hasReplay,
     hasBroadcast: hasReplay, // the broadcast script renders from the replay's events
   };

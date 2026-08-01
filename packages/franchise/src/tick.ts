@@ -34,6 +34,7 @@ import type {
 } from './types.js';
 import { buildSeasonCalendar, currentDate, phaseOn } from './calendar.js';
 import { abilityScore, applyGameResults, planDayJobs } from './gameday.js';
+import { officialsNewsFor } from './officials.js';
 import { streamRng } from './rng.js';
 import { generateSchedule } from './schedule.js';
 import { emptyStanding } from './standings.js';
@@ -51,6 +52,7 @@ import {
 import { applyAging, runDevelopmentReview } from './people/dev.js';
 import { advanceRecoveries, rollPostGameInjuries } from './people/injury.js';
 import { updateDispositions } from './people/disposition.js';
+import { updatePsyche } from './people/psyche.js';
 import { runRetirements } from './people/retire.js';
 import { generateCoach, generateDraftClass } from './people/gen.js';
 import { reevaluateTimelines } from './ai/persona.js';
@@ -867,12 +869,14 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
 
   // -------------------------------------------------------- league pulse
   if (league.day % DISPOSITION_CADENCE === 0) {
+    updatePsyche(league); // step confidence/chemistry BEFORE morale reads the room (people/psyche.ts)
     for (const item of updateDispositions(league)) pushInbox(league, item);
   }
   if (league.phase === 'regular' && league.day % league.params.media.awardRaceCadenceDays === 0) {
     appendNews(league, updateAwardRaces(league));
   }
   appendNews(league, writeDailyNews(league));
+  appendNews(league, officialsNewsFor(league, records));
   for (const rec of records) {
     const recap = recapGame(league, rec);
     if (recap) appendNews(league, [recap]);

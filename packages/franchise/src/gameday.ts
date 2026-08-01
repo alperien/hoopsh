@@ -25,6 +25,8 @@ import type {
 } from './types.js';
 import { gameSeedFor } from './rng.js';
 import { applyResultToStandings, emptyStanding } from './standings.js';
+import { crewAttrDelta, officialsJobExtras, officialsStamp } from './officials.js';
+import { PSYCHE_OFFENSE_KEYS, lifestyleFatigueFactor, psycheAttrShift } from './people/psyche.js';
 
 // Projection constants. These are structural conventions of the projection,
 // not sweepable levers (the sweepable fatigue/HCA magnitudes live in
@@ -135,6 +137,11 @@ export function projectTeam(league: League, teamId: string, opts: { isHome: bool
   }
 
   const backToBack = playedOn(league, teamId, league.season, league.day - 1);
+  // Officiating homeLean rider on the HCA seam: a small extra road-team
+  // debuff (or shave, under a road-friendly crew) for this game's crew.
+  // Zero at home, for neutral crews, and for leagues without officials.
+  // Hard-capped in officials.ts at a fraction of hca.roadAttrDebuff.
+  const crewRoadDelta = crewAttrDelta(league, opts.gameId, opts.isHome);
 
   const players: Player[] = pool.map((p) => {
     const attr = { ...p.attr };
@@ -143,7 +150,10 @@ export function projectTeam(league: League, teamId: string, opts: { isHome: bool
     // and late-game slippage (SEASON.md seam: pre-degrade, do not re-model).
     let debuff = 0;
     if (backToBack) debuff += params.fatigue.b2bStaminaDebuff;
-    debuff += params.fatigue.loadDebuffPer60Min * (trailingLoadMinutes(league, p.id) / 60);
+    // Lifestyle recovery (people/psyche.ts, F1-A): the gym rat carries
+    // load better, the night owl worse; 0.85-1.15, neutral when unassigned.
+    debuff += params.fatigue.loadDebuffPer60Min * (trailingLoadMinutes(league, p.id) / 60)
+      * lifestyleFatigueFactor(p);
     attr.stamina -= Math.min(debuff, FATIGUE_DEBUFF_CAP);
     if (!opts.isHome) {
       // Home court as a road debuff keeps the engine side-symmetric. A
@@ -152,8 +162,12 @@ export function projectTeam(league: League, teamId: string, opts: { isHome: bool
       // So the debuff hits the offensive-execution dials only, which is
       // also the empirically real mechanism: road teams shoot and decide
       // worse, they do not forget how to defend (REGISTER W60).
-      for (const k of HCA_OFFENSE_KEYS) attr[k] -= params.hca.roadAttrDebuff;
+      for (const k of HCA_OFFENSE_KEYS) attr[k] -= params.hca.roadAttrDebuff + crewRoadDelta;
     }
+    // Psyche (register F1-A): bounded execution shift from confidence and
+    // the room; capped inside psycheAttrShift, rounded by the pass below.
+    const psyShift = psycheAttrShift(league, team, p);
+    if (psyShift !== 0) for (const k of PSYCHE_OFFENSE_KEYS) attr[k] += psyShift;
     // One final integer pass: projected rosters stay integer-valued like
     // authored packs, and Math.round is platform-deterministic.
     for (const k of ATTR_KEYS) attr[k] = Math.max(0, Math.round(attr[k]));
@@ -265,6 +279,7 @@ export function planDayJobs(league: League): GameJob[] {
     home: projectTeam(league, g.home, { isHome: true, gameId: g.id }),
     away: projectTeam(league, g.away, { isHome: false, gameId: g.id }),
     detail: g.home === league.userTeam || g.away === league.userTeam ? 'events' : 'fold',
+    ...officialsJobExtras(league, g.id),
   }));
 }
 
@@ -528,6 +543,7 @@ export function applyGameResults(league: League, results: GameJobResult[]): Game
       totals: r.totals,
       keyPlays: r.keyPlays,
       ...(sched.seriesId !== undefined ? { seriesId: sched.seriesId } : {}),
+      ...officialsStamp(league, r.gameId),
     };
     league.results[r.gameId] = record;
 
@@ -600,7 +616,7 @@ export function applyGameResults(league: League, results: GameJobResult[]): Game
 export function simulateJobsInline(jobs: GameJob[]): GameJobResult[] {
   const out: GameJobResult[] = [];
   for (const job of jobs) {
-    const result = simulateGame({ seed: job.seed, home: job.home, away: job.away, rules: job.rules, collectFrames: false });
+    const result = simulateGame({ seed: job.seed, home: job.home, away: job.away, rules: job.rules, params: job.params, collectFrames: false });
     out.push(foldEvents(job, result.events));
   }
   return out;
