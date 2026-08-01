@@ -222,6 +222,7 @@ function initState(cfg: GameConfig): GameState {
       startT: 0,
       kind: 'tip',
       leakArmed: false,
+      carryArmed: false,
       // pre-tip placeholder; the tip possession itself is stamped by
       // startPossession like every period start
       opener: false,
@@ -327,7 +328,7 @@ function tickLive(s: GameState, dt: number): void {
     s.ball.pos = { x: h.pos.x, y: h.pos.y };
     if (s.t >= pr.releaseAt) {
       s.pendingRelease = null;
-      startShot(s, h, pr.moveType, pr.contest0);
+      startShot(s, h, pr.moveType, pr.contest0, pr.carryRim);
     }
     return;
   }
@@ -512,6 +513,45 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
         releaseAt: s.t + windupSec(s, action.moveType),
         contest0: contestAt(s, h, h.pos).level
       };
+      // THE TRANSITION CARRY (#74, unassisted-creation arc increment 1): a
+      // committed drive finish on a beaten break CARRIES to a rim-plane
+      // release by construction. Everything about the decision is
+      // unchanged — same re-read cadence, same commit expiry, same 'drive'
+      // label, same windup race, same make model — but the body keeps
+      // carrying at the rim through the windup and the RELEASE point is
+      // the plane itself (startShot, carryRim). The #74 probe measured the
+      // deficit as pure release geometry (beaten-break finishes at median
+      // 4.8 ft against the booth's 2.25 ft book boundary, 0-8% at the
+      // plane, while plane releases convert at 59-67%), and instrumenting
+      // this branch localized the artifact one level deeper: decide-time
+      // rim distances on these finishes read 0.2-3.9 ft, so the
+      // behind-plane release IS the sprinting body's stopping distance —
+      // a 16 ft/s carry slides 4-6 ft during the 0.45 s windup whatever
+      // the steering target says, and no movement shape can land the
+      // plane. The finish's extension at the rim has to be constructed,
+      // exactly as the approved sketch words it. The CONTEST still reads
+      // off the body at release (startShot), so a carry into traffic
+      // prices as the heavily-contested rim attempt it is — probabilistic
+      // resolution over hard physics, the engine's core bet. Dunk-class
+      // then books through the booth's own deterministic rule (made,
+      // inside its range, athlete gate) — the sync contract extended by
+      // reuse, not duplicated. The beaten read is the shared defendersBack
+      // measure the phase flip and the EV brain already use. No decide
+      // re-entry (W64 attempt 2), no speed change (attempt 1),
+      // drive-labeled attempt count untouched by construction (the same
+      // decides fire the same shots — only where the ball goes up moves).
+      // transCarryScale is the stage switch, checked FIRST.
+      if (
+        s.params.ai.transCarryScale > 0 &&
+        s.poss.carryArmed &&
+        action.moveType === 'drive' &&
+        s.t < h.driveUntil &&
+        s.poss.phase === 'transition' &&
+        defendersBack(s, h.side) < s.params.move.transSetBackCount
+      ) {
+        s.pendingRelease.carryRim = true;
+        break; // carry the finish: target stays the rim, sprint stays on
+      }
       h.target = h.pos;
       h.sprinting = false;
       break;

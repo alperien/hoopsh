@@ -117,11 +117,13 @@ describe('params provenance metadata (#36)', () => {
 
   it('serializes byte-identically to the pre-split surface', () => {
     const json = JSON.stringify(defaultParams);
-    // Captured from the pre-split monolith at 46b0e318 — see the header for
-    // the only sanctioned re-baseline condition.
-    expect(json.length).toBe(10811);
-    expect(fnv1a(json)).toBe('8b9de216');
-    expect(djb2(json)).toBe('2c10715a');
+    // Captured from the pre-split monolith at 46b0e318; re-baselined at #74
+    // increment 1 (ai.transCarryScale joined the surface — the sanctioned
+    // condition: a knob-surface change that names its knob). See the header
+    // for the re-baseline doctrine.
+    expect(json.length).toBe(10831);
+    expect(fnv1a(json)).toBe('26b56df5');
+    expect(djb2(json)).toBe('39b864a5');
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);
@@ -129,13 +131,15 @@ describe('params provenance metadata (#36)', () => {
 
   it('pins the provenance record itself — the guard of DO-NOT rule 1 is guarded (#49 F3)', () => {
     const json = JSON.stringify(paramProvenance);
-    // Captured from the amended record on refactor/params-split (#49):
-    // 478 tags = 43 SWEPT / 89 REAL / 346 FEEL. Re-baseline ONLY per
-    // guarantee 3 in the header: a commit that re-adjudicates a named tag
-    // or changes the knob surface, and says so — never a refactor/cleanup.
-    expect(json.length).toBe(11948);
-    expect(fnv1a(json)).toBe('3088cc0a');
-    expect(djb2(json)).toBe('da06e354');
+    // Captured from the amended record on refactor/params-split (#49),
+    // re-baselined at #74 increment 1: 479 tags = 43 SWEPT / 89 REAL /
+    // 347 FEEL (ai.transCarryScale FEEL — the knob-surface change named
+    // per guarantee 3). Re-baseline ONLY per guarantee 3 in the header: a
+    // commit that re-adjudicates a named tag or changes the knob surface,
+    // and says so — never a refactor/cleanup.
+    expect(json.length).toBe(11973);
+    expect(fnv1a(json)).toBe('9c7a0069');
+    expect(djb2(json)).toBe('4b7fd22f');
     // same shape discipline as the params surface: pure string leaves,
     // so the record round-trips losslessly
     expect(JSON.parse(json)).toEqual(paramProvenance);
@@ -159,6 +163,8 @@ describe('params provenance metadata (#36)', () => {
         'hand-set per-tick cut chance (0.003, its own lo rail); registered for fine centering, no landed sweep has moved it',
       'ai.scorePressureScale':
         '1.0 by definition at introduction (params.ai.ts) — registered for the flag-on coordinated re-sweep, not yet swept',
+      'ai.transCarryScale':
+        'staged at 0 (#74 increment 1); the landing dose is FEEL by the increment doctrine — registered so the coordinated re-sweep can trade it, no landed sweep has moved it',
       'reb.putbackRadiusFt':
         "audit H-01 hoist of the inline possession.ts 6 ft radius (mutation-proven anchor); putbackChance's registered companion, not yet swept"
     };

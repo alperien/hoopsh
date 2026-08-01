@@ -147,6 +147,19 @@ export interface AiParams {
    *  stamps): the cutter bonus and the chooser's cut_finish pricing apply
    *  where they are honest — at the finish, never on a 60 ft hit-ahead */
   leakFinishRadiusFt: number;
+  /** #74 (unassisted-creation arc, increment 1) — the transition carry.
+   *  0 = no carry (staged, checked FIRST); at >0 a beaten break's
+   *  committed drive finish GATHERS THROUGH its windup — the handler
+   *  keeps carrying at the rim while the ball comes up, so the release
+   *  plane is the arrived position instead of the behind-plane stop the
+   *  cadence lands (the #74 probe: beaten-retreat transition finishes at
+   *  median 4.8 ft against the booth's 2.25 ft book boundary, 0-8% at the
+   *  plane, while plane releases convert at 59-67%). Same decides, same
+   *  labels, same make model — only the release geometry moves.
+   *  Per-possession arming draw in the heave-guard shape (0 never draws,
+   *  >= 1 short-circuits draw-free), rolled in startPossession, consumed
+   *  by executeAction's shoot branch (game.ts). */
+  transCarryScale: number;
   cutterBonus: number;         // hitting an active cutter
   swingBase: number;           // intrinsic ball-movement value
   swingPassOutScale: number;
@@ -564,6 +577,12 @@ export const aiDefaults: AiParams = {
   dunkBlendVert: 0.6,
   dunkBlendFin: 0.4,
   leakFinishRadiusFt: 7,
+  // #74 increment 1 — STAGED at 0 (the flip is this increment's landing
+  // dose, FEEL at landing; knobs.ts carries the range). The carry is the
+  // geometry half the probe localized: booking already follows from the
+  // booth's own rule (shotcall.ts DUNK_MAX_FT + the sync-pinned athlete
+  // gate above) once the gather arrives at the plane.
+  transCarryScale: 0,
   cutterBonus: 0.5,
   swingBase: 0.045,
   swingPassOutScale: 0.16,
@@ -1119,6 +1138,7 @@ export const aiProvenance: Record<keyof AiParams, Provenance> = {
   dunkBlendVert: 'FEEL',
   dunkBlendFin: 'FEEL',
   leakFinishRadiusFt: 'FEEL',
+  transCarryScale: 'FEEL',
   cutterBonus: 'FEEL',
   swingBase: 'FEEL',
   swingPassOutScale: 'FEEL',
