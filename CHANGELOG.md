@@ -57,6 +57,48 @@ minutes-targets fix (W65).
   (officials dir seeds) touched from an engine landing for the first
   time.
 
+### Unassisted-creation supply arc, increment 2 (#86, REGISTER W84)
+
+- The putback finish class: a gate-clearing rebounder (clearsDunkGate,
+  the booth-mirror athlete gate extracted byte-identically from
+  leakerOf) who secures the board inside the restricted area resolves
+  the automatic putback as a rim-plane throw-down. The release moves
+  to the plane through the #74 carryRim construction, the contest
+  still reads off the body, and the make logit gains the one new knob,
+  shot.putbackStrongLogit (FEEL, landed at 0.3, staged hard-zero
+  checked first, knobs.ts range in the same commit). The class adds no
+  rng draws at any knob value; a scale-0 override rebuilds all 28
+  corpus entries byte-identical against the pre-flip corpus. Scoped to
+  the automatic putback branch; the decide-layer putback keeps the
+  generic logit in EV and resolution both. Crash and rebound
+  positioning untouched: the mechanism changes how a secured putback
+  resolves, never how often one happens (attempts flat, 1126 to 1120
+  on the shared base).
+- Booking rides the booth's own dunk rule, and the set claim is
+  one-directional, restated pre-merge on the Red Team probe: every
+  engine-strong make books dunk, and the booth's putback-dunk set is
+  strictly larger at every knob value (the decide-layer sibling and
+  the pre-existing 1.6-2.25 ft window book dunk without the class),
+  with a booth relabel share of about 0.2 dunks per game at knob 0.
+  dunkgate-sync.test.ts gains the putback branch of the mirror and the
+  probe's three reorder pins.
+- Measured at the landing: putback FG% 50.0 to 50.5 on the shared base
+  (+0.9pp on the acceptance base), dunks +0.46 and +0.76 per game on
+  the two n=96 bases (booking, as priced), flowboard G11 made dunks
+  3.6 to 4.6 per game. The n=96 dose ladder that selected 0.3 does not
+  survive its own exact supersets: pooled n=864 per arm, astd -0.04pp
+  (se 0.16), fgPct +0.10pp (se 0.09), unassisted makes +0.05 per
+  team-game (se 0.06), all consistent with zero. Increment 2 consumes
+  approximately zero astd headroom; increment 3 prices against the
+  same window. Bands 17/17 at the landed dose on every n=48, n=96, and
+  n=288 read (batch n=24 at the head reads 15/17 on two high-side
+  vintage edges, recorded as a property of n=24 pools); GAP/SELF
+  confirm-flat at n=432 per arm, the GAP margin tail resolving as a
+  draw artifact at n=1296. Tests 1599 / 1597 pass / 0 fail / 2 todo at
+  the approved head; 17 of 28 corpus entries re-baked at the dose flip;
+  fingerprint-1 itself coincidentally byte-identical (the class fired
+  zero times on that stream).
+
 ### Franchise (the realism wave)
 
 Four parallel lanes on the owner's realism brief, plus an integration
@@ -272,6 +314,24 @@ reacting-world, and explained-consequence gates all holding.
   nine files (1,943 moved lines, none duplicated). Re-verified:
   fingerprint corpus 28/28 byte-identical, test counts identical before
   and after.
+- The seed-pin re-anchor helper (#88, issue #50):
+  `harness/src/reanchor.ts` verifies the six rng-order-sensitive
+  pinned test files (engine events, subs, timeouts, leakout; harness
+  season; narration pbp) and, on `--write`, re-scouts and re-anchors
+  them in one command. The W54/W56-class hand anchors are extracted
+  byte-for-byte into a generated `seed-pins.gen.ts` per package test
+  dir, assertions and floors untouched. Per-pin collapse
+  discriminators refuse to launder a dead mechanism through lucky
+  seeds: a late-Q4 spend on any scanned 0-cap arm, a leak flip that
+  fails to double the staged arm, a mean home-win probability under
+  0.65 across scanned bases, and exhausted scans all refuse with
+  nothing written (all-or-nothing writes). Confirmation runs classify
+  failing tests against a KNOWN_UNMANAGED registry
+  (`--keep-unmanaged-red` keeps the re-anchor with exit 2), so rename
+  drift is never tolerated by mistake. Proven on five worktree legs
+  including the review's cap-collapse laundering mutant. Re-verified:
+  zero tests added, counts identical both sides, fingerprint corpus
+  28/28 byte-identical.
 
 ### Fixed
 
@@ -304,6 +364,44 @@ reacting-world, and explained-consequence gates all holding.
   the rejection explainer (#79, issue #60). Re-verified: test counts 1542
   to 1544 (the two new validation tests), fingerprint corpus 28/28
   byte-identical.
+- The career acceptance fleet's reacting-world gate is rebuilt on an
+  independent replay witness, closing the C1 tautology (#89, issue
+  #41; REGISTER W83). The old gate re-read career.coach.roleClock,
+  which trust.ts zeroes inside the same call that raises it, so it
+  verified clock hygiene: a regression that kept the reset while
+  dropping the role move stayed green. The witness
+  (packages/app/src/role-response.ts) replays coach grades through the
+  documented clock arithmetic with the ladder pinned locally, and
+  demands the observable response at every mid-ladder firing: the role
+  moves one rung and carries its ev-role- event with the matching
+  delta. Mutant-proven: suppressing the promote branch's role
+  assignment ran a nine-year career green under the old gate and fails
+  the new one naming the missing move. No career public-surface
+  change. Re-verified: 16 new unit tests in one suite (counts 1542 to
+  1558), fingerprint corpus 28/28 byte-identical.
+- enterDraftClass is a one-way door: a file the league owns is never
+  re-entered (#90, issue #40). The tick.ts year-wrap guard now also
+  requires that the league holds no file on the player, so Euro/NBL
+  descent veterans stop re-entering draftPrep at year wrap and fall
+  through to the age-40 retirement line, previously unreachable on
+  those routes. enterDraftClass itself skips any id the league already
+  owns, ending executeDraftSelection overwriting a veteran's draft
+  record. Re-verified: red tests first on the unfixed tree in both
+  commits (counts 1537 to 1540), fingerprint corpus 28/28
+  byte-identical, three-career acceptance fleet exit 0.
+- Retirement ends league presence: no ghost seasons (#92, issue #68).
+  retireFromLeague guards on a live league file and calls the
+  franchise's executeRetirement in the retire choice arm and the
+  age-40 forced wrap, both before buildEpilogue, with an idempotent
+  call at the top of the retired-phase advance so saves written before
+  the fix self-heal. The award branch of harvestSeasonHonors is gated
+  on a season row for the award season, mirroring the landed ring
+  gate; pre-retirement honors survive. On unfixed code the ghost was
+  demonstrated: 82 regular and 5 playoff games accrued in one
+  retired-phase season, with a ghost award harvested. Re-verified:
+  five new tests red on unfixed code (counts 1544 to 1550),
+  fingerprint corpus 28/28 byte-identical, at-head career acceptance
+  exit 0 twice.
 
 ### Docs
 
@@ -324,6 +422,36 @@ reacting-world, and explained-consequence gates all holding.
   pins the mid-season case (rows on both teams, exactly one ring).
   Re-verified: fingerprint corpus 28/28 byte-identical, sim
   fingerprint-1 identical before and after.
+- docs(career): playing hurt is registered as unreachable in every
+  phase (#93, issue #84; C17, REGISTER W67 item i). CAREER.md now
+  states the shipped v1 behavior: a listed player always sits in both
+  phases, and the card's playingHurt flag has effects only for a
+  healthy player who sets it (the dulled sheet, the wear compound at
+  grading, the skipped post-game injury re-roll). "Playing-hurt
+  choices on the real wear model" leaves the v1 In list; the cut is
+  registered as C17 and on W67, and the week.ts header comment is
+  corrected to the same truth. Making the choice reachable is a
+  mechanics-tier availability seam. Re-verified: sim fingerprint-1 and
+  test counts identical before and after.
+- docs: the transCarryGatherFt comment arithmetic is corrected to the
+  W82 triple at both comment sites in params.ai.ts (#95, issue #85).
+  The effective windup is 0.50 s on every released carry, the 0.45 s
+  windupDrive param tick-quantized to the next 0.1 s boundary, so a
+  16 ft/s sprint covers 8.0 ft and the 4.5 ft gate needs 9 ft/s; the
+  stale sites said 0.45 s, 7.2 ft, and 10 ft/s. The value itself stays
+  4.5. Re-verified: test counts, sim fingerprint-1, replay and pbp
+  sha256, and the 28-seed corpus all identical before and after.
+- docs: the game.ts windup comment distinguishes the parameter from
+  the effective windup (#99, issue #97). One sentence added to the
+  transition-carry stopping-distance comment: the 0.45 s is the
+  windupDrive param; the effective windup is 0.50 s on every released
+  carry, the param tick-quantized to the next 0.1 s boundary. The
+  three sites (game.ts, the params.ai.ts pair from #95, the W82 row)
+  now speak the same language, and the quantization mechanism is
+  confirmed in code (tickHz 10, release on the first tick at or past
+  releaseAt), closing the unknown #95 reported. Re-verified: test
+  counts identical both sides, replay and pbp sha256 byte-identical,
+  corpus 28/28.
 
 ## [0.3.0] - 2026-07-31
 
