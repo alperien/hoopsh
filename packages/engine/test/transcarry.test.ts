@@ -307,3 +307,74 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
     });
   }
 });
+
+// -------------------------------------------------- delta F1 ball-path pin
+
+/**
+ * Delta F1 (PR #75 delta probe, comment 5150806420, Lead-ruled amendment):
+ * the honest ball path, pinned as a PROPERTY. The F1 lerp (game.ts tickLive
+ * carry branch: decide spot to rim across the windup) was pinned only
+ * through the F3 stream checksums above, and checksums do not survive the
+ * F3 header's own re-anchor doctrine: a commit that legitimately reorders
+ * streams re-runs the file and copies the printed actuals in, so a lerp
+ * broken INSIDE such a commit prints wrong actuals and gets baked in as
+ * the new pin, silently. A property over the simulated frames survives
+ * every re-anchor by construction.
+ *
+ * The property: a carried booking lands continuously, so the frame ball
+ * must MEET the booked release. For every carried-signature shot (drive
+ * label, distFt <= PLANE_FT, live_rebound/steal start kind, no foul
+ * sharing the shot's wt: whistle-stamped bookings are the pre-existing
+ * FT-lineup reposition class, registered in W82 and filed as its own
+ * issue), the last frame strictly before the shot's wt sits within 3.5 ft
+ * of the booked x/y.
+ *
+ * The 3.5 ft bound: measured max 2.92 ft over n=109 un-fouled carried
+ * bookings at the landed default (pool rtfg-1..48, the delta probe's
+ * read). The theoretical step is one 0.2 s frame of lerp at the gather
+ * gate's top speed (4.5 ft covered across the 0.50 s effective windup is
+ * 9 ft/s, so about 1.8 ft per frame step) plus the short flight hop and
+ * the 0.1 ft frame rounding. Scale 1 here for signature volume only: the
+ * dose scales arming frequency, not per-carry geometry. The lerp-kill
+ * mutant (ball rides the body through the windup, the pre-amendment
+ * shape) was verified RED against this pin before landing, in-tree and
+ * restored — the mutation-shields doctrine.
+ */
+describe('delta F1: the frame ball meets the carried booking (honest-path property)', () => {
+  const PATH_POOL = Array.from({ length: 6 }, (_, i) => `ballpath-${i + 1}`);
+
+  it('the last frame strictly before every carried-signature booking sits within 3.5 ft', () => {
+    let signatures = 0;
+    let maxGapFt = 0;
+    for (const seed of PATH_POOL) {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({
+        seed, home, away, collectFrames: true,
+        params: { ai: { transCarryScale: 1 } }
+      });
+      const foulWt = new Set<number>();
+      for (const e of r.events as GameEvent[]) {
+        if (e.type === 'foul') foulWt.add(e.wt);
+      }
+      let possKind = '';
+      let fi = 0; // rolling frame cursor: events and frames share wallT order
+      for (const e of r.events as GameEvent[]) {
+        if (e.type === 'possession_start') { possKind = e.kind; continue; }
+        if (e.type !== 'shot' || e.moveType !== 'drive' || e.distFt > PLANE_FT) continue;
+        if (possKind !== 'live_rebound' && possKind !== 'steal') continue;
+        if (e.foul !== undefined || foulWt.has(e.wt)) continue;
+        // frame row layout (replay/replay.ts): [0] wallT, [3] ballX, [4] ballY
+        while (fi < r.frames.length && r.frames[fi]![0]! < e.wt) fi += 1;
+        if (fi === 0) continue; // no frame precedes the booking (unreachable in practice)
+        const fr = r.frames[fi - 1]!;
+        const gap = Math.hypot(fr[3]! - e.x, fr[4]! - e.y);
+        signatures += 1;
+        if (gap > maxGapFt) maxGapFt = gap;
+      }
+    }
+    // vacuity floor: the signature class must exist pooled, or the property
+    // asserts over an empty slice
+    expect(signatures).toBeGreaterThanOrEqual(20);
+    expect(maxGapFt).toBeLessThanOrEqual(3.5);
+  });
+});
