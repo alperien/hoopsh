@@ -139,6 +139,16 @@ export function startPossession(
     (kind === 'live_rebound' || kind === 'steal') &&
     leakScale > 0 &&
     (leakScale >= 1 || s.rng.chance(leakScale));
+  // #74 transition-carry dose: the carry arms per TRANSITION possession —
+  // the exact leakArmed shape above (0 never reaches the draw, >= 1
+  // short-circuits it draw-free). Rolled AFTER the leak draw, so at the
+  // staged default nothing is appended to the stream and both mechanisms'
+  // byte-identity ladders hold independently.
+  const carryScale = s.params.ai.transCarryScale;
+  const carryArmed =
+    (kind === 'live_rebound' || kind === 'steal') &&
+    carryScale > 0 &&
+    (carryScale >= 1 || s.rng.chance(carryScale));
   s.poss = {
     team,
     shotClock: s.rules.shotClockSec,
@@ -146,6 +156,7 @@ export function startPossession(
     startT: s.t,
     kind,
     leakArmed,
+    carryArmed,
     // the period's first possession: the game clock still reads the full
     // period value here (the opening dead ball never runs it, advanceClock
     // is the only clock writer, and any prior possession consumes live

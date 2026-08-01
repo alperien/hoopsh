@@ -274,6 +274,11 @@ export interface Possession {
    *  0 < leakOutScale < 1 (heave-guard shape: 0 never draws, >= 1
    *  short-circuits draw-free). Constant false everywhere else. */
   leakArmed: boolean;
+  /** #74 transition-carry dose: this transition possession rolled a live
+   *  carry (the exact leakArmed shape above — one heave-guard draw, same
+   *  live_rebound/steal scope, ai.transCarryScale). Constant false
+   *  everywhere else; consumed by game.ts's driving branch. */
+  carryArmed: boolean;
   /**
    * The period's first possession (fdesign-grammar M1b). Stamped in
    * startPossession: the game clock still reads the period's full value
@@ -386,6 +391,28 @@ export interface GameState {
     releaseAt: number;
     /** contest level when the shot was decided (late closeouts count less) */
     contest0: number;
+    /** #74 transition carry: this windup is a carried break finish — the
+     *  RELEASE point is the rim plane by construction (startShot), because
+     *  a sprinting body's stopping distance is exactly the behind-plane
+     *  artifact the carry removes; the CONTEST still reads off the body at
+     *  release, so traffic prices the finish honestly. Absent everywhere
+     *  else. */
+    carryRim?: boolean;
+    /** #74 F1 amendment — the carried gather's ball path: the windup-start
+     *  ball spot (the decide-time body position) the ball travels FROM.
+     *  During a carried windup the ball no longer rides the sliding body:
+     *  it moves body-to-rim across the windup (game.ts), meeting the hoop
+     *  exactly at release — so the rim-plane booking is continuous instead
+     *  of a release-tick teleport off a body that has already passed the
+     *  plane (measured slide: release-tick body-to-rim p50 4.87 ft, max
+     *  9.95, on decide gaps of at most the gather gate). Defense reads the
+     *  honest ball (windup closeouts converge on the finish, not the
+     *  fly-by). Stamped with carryRim; absent everywhere else. */
+    carryFrom?: V2;
+    /** #74 F1 amendment — game-clock stamp of the carried windup's start
+     *  (the decide tick), the lerp's zero. Game-clock t on purpose, the
+     *  same axis as releaseAt: the pair never mixes with wallT. */
+    carryT0?: number;
   } | null;
   over: boolean;
 }

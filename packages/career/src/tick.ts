@@ -414,8 +414,16 @@ function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
     return undefined;
   }
 
-  if ((phase === 'euro' || phase === 'nbl') && career.nbaTeam === null && !career.epilogue) {
-    // the showcase route only: a descent veteran abroad is not a prospect
+  if ((phase === 'euro' || phase === 'nbl') && career.nbaTeam === null && !career.epilogue
+    && !career.league.players[career.me]) {
+    // the showcase route only: a pre-entry teen has no league file yet
+    // (enterDraftClass is the single handoff into league.players, the
+    // pool law in types.ts), so a missing file is the prospect test.
+    // A descent veteran abroad keeps his file for the road back
+    // (nbabridge applyAbroadOffer) and his draft is behind him: he rides
+    // the descent until the market calls him back or the forty line
+    // below retires him — never draftPrep. nbaTeam alone cannot make
+    // this cut: the descent nulls it too (issue #40).
     career.clock.phase = 'draftPrep';
     pushEvent(career, 'phase', 'the showcase year is over; automatically eligible. The pre-draft window opens');
     return 'draftPrep';
