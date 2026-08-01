@@ -27,7 +27,7 @@ careers, and the acceptance harness replays that equality as a gate.
 | `params.ts` | Every tunable, sectioned by owner (creation, circuits, week, trust, recruiting, stock, phone, nbabridge, money, tick) and classed REAL / CAL / FEEL in the franchise params tradition. |
 | `packs.ts` | Rule packs as career-side data: PREP (4x8min, 35s/one-and-one), FIBA, NBL, CBA_CHINA. Circuit jobs carry them through `GameJob.rules`; the engine never learned league names. |
 | `creation.ts` | CreationSpec validation (plain-language refusals) and createCareer: me at seventeen (budget over group base, background shifts, signature tendency identities probed from the data archetypes, hidden ceilings sampled OVER the visible priors), the rival, the NBA world via createLeague with an AI persona in every chair, `careerControlled = [me]`. |
-| `circuits.ts` | Every league that is not the NBA: fictional program/club generation, rosters via generatePlayer in kind-true age bands, circle-method round robins on absolute week anchors, reseeded single-elimination brackets, engine-real week jobs (my games keep full event streams), result folds, standings, summaries, honors. |
+| `circuits.ts` | Every league that is not the NBA: fictional program/club generation, rosters via generatePlayer in kind-true age bands (re-keyed into the career-local 'c' id alphabet, issue #83), circle-method round robins on absolute week anchors, reseeded single-elimination brackets, engine-real week jobs (my games keep full event streams), result folds, standings, summaries, honors. |
 | `perception.ts` | perceiveProspect: the one fog primitive. Fixed draws per (observer, player), per-observer bias, error easing with coverage — recruiters and NBA rooms mis-read the same kid differently and consistently. |
 | `recruiting.ts` | Programs, the interest ladder (rungs move one step a week, cold streaks cool boards), offers that extend/lapse/pull with stated reasons, classes that fill, the once-per-career Euro and NBL doors. |
 | `stock.ts` | Draft stock: per-team boards tilted by persona risk appetite, the weekly mock under move caps (shock cap for statement games, listed injuries, combine week), the combine, private workouts, and enterDraftClass — me and the rival move INTO league.players so the real AI boards do the choosing natively. |
@@ -159,3 +159,8 @@ volume); the energy economy holds off the floor; career shapes by phase.
   `abroad:china:`, `abroad:euro:`) are authoritative (nbabridge header).
 - An abroad phase holds me as one object in BOTH player maps; JSON saves
   fork it and loadCareer rebinds (never deep-copy me on load paths).
+- Career-local ids live in the 'c' alphabet (circuits.ts#nextIdSeq); the
+  only 'p' ids career.players ever holds are me and the rival pre-entry,
+  then me again abroad. League draft classes continue the 'p' sequence
+  from a league-only scan, so a 'p'-minted circuit kid collides with the
+  first post-entry class (issue #83).
