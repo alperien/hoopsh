@@ -118,13 +118,13 @@ describe('params provenance metadata (#36)', () => {
   it('serializes byte-identically to the pre-split surface', () => {
     const json = JSON.stringify(defaultParams);
     // Captured from the pre-split monolith at 46b0e318; re-baselined at #74
-    // increment 1 (ai.transCarryScale joined the surface) and again at the
-    // #74 F1 amendment (ai.transCarryGatherFt joined — the sanctioned
-    // condition both times: a knob-surface change that names its knob).
-    // See the header for the re-baseline doctrine.
-    expect(json.length).toBe(10856);
-    expect(fnv1a(json)).toBe('deebc42c');
-    expect(djb2(json)).toBe('78904b24');
+    // increment 1 (ai.transCarryScale joined the surface), at the #74 F1
+    // amendment (ai.transCarryGatherFt joined), and at the amended-dose
+    // landing (ai.transCarryScale 0 -> 0.5) — the sanctioned named-knob
+    // condition each time. See the header for the re-baseline doctrine.
+    expect(json.length).toBe(10858);
+    expect(fnv1a(json)).toBe('dd35ae89');
+    expect(djb2(json)).toBe('c743c787');
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);

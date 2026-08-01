@@ -591,12 +591,20 @@ export const aiDefaults: AiParams = {
   dunkBlendVert: 0.6,
   dunkBlendFin: 0.4,
   leakFinishRadiusFt: 7,
-  // #74 increment 1 — STAGED at 0 (the flip is this increment's landing
-  // dose, FEEL at landing; knobs.ts carries the range). The carry is the
-  // geometry half the probe localized: booking already follows from the
-  // booth's own rule (shotcall.ts DUNK_MAX_FT + the sync-pinned athlete
-  // gate above) once the gather arrives at the plane.
-  transCarryScale: 0,
+  // #74 increment 1 — LANDED at 0.5 (FEEL per the increment doctrine;
+  // knobs.ts carries the range) on the F1-AMENDED mechanism, re-measured
+  // after the PR #75 probe amendments: n=96 paired arms on TWO bases put
+  // the 0.5 astd purchase inside the issue's priced window on each base
+  // independently (-1.46pp acceptance / -1.95 i74dose vs priced
+  // -0.7..-2.1) with fgPct FLAT at every dose (the priced ceiling breach
+  // never materializes — the Lead's re-measure note, confirmed), while
+  // 0.75's pooled read sits ON the window edge (-2.18 ± ~0.3) with the
+  // step disagreeing across bases — the increment lands inside windows,
+  // not on their boundaries. Full basis: W82 landing extension + PR #75.
+  // The carry is the geometry half the probe localized: booking already
+  // follows from the booth's own rule (shotcall.ts DUNK_MAX_FT + the
+  // sync-pinned athlete gate above) once the gather arrives at the plane.
+  transCarryScale: 0.5,
   // #74 F1 — FEEL: one windup of drive cover at well under full sprint
   // (full sprint 16 ft/s covers 7.2 ft in the 0.45 s windup; 4.5 ft needs
   // only 10 ft/s), so a gated carry arrives whatever fatigue does, and it

@@ -42,6 +42,16 @@ sim is compared against (findings/session7-plan*.md, session8-*.md).
   pool counts are per team-game (24 seeds = 48 team-games). The 0.5
   dose landing was reverted first (amendments precede dose selection);
   re-selection on the amended mechanism rides the re-run ladder.
+- Dose re-landed at 0.5 on the amended mechanism: n=96 paired arms on
+  two bases put the 0.5 astd purchase inside the priced window on each
+  base independently with fgPct flat at every dose (the priced ceiling
+  breach never materializes); 0.75 was declined — its pooled astd read
+  sits on the window edge with the dose step disagreeing across bases.
+  Goldens, provenance pin, F3 intermediate pins (re-anchored at the
+  landing dose per the ruling), and the seed-anchored existence pins
+  re-anchored per protocol, including one franchise-side pin
+  (officials dir seeds) touched from an engine landing for the first
+  time.
 
 ### Rim supply (session 8)
 
