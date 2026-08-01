@@ -7,6 +7,12 @@
  * nothing, so the pair is pinned here, from the outside, at the one place
  * allowed to see both. If either side moves alone this fails and the fix
  * is to move BOTH (or to deliberately decouple with a register row).
+ *
+ * #86 extended the contract to the putback branch: the engine's strong
+ * putback (possession.ts putbackResolvesStrong — the same gate params
+ * through ai/offense.ts clearsDunkGate) resolves at the rim plane, and
+ * the booth books that make as the putback DUNK with the tip-in
+ * outranked. The second case below pins the putback branch of the pair.
  */
 import { describe, expect, it } from 'vitest';
 import { defaultParams } from '@hoopsh/engine';
@@ -29,5 +35,24 @@ describe('the dunk-gate mirror (params.ai <-> shotcall)', () => {
     const blend = A.dunkBlendVert * vertHeavy.vertical + A.dunkBlendFin * vertHeavy.finishing;
     expect(blend).toBeGreaterThanOrEqual(A.dunkAthleteGate); // engine says yes
     expect(shotCall(shot, vertHeavy)).toBe('dunk');  // booth agrees
+  });
+
+  it('the putback branch of the mirror (#86): the slam outranks the tip-in', () => {
+    const A = defaultParams.ai;
+    // the engine's strong class (possession.ts putbackResolvesStrong:
+    // gate-clearing rebounder in the restricted area) releases at the rim
+    // plane — distFt 0 by construction. The booth must book that make as
+    // the putback DUNK; the same gate params decide both sides, so the
+    // engine's strong set and the booth's putback-dunk set coincide.
+    const pb = { zone: 'rim' as const, distFt: 0, moveType: 'putback' as const, three: false, made: true };
+    const at = { vertical: A.dunkAthleteGate, finishing: A.dunkAthleteGate };
+    const under = { vertical: A.dunkAthleteGate - 2, finishing: A.dunkAthleteGate - 2 };
+    expect(shotCall(pb, at)).toBe('dunk');
+    // under the gate the point-blank tap keeps its tip-in
+    expect(shotCall(pb, under)).toBe('tip-in');
+    // made-gated as everywhere: a missed point-blank putback never dunks
+    expect(shotCall({ ...pb, made: false }, at)).toBe('tip-in');
+    // and a traitless call stays conservative (tip, never dunk)
+    expect(shotCall(pb)).toBe('tip-in');
   });
 });

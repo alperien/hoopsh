@@ -72,17 +72,16 @@ const HOOK_MIN_FT = 3;
  * Name the shot. Deterministic; safe to call without traits (falls back to
  * layup rather than dunk when the shooter's athleticism is unknown).
  *
- * Order matters: tip-in and dunk claim the point-blank range first, the
- * hook claims post moves, the layup claims the rest of the close range by
- * how the shot was created (a 5-ft PULL-UP is a short jumper — real logs
- * are full of 4-6 ft jump shots — while a 5-ft drive finish is a layup),
- * and everything else is a jump shot.
+ * Order matters: the dunk claims point-blank MAKES by gate-clearing
+ * athletes first — including the putback slam (#86) — the tip-in claims
+ * the remaining point-blank putbacks, the hook claims post moves, the
+ * layup claims the rest of the close range by how the shot was created
+ * (a 5-ft PULL-UP is a short jumper — real logs are full of 4-6 ft jump
+ * shots — while a 5-ft drive finish is a layup), and everything else is
+ * a jump shot.
  */
 export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
   if (e.three || e.moveType === 'heave') return 'jump shot';
-
-  // point-blank putback with no gather: a tip
-  if (e.moveType === 'putback' && e.distFt <= TIP_IN_MAX_FT) return 'tip-in';
 
   // dunks: point-blank MAKES by genuinely springy finishers. Made-gated on
   // purpose — a failed point-blank attempt is scored/logged as a missed
@@ -90,7 +89,11 @@ export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
   // dunk from over-appearing relative to the corpus. Every moveType
   // qualifies (heave is already gone): at ≤2 ft even the AI's "pull_up"
   // label just means a gather off the dribble, and that finish IS the dunk
-  // when the finisher has the hops.
+  // when the finisher has the hops. Checked BEFORE the tip-in (#86, the
+  // strong putback): a gate-clearing rebounder's point-blank putback make
+  // is the putback DUNK — the engine resolves that class at the rim plane
+  // (possession.ts putbackResolvesStrong) and the booth's book must agree —
+  // while the grounded rebounder's tap keeps its tip-in below.
   if (
     e.made &&
     e.distFt <= DUNK_MAX_FT &&
@@ -99,6 +102,9 @@ export function shotCall(e: ShotLike, traits?: ShooterTraits): ShotCall {
   ) {
     return 'dunk';
   }
+
+  // point-blank putback with no gather (and no gate-clearing springs): a tip
+  if (e.moveType === 'putback' && e.distFt <= TIP_IN_MAX_FT) return 'tip-in';
 
   // a worked post move in hook range is a hook; closer is a drop step (layup)
   if (e.moveType === 'post' && e.distFt >= HOOK_MIN_FT && e.distFt <= HOOK_MAX_FT) {
