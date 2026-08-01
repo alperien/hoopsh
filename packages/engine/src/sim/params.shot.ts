@@ -159,14 +159,16 @@ export const shotDefaults: ShotParams = {
   // over the generic tap, ON TOP of movePutback. The off-switch is exact:
   // 0 short-circuits the whole class in putbackResolvesStrong (checked
   // FIRST — no stream touches at 0), and the class adds no rng draws at
-  // ANY value: it moves the make threshold, never the draw count. FEEL —
-  // landed at 0.3 against the astd window (#86 priced −0.3..−0.6pp
-  // pre-sweep at increment 1's measured exchange rate): the n=96 paired
-  // ladder read astd −0.34pp on the acceptance base and −0.40pp on the
-  // independent i86dose base at 0.3 (mid-window on both, 17/17 bands),
-  // −0.24 at 0.15 (under the window), and flat-to-−0.37 at 0.6/0.9 (the
-  // purchase saturates: the geometry fires at any positive logit, the
-  // dose only moves make-p — paying more buys only putback-FG% inflation).
+  // ANY value: it moves the make threshold, never the draw count. FEEL,
+  // landed at 0.3. The n=96 paired ladder reads that selected this dose
+  // (astd -0.34pp acceptance, -0.40pp i86dose, mid-window on both) did
+  // not survive their exact supersets at n=288: pooled astd -0.04pp (se
+  // 0.16), consistent with zero. The dose claims no astd purchase and
+  // consumes approximately zero astd headroom. What stands for 0.3: the
+  // saturation direction (the geometry fires at any positive logit, the
+  // dose only moves make-p, higher doses only inflate putback FG%), zero
+  // measured wall pressure (17/17 bands on every n>=48 read, every base,
+  // both arms), and the delivered channel (dunk booking and putback FG%).
   // Registered in harness/knobs.ts [0, 1.2].
   putbackStrongLogit: 0.3,
   // Size at the rim: per foot of standing-reach advantage over the
