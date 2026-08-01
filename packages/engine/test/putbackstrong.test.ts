@@ -233,3 +233,37 @@ describe('the off-switch pin (explicit logit 0 reproduces the staged stream)', (
     expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('ffab2187');
   });
 });
+
+// ------------------------------------------------- landed-default pin
+
+/**
+ * The landing existence pin: the SHIPPED default fires. Every stream-side
+ * arm above pins the dial through explicit overrides, so none of them
+ * would notice a reverted default — the provenance serialization pin
+ * would, but from the params surface, not the mechanism. This pool runs
+ * DEFAULT params (the landing dose, shot.putbackStrongLogit 0.3 — the
+ * n=96 paired ladder's selection against the astd window, see
+ * params.shot.ts) and requires the class to exist on the shipped engine
+ * end to end. Scouted at the landing: putbackstrong-1..8 at default read
+ * 107 putback attempts, 11 plane releases (11 made — the class converts
+ * around 80% at the landing dose, so a small pool running the table is a
+ * normal draw). The plane floor at 3 survives rng reshuffles (the class
+ * fires ~0.8/game); a reverted or dead default reads 0 and fails HERE.
+ */
+describe('the landed default fires (#86 landing, default params)', () => {
+  it('a default-params pool shows rim-plane putbacks', () => {
+    const { home, away } = sampleMatchup();
+    let att = 0, plane = 0;
+    for (let i = 1; i <= 8; i++) {
+      const r = simulateGame({ seed: `putbackstrong-${i}`, home, away });
+      for (const e of r.events) {
+        if (e.type !== 'shot' || e.moveType !== 'putback') continue;
+        att++;
+        if (e.distFt === 0) plane++;
+      }
+    }
+    // vacuity floor first: the premise (putbacks exist) cannot be empty
+    expect(att).toBeGreaterThanOrEqual(50);
+    expect(plane).toBeGreaterThanOrEqual(3);
+  });
+});
