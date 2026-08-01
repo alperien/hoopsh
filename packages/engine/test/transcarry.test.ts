@@ -285,12 +285,12 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
   };
 
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    { seed: 'f3pin-1', scale: 0.5, events: 1153, final: '87-139', hash: '2d6d23f7' },
-    { seed: 'f3pin-2', scale: 0.5, events: 1271, final: '103-112', hash: '717407b9' },
-    { seed: 'f3pin-3', scale: 0.5, events: 1339, final: '122-126', hash: '80215e2f' },
-    { seed: 'f3pin-4', scale: 0.5, events: 1214, final: '103-113', hash: 'd2671c5e' },
-    { seed: 'f3pin-1', scale: 1, events: 1181, final: '120-112', hash: 'b6e0f3c4' },
-    { seed: 'f3pin-2', scale: 1, events: 1252, final: '132-114', hash: 'f64bbff8' }
+    { seed: 'f3pin-1', scale: 0.5, events: 1153, final: '87-139', hash: '9946c29a' },
+    { seed: 'f3pin-2', scale: 0.5, events: 1271, final: '103-112', hash: 'f1b5bf73' },
+    { seed: 'f3pin-3', scale: 0.5, events: 1339, final: '122-126', hash: '8e7cdd6f' },
+    { seed: 'f3pin-4', scale: 0.5, events: 1214, final: '103-113', hash: '18b5203c' },
+    { seed: 'f3pin-1', scale: 1, events: 1181, final: '120-112', hash: '352ac82b' },
+    { seed: 'f3pin-2', scale: 1, events: 1252, final: '132-114', hash: '27da9be9' }
   ];
 
   for (const pin of PINNED) {

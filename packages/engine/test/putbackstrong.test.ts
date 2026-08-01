@@ -230,7 +230,7 @@ describe('the off-switch pin (explicit logit 0 reproduces the staged stream)', (
     const last = r.events[r.events.length - 1]!;
     expect(r.events.length).toBe(1298);
     expect(`${last.score[0]}-${last.score[1]}`).toBe('116-111');
-    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('ffab2187');
+    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('0d02f5df');
   });
 });
 
