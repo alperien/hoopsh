@@ -372,6 +372,42 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
     expect(ph.carryT0).toBe(s.wallT);
   });
 
+  // #120 (Red Team #119 follow-up, comment 5153792162 target 2): the carry
+  // stamps are OPTIONAL Phase fields, and tickFreeThrows skips the carry
+  // when they are absent — a hand-built stampless freethrows phase would
+  // end its trip with the ball off the spot and diverge events through the
+  // #115 read chain (the first live tick's defenseTick reads ball.pos).
+  // Unreachable in shipped flows exactly as long as the producer writes
+  // both stamps on EVERY entry path, which is what these four pins hold:
+  // the issue names normal, technical prefix, and one-and-one; the entry
+  // signature has a fourth shape (the technical-resume trip), pinned too
+  // because the invariant is per-path, not per-named-path. Shape 1 of the
+  // issue's two candidates: pin the producer where the invariant lives.
+  // Shape 2 (a defensive consumer write in tickFreeThrows) is an engine
+  // behavior change on an unreachable path, rejected per the issue's own
+  // default. Verified RED under a stamp-removal mutant (the two stamp
+  // lines in enterFreeThrows deleted, this file re-run: all four pins and
+  // the #82 C1 entry pin above fail) and GREEN on head restored — the
+  // mutation-shields discipline.
+  const stampCase = (label: string, enter: (s: GameState, shooter: Agent) => void): void => {
+    it(`every entry path stamps the carry pair: ${label} (#120)`, () => {
+      const { s, agents } = mkState();
+      const shooter = agents.get('h3')!;
+      const whistleSpot = { ...s.ball.pos };
+      const entryWallT = s.wallT;
+      enter(s, shooter);
+      const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
+      expect(ph.kind).toBe('freethrows');
+      expect(ph.carryFrom).toEqual(whistleSpot);
+      expect(ph.carryT0).toBe(entryWallT);
+    });
+  };
+  stampCase('normal', (s, sh) => enterFreeThrows(s, sh, 2));
+  stampCase('one-and-one', (s, sh) => enterFreeThrows(s, sh, 2, true));
+  stampCase('technical prefix', (s, sh) => enterFreeThrows(s, sh, 2, false, { pre: 'h2' }));
+  stampCase('technical resume', (s, sh) =>
+    enterFreeThrows(s, sh, 1, false, { resume: { nextTeam: 1, continuation: false, resumeIn: 1.8 } }));
+
   it('the other nine freeze for the ritual; the shooter keeps his own intent', () => {
     // fouls.ts:228-249 — cosmetic lane arrangement, shooter skipped
     const { s, agents } = mkState();
