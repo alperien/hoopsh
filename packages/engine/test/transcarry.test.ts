@@ -228,3 +228,63 @@ describe('F2: the carry gate, condition by condition (hand-built states)', () =>
     expect(gateCase({ holderFt: 10 })).toBe(false);  // the probed teleport class, now unreachable
   });
 });
+
+// ------------------------------------------------------------------ F3 pins
+
+/**
+ * F3 (PR #75 probe comment, Lead-ruled amendment): the intermediate-dose
+ * region, pinned. Every pooled case above runs at the dial ends (0 and
+ * 1), both draw-free by the heave-guard shape — so the per-possession
+ * arming DRAW is live exactly where nothing looked, and the landing dose
+ * sits there. Two probe mutants passed the whole pre-F3 file to prove
+ * the blindness: dropping the arming draw's kind scope (streams
+ * identical at both ends, 12/12 diverged at 0.37 — every possession
+ * draws instead of only live_rebound/steal), and dropping the draw-free
+ * short-circuit (`carryScale >= 1 || chance` -> `chance` — one extra
+ * draw per armed-scope possession shifts every scale-1 stream). Both
+ * were re-applied and verified RED against these pins before landing.
+ *
+ * The pins are exact stream checksums — event count, final score, and
+ * FNV-1a over JSON.stringify({e: events, f: frames}) with frames on
+ * (the probe's own hashing convention; frames included so the F1 ball
+ * path is pinned too). RE-ANCHOR: any commit that legitimately reorders
+ * these streams (a landed draw upstream, a movement change) re-runs
+ * this file and copies the printed actuals in, saying so in the commit
+ * — the goldens doctrine. The intermediate scale is 0.37 (the probe's
+ * demonstration point) until the increment's landing dose is selected;
+ * the dose commit re-anchors the intermediate pins AT the landing dose
+ * (the Lead-ruled natural choice), keeping one pinned scale in (0, 1).
+ */
+describe('F3: the arming-draw region is pinned (intermediate scale + draw-free top)', () => {
+  const fnv1a = (str: string): string => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  };
+
+  const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
+    { seed: 'f3pin-1', scale: 0.37, events: 1153, final: '87-139', hash: '2d6d23f7' },
+    { seed: 'f3pin-2', scale: 0.37, events: 1216, final: '107-109', hash: '96158e1d' },
+    { seed: 'f3pin-3', scale: 0.37, events: 1299, final: '103-131', hash: '3375979e' },
+    { seed: 'f3pin-4', scale: 0.37, events: 1194, final: '113-109', hash: '3d417fbd' },
+    { seed: 'f3pin-1', scale: 1, events: 1181, final: '120-112', hash: 'b6e0f3c4' },
+    { seed: 'f3pin-2', scale: 1, events: 1252, final: '132-114', hash: 'f64bbff8' }
+  ];
+
+  for (const pin of PINNED) {
+    it(`${pin.seed} at scale ${pin.scale} streams exactly the baked checksum`, () => {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({
+        seed: pin.seed, home, away, collectFrames: true,
+        params: { ai: { transCarryScale: pin.scale } }
+      });
+      const last = r.events[r.events.length - 1]!;
+      expect(r.events.length).toBe(pin.events);
+      expect(`${last.score[0]}-${last.score[1]}`).toBe(pin.final);
+      expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe(pin.hash);
+    });
+  }
+});
