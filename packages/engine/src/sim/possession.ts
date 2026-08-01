@@ -150,6 +150,15 @@ export function startPossession(
     (kind === 'live_rebound' || kind === 'steal') &&
     carryScale > 0 &&
     (carryScale >= 1 || s.rng.chance(carryScale));
+  // #114 halfcourt blow-by dose: arms on EVERY start kind — any possession
+  // reaches halfcourt, so unlike the two transition draws above there is
+  // no kind scope. Same heave-guard shape (0 never reaches the draw, >= 1
+  // short-circuits it draw-free), rolled AFTER the carry draw so the three
+  // mechanisms' byte-identity ladders hold independently.
+  const blowByScale = s.params.ai.blowByCarryScale;
+  const blowByArmed =
+    blowByScale > 0 &&
+    (blowByScale >= 1 || s.rng.chance(blowByScale));
   s.poss = {
     team,
     shotClock: s.rules.shotClockSec,
@@ -158,6 +167,7 @@ export function startPossession(
     kind,
     leakArmed,
     carryArmed,
+    blowByArmed,
     // the period's first possession: the game clock still reads the full
     // period value here (the opening dead ball never runs it, advanceClock
     // is the only clock writer, and any prior possession consumes live

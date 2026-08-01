@@ -121,13 +121,15 @@ describe('params provenance metadata (#36)', () => {
     // increment 1 (ai.transCarryScale joined the surface), at the #74 F1
     // amendment (ai.transCarryGatherFt joined), at the amended-dose
     // landing (ai.transCarryScale 0 -> 0.5), at #86 increment 2
-    // (shot.putbackStrongLogit joined the surface, staged 0), and at the
-    // #86 landing (shot.putbackStrongLogit 0 -> 0.3) — the sanctioned
+    // (shot.putbackStrongLogit joined the surface, staged 0), at the
+    // #86 landing (shot.putbackStrongLogit 0 -> 0.3), and at #114
+    // (ai.blowByCarryScale staged 0 + the blowByBeatenFt/blowByLaneMax/
+    // blowByGatherFt shape gates joined the surface) — the sanctioned
     // named-knob condition each time. See the header for the re-baseline
     // doctrine.
-    expect(json.length).toBe(10883);
-    expect(fnv1a(json)).toBe('829b06a4');
-    expect(djb2(json)).toBe('9f7e24e8');
+    expect(json.length).toBe(10964);
+    expect(fnv1a(json)).toBe('0df4af2d');
+    expect(djb2(json)).toBe('6c150b05');
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);
@@ -136,15 +138,16 @@ describe('params provenance metadata (#36)', () => {
   it('pins the provenance record itself — the guard of DO-NOT rule 1 is guarded (#49 F3)', () => {
     const json = JSON.stringify(paramProvenance);
     // Captured from the amended record on refactor/params-split (#49),
-    // re-baselined at #74 increment 1, at the #74 F1 amendment, and at
-    // #86 increment 2: 481 tags = 43 SWEPT / 89 REAL / 349 FEEL
-    // (shot.putbackStrongLogit FEEL — the knob-surface change named per
-    // guarantee 3). Re-baseline ONLY per guarantee 3 in the header: a
-    // commit that re-adjudicates a named tag or changes the knob surface,
-    // and says so — never a refactor/cleanup.
-    expect(json.length).toBe(12029);
-    expect(fnv1a(json)).toBe('00297f7d');
-    expect(djb2(json)).toBe('40664787');
+    // re-baselined at #74 increment 1, at the #74 F1 amendment, at #86
+    // increment 2, and at #114: 485 tags = 43 SWEPT / 89 REAL / 353 FEEL
+    // (ai.blowByCarryScale + the three blowBy* shape gates, all FEEL —
+    // the knob-surface change named per guarantee 3). Re-baseline ONLY
+    // per guarantee 3 in the header: a commit that re-adjudicates a
+    // named tag or changes the knob surface, and says so — never a
+    // refactor/cleanup.
+    expect(json.length).toBe(12126);
+    expect(fnv1a(json)).toBe('00d4a392');
+    expect(djb2(json)).toBe('4d169918');
     // same shape discipline as the params surface: pure string leaves,
     // so the record round-trips losslessly
     expect(JSON.parse(json)).toEqual(paramProvenance);
@@ -170,6 +173,8 @@ describe('params provenance metadata (#36)', () => {
         '1.0 by definition at introduction (params.ai.ts) — registered for the flag-on coordinated re-sweep, not yet swept',
       'ai.transCarryScale':
         'staged at 0 (#74 increment 1); the landing dose is FEEL by the increment doctrine — registered so the coordinated re-sweep can trade it, no landed sweep has moved it',
+      'ai.blowByCarryScale':
+        'staged at 0 (#114); the landing dose is FEEL by the increment doctrine — registered so the coordinated re-sweep can trade the blow-by make surplus, no landed sweep has moved it',
       'shot.putbackStrongLogit':
         'staged at 0 (#86 increment 2); the landing dose is FEEL by the increment doctrine — registered so the coordinated re-sweep can trade the strong-putback surplus against its putback-economy companions, no landed sweep has moved it',
       'reb.putbackRadiusFt':

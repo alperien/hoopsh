@@ -175,6 +175,41 @@ export interface AiParams {
    *  side — both stated in W82.
    *  SHAPE, not dose: deliberately off the sweep surface (knobs.ts). */
   transCarryGatherFt: number;
+  /** #114 (unassisted-creation arc) — the halfcourt blow-by carry, the
+   *  transition carry's halfcourt sibling. 0 = no blow-by (staged,
+   *  checked FIRST); at >0 a halfcourt drive finish that has WON the
+   *  matchup gathers through its windup exactly as the #74 carry does —
+   *  same decides, same 'drive' label, same make model, only the release
+   *  geometry moves (the #114 probe: halfcourt drive releases sit at p50
+   *  4.9 ft against the booth's 2.25 ft book boundary, 2.7% at the
+   *  plane, while plane buckets convert at 70%+ — the artifact class #74
+   *  measured in transition, one phase over). Per-possession arming draw
+   *  in the heave-guard shape (0 never draws, >= 1 short-circuits
+   *  draw-free), rolled in startPossession on EVERY start kind (any
+   *  possession reaches halfcourt), consumed by executeAction's shoot
+   *  branch via blowsByToRim (game.ts). */
+  blowByCarryScale: number;
+  /** #114 — the blow-by's beaten read: the handler carries only when his
+   *  on-ball man is absent (nothing within ai.onBallRadiusFt) or trails
+   *  by at least this many feet of rim distance (behindFt = defender rim
+   *  distance minus handler rim distance; positive = the edge is won).
+   *  SHAPE, not dose: off the sweep surface (knobs.ts). */
+  blowByBeatenFt: number;
+  /** #114 — the blow-by's lane read: the gate holds only while the
+   *  ai/shared.ts defendersInLane soft count — the SAME definition the
+   *  drive chooser prices, one seam so they can never disagree — sits
+   *  under this threshold. A beaten on-ball man with help not yet
+   *  committed is already an empty lane at decide time; once help
+   *  commits the crowd count kills the gate and the existing kick-out
+   *  valuation takes over. SHAPE, not dose: off the sweep surface. */
+  blowByLaneMax: number;
+  /** #114 — the blow-by's own reach, the transCarryGatherFt arithmetic
+   *  applied to the halfcourt carry: the decide-time body-to-rim gap
+   *  must sit inside one windup of drive cover or the finish stays an
+   *  ordinary drive release. Deliberately its OWN knob so the two carry
+   *  classes stay separately owned. SHAPE, not dose: off the sweep
+   *  surface (the #75-F1 tail is what an outward push re-creates). */
+  blowByGatherFt: number;
   cutterBonus: number;         // hitting an active cutter
   swingBase: number;           // intrinsic ball-movement value
   swingPassOutScale: number;
@@ -615,6 +650,32 @@ export const aiDefaults: AiParams = {
   // probe n=585 carries) — the carried population survives while the
   // driveShotRangeFt tail (decides out to 12 ft) is severed.
   transCarryGatherFt: 4.5,
+  // #114 — STAGED at 0 for the hard-zero contract (zero draws, zero
+  // gate work, byte-identical to the pre-mechanism engine); the
+  // increment's dose ladder selects the landing value in this PR's tune
+  // commit.
+  blowByCarryScale: 0,
+  // #114 — FEEL: the honest beaten center from the localization probe's
+  // threshold grid (n=192 games, commit a1d6325 instrumentation): 1 ft
+  // admits the blurred p80 boundary where "won the edge" is ambiguous
+  // (3.16 fires/TG), 3 ft cuts honest wins (1.60), 2.0 ft is the center
+  // (2.35). Live-commit halfcourt behindFt reads p10/p50/p90 =
+  // -5.97/-2.40/+2.40 ft: genuinely beaten states are the top decile,
+  // which is the honest shape — most drives do not win the edge.
+  blowByBeatenFt: 2.0,
+  // #114 — FEEL: soft-count units (ai/shared.ts defendersInLane, lane
+  // p50 on live-commit halfcourt ticks reads 0.99). The probe's grid
+  // moved fires only 2-5% across 0.25-0.75 — the threshold is not a
+  // lever, because a beaten on-ball man with uncommitted help IS an
+  // empty lane at decide time and committed help kills any setting.
+  blowByLaneMax: 0.5,
+  // #114 — FEEL: one windup of drive cover, the transCarryGatherFt
+  // arithmetic (the 0.50 s effective windup needs only 9 ft/s to cover
+  // 4.5 ft, so a gated carry arrives whatever fatigue does). The gate is
+  // free at 4.5 — probe fire-tick rim distances read p10/p50/p90 =
+  // 0.4/1.6/3.5 ft, and fires at reach 4.5 equal fires at reach 9 —
+  // but it bounds the same teleport tail #75-F1 bounded in transition.
+  blowByGatherFt: 4.5,
   cutterBonus: 0.5,
   swingBase: 0.045,
   swingPassOutScale: 0.16,
@@ -1172,6 +1233,10 @@ export const aiProvenance: Record<keyof AiParams, Provenance> = {
   leakFinishRadiusFt: 'FEEL',
   transCarryScale: 'FEEL',
   transCarryGatherFt: 'FEEL',
+  blowByCarryScale: 'FEEL',
+  blowByBeatenFt: 'FEEL',
+  blowByLaneMax: 'FEEL',
+  blowByGatherFt: 'FEEL',
   cutterBonus: 'FEEL',
   swingBase: 'FEEL',
   swingPassOutScale: 'FEEL',
