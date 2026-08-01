@@ -25,6 +25,7 @@ This is the hub. If you don't know which document you need, start here.
 | [`README.md`](../README.md) | What hoopsh is + zero-dep quickstart | First contact |
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | The hybrid spatial–stochastic bet and the design goals | Before forming opinions |
 | [`AGENTS.md`](../AGENTS.md) | **The contributor covenant** — directives, DO-NOTs, verification tiers | Before changing anything |
+| [`docs/CHECKLISTS.md`](./CHECKLISTS.md) | **Per-tier verification checklists** — the gates, fingerprint expectation, and report expectation for each tier, one page | When verifying any change |
 | [`docs/INTERNALS.md`](./INTERNALS.md) | Module map, tick pipeline, two time axes, safety net, known simplifications | When looking for where something lives |
 | [`docs/CALIBRATION.md`](./CALIBRATION.md) | Calibration workflow, noise-floor doctrine, what "locked" claims, the CURRENT measured state | Before touching `params.ts` values or `bands.ts`; when tuning realism |
 | [`docs/EMBEDDING.md`](./EMBEDDING.md) | **The downstream-builder guide** — consuming the packages from your own project; what works, what's broken, honest caveats | When building ON the engine rather than IN the repo |
@@ -49,7 +50,8 @@ history.
 
 **Contributor (changing code)** → README → ARCHITECTURE → ONBOARDING (do
 both evenings — Evening 1 walks you through INTERNALS and AGENTS in order) →
-PLAYBOOK when building, INTERNALS as reference. CALIBRATION.md is law too
+PLAYBOOK when building, CHECKLISTS.md for the verification gates, INTERNALS as
+reference. CALIBRATION.md is law too
 the moment you touch `params.ts` values or bands. Budget note: `npm test`
 (rung 1 of the ladder) takes ~2 minutes on a modest box.
 
