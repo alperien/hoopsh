@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ATTR_KEYS, TEND_KEYS } from '@hoopsh/data';
-import type { Position } from '@hoopsh/engine';
+import type { Attributes, Position } from '@hoopsh/engine';
 import {
   ARCHETYPES, BODY_BANDS, anchorOf, archetypeById,
   pickArchetype, sampleBody, sampleIdentity,
@@ -51,10 +51,10 @@ describe('the catalog', () => {
   });
 });
 
-/** Group mean helper over sampled attributes. */
-function gmean(attr: Record<string, number>, keys: readonly string[]): number {
+/** Group mean helper over sampled attributes; keys checked against the engine interface. */
+function gmean(attr: Attributes, keys: readonly (keyof Attributes)[]): number {
   let sum = 0;
-  for (const k of keys) sum += attr[k]!;
+  for (const k of keys) sum += attr[k];
   return sum / keys.length;
 }
 

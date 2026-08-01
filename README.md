@@ -228,12 +228,21 @@ scoreboard back into play (trailing teams press up; decided games wind down
 through the benches) · an NCAA rule pack behind the harness `--league` flag
 (rule coverage partial).
 
-**Now — tuning, not building.** The mechanics above are implemented and wired;
-current work is closing measured gaps, not adding systems. The biggest: the
-sim still moves the ball less than real teams do, and the mechanism built to
-fix that is parked at zero strength because, measured together with the
-score-pressure coupling, the two interact badly. That finding and every other
-open item live with their measurements in the work register:
+**Now — closing measured gaps.** The mechanics above are implemented and
+wired; current work lands measured increments against named gaps. The
+biggest: the sim still moves the ball less than real teams do. The mechanism
+built to fix that is no longer parked at zero strength. Three priced
+increments shipped it. W69 flipped the probe (concept 8) live with a
+pressure fade that yields exactly where the score-pressure coupling
+expresses; the fade is the shipped answer to the interaction that had parked
+it. W74 made the chooser price a receiver's shot at the catch clock, not the
+throw clock (concept 12). W75 re-priced pass risk at -3.75 under a sweep
+re-center. Measured at that landing: texture 1.61 to 1.82-1.86 passes per
+possession vs the corpus 2.84-2.86, about a fifth of the gap closed. The
+remainder is structural supply, not pricing. The next supply-side front, the
+transition leak-out (W77), is wired and staged behind a dose dial; its flip
+is blocked on an unassisted-rim prerequisite arc. Those records and every
+other open item live with their measurements in the work register:
 [docs/REGISTER.md](./docs/REGISTER.md). Project terms ("staged", "sweep",
 "band lock"…) are defined in [docs/GLOSSARY.md](./docs/GLOSSARY.md).
 
@@ -260,6 +269,8 @@ Everything routes through the hub: **[docs/README.md](./docs/README.md)** —
 every document, reading paths by role, which doc answers which question.
 Contributing code? Humans start at [CONTRIBUTING.md](./CONTRIBUTING.md), AI
 agents at [AGENTS.md](./AGENTS.md) (the covenant; its rules bind everyone).
+The verification gates for each change tier are one page:
+[docs/CHECKLISTS.md](./docs/CHECKLISTS.md).
 The whole doc set compiled into one generated file:
 [docs/BIBLE.md](./docs/BIBLE.md).
 

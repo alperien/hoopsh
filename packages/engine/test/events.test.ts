@@ -31,9 +31,13 @@
  *   evstream-182 — regulation; 2 DEFENSE-won and 1 OFFENSE-won mid-game
  *                  jump balls, 1 offensive foul, 3 technicals, 2
  *                  violations, 3 replay reviews.
- *   evstream-77  — reaches OVERTIME (period 5) with a tied Q4 period_end;
- *                  1 DEFENSE-won jump ball, 4 offensive fouls, 1 technical,
- *                  1 violation, 5 replay reviews.
+ *   evstream-168 — reaches OVERTIME with a tied Q4 period_end; 1
+ *                  DEFENSE-won and 1 OFFENSE-won jump ball, 7 offensive
+ *                  fouls, 2 technicals, 1 violation, 3 replay reviews.
+ *                  (Slot re-anchored at the #74 amended-dose landing —
+ *                  the arming draw on every transition possession
+ *                  reshuffled the streams and evstream-77 fell back to
+ *                  regulation; re-scanned evstream-1..300, slot 1 held.)
  * The OT seed gives the overtime legs a live branch without a seed hunt. An
  * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
  * regulation — the explicit OT existence floor below then fails LOUDLY and
@@ -51,7 +55,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
-const pool: GameResult[] = ['evstream-182', 'evstream-77'].map((seed) => {
+const pool: GameResult[] = ['evstream-182', 'evstream-168'].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });

@@ -228,6 +228,7 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
   if (!career) { json(res, 409, { error: 'no career loaded; POST /api/career/new or /api/career/load first' }); return true; }
 
   if (p === '/api/career/save' && req.method === 'POST') {
+    if (state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
     const name = body.name || state.careerSaveName;
     saveCareer(career, name);
@@ -455,6 +456,7 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
 
   if (p === '/api/save' && req.method === 'POST') {
     if (state.career) { json(res, 409, { error: 'the career saves through /api/career/save' }); return true; }
+    if (state.sim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
     const name = body.name || state.saveName;
     saveLeague(league, name);

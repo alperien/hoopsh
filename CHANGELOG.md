@@ -11,6 +11,51 @@ session (W76-W77), each plan-first with adversarial verifier gating and,
 for the rim session, a primary-source audit of every reference number the
 sim is compared against (findings/session7-plan*.md, session8-*.md).
 
+Also in this window: the career fun wave, the dunker dive (REGISTER
+W73), and the core-nine minutes-targets fix (W65).
+
+### Unassisted-creation supply arc, increment 1 (#74, REGISTER W82)
+
+- The transition carry, STAGED at `ai.transCarryScale: 0`: on a
+  live-rebound/steal possession with the retreat beaten, a committed
+  drive finish releases at the rim plane by construction instead of the
+  behind-plane stop-out. The pre-diff probe on #74 localized the G11
+  deficit to release geometry (beaten-break finishes at median 4.8 ft
+  against the booth's 2.25 ft book boundary, 0-8% at the plane; plane
+  releases convert at 59-67%), and branch instrumentation localized the
+  artifact to the sprinting body's stopping distance. Same decides, same
+  labels, same make model; the contest still reads off the body at
+  release; dunk-class books through the booth's existing rule. One new
+  knob (FEEL, hard-zero short-circuit checked first, heave-guard arming
+  draw, knobs.ts range in the same PR); params-provenance pins
+  re-baselined; off-state streams byte-identical.
+- Amended pre-merge on the PR #75 Red Team probe (Lead ruling, four
+  findings). F1: the carry's reach was uncapped up to the drive-label
+  range and the frame ball rode the sliding body — fixed with
+  `ai.transCarryGatherFt` (4.5 ft FEEL, the carry's own decide-time
+  reach gate; SHAPE, deliberately not sweepable) plus the carried
+  windup's honest ball path (decide-spot -> rim lerp; the release-tick
+  frame-ball -> booking gap collapsed from p50 4.87 / max 9.95 ft to
+  p50 0.51 / max 2.01). F2: the phase and commit gates pinned
+  condition-by-condition on hand-built states (`carriesToRim` extracted
+  as the seam; probe mutants verified red). F3: the arming-draw region
+  pinned with exact stream checksums at an intermediate scale and the
+  draw-free top (both probe mutants verified red; re-anchored to the
+  landing dose at the dose commit). F4: the scout denominator defined —
+  pool counts are per team-game (24 seeds = 48 team-games). The 0.5
+  dose landing was reverted first (amendments precede dose selection);
+  re-selection on the amended mechanism rides the re-run ladder.
+- Dose re-landed at 0.5 on the amended mechanism: n=96 paired arms on
+  two bases put the 0.5 astd purchase inside the priced window on each
+  base independently with fgPct flat at every dose (the priced ceiling
+  breach never materializes); 0.75 was declined — its pooled astd read
+  sits on the window edge with the dose step disagreeing across bases.
+  Goldens, provenance pin, F3 intermediate pins (re-anchored at the
+  landing dose per the ruling), and the seed-anchored existence pins
+  re-anchored per protocol, including one franchise-side pin
+  (officials dir seeds) touched from an engine landing for the first
+  time.
+
 ### Rim supply (session 8)
 
 - Reference-data audit: every comparison target re-verified against its
@@ -64,6 +109,128 @@ sim is compared against (findings/session7-plan*.md, session8-*.md).
 - Theta and assist-hierarchy identity preserved on both w19 cohorts at
   n=1080 per arm; the self-play theta delta rides a CI edge and is
   registered as a watch item.
+
+### Career (the fun wave)
+
+A four-critic design audit played the shipped career mode; this wave
+fixes what it measured. At the landing: 1401 tests, 0 failures; the
+28-seed fingerprint corpus byte-identical (the engine untouched); a
+three-career acceptance fleet completes with the determinism,
+reacting-world, and explained-consequence gates all holding.
+
+- Production feeds perception: a role-relative, efficiency-weighted
+  production index blends into the perceived read at 0.30, shared by
+  draft stock and recruiting. Stock previously read attributes only, and
+  in the bust test the reckless chucker out-drafted the disciplined
+  control (pick 10 vs 17); the mock now converges to the real boards
+  (residual 19 picks to 2) and the fleet drafts phenom 1, four-star 4,
+  walk-on 13. Feed hygiene drops sub-3-pick noise events; recruiting
+  interest staggers over 7-12 weeks.
+- The felt loop: the week's approach card grades both games of a
+  doubleheader and persists as the standing approach; before the fix the
+  second game was judged against a card the player never set. Card
+  voltage 22 to 32 (a 70 dial lands the old 95's effect); energy under
+  40 debuffs attributes linearly and injuries stream per game with the
+  wear factor; role pars scale to the circuit's scoring world, so
+  promotions fire inside a high-school season (measured week 2-3,
+  previously zero all year); minutes follow the role (5.7 to 25.6 a
+  night across the ladder); training banks fractional progress and lands
+  every 6-7 weeks with no droughts.
+- The phone: ghost recruiters are gone (65 counterfeit letters to zero);
+  commitment, the bracket, the final, draft night, and the NBA debut
+  speak in the established voices with real numbers; milestone stories
+  arrive bylined on the wire thread; promises have memory
+  (`promiseGraceGames` consumed, grievances conducted by the agent).
+  Phone choices previously measured byte-identical across answer/ignore
+  arms, and the 32-week post-commitment void (two alternating noise
+  strings, 25% of all events) is closed.
+- Surfaces: draft night runs as a green room with a pick-by-pick reveal,
+  the player's takeover card, the rival chip, and an undrafted variant;
+  signing day is a staged in-game sequence instead of a window.confirm
+  dialog; the week screen carries the role clock, the stock line, offer
+  expiry, and calendar countdowns; The Office answers contracts, free
+  agency, declare/return/agent/trade/retire; a Me screen exists. The
+  second act had been engine-complete with no interactive surface.
+- Ladder ends: at the franchise rung, sustained above-band production
+  resets into belief instead of a clock that sits at `reactGames`
+  forever; the first verification fleet failed exactly this, 25 times.
+- Registered, not gated: two boredom-band misses (zero-event streaks in
+  one phenom corridor) remain as content work.
+
+### Rim supply (session 6)
+
+- The dunker dive (W64 increment 1, REGISTER W73): the dunker spot,
+  excluded from cutting since the spot's introduction, now dives exactly
+  when its ball-handler is mid-drive-commit (the dump-off timing),
+  behind `ai.dunkerDiveScale` with a staged-0 short-circuit before any
+  rng draw (byte-identity proven on the 28-seed corpus before the flip).
+  Dose 8 seated league FG% exactly on the 49.5 band ceiling at n=48 and
+  was rejected (the W26 ceiling-seat lesson); dose 6 landed: 17/17 bands
+  (FG% 49.1), made dunks 3.2 per game (up 68% from 1.9), rim-possession
+  share 9.0 to 10.6% at n=40, flowboard 10/13. The channel saturates
+  near dose 8; the session-8 records above carry the successor channels.
+
+### Fitting (real rosters)
+
+- Minutes targets go to the mpg-ordered core nine and the tail plays
+  untargeted fill (the roster fitter; REGISTER W65, the Hartenstein
+  starvation). Targeting all twelve had structurally killed the engine's
+  eager-return path (it swaps a behind-pace target in for an untargeted
+  on-court body), and 240 game-minutes cannot hold twelve season
+  averages (a real 12-man mpg column sums to ~290). Measured on OKC at
+  n=12: Hartenstein 11.5 to 24.0 minutes (real 24.2), Dort 19.4 to 26.9
+  (real 26.8), the core nine all within about a minute. Generated
+  rosters do not pass through the fitter and are unchanged.
+
+### Maintainability
+
+- `sim/params.ts` split along its block seams (#36): eleven
+  `params.<block>.ts` modules — the block's interface, calibrated defaults,
+  and per-knob provenance map each — composed into the same flat `SimParams`.
+  Pure refactor: serialization byte-identical, fingerprint corpus 28/28, not
+  one value changed. Provenance (`REAL`/`SWEPT`/`FEEL`) is now machine-readable
+  (`paramProvenance` + `params.provenance.ts`), and a new coverage test makes
+  AGENTS.md DO-NOT rule 1 a checked property instead of an honor system.
+- `verbatimModuleSyntax` is on in the root tsconfig (#80, issue #62):
+  unmarked type-only imports and the other non-erasable syntax AGENTS.md 1.7
+  bans now fail `npm run typecheck` instead of erroring at runtime under
+  type stripping. The audit found zero violating sites; the diff is the flag
+  plus its comment. Re-verified: fingerprint corpus 28/28 byte-identical,
+  test counts identical (1542 tests, 1540 pass, 2 todo), typecheck green
+  before and after.
+
+### Fixed
+
+- The types CI job is green on main again: two franchise test files carried
+  strict tsc errors from the #31 merge, fixed with type-level changes that
+  erase at runtime and touch no assertions (#53, issue #51). Re-verified:
+  test counts identical before and after (1531 tests, 1529 pass, 2 todo),
+  fingerprint corpus 28/28 byte-identical.
+- Career and league saves are refused mid-run (409): both save routes now
+  carry the sim.running guard every adjacent mutation already had, closing
+  the torn mid-run save that permanently drifted career/league clock sync
+  (#29). Re-verified: two new guard tests red on unfixed code and green on
+  the fix, fingerprint corpus 28/28 byte-identical.
+- Ring harvest keys on season rows, not the current team pointer: a ring
+  now requires the player on the champion's roster in that season, ending
+  pre-entry rings and restoring descent-phase earned rings (#32).
+  Re-verified: two of four new epilogue tests red on unfixed code and green
+  on the fix, fingerprint corpus 28/28 byte-identical.
+- Team packs carrying `rotationMinutes` keys that match no player id are
+  rejected at load: `validateTeamPack` checks each key against the pack's
+  player ids, ending the silent acceptance behind the #39 dead-rotation-map
+  incident class (85% self-play loss). roster:validate drops the orphaned
+  rotation-unknown-id warning and moves its did-you-mean suggestion into
+  the rejection explainer (#79, issue #60). Re-verified: test counts 1542
+  to 1544 (the two new validation tests), fingerprint corpus 28/28
+  byte-identical.
+
+### Docs
+
+- docs: per-tier verification checklists on one page, docs/CHECKLISTS.md,
+  linked from the README and the docs hub (#46, issue #38). Re-verified:
+  fingerprint identical before and after, Bible regenerated in the same
+  commit.
 
 ## [0.3.0] - 2026-07-31
 

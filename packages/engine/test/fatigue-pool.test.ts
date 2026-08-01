@@ -181,6 +181,7 @@ describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
       poss: {
         team: 0, shotClock: 10, phase: 'halfcourt', startT: 0, kind: 'inbound',
         leakArmed: false,
+        carryArmed: false,
         lastPass: null, spotMap: new Map(), spots: new Map(), action: null, ended: false
       },
       phase: { kind: 'live' },
