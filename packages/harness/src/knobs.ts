@@ -233,7 +233,10 @@ export const SWEEPABLE: Knob[] = [
   // trade the carry's make surplus against the jumper economy it funds.
   // The beaten-break SHAPE (defendersBack < transSetBackCount, the gather
   // riding the existing windup) is definition, not calibration, and stays
-  // off the surface.
+  // off the surface — as does the F1 gather gate (ai.transCarryGatherFt):
+  // reach is part of what a carry IS, and a sweep pushing it outward
+  // would re-create the unbounded release-gap tail the bound exists to
+  // remove (PR #75 probe F1).
   { path: 'ai.transCarryScale', lo: 0, hi: 1 },
 
   // Endgame layer (params.endgame; live only under GameConfig.endgame) —

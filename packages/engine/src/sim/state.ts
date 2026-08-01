@@ -398,6 +398,21 @@ export interface GameState {
      *  release, so traffic prices the finish honestly. Absent everywhere
      *  else. */
     carryRim?: boolean;
+    /** #74 F1 amendment — the carried gather's ball path: the windup-start
+     *  ball spot (the decide-time body position) the ball travels FROM.
+     *  During a carried windup the ball no longer rides the sliding body:
+     *  it moves body-to-rim across the windup (game.ts), meeting the hoop
+     *  exactly at release — so the rim-plane booking is continuous instead
+     *  of a release-tick teleport off a body that has already passed the
+     *  plane (measured slide: release-tick body-to-rim p50 4.87 ft, max
+     *  9.95, on decide gaps of at most the gather gate). Defense reads the
+     *  honest ball (windup closeouts converge on the finish, not the
+     *  fly-by). Stamped with carryRim; absent everywhere else. */
+    carryFrom?: V2;
+    /** #74 F1 amendment — game-clock stamp of the carried windup's start
+     *  (the decide tick), the lerp's zero. Game-clock t on purpose, the
+     *  same axis as releaseAt: the pair never mixes with wallT. */
+    carryT0?: number;
   } | null;
   over: boolean;
 }

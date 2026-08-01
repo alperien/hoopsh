@@ -325,7 +325,25 @@ function tickLive(s: GameState, dt: number): void {
     defenseTick(s);
     integrateMovement(s, dt);
     applyFatigue(s, dt);
-    s.ball.pos = { x: h.pos.x, y: h.pos.y };
+    if (pr.carryRim && pr.carryFrom !== undefined && pr.carryT0 !== undefined) {
+      // #74 F1 amendment — the carried gather's honest ball path: the
+      // ball extends from the gather spot to the rim across the windup
+      // instead of riding a body that passes the plane and keeps sliding
+      // (measured at scale 1: every gated carry brings the body within
+      // 4.35 ft of the rim mid-windup, but the release-tick body sits
+      // p50 4.87 / max 9.95 ft past-or-beside it). The lerp makes the
+      // rim-plane booking CONTINUOUS — the ball is already at the hoop
+      // when the shot books — and the defense reads the honest ball
+      // (closeouts converge on the finish, not the fly-by; contest at
+      // release still prices off the body per the approved sketch).
+      // Both stamps are game-clock t, the releaseAt axis — never wallT.
+      const dur = pr.releaseAt - pr.carryT0;
+      const raw = dur > 0 ? (s.t - pr.carryT0) / dur : 1;
+      const f = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+      s.ball.pos = lerp(pr.carryFrom, attackedRim(s, h.side), f);
+    } else {
+      s.ball.pos = { x: h.pos.x, y: h.pos.y };
+    }
     if (s.t >= pr.releaseAt) {
       s.pendingRelease = null;
       startShot(s, h, pr.moveType, pr.contest0, pr.carryRim);
@@ -541,15 +559,36 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       // drive-labeled attempt count untouched by construction (the same
       // decides fire the same shots — only where the ball goes up moves).
       // transCarryScale is the stage switch, checked FIRST.
+      //
+      // F1 amendment (PR #75 probe, Lead-ruled): the carry's reach is its
+      // OWN gate — the decide-time body-to-rim gap must sit inside
+      // ai.transCarryGatherFt or the finish stays an ordinary drive
+      // release. The only distance cap before it was
+      // decide.driveShotRangeFt (12 ft, the drive LABEL gate — a knob the
+      // carry's docs never named), and that tail booked the ball at the
+      // rim with the body 6+ ft away on 17.5% of scale-1 carries (release
+      // gap p90 7.44 ft, max 10.06 — not a human finish). NOTE: the
+      // defendersBack condition below is exactly redundant with
+      // phase === 'transition' today — the phase flip shares the read,
+      // runs earlier in the same tick, and positions are frozen between
+      // integrations (probe-verified: its deletion moves 0/12 streams).
+      // It stays as belt-and-suspenders on separately-owned conditions;
+      // do not "fix" the redundancy in either direction silently.
       if (
         s.params.ai.transCarryScale > 0 &&
         s.poss.carryArmed &&
         action.moveType === 'drive' &&
         s.t < h.driveUntil &&
         s.poss.phase === 'transition' &&
-        defendersBack(s, h.side) < s.params.move.transSetBackCount
+        defendersBack(s, h.side) < s.params.move.transSetBackCount &&
+        dist(h.pos, attackedRim(s, h.side)) <= s.params.ai.transCarryGatherFt
       ) {
         s.pendingRelease.carryRim = true;
+        // F1: the gather's ball path starts here (decide-time body spot,
+        // decide-tick clock) and meets the rim at release — tickLive
+        // moves the ball along it so the rim booking lands continuously.
+        s.pendingRelease.carryFrom = { x: h.pos.x, y: h.pos.y };
+        s.pendingRelease.carryT0 = s.t;
         break; // carry the finish: target stays the rim, sprint stays on
       }
       h.target = h.pos;

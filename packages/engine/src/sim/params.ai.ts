@@ -160,6 +160,20 @@ export interface AiParams {
    *  >= 1 short-circuits draw-free), rolled in startPossession, consumed
    *  by executeAction's shoot branch (game.ts). */
   transCarryScale: number;
+  /** #74 F1 amendment (PR #75 probe, Lead-ruled) — the carry's own reach:
+   *  a committed drive finish carries to the rim-plane release only when
+   *  the decide-time body-to-rim gap is at most this many feet. Before
+   *  this gate the carry's only distance cap was decide.driveShotRangeFt
+   *  (12 ft — the drive LABEL gate, a knob the carry's docs never named):
+   *  17.5% of scale-1 carries booked the ball at the rim with the body
+   *  6+ ft away at release (gap p90 7.44 ft, max 10.06 — past any human
+   *  extension). Inside the gather gate the windup's own travel covers
+   *  the gap, so a booked carry is a body that arrived at the plane or
+   *  crossed it on the slide; the residual release discontinuity is
+   *  bounded by this gate on the short side and by one windup of slide
+   *  (~7 ft at 16 ft/s x 0.45 s) on the long side — both stated in W82.
+   *  SHAPE, not dose: deliberately off the sweep surface (knobs.ts). */
+  transCarryGatherFt: number;
   cutterBonus: number;         // hitting an active cutter
   swingBase: number;           // intrinsic ball-movement value
   swingPassOutScale: number;
@@ -583,6 +597,13 @@ export const aiDefaults: AiParams = {
   // booth's own rule (shotcall.ts DUNK_MAX_FT + the sync-pinned athlete
   // gate above) once the gather arrives at the plane.
   transCarryScale: 0,
+  // #74 F1 — FEEL: one windup of drive cover at well under full sprint
+  // (full sprint 16 ft/s covers 7.2 ft in the 0.45 s windup; 4.5 ft needs
+  // only 10 ft/s), so a gated carry arrives whatever fatigue does, and it
+  // sits above the decide-time medians the carry exists for (p50 2.1 /
+  // p90 3.9 ft, probe n=585 carries) — the carried population survives
+  // while the driveShotRangeFt tail (decides out to 12 ft) is severed.
+  transCarryGatherFt: 4.5,
   cutterBonus: 0.5,
   swingBase: 0.045,
   swingPassOutScale: 0.16,
@@ -1139,6 +1160,7 @@ export const aiProvenance: Record<keyof AiParams, Provenance> = {
   dunkBlendFin: 'FEEL',
   leakFinishRadiusFt: 'FEEL',
   transCarryScale: 'FEEL',
+  transCarryGatherFt: 'FEEL',
   cutterBonus: 'FEEL',
   swingBase: 'FEEL',
   swingPassOutScale: 'FEEL',
