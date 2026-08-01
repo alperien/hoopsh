@@ -19,6 +19,7 @@ import { sampleMatchup } from '@hoopsh/data';
 import { decideLiveTimeout, maybeFtTimeout } from '../src/sim/endgame.js';
 import { endPeriod } from '../src/sim/possession.js';
 import type { Agent, GameState, TimeoutReason } from '../src/sim/state.js';
+import { SEED_PINS } from './seed-pins.gen.js';
 
 type TO = Extract<GameEvent, { type: 'timeout' }>;
 const timeouts = (r: GameResult): TO[] =>
@@ -194,15 +195,18 @@ describe('mandatory / TV stoppages (forced live)', () => {
   it('the Q4 late cap really blocks spending (0-cap arm) while Q1-Q3 are untouched', () => {
     // control (late cap 2) vs treatment (late cap 0) on the same seeds.
     // Probed: control shows 1-2 late-Q4 timeouts per game, treatment 0.
-    // Seeds re-anchored at the post-audit rebase, at the rules landing,
-    // and again at the #74 amended-dose landing (rng reshuffles moved
-    // control games to zero late-Q4 calls by seed luck — the same
+    // Seeds re-anchored by hand at the post-audit rebase, at the rules
+    // landing, and again at the #74 amended-dose landing (rng reshuffles
+    // moved control games to zero late-Q4 calls by seed luck — the same
     // re-anchor practice as the audit wave's own fixture shifts; scouted
-    // to-cap-1..16, picked 1 and 7 — control late-Q4 counts 4 and 3).
-    for (const i of [1, 7]) {
+    // to-cap-1..16, picked 1 and 7 — control late-Q4 counts 4 and 3);
+    // anchors live in ./seed-pins.gen.ts since issue #50 — if the vacuity
+    // guard below trips, run the re-anchor helper named there instead of
+    // re-scouting by hand.
+    for (const seed of SEED_PINS.tocap.seeds) {
       const { home, away } = sampleMatchup();
       const mk = (late: number): GameResult => simulateGame({
-        seed: `to-cap-${i}`, home, away, collectFrames: false,
+        seed, home, away, collectFrames: false,
         params: { endgame: { ...MAND.endgame, toFinalPeriodLateMaxTimeouts: late } }
       });
       const late = (r: GameResult): number =>
