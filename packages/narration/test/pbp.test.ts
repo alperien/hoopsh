@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { simulateGame, type GameEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { buildBroadcastScript, ContextTracker, formatScript, generatePlayByPlay, makeLookup, TemplateColorProvider } from '@hoopsh/narration';
+import { SEED_PINS } from './seed-pins.gen.js';
 
 describe('narration', () => {
   const { home, away } = sampleMatchup();
-  // pbp-7 (re-scouted at the rules landing): the old pbp-1 stream diverged
+  // The probe-game anchor lives in ./seed-pins.gen.ts (issue #50). Last
+  // hand re-scout was at the rules landing: the old pbp-1 stream diverged
   // to a wire-to-wire blowout with ZERO lead changes, starving the M-37
-  // narrative-moment probe; pbp-7 is a 4-point game with ~10 lead flips
-  const result = simulateGame({ seed: 'pbp-7', home, away, collectFrames: false });
+  // narrative-moment probe; its replacement was a 4-point game with ~10
+  // lead flips. If the M-37 floor trips after an rng-order change, run
+  // the re-anchor helper named in seed-pins.gen.ts.
+  const result = simulateGame({ seed: SEED_PINS.pbpGame.seed, home, away, collectFrames: false });
 
   it('renders play-by-play for a full game without gaps or crashes', () => {
     const pbp = generatePlayByPlay(result.events, [home, away], { seed: 'pbp-1' });
