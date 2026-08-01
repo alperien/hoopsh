@@ -33,7 +33,11 @@
  * same-commit regen baked the leaked flag-off stream into the new golden.
  * Coverage for that corner is the pure-refactor tier's before/after
  * byte-identity assertion (`npm run fingerprint` against a fresh base) and
- * review of regen diffs.
+ * review of regen diffs. The same blindness covers the whole stale WINDOW:
+ * any flag-off leak landing between an unregen'd rng-order change and the
+ * next `fingerprint:write` is invisible here, and that regen bakes it into
+ * the new golden. Regen commits are re-arming events; review them as the
+ * moment the flag-off contract is re-accepted.
  *
  * MAINTENANCE: the two simulated configs below MUST mirror fingerprint.ts's
  * corpus entries — `ci-fp` (no flip, default config) and `flagoff-legacy-0`

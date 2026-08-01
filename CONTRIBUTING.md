@@ -95,7 +95,10 @@ with a named exemplar for each shape of change.
   on the untouched base — a deliberate rng-order change landed without a
   corpus regen, which is normal since issue #33 — regenerate at your base
   commit first (`npm run fingerprint:write`, its own commit), then prove
-  identity against the fresh corpus.
+  identity against the fresh corpus. The regen commit also re-arms the
+  flag-off guard in `packages/harness/test/fingerprint.test.ts` and accepts
+  the current legacy-path stream, so keep it its own commit at a base you
+  trust.
 - **Mechanics or params change** — the whole ladder, and expect band drift.
   **Open an issue first** (feature template): the calibrated defaults are
   coupled, re-tuning is a sweep task (see [docs/CALIBRATION.md](./docs/CALIBRATION.md)),
