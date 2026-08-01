@@ -33,11 +33,20 @@ export function harvestSeasonHonors(career: CareerState): void {
   };
 
   for (const archive of career.league.archives) {
-    if (career.nbaTeam && archive.champion === career.nbaTeam
-      && archive.draftClass !== undefined // a fully stamped archive
-      && wasMySeason(career, archive.season)) {
-      const team = career.league.teams[archive.champion]?.name ?? archive.champion;
-      push(`ev-honor-ring-${archive.season}`, `NBA champion: ${team}, ${archive.season}`);
+    if (archive.draftClass !== undefined) { // a fully stamped archive
+      // A ring requires a season row on the champion team for that specific
+      // season. This is the only check that is correct across all phases:
+      // - 'career.nbaTeam === archive.champion' used the current team pointer,
+      //   granting pre-entry titles and missing rings after trades or descent.
+      // - 'wasMySeason' returned true unconditionally while phase === 'nba',
+      //   making the guard vacuous for any player in their NBA career.
+      const onChampion = career.league.players[career.me]?.seasons.some(
+        s => s.season === archive.season && s.teamId === archive.champion,
+      );
+      if (onChampion) {
+        const team = career.league.teams[archive.champion]?.name ?? archive.champion;
+        push(`ev-honor-ring-${archive.season}`, `NBA champion: ${team}, ${archive.season}`);
+      }
     }
     for (const award of archive.awards) {
       if ((award.winners as string[]).includes(career.me)) {
@@ -46,12 +55,6 @@ export function harvestSeasonHonors(career: CareerState): void {
       }
     }
   }
-}
-
-/** Was I on an NBA roster during that league season? Ledger years say. */
-function wasMySeason(career: CareerState, season: number): boolean {
-  return career.ledger.some(e => e.label.includes('contract year') && e.label.includes(String(season)))
-    || career.clock.phase === 'nba';
 }
 
 /** Honors-weighted legacy score; the HOF and the rafters read it. */

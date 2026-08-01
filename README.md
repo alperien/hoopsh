@@ -269,6 +269,8 @@ Everything routes through the hub: **[docs/README.md](./docs/README.md)** —
 every document, reading paths by role, which doc answers which question.
 Contributing code? Humans start at [CONTRIBUTING.md](./CONTRIBUTING.md), AI
 agents at [AGENTS.md](./AGENTS.md) (the covenant; its rules bind everyone).
+The verification gates for each change tier are one page:
+[docs/CHECKLISTS.md](./docs/CHECKLISTS.md).
 The whole doc set compiled into one generated file:
 [docs/BIBLE.md](./docs/BIBLE.md).
 
