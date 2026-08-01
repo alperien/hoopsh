@@ -257,6 +257,14 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
       if (!isRating(tactics[k])) issues.push({ path: `$.team.tactics.${k}`, message: 'must be 0-100' });
     }
   }
+  // Valid string player ids, shared by the duplicate-id/starters checks
+  // inside the players branch and the rotationMinutes key check below.
+  // Stays null (not an empty set) when players isn't an array at all: with
+  // no roster to reference, flagging every rotationMinutes key as dead would
+  // bury the pack's one real problem — the players issue reported just below
+  // (the starters reference checks are skipped in that case for the same
+  // reason).
+  let ids: Set<string> | null = null;
   if (!Array.isArray(team.players)) {
     issues.push({ path: '$.team.players', message: `need at least ${MIN_PLAYERS} players` });
   } else {
@@ -281,7 +289,7 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
     const idList = team.players
       .map((p) => (typeof p === 'object' && p !== null ? (p as Partial<Player>).id : undefined))
       .filter((id): id is string => typeof id === 'string');
-    const ids = new Set(idList);
+    ids = new Set(idList);
     if (ids.size !== idList.length) {
       issues.push({ path: '$.team.players', message: 'duplicate player ids' });
     }
@@ -311,10 +319,14 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
   // non-numeric value doesn't fail loudly — it turns into NaN and silently
   // disables the leash comparisons for that player (a rotation that plays
   // nothing like what the pack says, the exact failure mode this validator
-  // exists to prevent). Keys pointing at ids not on the roster are ignored
-  // harmlessly by the engine, so those are a roster-validate warning rather
-  // than a rejection here. A target of EXACTLY 0 is legal and means a DNP
-  // scratch: the engine never auto-inserts that player (sim/subs.ts
+  // exists to prevent). Keys must match a player id on the roster for the
+  // same reason: the engine skips a key it can't match without any error,
+  // so a typo'd or roster-edit-stale id silently drops the author's minutes
+  // plan for the player they meant — the #39 self-play rig lost 85% of its
+  // games to a dead rotation map before the cause was found (issue #60;
+  // until then this was only a roster-validate plausibility warning, which
+  // the load path never runs). A target of EXACTLY 0 is legal and means a
+  // DNP scratch: the engine never auto-inserts that player (sim/subs.ts
   // minutesPace — audit M-14 defined this; before, a 0 target inverted into
   // the TOP-priority substitute).
   if (team.rotationMinutes !== undefined) {
@@ -325,6 +337,9 @@ export function validateTeamPack(pack: unknown): ValidationIssue[] {
       for (const [rid, v] of Object.entries(rot)) {
         if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
           issues.push({ path: `$.team.rotationMinutes.${rid}`, message: 'minutes target must be a finite number >= 0' });
+        }
+        if (ids !== null && !ids.has(rid)) {
+          issues.push({ path: `$.team.rotationMinutes.${rid}`, message: `rotationMinutes key ${rid} matches no player id` });
         }
       }
     }
