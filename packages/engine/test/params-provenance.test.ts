@@ -6,7 +6,7 @@
  * honor system enforced only by prose comments; the split moved provenance
  * into machine-readable per-block maps so it can be a test instead.
  *
- * Two guarantees:
+ * Four guarantees:
  *
  * 1. Every knob on the composed SimParams surface carries a provenance tag
  *    (REAL / SWEPT / FEEL). The per-block `Record<keyof Block, Provenance>`
@@ -25,9 +25,35 @@
  *    mechanics commit that re-ran calibration and says so); a pure refactor
  *    that moves these pins is wrong by definition — fix the refactor, do
  *    not re-baseline.
+ *
+ * 3. The provenance record ITSELF serializes to a pinned byte string. The
+ *    maps are the machine-checkable half of DO-NOT rule 1, and until the
+ *    PR #49 red-team probe (finding F3) nothing guarded the record: a diff
+ *    flipping every SWEPT tag to FEEL left this suite green while licensing
+ *    every "tidy" the rule exists to prevent. Same pin scheme as guarantee
+ *    2, and the same re-baseline doctrine with the condition adapted: the
+ *    only sanctioned re-baseline is a commit that re-adjudicates a tag or
+ *    changes the knob surface AND names the knob and the evidence in its
+ *    message — a refactor or cleanup that moves this pin is wrong by
+ *    definition.
+ *
+ * 4. Sweep-registered knobs (harness/src/knobs.ts SWEEPABLE) tagged FEEL
+ *    form a documented, closed exception list. Registration hands the
+ *    optimizer ownership of a path; FEEL says the shipped value is
+ *    hand-set. Both at once is coherent only while no landed sweep output
+ *    has moved the value (params.provenance.ts adjudication: a registered
+ *    knob whose current value the sweep chose is SWEPT even where older
+ *    prose says FEEL). The test fails on any registered FEEL knob missing
+ *    from the list and on any stale exception, so a re-tag in either
+ *    direction is forced through this file's record.
  */
 import { describe, expect, it } from 'vitest';
 import { defaultParams, paramProvenance } from '../src/sim/params.js';
+// The registry import crosses into harness deliberately: guarantee 4 is a
+// cross-check BETWEEN the two records (the engine's tags, the harness's
+// sweep surface) and this file is where the DO-NOT-1 guards live. knobs.ts
+// imports nothing, so nothing of the harness rides in behind it.
+import { SWEEPABLE } from '../../harness/src/knobs.js';
 
 const TAGS = ['REAL', 'SWEPT', 'FEEL'];
 
@@ -99,6 +125,67 @@ describe('params provenance metadata (#36)', () => {
     // serializability round trip: parse(stringify(x)) deep-equals x, so no
     // non-finite number (NaN/Infinity stringify to null) hides in a default
     expect(JSON.parse(json)).toEqual(defaultParams);
+  });
+
+  it('pins the provenance record itself — the guard of DO-NOT rule 1 is guarded (#49 F3)', () => {
+    const json = JSON.stringify(paramProvenance);
+    // Captured from the amended record on refactor/params-split (#49):
+    // 478 tags = 43 SWEPT / 89 REAL / 346 FEEL. Re-baseline ONLY per
+    // guarantee 3 in the header: a commit that re-adjudicates a named tag
+    // or changes the knob surface, and says so — never a refactor/cleanup.
+    expect(json.length).toBe(11948);
+    expect(fnv1a(json)).toBe('3088cc0a');
+    expect(djb2(json)).toBe('da06e354');
+    // same shape discipline as the params surface: pure string leaves,
+    // so the record round-trips losslessly
+    expect(JSON.parse(json)).toEqual(paramProvenance);
+  });
+
+  it('every sweep-registered knob tagged FEEL is a documented exception (#49 F3)', () => {
+    // Guarantee 4 (header). One justification line each, sourced from the
+    // knob's own comment; an entry leaves this list the moment a landed
+    // sweep moves its value (the tag flips to SWEPT and the stale-exception
+    // branch below fails until the row is removed).
+    const SWEEP_FEEL_EXCEPTIONS: Record<string, string> = {
+      'ai.swingBase':
+        '0.045 IS the hand-set Stage-2 doctrine cap (hot-potato incident, knobs.ts) — sweeps pin AT the cap; none chose the value',
+      'ai.contestBrakeBase':
+        'hand-set utility-layer decision weight (0.3, its own lo rail); registered for fine centering, no landed sweep has moved it',
+      'ai.crashBase':
+        'hand-set crash-rate base (0.15, its own lo rail); registered for fine centering, no landed sweep has moved it',
+      'ai.crashScatterFt':
+        'audit H-01 hoist of an inline ai/offense.ts literal; hand-set carom-zone geometry, registered but not yet swept',
+      'ai.cutRateScale':
+        'hand-set per-tick cut chance (0.003, its own lo rail); registered for fine centering, no landed sweep has moved it',
+      'ai.scorePressureScale':
+        '1.0 by definition at introduction (params.ai.ts) — registered for the flag-on coordinated re-sweep, not yet swept',
+      'reb.putbackRadiusFt':
+        "audit H-01 hoist of the inline possession.ts 6 ft radius (mutation-proven anchor); putbackChance's registered companion, not yet swept"
+    };
+    const tagAt = (path: string): unknown => {
+      let cur: unknown = paramProvenance;
+      for (const p of path.split('.')) cur = (cur as Record<string, unknown> | undefined)?.[p];
+      return cur;
+    };
+    const problems: string[] = [];
+    for (const k of SWEEPABLE) {
+      if (tagAt(k.path) === 'FEEL' && SWEEP_FEEL_EXCEPTIONS[k.path] === undefined) {
+        problems.push(
+          `${k.path}: sweep-registered and tagged FEEL but not excepted — either the tag is wrong ` +
+            `(registered + optimizer-chosen value = SWEPT, params.provenance.ts) or document the exception here`
+        );
+      }
+    }
+    // the list stays honest in the other direction too: an exception that
+    // no longer names a registered FEEL knob is stale and must leave
+    for (const path of Object.keys(SWEEP_FEEL_EXCEPTIONS)) {
+      if (!SWEEPABLE.some((k) => k.path === path)) {
+        problems.push(`${path}: excepted but not in SWEEPABLE — stale exception`);
+      } else if (tagAt(path) !== 'FEEL') {
+        problems.push(`${path}: excepted but tagged ${String(tagAt(path))} — stale exception`);
+      }
+    }
+    expect(problems).toEqual([]);
   });
 
   it('keeps the top-level field order consumers and the sweep registry key on', () => {
