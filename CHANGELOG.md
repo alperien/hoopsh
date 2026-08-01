@@ -65,30 +65,15 @@ sim is compared against (findings/session7-plan*.md, session8-*.md).
   n=1080 per arm; the self-play theta delta rides a CI edge and is
   registered as a watch item.
 
-### Fixed
+### Maintainability
 
-- The types CI job is green on main again: two franchise test files carried
-  strict tsc errors from the #31 merge, fixed with type-level changes that
-  erase at runtime and touch no assertions (#53, issue #51). Re-verified:
-  test counts identical before and after (1531 tests, 1529 pass, 2 todo),
-  fingerprint corpus 28/28 byte-identical.
-- Career and league saves are refused mid-run (409): both save routes now
-  carry the sim.running guard every adjacent mutation already had, closing
-  the torn mid-run save that permanently drifted career/league clock sync
-  (#29). Re-verified: two new guard tests red on unfixed code and green on
-  the fix, fingerprint corpus 28/28 byte-identical.
-- Ring harvest keys on season rows, not the current team pointer: a ring
-  now requires the player on the champion's roster in that season, ending
-  pre-entry rings and restoring descent-phase earned rings (#32).
-  Re-verified: two of four new epilogue tests red on unfixed code and green
-  on the fix, fingerprint corpus 28/28 byte-identical.
-
-### Docs
-
-- docs: per-tier verification checklists on one page, docs/CHECKLISTS.md,
-  linked from the README and the docs hub (#46, issue #38). Re-verified:
-  fingerprint identical before and after, Bible regenerated in the same
-  commit.
+- `sim/params.ts` split along its block seams (#36): eleven
+  `params.<block>.ts` modules — the block's interface, calibrated defaults,
+  and per-knob provenance map each — composed into the same flat `SimParams`.
+  Pure refactor: serialization byte-identical, fingerprint corpus 28/28, not
+  one value changed. Provenance (`REAL`/`SWEPT`/`FEEL`) is now machine-readable
+  (`paramProvenance` + `params.provenance.ts`), and a new coverage test makes
+  AGENTS.md DO-NOT rule 1 a checked property instead of an honor system.
 
 ## [0.3.0] - 2026-07-31
 
