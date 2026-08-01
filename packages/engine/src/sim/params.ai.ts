@@ -171,7 +171,8 @@ export interface AiParams {
    *  the gap, so a booked carry is a body that arrived at the plane or
    *  crossed it on the slide; the residual release discontinuity is
    *  bounded by this gate on the short side and by one windup of slide
-   *  (~7 ft at 16 ft/s x 0.45 s) on the long side — both stated in W82.
+   *  (8.0 ft at 16 ft/s over the 0.50 s effective windup) on the long
+   *  side — both stated in W82.
    *  SHAPE, not dose: deliberately off the sweep surface (knobs.ts). */
   transCarryGatherFt: number;
   cutterBonus: number;         // hitting an active cutter
@@ -606,11 +607,13 @@ export const aiDefaults: AiParams = {
   // sync-pinned athlete gate above) once the gather arrives at the plane.
   transCarryScale: 0.5,
   // #74 F1 — FEEL: one windup of drive cover at well under full sprint
-  // (full sprint 16 ft/s covers 7.2 ft in the 0.45 s windup; 4.5 ft needs
-  // only 10 ft/s), so a gated carry arrives whatever fatigue does, and it
-  // sits above the decide-time medians the carry exists for (p50 2.1 /
-  // p90 3.9 ft, probe n=585 carries) — the carried population survives
-  // while the driveShotRangeFt tail (decides out to 12 ft) is severed.
+  // (the effective windup is 0.50 s on every released carry, the 0.45 s
+  // windupDrive param tick-quantized to the next 0.1 s boundary: full
+  // sprint 16 ft/s covers 8.0 ft and the 4.5 ft gate needs only 9 ft/s),
+  // so a gated carry arrives whatever fatigue does, and it sits above
+  // the decide-time medians the carry exists for (p50 2.1 / p90 3.9 ft,
+  // probe n=585 carries) — the carried population survives while the
+  // driveShotRangeFt tail (decides out to 12 ft) is severed.
   transCarryGatherFt: 4.5,
   cutterBonus: 0.5,
   swingBase: 0.045,
