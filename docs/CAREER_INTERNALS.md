@@ -109,6 +109,11 @@ their owning module headers and collected here.
   the development review (RNG-order preserving), so career training rides
   the same growth model the league uses. `distributeGrowth`/`groupMean`
   are exported for the weekly landings.
+- `transactions.executeRetirement` — both career retire seams (the chosen
+  retirement and the age-40 forced wrap) close my league file through the
+  spine's own executor, so the retired-phase season advances run a world
+  without me in it (issue #68: a still-rostered me kept playing ghost
+  seasons and harvesting honors).
 - The engine itself is untouched by the career build: every wave was
   verified byte-identical against the then-current fingerprint baseline
   (1143 events, CAS 132-116, pre-rules-landing; the rules landing that

@@ -27,7 +27,11 @@ function minimalCareer(opts: {
   phase?: string;
   nbaTeam?: string | null;
   mySeasonRows?: Array<{ season: number; teamId: string }>;
-  archives?: Array<{ season: number; champion: string }>;
+  archives?: Array<{
+    season: number;
+    champion: string;
+    awards?: Array<{ season: number; kind: string; winners: string[] }>;
+  }>;
 }): CareerState {
   const me = 'p-me';
   const rows = (opts.mySeasonRows ?? []).map(r => ({
@@ -67,7 +71,7 @@ function minimalCareer(opts: {
         champion: a.champion,
         runnerUp: 'bos',
         finalStandings: [],
-        awards: [],
+        awards: (a.awards ?? []).map(w => ({ ...w, ballot: [] })),
         playoffs: [],
         lottery: {} as unknown as CareerState['league']['archives'][0]['lottery'],
         leagueAverages: {},
@@ -189,5 +193,52 @@ describe('harvestSeasonHonors ring accuracy', () => {
     const rings = career.events.filter(e => e.id.startsWith('ev-honor-ring-'));
     expect(rings.length).toBe(1);
     expect(rings[0]!.reason).toContain('Boston Celtics');
+  });
+});
+
+describe('harvestSeasonHonors award gating (issue #68)', () => {
+  // The award branch had no season gating at all: any archived award with
+  // me in winners harvested, forever. Combined with the league-presence
+  // bug (a retired me kept playing under fastSim), the retired-phase
+  // harvest turned into a posthumously growing resume. The gate mirrors
+  // the ring branch: an honor attaches only to a season actually played,
+  // which a season row proves.
+
+  it('does not harvest an award for a season without a season row', () => {
+    // Retired after season 11; the ghost archive stamps an award for
+    // season 13, a season the player never actually played.
+    // Unfixed: no gating -> 'MVP, 13' harvests. Fixed: no row, no honor.
+    const career = minimalCareer({
+      phase: 'retired',
+      nbaTeam: 'atl',
+      mySeasonRows: [{ season: 11, teamId: 'atl' }],
+      archives: [{
+        season: 13, champion: 'bos',
+        awards: [{ season: 13, kind: 'mvp', winners: ['p-me'] }],
+      }],
+    });
+
+    harvestSeasonHonors(career);
+
+    expect(career.events.filter(e => e.id === 'ev-honor-mvp-13').length).toBe(0);
+  });
+
+  it('harvests an award for a season the player has a row for', () => {
+    // The positive control: pre-retirement honors survive the gate.
+    const career = minimalCareer({
+      phase: 'retired',
+      nbaTeam: 'atl',
+      mySeasonRows: [{ season: 11, teamId: 'atl' }],
+      archives: [{
+        season: 11, champion: 'bos',
+        awards: [{ season: 11, kind: 'mvp', winners: ['p-me'] }],
+      }],
+    });
+
+    harvestSeasonHonors(career);
+
+    const won = career.events.filter(e => e.id === 'ev-honor-mvp-11');
+    expect(won.length).toBe(1);
+    expect(won[0]!.reason).toBe('MVP, 11');
   });
 });
