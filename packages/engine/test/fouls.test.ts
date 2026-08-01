@@ -345,17 +345,31 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
     expect(ph.of).toBe(2);
   });
 
-  it('the shooter walks to the PACK-DERIVED line and the ball waits with him', () => {
+  it('the shooter walks to the PACK-DERIVED line; the ball stays put and carries (#82 C1)', () => {
     // fouls.ts:215-227 — ftLineFt − rimInsetFt replaced a hardcoded 13.75
     // that silently diverged for non-NBA packs; period 1, side 0 attacks the
     // high-x rim, so the line sits toward midcourt from it
     const { s, agents } = mkState();
     const shooter = agents.get('h3')!;
+    const whistleSpot = { ...s.ball.pos };
     enterFreeThrows(s, shooter, 2);
     const rim = court.rims[1];
     const ftSpot = { x: rim.x - (NBA.ftLineFt - NBA.rimInsetFt), y: court.centerY };
     expect(shooter.target).toEqual(ftSpot);
-    expect(s.ball.pos).toEqual(ftSpot);
+    // #82 C1: entry no longer snaps the ball to the line (the snap was the
+    // frame stream's largest teleport class, 25.4 foul-crossing jumps/g).
+    // Entry records the carry pair and tickFreeThrows walks the ball across
+    // the ftSetupSec lead-in; the walk and its byte-exact arrival are pinned
+    // as a property in ftcarry.test.ts. Eighth pin, re-anchored: this
+    // assertion pinned the entry snap itself — the behavior #82 removes —
+    // and the triage census missed it; corrected to the adopted contract
+    // (issue #82 ruling, comment 5153443664) per the re-anchor doctrine
+    // (deliberate behavior change, stated in the commit), under Lead
+    // sanction, Engine Dev thread cmsatravb0kv207adfp2lzkcc, 2026-08-02.
+    expect(s.ball.pos).toEqual(whistleSpot);
+    const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
+    expect(ph.carryFrom).toEqual(whistleSpot);
+    expect(ph.carryT0).toBe(s.wallT);
   });
 
   it('the other nine freeze for the ritual; the shooter keeps his own intent', () => {
