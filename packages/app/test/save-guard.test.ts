@@ -14,8 +14,18 @@
  * startServer exposes as `state: unknown`. No real career or league is
  * created; the worker pool is never called.
  */
+import { existsSync, rmSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { savesDir } from '../src/saves.js';
 import { startServer } from '../src/server.js';
+
+// Unique per-test save names. With the fallback names (my-career, my-league)
+// a guard regression would make a failing test run overwrite the app's real
+// default save files in out/saves/. These names turn that failure mode into
+// gitignored debris instead.
+const CAREER_SAVE_NAME = 'test-guard-career';
+const LEAGUE_SAVE_NAME = 'test-guard-league';
 
 describe('save routes 409 while sim is running', () => {
   it('/api/career/save: 409 while careerSim.running', async () => {
@@ -31,15 +41,20 @@ describe('save routes 409 while sim is running', () => {
     // guard the route returns 200.
     st.career = { clock: {} };
     st.careerSim.running = true;
+    const file = path.join(savesDir(), `${CAREER_SAVE_NAME}.json`);
+    rmSync(file, { force: true }); // clear debris from an earlier broken run
     try {
       const res = await fetch(`http://localhost:${svr.port}/api/career/save`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: '{"name":"test-guard-career"}',
+        body: JSON.stringify({ name: CAREER_SAVE_NAME }),
       });
       expect(res.status).toBe(409);
       const body = await res.json() as { error?: string };
       expect(body.error).toContain('sim is running');
+      // The rejection must also mean no write: a 409 that still saved
+      // would be the torn-state hazard with a polite status code.
+      expect(existsSync(file)).toBe(false);
     } finally {
       svr.close();
     }
@@ -56,15 +71,18 @@ describe('save routes 409 while sim is running', () => {
     // guard does not fire; the test is specifically about sim.running.
     st.league = { season: 0, day: 0 };   // truthy — passes the !league guard
     st.sim.running = true;
+    const file = path.join(savesDir(), `${LEAGUE_SAVE_NAME}.json`);
+    rmSync(file, { force: true }); // clear debris from an earlier broken run
     try {
       const res = await fetch(`http://localhost:${svr.port}/api/save`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: '{"name":"test-guard-league"}',
+        body: JSON.stringify({ name: LEAGUE_SAVE_NAME }),
       });
       expect(res.status).toBe(409);
       const body = await res.json() as { error?: string };
       expect(body.error).toContain('sim is running');
+      expect(existsSync(file)).toBe(false);
     } finally {
       svr.close();
     }
