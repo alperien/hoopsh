@@ -489,8 +489,13 @@ export function tickDead(s: GameState, dt: number): void {
  * contract), the restricted-area read (the rim zone's 4 ft bracket via
  * classifyShot — the court model's registered stand-in for the RA arc,
  * court.ts), and the booth's athlete gate (clearsDunkGate — the
- * dunkAthleteGate blend mirror, so the engine's strong class and the
- * booth's putback-dunk booking are the same set by construction). Pure
+ * dunkAthleteGate blend mirror). The booth sync is ONE-DIRECTIONAL, not
+ * set equality: every engine-strong make books the booth's putback
+ * dunk, but the booth's putback-dunk set is strictly larger at every
+ * knob value — the decide-layer sibling and the pre-existing
+ * 1.6-2.25 ft window book dunk without this class, and the booth's
+ * dunk-before-tip-in order reads no knob, so it is live at knob 0
+ * (measured ~0.2 relabeled dunks/g there; PR #91 review round 2). Pure
  * read: no rng, no writes, no side effects on GameState. Called from
  * tickScramble's putback branch AFTER the putbackChance and goaltend
  * rolls, so the draw order is untouched at every knob value — the class
