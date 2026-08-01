@@ -17,6 +17,7 @@ import { simulateGame } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { swapPlayers } from '../src/sim/subs.js';
 import type { Agent, GameState } from '../src/sim/state.js';
+import { SEED_PINS } from './seed-pins.gen.js';
 
 function mkAgent(id: string, side: 0 | 1, onCourt: boolean, manId: string | null): Agent {
   return {
@@ -94,22 +95,22 @@ describe('crunch covers the OT tip stoppage (audit H-02)', () => {
     // stoppage may only flow starter-IN (the crunch return); a starter
     // going OUT there is the bug.
     //
-    // Seeds probed to reach OT on the current rng stream (6/6 at anchor —
-    // re-anchored once within the audit-fix branch when the L-11/M-02
-    // stream reshuffle moved the original five, again at the post-audit
-    // FLOW rebase, and a third time when the flow re-fit (openerShootMalus
-    // 0.55, pullUpThreeBonus 0.70; findings/refit-g3.md) reshuffled the
-    // streams once more). An rng-reordering change may reshuffle which
-    // seeds go to OT — if the vacuity floor below trips, re-scan for OT
-    // seeds and re-anchor the list; do not weaken the starter assertion.
+    // Seeds probed to reach OT on the current rng stream (6/6 at anchor;
+    // anchors live in ./seed-pins.gen.ts). Hand re-anchored eight times —
+    // the audit-fix branch (L-11/M-02 reshuffle), the post-audit FLOW
+    // rebase, the flow re-fit (openerShootMalus 0.55, pullUpThreeBonus
+    // 0.70; findings/refit-g3.md), ... through the session-7 pass-volume
+    // flip and the #74 amended-dose landing (re-scanned otseek-0..300,
+    // 7 OT seeds found, list carries the first six) — the standing cost of
+    // behavioral landings that issue #50 retired. An rng-reordering change
+    // may reshuffle which seeds go to OT — if the vacuity floor below
+    // trips, run the re-anchor helper named in seed-pins.gen.ts (one
+    // command; it re-scans the otseek pool to its documented ceiling and
+    // rewrites the anchor file). Never weaken the starter assertion.
     let otGames = 0;
-    // (re-anchored a seventh time at the session-7 pass-volume flip, and an
-    // eighth at the #74 amended-dose landing — the standing cost of
-    // behavioral landings; re-scanned otseek-0..300, 7 OT seeds found,
-    // list carries the first six)
-    for (const i of [60, 126, 157, 196, 205, 209]) {
+    for (const seed of SEED_PINS.otseek.seeds) {
       const { home, away } = sampleMatchup();
-      const r = simulateGame({ seed: `otseek-${i}`, home, away, collectFrames: false });
+      const r = simulateGame({ seed, home, away, collectFrames: false });
       if (!r.events.some((e) => e.period > r.rules.periods)) continue;
       otGames++;
       const starters = [new Set(home.starters), new Set(away.starters)] as const;

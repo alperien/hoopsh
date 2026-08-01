@@ -12,7 +12,8 @@ for the rim session, a primary-source audit of every reference number the
 sim is compared against (findings/session7-plan*.md, session8-*.md).
 
 Also in this window: the career fun wave, the dunker dive (REGISTER
-W73), and the core-nine minutes-targets fix (W65).
+W73), the franchise realism wave (W78-W79), and the core-nine
+minutes-targets fix (W65).
 
 ### Unassisted-creation supply arc, increment 1 (#74, REGISTER W82)
 
@@ -55,6 +56,49 @@ W73), and the core-nine minutes-targets fix (W65).
   re-anchored per protocol, including one franchise-side pin
   (officials dir seeds) touched from an engine landing for the first
   time.
+
+### Franchise (the realism wave)
+
+Four parallel lanes on the owner's realism brief, plus an integration
+pass (#31). Lane specs live in docs/waves/realism/; register rows
+W78-W79; the psyche bounds ride the owner-approved F1-A amendment in
+docs/FRANCHISE.md.
+
+- Names are identity-first: nationality and heritage roll before any
+  name token, over a 59-identity namebank (10 region modules, 2,012
+  first names, 2,103 surnames, weighted), so first name, surname, and
+  birthplace always tell one story. US first names ride birth-decade
+  era cohorts; suffixes, initial pairs, and hyphenated surnames arrive
+  at real texture rates; diaspora arcs are registered per identity;
+  staff draw from older cohorts via `personName`.
+- Draft classes generate tier-first through a 15-archetype catalog:
+  talent tier draws age (the lottery skews one-and-done, picks 45-60
+  skew senior), templates shape attributes, tendencies, and bodies
+  together (a rim-runner cannot roll a live three), measurables are
+  position-real with freak-wingspan tails, and per-season class
+  strength waves put loaded and weak drafts in the world. Recalibrated
+  post-integration (REGISTER W79).
+- Referee crews: 20 named three-man crews with persistent tendencies
+  (tightness, home lean, consistency), assigned deterministically per
+  game day. Influence flows only through legal pre-game inputs
+  (tightness as a symmetric foul-param override capped at 10% relative,
+  home lean as a capped rider on the existing HCA seam); no post-hoc
+  stat edits. Crews stamp records, close recaps, and surface in both
+  game centers.
+- The psyche layer: per-player confidence (form-driven), per-team
+  locker room chemistry (disposition compatibility, roster churn,
+  winning trend; slow by design with hysteresis), and six lifestyles
+  driving fatigue recovery, proneness drift, and rare news beats.
+  On-court reach is bounded at the pre-degrade seam: confidence caps at
+  1.5 attribute points, chemistry at 1.0, combined worst case 2.5.
+  Chemistry also feeds development (0.95-1.05) and morale.
+- Career surfaces follow the wave (#45): the Me screen head card
+  carries the confidence meter and the lifestyle line (NBA years only;
+  circuit years stay quiet), and every career NBA box closes with the
+  officials crew line.
+- Verified at the landing: 114 new tests across names, generation,
+  archetypes, officials, and psyche; the full suite green on the merged
+  tree; engine fingerprints 28/28 byte-identical (the engine untouched).
 
 ### Rim supply (session 8)
 
@@ -154,6 +198,16 @@ reacting-world, and explained-consequence gates all holding.
 - Ladder ends: at the franchise rung, sustained above-band production
   resets into belief instead of a clock that sits at `reactGames`
   forever; the first verification fleet failed exactly this, 25 times.
+- The Amari critiques (#26): a second played career surfaced three
+  plausibility holes, each closed with permanent tests. Draft boards
+  carry a tape term: a prospect's real season rows price into every
+  board, bounded so the scouted sheet dominates, and generated classes
+  carry no rows and read exactly as before. The contract market prices
+  decline: offers fall 8% a year past 28 (floored at 45%) and the last
+  real season's form scales the paper 0.8 to 1.1. Each program calls
+  once when its committable offer is inside two weeks of the lapse, and
+  the advisor names the moment when three or more windows close at
+  once.
 - Registered, not gated: two boredom-band misses (zero-event streaks in
   one phenom corridor) remain as content work.
 
@@ -181,6 +235,17 @@ reacting-world, and explained-consequence gates all holding.
   n=12: Hartenstein 11.5 to 24.0 minutes (real 24.2), Dort 19.4 to 26.9
   (real 26.8), the core nine all within about a minute. Generated
   rosters do not pass through the fitter and are unchanged.
+- The anti-overfit audit (#23, REGISTER W71-W72): probe pricing
+  re-verified on three held-out cohorts (n=240 per arm) with theta flat
+  and the pass buy intact; both out-of-sample band residuals attributed
+  with a v0.2.0 control run. The fitted league measured FLAT (a 68-win
+  team splits with a 22-win team, Spearman -0.14 over a 6-team probe)
+  because defensive craft is box-invisible. The team-DRtg anchor
+  ordered the fit teams at 0.83, failed a held-out 10-team panel at
+  -0.56, and does not ship; the fitter carries the full rejection
+  record. All 30 season files now ship sourced team ratings
+  (ORtg/DRtg/pace/W-L) for an engine-side arc that can honestly consume
+  them.
 
 ### Maintainability
 
@@ -198,9 +263,24 @@ reacting-world, and explained-consequence gates all holding.
   plus its comment. Re-verified: fingerprint corpus 28/28 byte-identical,
   test counts identical (1542 tests, 1540 pass, 2 todo), typecheck green
   before and after.
+- `packages/career/src/phone.ts` (2,025 lines) split along its banner
+  seams (#87, issue #37): eight sibling `phone-*` modules, with
+  `phone.ts` keeping the module header, `generatePhone`, and
+  `applyPhoneChoice`. The public surface is unchanged and no import
+  site outside the file changed. Pure refactor, proven byte-pure: an
+  inverse check reconstructs the base file's bytes exactly from the
+  nine files (1,943 moved lines, none duplicated). Re-verified:
+  fingerprint corpus 28/28 byte-identical, test counts identical before
+  and after.
 
 ### Fixed
 
+- Two career UI defects from photographing a played career (#22): the
+  rail rendered the word "true" on every career screen (the two UI
+  waves shipped different registerScreen conventions; renderNav now
+  falls back to the title when nav is boolean), and the player's own
+  box line was unreadable on the dark broadcast register (the my-row
+  highlight there now carries an accent tint with readable ink).
 - The types CI job is green on main again: two franchise test files carried
   strict tsc errors from the #31 merge, fixed with type-level changes that
   erase at runtime and touch no assertions (#53, issue #51). Re-verified:
@@ -231,6 +311,19 @@ reacting-world, and explained-consequence gates all holding.
   linked from the README and the docs hub (#46, issue #38). Re-verified:
   fingerprint identical before and after, Bible regenerated in the same
   commit.
+- docs(career): the mid-season-departure ring over-grant is registered
+  as C16, closing the #32 review (#72). Season rows key on (season,
+  teamId, type), so a player traded away from the eventual champion
+  mid-season still receives a ring. The archive stores no roster, any
+  season-row predicate approximates some corner, and the reachable
+  tightening trades the over-grant for an under-grant on roster players
+  who missed the playoffs, so the predicate is kept and the behavior is
+  registered as a defensible reading of ring custom. The overclaiming
+  comment in epilogue.ts is corrected, a TRAP comment at the predicate
+  states the keying and the registration, and a fifth epilogue test
+  pins the mid-season case (rows on both teams, exactly one ring).
+  Re-verified: fingerprint corpus 28/28 byte-identical, sim
+  fingerprint-1 identical before and after.
 
 ## [0.3.0] - 2026-07-31
 

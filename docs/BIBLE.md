@@ -713,6 +713,7 @@ modules an agent is likely to be pointed at):
 | `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
 | `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
 | `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
+| `reanchor.ts` | the seed-pin re-anchor helper (issue #50): verifies every `seed-pins.gen.ts` anchor — the W54/W56 pinned-fixture class consumed by events/subs/timeouts/leakout (engine), season (harness), pbp (narration) — against the current streams; `--write` re-scouts stranded anchors per each pin's documented doctrine, rewrites the generated anchor files, and re-runs the consuming tests as confirmation. Never edits a test or lowers a floor; REFUSES (exit 1) when a scan exhausts or a collapse discriminator trips (per-pin guards against laundering a dead mechanism through lucky seeds — the review #88 finding; doctrine audit in the file header). Confirmation red is classified: managed failures restore and exit 1; failures matching only the KNOWN_UNMANAGED registry restore too unless `--keep-unmanaged-red` keeps the re-anchor and exits 2, loudly listing the remaining hand tax |
 
 Roster-authoring tooling (`tools/gen-schema.mjs`, `roster-new.mjs`,
 `roster-validate.mjs` — `npm run schema:gen` / `roster:new` / `roster:validate`)
