@@ -19,8 +19,12 @@
  * and nextApproach clears: the card persists until changed. Dialing is
  * setting your game, not burning a one-night token that silently reverts
  * to neutral 50s (the old semantics, measured grading adherence 0/100
- * alternating all season). playingHurt never persists: gutting a night
- * out is a per-week decision, re-made while the listing lasts.
+ * alternating all season). playingHurt never persists week to week,
+ * and in shipped v1 it is unreachable while listed: circuit
+ * availability (circuits.ts meListed) and the NBA gameday healthyPool
+ * sit a listed player without consulting the card, so the playingHurt
+ * branches below fire only for a healthy player who sets the flag
+ * (C17 in docs/CAREER.md, issue #84).
  *
  * TRAINING PITY TIMER (felt-loop fix): weekly gains are small
  * (params.week.trainingGainBase), and the old probabilistic +1 landings
