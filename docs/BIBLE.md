@@ -627,7 +627,9 @@ event `wt` key on it). Do not mix them.
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
 | `sim/endgame.ts` | endgame layer (`GameConfig.endgame`, **default ON** since the n=1260/arm flag-on survey; explicit `endgame: false` is the byte-identical legacy path): timeout brain (plus the game-wide timeout economy since the FLOW flip — below), intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
-| `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
+| `sim/params.ts` | **every tunable constant** — the composed calibration surface: `SimParams`, `defaultParams`, `paramProvenance`, `withParams` (#36 split) | calibration; never hardcode a constant elsewhere |
+| `sim/params.<block>.ts` | one module per block (`shot` `foul` `pass` `reb` `decide` `move` `fatigue` `sub` `endgame` `officiating` `ai`): the block's interface, calibrated defaults, and per-knob provenance map | an individual knob's value, docs, or provenance |
+| `sim/params.provenance.ts` | the `Provenance` tag vocabulary (`REAL`/`SWEPT`/`FEEL`) and the #36 adjudication rules | what a provenance tag means |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
 | `core/events.ts` | the event schema — **the public contract** | anything consumers see |
 | `core/rng.ts` | seeded sfc32 + distributions | never use Math.random |

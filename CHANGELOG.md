@@ -65,6 +65,16 @@ sim is compared against (findings/session7-plan*.md, session8-*.md).
   n=1080 per arm; the self-play theta delta rides a CI edge and is
   registered as a watch item.
 
+### Maintainability
+
+- `sim/params.ts` split along its block seams (#36): eleven
+  `params.<block>.ts` modules — the block's interface, calibrated defaults,
+  and per-knob provenance map each — composed into the same flat `SimParams`.
+  Pure refactor: serialization byte-identical, fingerprint corpus 28/28, not
+  one value changed. Provenance (`REAL`/`SWEPT`/`FEEL`) is now machine-readable
+  (`paramProvenance` + `params.provenance.ts`), and a new coverage test makes
+  AGENTS.md DO-NOT rule 1 a checked property instead of an honor system.
+
 ## [0.3.0] - 2026-07-31
 
 Ball movement, priced. The pass-volume probe (concept 8) is live for the
