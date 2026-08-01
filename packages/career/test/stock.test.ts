@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Attributes } from '@hoopsh/engine';
-import type { FrPlayer, GameLine, TeamTotalsLite } from '@hoopsh/franchise';
+import type { FrPlayer, GameLine, TeamId, TeamTotalsLite } from '@hoopsh/franchise';
 import type { CareerState, CircuitGame } from '../src/types.js';
 import { fixtureCareer } from './fixture.js';
 import { GROUP_ORDER, perceiveProspect } from '../src/perception.js';
@@ -449,5 +449,33 @@ describe('enterDraftClass', () => {
     enterDraftClass(career);
     expect(league.draftClass.length).toBe(classLen);
     expect(career.events.length).toBe(evLen);
+  });
+
+  it('never re-enters a file the league already owns (the abroad dual-pool binding, issue #40)', () => {
+    const career = fixtureCareer({ seed: 'stock-descent' });
+    const league = career.league;
+    const me = career.players[career.me]!;
+    // a descent veteran abroad: applyAbroadOffer keeps ONE object in BOTH
+    // pools - the league file carrying real draft history, and the career
+    // map so the circuit machinery can find me (nbabridge.ts)
+    me.status = 'freeAgent';
+    me.contract = null;
+    me.rights = null;
+    me.bornSeason = league.season - 34;
+    me.draft = { season: league.season - 12, round: 1, pick: 12, teamId: Object.keys(league.teams).sort()[0]! as TeamId };
+    league.players[career.me] = me;
+    league.careerControlled = [career.me];
+    career.clock.phase = 'euro';
+    career.nbaTeam = null;
+    const draftBefore = JSON.stringify(me.draft);
+
+    enterDraftClass(career);
+    expect(me.status).toBe('freeAgent');                       // not flipped to draftEligible
+    expect(league.draftClass.includes(career.me)).toBe(false); // a veteran is not on the boards
+    expect(career.players[career.me]).toBe(me);                // the abroad binding survives
+    expect(JSON.stringify(me.draft)).toBe(draftBefore);        // history untouched
+    // the rival's own first entry still works next to the skip
+    expect(league.draftClass).toContain(career.rivalId);
+    expect(league.players[career.rivalId]!.status).toBe('draftEligible');
   });
 });
