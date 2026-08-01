@@ -263,12 +263,21 @@ scoreboard back into play (trailing teams press up; decided games wind down
 through the benches) · an NCAA rule pack behind the harness `--league` flag
 (rule coverage partial).
 
-**Now — tuning, not building.** The mechanics above are implemented and wired;
-current work is closing measured gaps, not adding systems. The biggest: the
-sim still moves the ball less than real teams do, and the mechanism built to
-fix that is parked at zero strength because, measured together with the
-score-pressure coupling, the two interact badly. That finding and every other
-open item live with their measurements in the work register:
+**Now — closing measured gaps.** The mechanics above are implemented and
+wired; current work lands measured increments against named gaps. The
+biggest: the sim still moves the ball less than real teams do. The mechanism
+built to fix that is no longer parked at zero strength. Three priced
+increments shipped it. W69 flipped the probe (concept 8) live with a
+pressure fade that yields exactly where the score-pressure coupling
+expresses; the fade is the shipped answer to the interaction that had parked
+it. W74 made the chooser price a receiver's shot at the catch clock, not the
+throw clock (concept 12). W75 re-priced pass risk at -3.75 under a sweep
+re-center. Measured at that landing: texture 1.61 to 1.82-1.86 passes per
+possession vs the corpus 2.84-2.86, about a fifth of the gap closed. The
+remainder is structural supply, not pricing. The next supply-side front, the
+transition leak-out (W77), is wired and staged behind a dose dial; its flip
+is blocked on an unassisted-rim prerequisite arc. Those records and every
+other open item live with their measurements in the work register:
 [docs/REGISTER.md](./docs/REGISTER.md). Project terms ("staged", "sweep",
 "band lock"…) are defined in [docs/GLOSSARY.md](./docs/GLOSSARY.md).
 
@@ -878,109 +887,79 @@ which quotes n40 grand-mean centers with standard errors — quoting a
 smaller nested window's mean as "the center" was an error the third review
 caught, twice, in our own write-up.
 
-**RELEASE-AUDIT ERA — measured 2026-07-30 on `fix/audit-integration`.**
-The wave: a 40-agent read-only release audit of `edb9e3d`
-(findings/release-audit.md, the swarm run's findings files per the branch
-citation convention) filed 131 findings — 0 CRITICAL / 8 HIGH / 50 MEDIUM /
-73 LOW — and the fix wave landed all 8 HIGHs, ~44 MEDIUMs and ~55 LOWs at
-the root (REGISTER W54 is the wave summary; W53/W55 carry the deferrals).
-What moved the streams here: mechanics-tier fixes (H-02 crunch at the OT
-tip, M-02 rim-contest monotonicity, the M-09/10/11 endgame-gate and
-M-13/14 subs repairs, the L-04/06/11/16 behavior repairs) plus the H-01
-hoist — ~38 formerly-inline behavioral constants now on the SimParams
-surface at identical values (pure refactor, fingerprint-verified; the
-sweep-appropriate levers are registered in knobs.ts). Params defaults were
-NOT re-swept: the bands held at the shipped values (below). The instruments
-moved too: H-05 folded sim possession lengths boundary-to-boundary (the
-corpus convention) and H-06 re-baked the pbp corpus + flow reference from
-the committed shards. Positions at the landing, measured 2026-07-30:
+**PASS-VOLUME + RIM-SUPPLY ERA — measured 2026-07-31, recorded 2026-08-01
+at main `34ccb6c`.** Four engine landings on 2026-07-31 moved the streams
+past the two 2026-07-30 blocks this section carried (both compressed to
+pointers below): the rules landing (W63: OT bonus threshold, the last-2:00
+team-foul penalty, made-basket clock stops), the v0.3.0 probe flip and
+concede hysteresis (W69/W70), the dunker dive (W73, `15b37c0`, PR #24), and
+pass-volume increments 2 and 3 (W74 pass-flight clock charge, W75
+`pass.riskBase` -3.75; live at `6728dfe`, PR #27) with their sweep
+re-center (`70672f3`). The rim-supply session (PR #30) landed wiring and
+measurement but moved no default: the lob fusion was falsified and stripped
+(W76), and the transition leak-out ships STAGED at `leakOutScale: 0` (W77).
+The realism wave (PR #31) and the career surfaces (PR #45) are
+franchise/app-side; the engine stream held byte-identical through both
+(28-seed corpus, `7fce52d`). Issue #39 (flow re-measurement at HEAD) and
+issue #42 (noise-floor regen) run against this state; their numbers
+supersede the matching rows here when they land. Every number below carries
+its as-of commit.
 
-- **Suite: 470 tests / 469 pass / 1 todo** (`npm test` prints the
-  live count; measured 2026-07-30 at the landing).
-- **Golden corpus: 28 entries** — 24 default-config plus the four
-  H-04 guard entries (flag-off ×2, NCAA, EURO), re-baselined at the
-  audit-fixed engine (`59fd74c`; the diff is the drift record). The
-  in-suite flag-off byte-identity twin runs under `npm test`, so a
-  flag-off leak is caught between CI corpus runs (H-04).
-- **Acceptance batch: 17/17 at n=96; 16/17 at n=48** — the one n=48
-  miss is fgPct 49.7 against its 0.495 ceiling, a draw-level
-  flicker: the fresh floor's center reads 48.93, inside. Re-measure:
+- **Suite: 1531 tests / 1529 pass / 0 fail / 2 todo** (`npm test` prints
+  the live count; measured 2026-08-01 at `34ccb6c`).
+- **Golden corpus: 28 entries** (24 default-config plus the four H-04
+  guards: flag-off ×2, NCAA, EURO; the in-suite flag-off byte-identity
+  twin still runs under `npm test`), re-baselined at the pass-volume flip
+  (`381752b`; the diff is the drift record).
+- **Acceptance: 17/17 at n=48**, measured 2026-08-01 at `34ccb6c` (seed
+  base `acceptance`; FG% 49.0 vs the 0.495 ceiling, assisted share 61.0 vs
+  the 62.0 ceiling). Verify 40x3 read 17/17 at the W75 sweep re-center
+  (`70672f3`), and 17/17 held on two bases at the increment-3 final tree
+  (W75). fgPct now runs HIGH in its band by design: 49.1 at the dive
+  landing (W73; dose 8 seated ON the ceiling and was not shipped). The
+  release-audit era's "48.93, headroom below" story is superseded; the
+  live watch is the ceiling side. Re-measure:
   `npm run batch -- --games 48|96`.
-- **Noise floor regenerated at the audit-fixed engine** (`7e814a5`;
-  regen: `npm run noisefloor` — its diff is the accepted-drift
-  record). Floor centers (n12-tier means, n=120 windows): pace
-  99.77, fga 89.88, tov 12.97, pf 20.41. fga vs the sourced real
-  88.9: within ~1.0 under official counting — the scan wave's
-  counting-rule fix (`5d9671f`) plus this wave's mechanics repairs
-  hold the honest read at real volume, where the pre-inversion
-  instrument had mis-read the same stat by ~3 under the wrong
-  convention (scan-era pointer below). Seed-luck fixture pins were
-  re-anchored to the reshuffled streams (`b9b356d`, `b6ef7f7`), no
-  assertion weakened.
-- **NOT re-taken post-audit**: `npm run flow` at n≥24 — H-05
-  (boundary-to-boundary possession lengths) and H-06 (reference
-  re-bake) both moved its measurement basis, so the scan-era 54.3%
-  putback / 8.1% second-chance reads predate the wave; re-measure
-  before quoting. Same standing caveat for `npm run oos`,
-  `npm run texture`, `npm run calreport` — their last reads are
-  B2-era (docs/history/calibration-eras.md); two waves of engine
-  change sit between them and HEAD.
-
-**FLOW RE-FIT — measured 2026-07-30 on `flow/rebased`** (addendum to the
-release-audit block above, whose positions predate the flow flips; the
-landing record is REGISTER W56/W57, the program verdict `npm run flowboard
--- --games 48`). The flow program's flips are live and band-locked —
-**17/17 at n=48 with every flip on** (`6c109d2`) — and two fitted
-magnitudes were re-fitted on the post-audit engine: three landed waves had
-moved the shot economics under the shipped doses. Re-fit etiquette per
-AGENTS §4.4 / the noise-floor doctrine above: no dose was adjudicated from
-a single draw (each row states its adjudication).
-
-- **`ai.openerShootMalus` 0.32 → 0.55** (flowboard G3, quarter-opener
-  deliberateness). At 0.32 the opener attack-≤8s share read 9.0% pooled vs
-  the ≤6% gate. First-pass single-base verdicts flipped between bases
-  (n=144 openers/base, se ≈ 1.8%), so every ladder dose was re-measured on
-  three seed bases and adjudicated pooled (n=432/dose, se ≈ 1.0%). 0.55 is
-  the only rung that clears on every base individually: pooled 4.2%,
-  median 17 s (band 14-18; corpus 2.7%, 16.0 s) — and it sits near the top
-  of the usable window (one base touched the 18.0 s median ceiling); do
-  not ladder higher without watching the median. Bands held at every dose.
-  Full ladder: findings/refit-g3.md.
-- **`ai.pullUpThreeBonus` 0.35 → 0.70** (flowboard G5, unassisted made
-  3s). 2.50/g at the fitted 0.35 vs the 3.0 floor; the dose-response is
-  convex and only 0.70 buys the gate — 3.81/g at 86% assisted (corpus
-  3.87/g, 85.4%; three-base center ≈ 3.60/g). The mid-ladder band
-  excursions (14-15/17 at n=24 for 0.45/0.55) were adjudicated draw noise
-  by paired five-base centers at 0.35 vs 0.70 (FG% Δ ±0.0, tpPct +0.3,
-  tpaShare +1.6 with ~5 pp ceiling clearance). The real dose cost is
-  astdShare: paired −1.4 pp, center 54.4-54.7 against its 54.0 floor with
-  1 of 6 draws below — recorded per the center-on-edge rule above; trb
-  center 46.4 vs ceiling 47 is a soft watch. The sturdier fix remains the
-  params comment's own prescription — a joint re-fit with the
-  reach/riskBase mix (knot-combo §5.5). Full record: findings/refit-g5.md.
-- **G6 gate correction** (`harness/src/scoreboard.ts`, same commit): the
-  heave makes-clause gates only at ≥180 attempts and reports below. At a
-  realistic ~3% heave FG% and ≤0.3 logged heaves/g, a 48-game batch
-  expects ~0.4 makes — asserting made > 0 there was a coin flip that fails
-  honest engines. The rate (≤0.3/g) and decided-share clauses stay gated
-  at any n.
-- **G11 (shot diet): dial surface exhausted — mechanism gap, no dial point
-  baked.** Ten dose points (drive appetite, putback chance, finish spot,
-  windup, recheck cadence, drive speed, range gates, and combinations)
-  moved rim share only within 8.8-10.3% (gate ≥13.5), dunks 1.67-2.88/g
-  (band 7-13), and never flipped the rim>paint order — with nothing bought
-  by bending fga/fgPct. Measured cause: interior finishes release behind
-  the rim plane (the committed drive targets the rim center; 76% of
-  paint-bucket makes are behind-plane). Pre-existing engine-era, verified
-  at the pre-flow base — not a flow regression. Registered W57; fix shape
-  and counterfactual sizing: findings/refit-g11.md.
-- **Noise floor regenerated at the re-fit stream in its own commit**
-  (`33c65e4` — its diff is the drift record, per the workflow above). Read
-  floor centers from `noise-floor.gen.ts` / `npm run noisefloor`, not from
-  this file: the release-audit block's floor centers above predate the
-  flow flips and the re-fit. The goldens were re-baselined at the
-  flow-live streams (`26ee714`) and three seed-luck pins re-anchored after
-  the re-fit (`8f0cb81`).
+- **G11 (shot diet): a dial IS baked and live.** `ai.dunkerDiveScale: 6`
+  (W73, `15b37c0`): made dunks 3.2/g (+68%), rim-possession share
+  9.0 → 10.6% at n=40. `ai.leakOutScale: 0` STAGED (W77, `179a010`): full
+  dose read made dunks 8.7/g and rim share 14.8% at the pinned flowboard
+  convention, G11's first in-band reads on both counts, but the raw flip
+  breaks 6 bands (assisted share 71% vs the 62 ceiling) and two sweep runs
+  plus a directed probe showed the band geometry cannot absorb an assisted
+  channel at gate-moving doses (the dive, the leak, and any lob compete
+  for ~5pp of assisted-share headroom). G11 stays open at defaults; the
+  flip waits on the unassisted-rim supply arc (W64/W77).
+- **Pass volume: the probe is live, priced across three increments.** W69:
+  probe 0.15/0.08 with `probePressureFade` 1, the shipped answer to the
+  W28 interaction. W74: pass-flight clock charge at the 1.5 s get-off
+  window; grenade-class violations fell 91% and holder-side violations
+  exist for the first time. W75: `pass.riskBase` -3.75, rails narrowed to
+  [-3.8, -3.7] (both true walls are band-invisible). Texture at the final
+  tree (W75): 1.82/1.86/1.86 passes/poss vs corpus 2.84-2.86, a fifth of
+  the gap closed in one landing; the remainder is structural supply, not
+  pricing. Watch item: the self-play theta delta rides a CI edge
+  (-0.017 ± 0.026, W75). Issue #39 re-measures the gap and the coupling
+  interaction at HEAD.
+- **OOS: 17/17 at the W75 final battery**; all four registered marginals
+  back in band (FG% 49.6, 3PA share 32.5, BLK 6.6, assisted 53.7).
+  Supersedes W71's 15/17 read and the release-audit block's B2-era
+  standing caveat on `npm run oos`.
+- **Fidelity: enforced misses 5 → 2** at the W75 final tree (Jokic AST
+  reached his fixture floor for the first time; the remaining two are the
+  registered W29/W58 debt; Curry AST stays the W71 owner-ruling class).
+- **Noise floor: regenerated at the pass-volume landing** (`6c98849`,
+  post-dive and post-increments; its diff is the drift record). Goldens
+  re-baselined at the flip (`381752b`); session-7 pin re-anchors at
+  `68aaa56`. Issue #42 was dispatched from an audit base that predates
+  `6c98849`; reconcile its premise there. Read floor centers from
+  `noise-floor.gen.ts` / `npm run noisefloor`, not from this file.
+  `npm run calreport` has no fresh read recorded at `34ccb6c`; take one
+  with issue #42's regen before quoting positions from it.
+- **Flow instruments: no fresh full read at `34ccb6c`.** Flowboard spot
+  reads live in the landing rows (W63: G8 closed at 1.75-2.48/g live-ball
+  subs; W73: flowboard 10/13; W77: the staged leak-out's reads). A full
+  flow/flowboard sweep at HEAD is issue #39's deliverable.
 
 ## Endgame layer status
 
@@ -1005,6 +984,23 @@ do not tune it until one lands in `data/nba/` (ground-truth row 34).
 Three-line pointers only; the full blocks moved verbatim to
 [history/calibration-eras.md](./history/calibration-eras.md):
 
+- **Release-audit fix wave** (2026-07-30, `fix/audit-integration`): the
+  40-agent audit of `edb9e3d` (131 findings, 0 CRITICAL / 8 HIGH) fixed at
+  the root; the H-01 hoist put ~38 inline constants on SimParams at
+  identical values; suite 470/469/1 todo; acceptance 17/17 at n=96 with a
+  16/17 fgPct draw-flicker at n=48; floor `7e814a5`, goldens `59fd74c`.
+  Headline records: REGISTER W54 (wave summary), W55 (deferrals). Full
+  block: this file's git history (revision `34ccb6c`); the verbatim move
+  to history/calibration-eras.md is owed at the next history
+  consolidation.
+- **Flow re-fit** (2026-07-30, `flow/rebased`): the flow program's flips
+  live and band-locked 17/17 at n=48 (`6c109d2`); `ai.openerShootMalus`
+  0.32 → 0.55, `ai.pullUpThreeBonus` 0.35 → 0.70, the G6 makes-clause
+  correction; G11 registered then as "dial surface exhausted" (W57), a
+  verdict since superseded by the W73 dive and the staged W77 leak-out.
+  Floor at the re-fit stream `33c65e4`. Headline records: REGISTER
+  W56/W57. Full block: this file's git history (revision `34ccb6c`), same
+  consolidation note as above.
 - **Scan-fix wave landing** (2026-07-29, tune `60eda3f` / floor `60c71d1`):
   the fga inversion (box.ts charged FGA on fouled misses — under official
   counting the sim was never over-shooting; fga re-read 91.69 → 86.04 at
