@@ -159,7 +159,7 @@ export const foulProvenance: Record<keyof FoulParams, Provenance> = {
   drawFoulSwing: 'FEEL',
   foulAggrSwing: 'FEEL',
   shootFoulCap: 'FEEL',
-  reachInPerSec: 'FEEL',
+  reachInPerSec: 'SWEPT',
   attackReachInMult: 'FEEL',
   reachInGambleSwing: 'FEEL',
   reachDistFt: 'FEEL',

@@ -123,7 +123,7 @@ export const passDefaults: PassParams = {
  * rule 1: test/params-provenance.test.ts asserts every knob carries a tag.
  */
 export const passProvenance: Record<keyof PassParams, Provenance> = {
-  riskBase: 'FEEL',
+  riskBase: 'SWEPT',
   laneRiskCoef: 'SWEPT',
   skillCoef: 'SWEPT',
   stealShare: 'SWEPT',
