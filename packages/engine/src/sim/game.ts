@@ -7,7 +7,7 @@
 import { makeCourt } from '../geometry/court.js';
 import { NBA, type RulePack } from '../rules/rulepack.js';
 import type { Team } from '../model/player.js';
-import type { GameEvent, TeamSide } from '../core/events.js';
+import type { GameEvent, ShotMoveType, TeamSide } from '../core/events.js';
 import { defaultParams, withParams, type SimParams } from './params.js';
 import {
   agent, attackedRim, emit, liveOnCourt, round1,
@@ -520,6 +520,33 @@ function tickLive(s: GameState, dt: number): void {
   s.ball.pos = { x: h.pos.x, y: h.pos.y };
 }
 
+/**
+ * #74: does this committed drive finish carry to a rim-plane release?
+ * The transition carry's full gate in short-circuit order: the stage
+ * switch (transCarryScale, checked FIRST — the staged-zero contract),
+ * the possession's arming draw (carryArmed, rolled in startPossession),
+ * the label (only 'drive' finishes), the live commit window
+ * (driveUntil), the phase, the beaten retreat, and the F1 gather gate
+ * (the carry's own reach — params.ai.transCarryGatherFt). Pure read: no
+ * rng, no writes, no side effects on GameState. Called from
+ * executeAction's shoot branch at decide time; exported so
+ * transcarry.test.ts can pin it condition-by-condition on hand-built
+ * states (probe F2: phase is not in the event stream and the
+ * scope-guard buckets by possession START kind, so a within-possession
+ * gate regression is invisible to every stream-side test).
+ */
+export function carriesToRim(s: GameState, h: Agent, moveType: ShotMoveType): boolean {
+  return (
+    s.params.ai.transCarryScale > 0 &&
+    s.poss.carryArmed &&
+    moveType === 'drive' &&
+    s.t < h.driveUntil &&
+    s.poss.phase === 'transition' &&
+    defendersBack(s, h.side) < s.params.move.transSetBackCount &&
+    dist(h.pos, attackedRim(s, h.side)) <= s.params.ai.transCarryGatherFt
+  );
+}
+
 function executeAction(s: GameState, h: Agent, action: BallAction): void {
   switch (action.kind) {
     case 'shoot':
@@ -573,16 +600,10 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
       // runs earlier in the same tick, and positions are frozen between
       // integrations (probe-verified: its deletion moves 0/12 streams).
       // It stays as belt-and-suspenders on separately-owned conditions;
-      // do not "fix" the redundancy in either direction silently.
-      if (
-        s.params.ai.transCarryScale > 0 &&
-        s.poss.carryArmed &&
-        action.moveType === 'drive' &&
-        s.t < h.driveUntil &&
-        s.poss.phase === 'transition' &&
-        defendersBack(s, h.side) < s.params.move.transSetBackCount &&
-        dist(h.pos, attackedRim(s, h.side)) <= s.params.ai.transCarryGatherFt
-      ) {
+      // do not "fix" the redundancy in either direction silently. The
+      // conditions themselves live in carriesToRim (above executeAction),
+      // extracted so the F2 pins can drive them one at a time.
+      if (carriesToRim(s, h, action.moveType)) {
         s.pendingRelease.carryRim = true;
         // F1: the gather's ball path starts here (decide-time body spot,
         // decide-tick clock) and meets the rim at release — tickLive
