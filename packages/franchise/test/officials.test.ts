@@ -33,9 +33,13 @@ function setOfficials(league: League, state: OfficialsState): void {
   (league as League & { officials?: OfficialsState }).officials = state;
 }
 
-/** Write the officials params section (lands in FranchiseParams by patch). */
+/**
+ * Write the officials params section as a Partial, through the same tolerant
+ * shape officialsParamsOf reads (the real FranchiseParams field requires all
+ * four members; the module defaults whatever the section leaves out).
+ */
 function setOfficialsParams(league: League, section: Partial<OfficialsParams>): void {
-  (league.params as League['params'] & { officials?: Partial<OfficialsParams> }).officials = section;
+  (league.params as { officials?: Partial<OfficialsParams> }).officials = section;
 }
 
 function scheduled(league: League, id: string, day: number, home: string, away: string): ScheduledGame {
