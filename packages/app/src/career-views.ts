@@ -5,6 +5,7 @@
  * the franchise chair.
  */
 import type { GameRecord } from '@hoopsh/franchise';
+import { confidencePhrase, lifestylePhrase } from '@hoopsh/franchise';
 import type { CareerState, CircuitGame } from '@hoopsh/career';
 import { careerEarnings, legacyScore, openOffers, planFor } from '@hoopsh/career';
 
@@ -273,6 +274,16 @@ export function meView(career: CareerState) {
     attr: player.attr,
     tend: player.tend,
     morale: player.morale,
+    // psyche (realism wave): present once the NBA's weekly pulse has run;
+    // circuit years read null and the screen stays quiet
+    psyche: player.psyche
+      ? {
+          confidence: player.psyche.confidence,
+          confidencePhrase: confidencePhrase(player.psyche.confidence),
+          lifestyle: player.psyche.lifestyle,
+          lifestylePhrase: lifestylePhrase(player.psyche.lifestyle),
+        }
+      : null,
     health: {
       wear: player.health.wear,
       proneness: player.health.proneness,
