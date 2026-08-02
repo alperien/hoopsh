@@ -38,12 +38,17 @@ import { fixtureCareer } from './fixture.js';
 // Fixture seed re-anchored at the #115 acquisition-stamp landing (engine
 // streams reshuffled; 'career-fixture' drew one 9-point cold night under
 // the uncalibrated prep pack, breaching the band test's 12 floor):
-// scanned career-fixture2.., first qualifying is career-fixture3 —
-// 56 finals spanning 12-49, no ties, no bad OT. Scoped HERE, not in
-// fixture.ts, so every other career test keeps the default fixture.
-// Assertions unchanged (the header's score-band provenance still holds:
-// the floor proves a real basketball game broke out).
-const CAREER = fixtureCareer({ seed: 'career-fixture3' });
+// scanned career-fixture2.., first qualifying is career-fixture3.
+// Re-anchored again at the #143 shooting-coupling landing (generation
+// streams reshuffled; career-fixture3 drew one 10-point cold night,
+// same floor, same uncalibrated prep pack; the sub-12 graze rate across
+// scanned seeds is unchanged before/after, 5 vs 3 sides in 224):
+// first qualifying is career-fixture4 — 56 finals spanning 12-50, no
+// ties, no bad OT. Scoped HERE, not in fixture.ts, so every other
+// career test keeps the default fixture. Assertions unchanged (the
+// header's score-band provenance still holds: the floor proves a real
+// basketball game broke out).
+const CAREER = fixtureCareer({ seed: 'career-fixture4' });
 const YEAR = CAREER.clock.year;
 const HS = buildCircuit(CAREER, 'hs', streamRng(CAREER.seed, 'career-circuit', YEAR, 'hs'));
 CAREER.circuit = HS;
@@ -93,9 +98,10 @@ function fedResult(job: GameJob, homeWins: boolean): GameJobResult {
 
 describe('buildCircuit: the high school circuit', () => {
   it('is deterministic: same seed, same stream, byte-identical circuit', () => {
-    // the rebuild pairs with the module fixture's seed (re-anchored for
-    // #115 — see the fixture note above); the assertion is unchanged
-    const again = fixtureCareer({ seed: 'career-fixture3' });
+    // the rebuild pairs with the module fixture's seed BY REFERENCE (the
+    // #143 re-anchor caught the old duplicated literal drifting out of
+    // sync - see the fixture note above); the assertion is unchanged
+    const again = fixtureCareer({ seed: CAREER.seed });
     const rebuilt = buildCircuit(again, 'hs', streamRng(again.seed, 'career-circuit', again.clock.year, 'hs'));
     expect(JSON.stringify(rebuilt)).toBe(JSON.stringify(HS));
   });

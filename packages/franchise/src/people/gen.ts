@@ -68,10 +68,22 @@ const QUALITY_DEFAULT_SD = 12;   // FEEL: wide enough to produce fringe and plus
 const QUALITY_LO = 20;           // FEEL: below this nobody holds a pro roster spot
 const QUALITY_HI = 90;           // FEEL: generational ceiling for a quality TARGET
 
-// CAN/WANT coherence (docs/ROSTERS.md: an 85 three with a 5 shotThree
-// never shoots - skill without appetite is incoherent)
-const COHERENT_SKILL = 75;       // FEEL: a 75+ three is a weapon a real offense weaponizes
-const COHERENT_WANT_FLOOR = 15;  // FEEL: below this appetite the weapon never fires
+// CAN x WANT shooting structure (#143, from the #126 measurement).
+// The calibration packs are bimodal: three-point skill and appetite live
+// in the same bodies. Independent template rolls matched the packs on
+// every MARGINAL (attr.three, tend.shotThree, minutes exposure) yet
+// halved specialist density (21% vs 40%) and starved league 3PA by ~6/tg,
+// because the engine prices attempts superlinearly in the CAN x WANT
+// pair. The fix is structural: put the CAN in the shooter identities,
+// then derive the WANT from the CAN, so coherence (docs/ROSTERS.md) holds
+// by construction instead of by repairs at the extremes. Want-side-only
+// coupling was probed and falsified - it reproduces the pack correlation
+// but not the specialist mass, which is CAN-marginal-limited (the #143
+// design record carries the rung table).
+const SHOOTER_TEMPLATE_APPETITE = 55; // FEEL: template shotThree at/above this marks a shooter identity; sits in the catalog's 52-58 gap
+const SHOOTER_CAN_FLOOR = 72;         // CAL: rolled attr.three floor on shooter identities; probe-picked against the 30-40% specialist-share target (#143)
+const WANT_FROM_CAN_OFFSET = 12;      // REAL: the packs' minutes-weighted marginals gap - attr.three ~58 vs tend.shotThree ~46 (#126)
+const WANT_FROM_CAN_NOISE_SD = 5.5;   // SWEPT: lands corr(attr.three, tend.shotThree) at the packs' 0.962; keep the .5
 
 const RAW_DISCOUNT_PER_YEAR = 3.0; // CAL: current-dial discount per year under 23, at zero readiness
 const RAW_AGE = 23;              // FEEL: by 23 a prospect's dials are his dials (FRANCHISE.md section 5)
@@ -282,7 +294,7 @@ export function ensureUniqueName(rng: Rng, p: FrPlayer, used: Set<string>): void
  * 'draftEligible'), and any contract/rights.
  *
  * Fixed draw order: position, name, quality, archetype, body, identity,
- * coherence repairs, usage, potential, disposition block.
+ * shooting coupling, usage, potential, disposition block.
  */
 export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
   const gen = opts.params.gen;
@@ -313,20 +325,27 @@ export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
   // signature caps absolute (archetypes.ts owns the math)
   const { attr, tend } = sampleIdentity(rng, arch, quality, gen.mutationSd);
 
-  // CAN/WANT coherence repair (docs/ROSTERS.md). Both repair values are
-  // drawn every call so the draw pattern never varies with the rolls.
-  const wantRepair = Math.round(rng.range(40, 75)); // FEEL: a real weapon's firing rate
-  const bailRepair = Math.round(rng.range(5, 25));  // FEEL: bail-out attempts only
-  // High-skill/no-appetite on a non-center: a real coach weaponizes that
-  // shooter. Centers are exempt (the reluctant stretch five is real).
-  if (pos !== 'C' && attr.three >= COHERENT_SKILL && tend.shotThree <= COHERENT_WANT_FLOOR) {
-    tend.shotThree = wantRepair;
+  // CAN x WANT shooting coupling (#143). Two-sided by design:
+  // 1) a shooter identity carries the skill its appetite implies - the
+  //    rolled attr.three is floored, inside the archetype's signature
+  //    cap (no shooter identity caps three today; the min is the guard
+  //    for any future capped identity crossing the appetite line);
+  // 2) the appetite is then derived from the final CAN, because at pro
+  //    level the green light follows demonstrated skill - offset from
+  //    the pack marginals, noise for the reluctant/eager spread.
+  // The derivation replaces the old two-repair scheme: with WANT a
+  // function of CAN, both incoherence branches are unreachable by
+  // construction. Signature tendency caps land last and stay absolute:
+  // a rim-runner at his 45 skill cap still never hunts threes
+  // (gen.test.ts pins paint bigs at 45/12).
+  if (arch.tend.shotThree >= SHOOTER_TEMPLATE_APPETITE) {
+    attr.three = Math.max(attr.three, Math.min(SHOOTER_CAN_FLOOR, arch.caps.three ?? SHOOTER_CAN_FLOOR));
   }
-  // The mirror incoherence: nobody at pro level keeps firing threes he
-  // cannot make - the appetite gets coached out.
-  if (attr.three <= COHERENT_WANT_FLOOR && tend.shotThree >= COHERENT_SKILL) {
-    tend.shotThree = bailRepair;
-  }
+  tend.shotThree = clampRating(
+    attr.three - WANT_FROM_CAN_OFFSET + rng.gaussian(0, WANT_FROM_CAN_NOISE_SD),
+  );
+  const shotThreeCap = arch.tendCaps.shotThree;
+  if (shotThreeCap !== undefined) tend.shotThree = Math.min(tend.shotThree, shotThreeCap);
 
   // usage coherent with quality AND identity: an offense feeds its best
   // players, but a star hub and a star pest carry load differently.

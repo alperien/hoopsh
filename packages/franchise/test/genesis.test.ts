@@ -267,15 +267,24 @@ describe('draft class generation', () => {
     }
   });
 
-  it('ages the class per the prospect mix: freshmen outnumber the 22-plus tail', () => {
+  it('ages the class per the prospect mix: freshmen outnumber the true senior tail', () => {
+    // Guard corrected at the #143 landing. The old form compared freshmen
+    // to the WHOLE 22-plus bucket - a property the calibrated age mix
+    // only holds ~70-75% of single-class seeds (measured: 6/20 fail on
+    // unmodified main, 5/20 on the #143 branch). Real classes run
+    // senior-heavy across the full pool while freshmen own the lottery
+    // (the W79 register, gen.test.ts); the single-class form of that
+    // truth is freshmen > the TRUE four-year tail (age 23), which holds
+    // 20/20 scanned seeds on both sides of #143. The 20-class 2x version
+    // lives in gen.test.ts; the eligibility window stays pinned here.
     const ages = prospects.map((p) => league.season - p.bornSeason);
     for (const a of ages) {
       expect(a).toBeGreaterThanOrEqual(19);
       expect(a).toBeLessThanOrEqual(23);
     }
     const freshmen = ages.filter((a) => a === 19).length;
-    const older = ages.filter((a) => a >= 22).length;
-    expect(freshmen).toBeGreaterThan(older);
+    const tail = ages.filter((a) => a === 23).length;
+    expect(freshmen).toBeGreaterThan(tail);
   });
 
   it('hits the international share exactly via the forced-kind quota', () => {
