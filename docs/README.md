@@ -29,8 +29,9 @@ This is the hub. If you don't know which document you need, start here.
 | [`docs/INTERNALS.md`](./INTERNALS.md) | Module map, tick pipeline, two time axes, safety net, known simplifications | When looking for where something lives |
 | [`docs/CALIBRATION.md`](./CALIBRATION.md) | Calibration workflow, noise-floor doctrine, what "locked" claims, the CURRENT measured state | Before touching `params.ts` values or `bands.ts`; when tuning realism |
 | [`docs/EMBEDDING.md`](./EMBEDDING.md) | **The downstream-builder guide** — consuming the packages from your own project; what works, what's broken, honest caveats | When building ON the engine rather than IN the repo |
+| [`docs/CONTRACT.md`](./CONTRACT.md) | **The engine API contract** — the stable surfaces (event schema, replay, exports, determinism), the explicitly unstable ones, the change policy | Before pinning hoopsh under your own project; when judging whether a change breaks consumers |
 | [`docs/GLOSSARY.md`](./GLOSSARY.md) | Every terse name and process term, decoded once, with where it lives | Whenever jargon blocks you |
-| [`docs/REGISTER.md`](./REGISTER.md) | **The live debt register** — D1–D9, W1–W61, realism-gate tiers | Checking what's open, deferred, or already measured |
+| [`docs/REGISTER.md`](./REGISTER.md) | **The live debt register** — D1–D9, W1–W87, realism-gate tiers | Checking what's open, deferred, or already measured |
 | [`docs/PLAYBOOK.md`](./PLAYBOOK.md) | **The build procedure** — 8 steps, recipes A–G, STOP rules, report format | Every time you write new code |
 | [`docs/ONBOARDING.md`](./ONBOARDING.md) | Two-evening guided path with checkpoints | Your first two evenings |
 | [`docs/ROSTERS.md`](./ROSTERS.md) | **The roster-authoring guide** — the 38 dials in basketball language, archetypes, scaffold → validate → sim loop | When writing a team pack |
@@ -56,8 +57,9 @@ the moment you touch `params.ts` values or bands. Budget note: `npm test`
 (rung 1 of the ladder) takes ~2 minutes on a modest box.
 
 **Builder (consuming hoopsh as a library)** → README → EMBEDDING.md (the
-install lanes, the runnable example, the caveats) → the sanctioned
-source-API list it ends with (`core/events.ts`, `rulepack.ts`,
+install lanes, the runnable example, the caveats) → CONTRACT.md (what you
+may rely on, what may move, what a version bump means) → the sanctioned
+source-API list EMBEDDING ends with (`core/events.ts`, `rulepack.ts`,
 `provider.ts`, …) → ROSTERS.md when you author packs.
 
 **Agent, assigned a task** → AGENTS.md (all of it) → PLAYBOOK.md (Part 1 +
@@ -75,7 +77,7 @@ possession trace if your task touches the engine.
 | "Am I allowed to do this?" | `AGENTS.md` |
 | "HOW do I build this new thing?" | `docs/PLAYBOOK.md` |
 | "How do I use hoopsh from my own project?" | `docs/EMBEDDING.md` |
-| "What can consumers rely on?" | `docs/EMBEDDING.md` + `core/events.ts` (documented as an API) |
+| "What can consumers rely on?" | `docs/CONTRACT.md` (the contract) + `core/events.ts` (the per-field spec) |
 | "How do I write a team/roster pack?" | `docs/ROSTERS.md` |
 | "How do I run a season / predict a matchup?" | `docs/SEASON.md` |
 | "How do I tune realism / is the sim 'locked'?" | `docs/CALIBRATION.md` |

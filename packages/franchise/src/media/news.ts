@@ -7,13 +7,16 @@
  * Prose law (docs/FRANCHISE.md §10): dry and factual, numbers only from
  * sim data, no exclamation marks, no em dashes, no fabricated quotes.
  * Rumors print only when there is fire: a real negotiation at warm or
- * hotter. Three fixed bylines with different registers:
+ * hotter. Wire brief bodies deal from state-quoting pools with batch-scoped
+ * repeat-avoidance (#189, BodyDealer below) so single-day batches (waiver
+ * runs, retirement day, the draft) do not print walls of verbatim clones.
+ * Three fixed bylines with different registers:
  *   Association Wire  - agency terse, carries transactions and recaps
  *   Sloane Keller     - the insider, carries rumors and breaking moves
  *   Ray Delgado       - the columnist, carries streaks and takes
  */
 import { Rng } from '@hoopsh/engine';
-import type { League, NewsItem, Transaction } from '../types.js';
+import type { FrPlayer, League, NewsItem, Transaction } from '../types.js';
 import { WIRE } from './recap.js';
 import { lifestyleNews } from '../people/psyche.js';
 
@@ -33,8 +36,62 @@ function teamName(league: League, id: string): string {
   return league.teams[id]?.name ?? id;
 }
 
+function cityName(league: League, id: string): string {
+  return league.teams[id]?.city ?? id;
+}
+
+// How the wire names a position. scouting.ts and media/moments.ts keep
+// their own private copies; media mirrors recap.ts's precedent of small
+// local formatters (the moments.ts POS_NOUN comment states the convention).
+const POS_NOUN: Record<FrPlayer['pos'], string> = {
+  PG: 'guard', SG: 'guard', SF: 'wing', PF: 'forward', C: 'big',
+};
+
+/** Age at season start (types.ts: age is `season - bornSeason`). */
+function ageOf(league: League, p: FrPlayer): number {
+  return league.season - p.bornSeason;
+}
+
+/**
+ * Batch-scoped anti-repeat for wire brief bodies (#189). Copies the
+ * narration LineDealer's consumption law (narration/src/voice.ts): EXACTLY
+ * one rng draw per deal, repeat-avoidance by index arithmetic, never a
+ * re-draw. A variable draw count would shift every later draw on the day
+ * stream and break the same-day second-pass replay that #118's id guard
+ * relies on. Memory lives for one writeDailyNews pass only: clone walls
+ * are a batch-day problem, and persisting memory would touch saved state.
+ */
+class BodyDealer {
+  /** last two dealt slot indices per wire class */
+  private recentByClass = new Map<string, number[]>();
+  /** trailing dealt bodies across classes; window 30 is FEEL (voice.ts) */
+  private recentBodies: string[] = [];
+
+  deal(cls: string, pool: string[], rng: Rng): string {
+    let idx = rng.int(pool.length); // the ONLY rng draw in a deal
+    const recent = this.recentByClass.get(cls) ?? [];
+    const avoid = Math.min(2, pool.length - 1);
+    for (let hops = 0; hops < pool.length && avoid > 0 && recent.slice(-avoid).includes(idx); hops++) {
+      idx = (idx + 1) % pool.length;
+    }
+    let body = pool[idx]!;
+    // exact-body collision (identical facts on a batch day): bump within
+    // the pool, still zero extra draws, until fresh or options exhausted.
+    for (let hops = 0; hops < pool.length - 1 && this.recentBodies.includes(body); hops++) {
+      idx = (idx + 1) % pool.length;
+      body = pool[idx]!;
+    }
+    recent.push(idx);
+    if (recent.length > 2) recent.shift();
+    this.recentByClass.set(cls, recent);
+    this.recentBodies.push(body);
+    if (this.recentBodies.length > 30) this.recentBodies.shift();
+    return body;
+  }
+}
+
 /** One transaction, one story. Returns null for wire noise below notice. */
-function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number, draftedToday: ReadonlySet<string>): NewsItem | null {
+function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number, draftedToday: ReadonlySet<string>, dealer: BodyDealer): NewsItem | null {
   const id = `n-s${league.season}d${league.day}-tx${seq}`;
   const base = { id, date: { season: league.season, day: league.day }, gameId: undefined };
 
@@ -89,35 +146,95 @@ function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number
            `${team} commit ${money(total)} to ${name}`]
         : [`${team} sign ${name}`,
            `${name} lands with ${team}`];
+      // draw order is part of the day stream's contract: headline first
+      // (as before #189), then exactly one body deal.
+      const headline = headlines[rng.int(headlines.length)]!;
+      const p = league.players[tx.playerId];
+      const yr = years === 1 ? 'year' : 'years';
+      const tail = tx.offerSheet ? ', signed as an offer sheet' : '';
+      // body pool (#189): slot 0 is the pre-pool body; every added variant
+      // quotes real terms or the player's actual situation, never filler.
+      const bodies = [
+        `The deal runs ${years} ${yr} for ${money(total)}${tail}.`,
+      ];
+      if (p) {
+        const played = new Set(p.seasons.map(r => r.season)).size;
+        bodies.push(`${name} gets ${money(total)} ${years === 1 ? 'for the season' : `over ${years} years`}${tail}.`);
+        bodies.push(years === 1
+          ? `A one-year deal worth ${money(total)}${tail}.`
+          : `The contract averages ${money(Math.round(total / years))} a season through ${tx.contract.years[years - 1]!.season}${tail}.`);
+        bodies.push(played > 0
+          ? `The ${ageOf(league, p)}-year-old ${POS_NOUN[p.pos]} signs for ${years} ${yr} at ${money(total)}${tail}.`
+          : `His first league contract pays ${money(total)} ${years === 1 ? 'for the year' : `over ${years} years`}${tail}.`);
+      }
       return {
         ...base, type: 'transactionWire',
-        headline: headlines[rng.int(headlines.length)]!,
-        body: `The deal runs ${years} ${years === 1 ? 'year' : 'years'} for ${money(total)}${tx.offerSheet ? ', signed as an offer sheet' : ''}.`,
+        headline,
+        body: dealer.deal('signing', bodies, rng),
         byline: big ? INSIDER : WIRE,
         players: [tx.playerId], teams: [tx.teamId],
         weight: big ? 3 : 1,
       };
     }
     case 'waive': {
+      const p = league.players[tx.playerId];
+      const team = teamName(league, tx.teamId);
+      // body pool (#189): slot 0 is the pre-pool body; variants quote the
+      // player's actual situation (age, tenure with the waiving team).
+      const bodies = tx.stretched
+        ? [`The remaining guarantee is stretched across future seasons.`]
+        : [`He clears to free agency immediately.`];
+      if (p && tx.stretched) {
+        bodies.push(`${p.name}'s remaining guarantee is stretched across future seasons.`);
+        bodies.push(`${team} spread the remaining guarantee over future seasons.`);
+      } else if (p) {
+        const gpTeam = p.seasons.filter(r => r.teamId === tx.teamId).reduce((s, r) => s + r.gp, 0);
+        bodies.push(`The ${ageOf(league, p)}-year-old ${POS_NOUN[p.pos]} clears to free agency.`);
+        bodies.push(gpTeam > 0
+          ? `He hits free agency after ${gpTeam} ${gpTeam === 1 ? 'game' : 'games'} with ${team}.`
+          : `He clears without appearing in a game for ${team}.`);
+        bodies.push(`The move opens a roster spot in ${cityName(league, tx.teamId)}.`);
+      }
       return {
         ...base, type: 'transactionWire',
-        headline: `${teamName(league, tx.teamId)} waive ${playerName(league, tx.playerId)}`,
-        body: tx.stretched
-          ? `The remaining guarantee is stretched across future seasons.`
-          : `He clears to free agency immediately.`,
+        headline: `${team} waive ${playerName(league, tx.playerId)}`,
+        body: dealer.deal(tx.stretched ? 'waive.stretch' : 'waive.clear', bodies, rng),
         byline: WIRE, players: [tx.playerId], teams: [tx.teamId], weight: 1,
       };
     }
     case 'retirement': {
       const p = league.players[tx.playerId];
       const seasons = p ? new Set(p.seasons.map(r => r.season)).size : 0;
-      const pts = p ? p.seasons.filter(r => r.type === 'regular').reduce((s, r) => s + r.pts, 0) : 0;
+      const reg = p ? p.seasons.filter(r => r.type === 'regular') : [];
+      const pts = reg.reduce((s, r) => s + r.pts, 0);
+      // body pools (#189): every variant contains "retires" (the newsdesk
+      // suite asserts it) and quotes the career the sim actually recorded.
+      const bodies: string[] = [];
+      if (seasons > 0 && p) {
+        const s = seasons === 1 ? 'season' : 'seasons';
+        const gp = reg.reduce((sum, r) => sum + r.gp, 0);
+        const clubs = new Set(p.seasons.map(r => r.teamId));
+        bodies.push(`He retires after ${seasons} ${s} and ${pts.toLocaleString('en-US')} career points.`);
+        bodies.push(`He retires with ${pts.toLocaleString('en-US')} points in ${gp.toLocaleString('en-US')} regular-season games.`);
+        bodies.push(clubs.size === 1
+          ? `He retires after ${seasons} ${s}, all with ${teamName(league, [...clubs][0]!)}.`
+          : `He retires after ${seasons} ${s} across ${clubs.size} teams.`);
+      } else {
+        bodies.push(`He retires without appearing in a league game.`);
+        if (p) {
+          const d = p.draft;
+          bodies.push(`He retires at ${ageOf(league, p)} without a league appearance.`);
+          bodies.push(d && d.round === 1
+            ? `Drafted ${ordinal(d.pick)} overall in ${d.season}, he retires without playing a league game.`
+            : d && d.round === 2
+              ? `A round-2 pick in ${d.season}, he retires without playing a league game.`
+              : `Undrafted out of ${p.originDetail}, he retires without playing a league game.`);
+        }
+      }
       return {
         ...base, type: 'retirement',
         headline: `${playerName(league, tx.playerId)} calls it a career`,
-        body: seasons > 0
-          ? `He retires after ${seasons} ${seasons === 1 ? 'season' : 'seasons'} and ${pts.toLocaleString('en-US')} career points.`
-          : `He retires without appearing in a league game.`,
+        body: dealer.deal(seasons > 0 ? 'retire.vet' : 'retire.zero', bodies, rng),
         byline: COLUMNIST, players: [tx.playerId], teams: [], weight: 2,
       };
     }
@@ -134,21 +251,34 @@ function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number
       };
     }
     case 'draftSelection': {
-      // draft night gets one story per first-round pick; round 2 is wire
+      // draft night gets one story per first-round pick; round 2 is wire.
+      // Every body variant carries the contract line: the pick's signing
+      // row stays off the wire (#118), so the draft story IS the record.
       const name = playerName(league, tx.playerId);
       const team = teamName(league, tx.teamId);
+      const p = league.players[tx.playerId];
       if (tx.round === 2) {
+        const bodies = [`${name} signs a two-year deal.`];
+        if (p) {
+          bodies.push(`The ${p.originDetail} ${POS_NOUN[p.pos]} signs a two-year deal.`);
+          bodies.push(`${name}, ${ageOf(league, p)}, signs a two-year deal.`);
+        }
         return {
           ...base, type: 'draft',
           headline: `${team} take ${name} at pick ${tx.pick} of round 2`,
-          body: `${name} signs a two-year deal.`,
+          body: dealer.deal('draft.r2', bodies, rng),
           byline: WIRE, players: [tx.playerId], teams: [tx.teamId], weight: 1,
         };
+      }
+      const bodies = [`${name} goes ${ordinal(tx.pick)} overall and signs his rookie-scale contract.`];
+      if (p) {
+        bodies.push(`The ${p.originDetail} ${POS_NOUN[p.pos]} goes ${ordinal(tx.pick)} overall and signs his rookie-scale contract.`);
+        bodies.push(`${cityName(league, tx.teamId)} add a ${ageOf(league, p)}-year-old ${POS_NOUN[p.pos]}. His rookie-scale contract is signed the same night.`);
       }
       return {
         ...base, type: 'draft',
         headline: `${team} select ${name} with pick ${tx.pick}`,
-        body: `${name} goes ${ordinal(tx.pick)} overall and signs his rookie-scale contract.`,
+        body: dealer.deal('draft.r1', bodies, rng),
         byline: WIRE, players: [tx.playerId], teams: [tx.teamId],
         weight: tx.pick <= 5 ? 3 : 2,
       };
@@ -186,10 +316,14 @@ export function writeDailyNews(league: League): NewsItem[] {
       draftedToday.add(tx.playerId);
     }
   }
+  // one dealer per pass: its memory evolves in transaction order, so a
+  // same-day second pass (#118) replays the prefix identically before the
+  // id guard drops the repeats.
+  const dealer = new BodyDealer();
   let seq = 0;
   for (const tx of league.transactions) {
     if (tx.date.season !== today.season || tx.date.day !== today.day) continue;
-    const story = transactionStory(league, tx, rng, seq++, draftedToday);
+    const story = transactionStory(league, tx, rng, seq++, draftedToday, dealer);
     if (story) out.push(story);
   }
 

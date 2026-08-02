@@ -15,6 +15,77 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Franchise: draft-class talent tiers lifted +8 for supply parity (#173, issue #125)
+
+- Draft classes entered 5.90 ability points under the genesis young
+  cohort (static top-60 mean 48.21 vs genesis-young 54.11, n=440), and
+  the league decayed toward its supply: at pin, acceptance-1's
+  5-season scoring trail ran 118.7 to 107.0, drift 11.7 vs gate 10.0,
+  the #125 symptom. The fix is +8 on every TALENT_TIERS qLo/qHi and on
+  PROSPECT_QUALITY_HI in people/gen.ts, nothing else; weights,
+  youthBias, and polish untouched, preserving the W79 age calibration
+  by construction. Provenance SWEPT: grid +5/+8/+11 from a static
+  parity curve (anchors +6.8/+8.6/+11.4, slope 0.87 ability points per
+  offset point), swept 5 seasons per rung at pin f56decf, both
+  acceptance seeds on the winner. Drift 11.7 to 6.8 and 9.3 to 3.3,
+  all gates PASS both legs; the F3 comparison re-runs the base at the
+  same kernel and it FAILS (drift 10.7, pace out of band), isolating
+  the lift as the cause. Engine kernel untouched (identity trio
+  identical at review). Riders: the tax-team decay calibration
+  follow-up is #164; the PROSPECT_QUALITY_HI retag rides the #143
+  dispatch. Franchise-cal tier (relay 5157732690). Merged c4c6cbba.
+
+### Docs: golden fingerprint corpus is 28 seeds, not 24 (#52, issue #47)
+
+- One-word count fix, re-cut after #48: the original branch's
+  CONTRIBUTING.md hunk was superseded by #48's rewrite of the CI
+  description (zero stale "24 seeds" remains there), so the re-cut
+  carries only the PR-template hunk, byte-identical to the reviewed
+  one (changed-lines sha c598063f both sides, template blob untouched
+  since review 4833322942). Docs tier. Merged e05267fb.
+
+### Process: golden fingerprints demoted to a determinism-only gate (#48, issue #33)
+
+- The #33 doctrine lands: gameplay changes gate on acceptance bands
+  plus invariants, and the golden corpus stops vetoing them. CI's
+  golden compare is replaced by fingerprint:determinism, which builds
+  the corpus twice in-process and diffs the two runs; the cross-run
+  golden compare left CI (npm run fingerprint remains available
+  locally). The verify run at the merge head executed the new
+  definition and proved itself green. The verdict carried one explicit
+  condition, the PR body's ci.yml hunk, applied verbatim by the Lead
+  as 18dbb89 (review 4833349096); the owner-only-file rule was
+  discharged by the owner's standing authorization of 2026-08-02.
+  Process tier. Merged 34f30edd.
+
+### Harness: fidelity CLI exit gate with quarantine (#73, issue #43)
+
+- The fidelity CLI exited 0 on enforced-target misses; the gate is now
+  live: any new enforced miss exits 1, with four quarantined rows
+  (W29, W71, W86, W87) staying loud, register-named, and
+  tripwire-covered. The gate proved itself on contact: its first run
+  caught two enforced misses main's exit-0 defect had let ride
+  silently (Curry PTS and Curry FT% at the post-#160 kernel), filed as
+  #169 and #170 with the W86/W87 quarantine amend produced under the
+  W80 register discipline (round-2 relay 5156808628, including a
+  43-commit fingerprint walk validating the register rows'
+  kernel-window claim). The #43 ruling of record names this PR the
+  winner track; #67 closed unmerged. Consumer tier. Merged 2393b092.
+
+### Franchise: the trade-offer accept executes the deal (#171, issue #158)
+
+- Playtest P2: accepting a trade offer marked the item resolved and
+  executed nothing; the roster never changed. Accept now executes the
+  deal from the inbox item's frozen clone (cloneOffer is a true deep
+  copy; the stash holds raw references, so the live-memory hazard the
+  design doc names is real and the clone is the fix). 6 of 9 mutants
+  re-run and killed by exactly the named pins; acceptance invisibility
+  cross-side identical on both legs; the merge commit proven
+  no-smuggle by merge-tree replay (review 4837889683). The suite grows
+  1682 to 1691 with this PR's nine pins. Consumer tier; canonical
+  fingerprint orientation recorded (Cascadia Breakers 108, Meridian
+  Monarchs 121). Merged 3a1194c1.
+
 ### Engine: dead-ball resume relay (#160, issue #115)
 
 - The C2 resume snap, the last surviving teleport class: at dead-ball

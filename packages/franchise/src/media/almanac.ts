@@ -129,12 +129,27 @@ export function archiveSeason(league: League): SeasonArchive | null {
     .filter((x): x is NonNullable<typeof x> => x !== null)
     .sort((a, b) => a.round - b.round || a.pick - b.pick);
 
+  // Bake printable winner names into the archived rows (issue #188): the
+  // almanac must read like the records book, whose claims resolve
+  // holderName at write time with the same honest raw-id fallback. Write
+  // time is the right time: the archive is self-contained history and
+  // must not depend on the live player table carrying every retired man
+  // forever. coy winners are team ids; every other kind is player ids.
+  // Copies, not aliases: the live league.awards rows stay id-only.
+  const awards = league.awards
+    .filter(a => a.season === league.season)
+    .map(a => ({
+      ...a,
+      winnerNames: a.winners.map(
+        id => league.players[id]?.name ?? league.teams[id]?.name ?? id),
+    }));
+
   const archive: SeasonArchive = {
     season: league.season,
     champion,
     runnerUp,
     finalStandings,
-    awards: league.awards.filter(a => a.season === league.season),
+    awards,
     playoffs: league.playoffs.map(s => ({ ...s, wins: [...s.wins] as [number, number], games: [...s.games] })),
     lottery: league.lottery ?? { season: league.season, order: [], movement: [] },
     leagueAverages: leagueAverages(league),

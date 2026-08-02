@@ -91,7 +91,9 @@ export function expireInboxDeadlines(league: League): void {
 /** Deadline season opens: one notice with the user's expiring books. */
 function deadlineWindowBrief(league: League, items: InboxItem[]): void {
   if (!inDeadlineWindow(league)) return;
-  if (league.day === tradeDeadlineDay(league)) return; // the day itself gets the louder item
+  // the eve and the day belong to the louder deadline-day call (#186); a
+  // brief with no shopping days left is noise next to it
+  if (league.day >= tradeDeadlineDay(league) - 1) return;
   const id = `deadline-window-s${league.season}`;
   if (alreadyPosted(league, id)) return;
   const team = league.teams[league.userTeam]!;
@@ -146,11 +148,24 @@ function bestSellCandidate(league: League): { playerId: PlayerId; buyer: TeamId 
  * Deadline day: the one decision item of the season's loudest week. The
  * body is posture-aware simulated truth: the same pickSellerTarget and
  * playerValue reads the pulse itself trades on, never invented flavor.
- * Expires at close of business (the morning sweep), so ignoring it costs
- * exactly one stop.
+ *
+ * Posted on the EVE of the deadline, not the day itself (#186). The app's
+ * advance loop checks for stops between ticks, and the freeze applies
+ * inside deadline day's own tick (aiTradePulse runs before the desk
+ * speaks): an item posted on deadline day can only stop the clock at
+ * deadline+1, deep-linking to a desk that answers "the deadline has
+ * passed". Posted on the eve, the stop lands on deadline morning with the
+ * desk open (tradingFrozen is strict-greater), and the body's board reads
+ * are the exact state the desk evaluates at that stop - nothing moves
+ * between the eve tick's close and the user's morning call.
+ *
+ * The deadline field is the post date (the eve), so the morning sweep
+ * retires an ignored call during deadline day's own tick: ignoring it
+ * costs exactly one stop, and the open-decision check in the advance loop
+ * cannot re-stop at deadline+1 on a call that is already dead.
  */
 function deadlineDayCall(league: League, items: InboxItem[]): void {
-  if (league.phase !== 'regular' || league.day !== tradeDeadlineDay(league)) return;
+  if (league.phase !== 'regular' || league.day !== tradeDeadlineDay(league) - 1) return;
   const id = `deadline-day-s${league.season}`;
   if (alreadyPosted(league, id)) return;
   const timeline = league.teams[league.userTeam]!.strategy.timeline;
