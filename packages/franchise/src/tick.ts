@@ -61,7 +61,7 @@ import { updatePsyche } from './people/psyche.js';
 import { runRetirements } from './people/retire.js';
 import { generateCoach, generateDraftClass } from './people/gen.js';
 import { reevaluateTimelines } from './ai/persona.js';
-import { aiTradePulse, respondToOffer } from './ai/trade.js';
+import { aiTradePulse, clearNegotiation, respondToOffer } from './ai/trade.js';
 import { runAiOffseasonDecisions, runFreeAgencyDay } from './ai/fa.js';
 import { aiRosterUpkeep } from './ai/roster.js';
 import { aiSelect } from './ai/draftai.js';
@@ -557,6 +557,18 @@ function performAction(league: League, action: UserAction): ActionResult {
       if (item.resolved) return deny('that request is already resolved');
       if (item.choices && !item.choices.some((c) => c.id === action.choice)) {
         return deny(`'${action.choice}' is not one of the offered choices`);
+      }
+      // An attached offer makes 'accept' executable: the answer IS the
+      // trade, at exactly the terms the item showed (acceptCounter
+      // discipline: the other front office authored this offer, so it is
+      // re-validated but never re-judged). A failed validation leaves the
+      // item OPEN - the deal died since it was posted, and saying no to a
+      // dead deal is still the user's word to give, not the validator's.
+      if (item.offer && action.choice === 'accept') {
+        const legality = validateTrade(league, item.offer);
+        if (!legality.ok) return deny(...legality.errors);
+        executeTrade(league, item.offer);
+        clearNegotiation(league, item.offer.from, item.offer.to);
       }
       // The modules that created the item read the logged action for the
       // chosen answer; the spine's job is marking it answered.

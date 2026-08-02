@@ -564,6 +564,12 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     json(res, 200, respondToOffer(league, body.offer));
     return true;
   }
+  if (p === '/api/trade/negotiations' && req.method === 'GET') {
+    // pure read: the desk's window onto league.negotiations (#158). Only
+    // the user's own talks travel; AI-AI smoke stays the news desk's beat.
+    json(res, 200, { negotiations: league.negotiations.filter(n => n.teams.includes(league.userTeam)) });
+    return true;
+  }
 
   // ---- parameterized routes
   const teamMatch = p.match(/^\/api\/team\/([a-z]{3})$/);

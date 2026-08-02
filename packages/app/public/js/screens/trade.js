@@ -21,16 +21,17 @@ function pickLabel(pick) {
   return `${pick.season} R${pick.round}${via}`;
 }
 
-function checkbox(onToggle) {
+function checkbox(onToggle, checked = false) {
   // theme.css gives every input min-width:200px; a checkbox wants none of that
   const box = el('input', { type: 'checkbox', style: 'min-width:0;width:13px;height:13px;margin:0' });
+  box.checked = checked; // lines rebuild from selection state ("put this offer on the desk")
   box.addEventListener('change', () => onToggle(box.checked));
   return box;
 }
 
 function playerLine(row, set, onChange) {
   return el('label', { style: 'display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;cursor:pointer;border-bottom:1px solid var(--rule)' },
-    checkbox(checked => { if (checked) set.add(row.id); else set.delete(row.id); onChange(); }),
+    checkbox(checked => { if (checked) set.add(row.id); else set.delete(row.id); onChange(); }, set.has(row.id)),
     el('span', { style: 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' },
       row.name, ' ', el('span', { class: 'pos-chip' }, row.pos)),
     grade(row.ovr),
@@ -41,12 +42,12 @@ function playerLine(row, set, onChange) {
 
 function pickLine(pick, set, onChange) {
   return el('label', { style: 'display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--rule)' },
-    checkbox(checked => { if (checked) set.add(pick.id); else set.delete(pick.id); onChange(); }),
+    checkbox(checked => { if (checked) set.add(pick.id); else set.delete(pick.id); onChange(); }, set.has(pick.id)),
     el('span', { class: 'mono' }, pickLabel(pick)),
   );
 }
 
-function buildDesk(mine, theirs, rerender) {
+function buildDesk(mine, theirs, rerender, negotiation) {
   const sel = {
     give: { players: new Set(), picks: new Set() },
     get: { players: new Set(), picks: new Set() },
@@ -167,13 +168,44 @@ function buildDesk(mine, theirs, rerender) {
     );
   };
 
-  updateStrip();
+  // lines bind the Set instances they were built with, so replacing the
+  // selection ("put this offer on the desk") rebuilds both columns
+  const columnsBox = el('div', { class: 'cols c2', style: 'grid-template-columns:1fr 1fr' });
+  const redraw = () => {
+    columnsBox.replaceChildren(column(mine, 'give'), column(theirs, 'get'));
+    updateStrip();
+  };
+
+  // the live offer on file (#158): league.negotiations served read-only.
+  // The offer faces either direction; the desk always edits the user's side.
+  const talksCard = () => {
+    const offer = negotiation.lastOffer;
+    const youSend = offer.from === mine.team.id ? offer.give : offer.get;
+    const youGet = offer.from === mine.team.id ? offer.get : offer.give;
+    return el('div', { class: 'card', style: 'margin-bottom:14px;border-color:var(--rule-strong)' },
+      el('div', { style: 'font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)' },
+        `live talks · ${negotiation.temperature} · round ${negotiation.rounds}`),
+      el('div', { style: 'font-size:12.5px;margin-top:4px' }, el('b', {}, 'on file, you send: '), describe(youSend)),
+      el('div', { style: 'font-size:12.5px' }, el('b', {}, 'you receive: '), describe(youGet)),
+      el('div', { style: 'margin-top:6px' },
+        el('button', {
+          class: 'quiet',
+          onclick: () => {
+            sel.give.players = new Set(youSend.players);
+            sel.give.picks = new Set(youSend.picks);
+            sel.get.players = new Set(youGet.players);
+            sel.get.picks = new Set(youGet.picks);
+            redraw();
+          },
+        }, 'put this offer on the desk')),
+    );
+  };
+
+  redraw();
 
   return el('div', {},
-    el('div', { class: 'cols c2', style: 'grid-template-columns:1fr 1fr' },
-      column(mine, 'give'),
-      column(theirs, 'get'),
-    ),
+    negotiation && negotiation.lastOffer ? talksCard() : null,
+    columnsBox,
     // sticky above the keys bar (28px clears #keys) so the math never scrolls away
     el('div', { class: 'card', style: 'position:sticky;bottom:28px;z-index:15;margin-top:16px;border-color:var(--rule-strong);display:flex;flex-direction:column;gap:4px' },
       myLine,
@@ -191,8 +223,11 @@ function buildDesk(mine, theirs, rerender) {
 registerScreen('trade', {
   title: 'Trade',
   nav: 'Trade', navKey: 't',
-  async render(root) {
+  async render(root, params) {
     const user = store.summary.userTeam;
+    // a deep link (#/trade/bka) preselects the partner: the office's
+    // Counter answer routes here with the offering front office dialed
+    if (params && params[0] && params[0] !== user && store.teams[params[0]]) partnerId = params[0];
     const partners = Object.values(store.teams)
       .filter(t => t.teamId !== user)
       .sort((a, b) => `${a.city} ${a.name}`.localeCompare(`${b.city} ${b.name}`));
@@ -210,8 +245,9 @@ registerScreen('trade', {
       }
       desk.replaceChildren(el('div', { class: 'empty' }, 'loading...'));
       try {
-        const [mine, theirs] = await Promise.all([api.team(user), api.team(partnerId)]);
-        desk.replaceChildren(buildDesk(mine, theirs, rerender));
+        const [mine, theirs, negs] = await Promise.all([api.team(user), api.team(partnerId), api.negotiations()]);
+        const negotiation = negs.negotiations.find(n => n.teams.includes(partnerId));
+        desk.replaceChildren(buildDesk(mine, theirs, rerender, negotiation));
       } catch (err) {
         toast(err.message, true);
         desk.replaceChildren(el('div', { class: 'empty' }, err.message));

@@ -40,6 +40,7 @@ export const api = {
   records: () => call('GET', '/api/records'),
   action: (action) => call('POST', '/api/action', { action }),
   evaluateTrade: (offer) => call('POST', '/api/trade/evaluate', { offer }),
+  negotiations: () => call('GET', '/api/trade/negotiations'),
   advance: (days, stopOnInbox = true) => call('POST', '/api/sim/advance', { days, stopOnInbox }),
   simStatus: () => call('GET', '/api/sim/status'),
 
