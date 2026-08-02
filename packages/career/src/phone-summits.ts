@@ -7,8 +7,8 @@
 import { streamRng } from '@hoopsh/franchise';
 import { committedOffer, debutThisWeek, destOf, draftTxOf, losingFinalist } from './phone-detect.js';
 import {
-  THREAD_RANK, WIRE_BYLINE, eventsWithinWeeks, meOf, nbaTeamNameOf,
-  recruiterSurname,
+  THREAD_RANK, agentDisplayOf, eventsWithinWeeks, meOf, nbaTeamNameOf,
+  recruiterSurname, wireBylineOf,
 } from './phone-shared.js';
 import type { Candidate } from './phone-shared.js';
 import type { CareerState, PhoneMessage } from './types.js';
@@ -102,7 +102,7 @@ export function draftNightCandidates(career: CareerState, out: Candidate[]): voi
     if (passed) {
       out.push({
         thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 90,
-        from: 'Marta (agent)', capExempt: true, tag: 'undrafted',
+        from: agentDisplayOf(career), capExempt: true, tag: 'undrafted',
         variants: [
           'Sixty names and not ours. I will not spin it. Summer league lists open this morning and I already made two calls. The route changes, the destination does not',
           'No call last night. I know what it cost to watch. Here is what is real: rooms passed on a name, not on a player. We go make the name undeniable',
@@ -151,7 +151,7 @@ export function draftNightCandidates(career: CareerState, out: Candidate[]): voi
   }
   out.push({
     thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 100,
-    from: 'Marta (agent)', capExempt: true, tag: 'draftnight',
+    from: agentDisplayOf(career), capExempt: true, tag: 'draftnight',
     refs: { teamId: mine.teamId },
     variants: agentVariants,
   });
@@ -205,7 +205,7 @@ export function draftNightCandidates(career: CareerState, out: Candidate[]): voi
   const home = career.creation.birthplace;
   out.push({
     thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 100,
-    from: WIRE_BYLINE, capExempt: true, tag: 'draftnight', refs: { teamId: mine.teamId },
+    from: wireBylineOf(career), capExempt: true, tag: 'draftnight', refs: { teamId: mine.teamId },
     variants: [
       `From ${home} to pick ${pick}: the ${team} select ${me.name}. The building believed before the boards did`,
       `The ${team} take ${me.name} at pick ${pick}. In ${home} they are honking horns tonight`,

@@ -90,10 +90,9 @@ export function generatePersona(rng: Rng): GmPersona {
 
 // Evidence bars (all FEEL, candidates for acceptance calibration):
 const CONTEND_WIN_PCT_BAR = 0.55;   // FEEL ~45 wins: the record a front office needs to believe
-const CONTEND_CORE_BAR = 72;        // FEEL avg ability of the top-3 (age<=30) that reads as a playoff core
+const CONTEND_CORE_BAR = 68;        // FEEL avg ability of the top-3 (age<=30) that reads as a playoff core (#184: at 72 no team in two measured seeds ever contended - the bar sat above the leagues it judged)
+const CONTEND_RECORD_ONLY_MARGIN = 0.05; // FEEL a ~50-win-pace record buys at the deadline whatever the core's age - February buyers are defined by the race, not the roster sheet
 const CORE_MAX_AGE = 30;            // FEEL a core piece past 30 is a closing window, not a foundation
-const YOUNG_CORE_MAX_AGE = 25;      // FEEL "young core" = a keeper still on his growth curve
-const YOUNG_CORE_ABILITY_BAR = 62;  // FEEL rotation-quality kid worth building around
 const REBUILD_BOTTOM_SHARE = 8 / 30; // REAL-shaped: the league's bottom 8 of 30 is lottery-odds territory
 const MIN_GAMES_FOR_RECORD = 20;     // FEEL quarter-season before the standings mean anything
 const STAR_CHASE_BAR_SWING = 0.08;   // FEEL max win-pct bar shift a 100-starChase persona buys
@@ -125,14 +124,25 @@ function recordPctFor(league: League, teamId: string): number | null {
 }
 
 /**
- * Recompute every AI team's live timeline from record, core age, and asset
- * position. Callers decide the cadence (the spine invokes it at camp open,
- * the opener, and deadline week); this function only recomputes:
- * - contend when a real core (top-3 ability among age<=30 players) AND the
- *   record both support it - persona starChase and a contend temperament
- *   lower the record bar a little;
- * - rebuild when the record sits in the league's bottom-8 share and no
- *   young core exists worth protecting;
+ * Recompute every AI team's live timeline from record and core quality.
+ * Callers decide the cadence (the spine invokes it at camp open, the
+ * opener, and deadline week); this function only recomputes:
+ * - no record evidence anywhere (genesis day: no standings, no archive):
+ *   the persona's temperament stands - evidence can move a front office
+ *   off its identity, the absence of evidence cannot (#184: the old
+ *   neutral-0.5 fallback wiped the genesis contend/retool/rebuild mix to
+ *   an all-retool league in which no complementary trade pair ever
+ *   existed);
+ * - contend when a real core (top-3 ability among age<=30 players) and
+ *   the record both support it - persona starChase and a contend
+ *   temperament lower the record bar a little - or when the record alone
+ *   clears the bar with margin (the February buyer is defined by the
+ *   race, not the roster sheet);
+ * - rebuild when the record sits in the league's bottom-8 share. Having
+ *   promising kids is no veto: a lottery team with a young core is the
+ *   archetypal deadline seller - the kids are WHY the vets are movable
+ *   (#184; the trade engine only ever shops age-28+ rentals, never the
+ *   young core itself);
  * - retool otherwise (the honest middle where most of the league lives).
  * Mutates team.strategy.timeline for AI teams ONLY - the user team's
  * strategy is the user's own call (gm === null marks user control).
@@ -140,13 +150,14 @@ function recordPctFor(league: League, teamId: string): number | null {
  */
 export function reevaluateTimelines(league: League): void {
   const teamIds = Object.keys(league.teams).sort(); // sorted: byte-stable regardless of insertion history
-  // rank every team once, worst record first; unknown records read neutral
-  const NEUTRAL_PCT = 0.5; // FEEL: no evidence = assume mediocrity, which lands in retool
-  const ranked = teamIds
-    .map(id => ({ id, pct: recordPctFor(league, id) ?? NEUTRAL_PCT }))
+  // rank evidence-holding teams once, worst record first; no-evidence
+  // teams keep their persona prior and stay out of the bottom-cut sort
+  const withEvidence = teamIds
+    .map(id => ({ id, pct: recordPctFor(league, id) }))
+    .filter((row): row is { id: string; pct: number } => row.pct !== null)
     .sort((a, b) => a.pct - b.pct || (a.id < b.id ? -1 : 1));
   const rankFromBottom: Record<string, number> = {};
-  ranked.forEach((row, i) => { rankFromBottom[row.id] = i + 1; });
+  withEvidence.forEach((row, i) => { rankFromBottom[row.id] = i + 1; });
   const bottomCut = Math.max(1, Math.round(teamIds.length * REBUILD_BOTTOM_SHARE));
 
   for (const teamId of teamIds) {
@@ -154,32 +165,35 @@ export function reevaluateTimelines(league: League): void {
     if (!team.gm) continue; // user team keeps its own strategy
     const persona = team.gm;
 
+    const pct = recordPctFor(league, teamId);
+    if (pct === null) {
+      // genesis day: nobody has played, nothing to re-evaluate
+      team.strategy.timeline = persona.timeline;
+      continue;
+    }
+
     // core quality: best three abilities among players young enough to
     // still be a foundation when the window opens
     const abilities: number[] = [];
-    let hasYoungCore = false;
     for (const pid of team.roster) {
       const p = league.players[pid];
       if (!p) continue;
       const age = league.season - p.bornSeason;
-      const ability = abilityScore(p);
-      if (age <= CORE_MAX_AGE) abilities.push(ability);
-      if (age <= YOUNG_CORE_MAX_AGE && ability >= YOUNG_CORE_ABILITY_BAR) hasYoungCore = true;
+      if (age <= CORE_MAX_AGE) abilities.push(abilityScore(p));
     }
     abilities.sort((a, b) => b - a);
     const top3 = abilities.slice(0, 3);
     // fewer than three core-age players = no core, whatever their level
     const coreScore = top3.length === 3 ? (top3[0]! + top3[1]! + top3[2]!) / 3 : 0;
 
-    const pct = recordPctFor(league, teamId) ?? NEUTRAL_PCT;
     // star-chasers and contend-temperament GMs believe a few wins earlier
     let bar = CONTEND_WIN_PCT_BAR - ((persona.starChase - TRAIT_MEAN) / 100) * STAR_CHASE_BAR_SWING; // trait vs neutral midpoint, /100 -> fraction
     if (persona.timeline === 'contend') bar -= PRIOR_TIMELINE_BAR_SHIFT;
     if (persona.timeline === 'rebuild') bar += PRIOR_TIMELINE_BAR_SHIFT;
 
     let next: Timeline;
-    if (coreScore >= CONTEND_CORE_BAR && pct >= bar) next = 'contend';
-    else if (rankFromBottom[teamId]! <= bottomCut && !hasYoungCore) next = 'rebuild';
+    if ((coreScore >= CONTEND_CORE_BAR && pct >= bar) || pct >= bar + CONTEND_RECORD_ONLY_MARGIN) next = 'contend';
+    else if (rankFromBottom[teamId]! <= bottomCut) next = 'rebuild';
     else next = 'retool';
     team.strategy.timeline = next;
   }

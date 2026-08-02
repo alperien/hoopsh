@@ -5,15 +5,18 @@
  * see phone.ts for the discipline rules and module map.
  */
 import { promiseContext, promiseGraceGames } from './phone-detect.js';
-import { AGENT_MOVE_MIN, ROLE_LABEL, THREAD_RANK, eventsThisWeek, roleIdx } from './phone-shared.js';
+import {
+  AGENT_MOVE_MIN, ROLE_LABEL, THREAD_RANK, advisorDisplayOf, agentDisplayOf,
+  agentNameOf, eventsThisWeek, roleIdx,
+} from './phone-shared.js';
 import type { Candidate } from './phone-shared.js';
 import type { CareerState } from './types.js';
 
-/** The agent's display name for the phase: a family advisor until one can legally sign. */
+/** The agent's display name for the phase: a family advisor until one can legally sign. Both identities are the career's own seeded home cast (phone-shared.ts). */
 function agentFrom(career: CareerState): string {
   return career.clock.phase === 'hs' || career.clock.phase === 'college'
-    ? 'Uncle Dee (advisor)'
-    : 'Marta (agent)';
+    ? advisorDisplayOf(career)
+    : agentDisplayOf(career);
 }
 
 /** The agent (a family advisor until one can legally sign): stock reads, quoting the ladder's own stated reason. Small drifts stay unsent. */
@@ -27,9 +30,9 @@ export function agentCandidates(career: CareerState, out: Candidate[]): void {
   if (entered) {
     out.push({
       thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 95,
-      from: 'Marta (agent)', tag: 'file',
+      from: agentDisplayOf(career), tag: 'file',
       variants: [
-        'Marta. From this week I represent you, and this stops being a story about potential. The file went to all thirty rooms this morning. Everything you do until June is an exhibit',
+        `${agentNameOf(career)}. From this week I represent you, and this stops being a story about potential. The file went to all thirty rooms this morning. Everything you do until June is an exhibit`,
         'It is paperwork season. The class list has your name on it as of today. From here the calls come through me, the film speaks for you, and neither of us reads comment sections',
         'Welcome to the pre-draft window. Thirty teams, one file, your name on the cover. Train like the number is wrong in whichever direction keeps you hungry',
         'The advisor era is over. Agent era. Combine, workouts, war rooms. I talk, you play, we pick the suit later',

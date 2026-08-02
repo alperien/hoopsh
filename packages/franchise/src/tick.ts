@@ -285,15 +285,37 @@ function processDraft(league: League, order: ReturnType<typeof draftOrder>): boo
     // team; an autosim that installs a persona in the user seat drafts
     // straight through (the acceptance harness does exactly that)
     if (slot.teamId === league.userTeam && league.teams[slot.teamId]!.gm === null) {
-      pushInbox(league, {
-        id: draftPauseId(league.season, made + 1),
-        date: currentDate(league),
-        kind: 'decision',
-        title: `On the clock: round ${slot.round}, pick ${slot.pickInRound}`,
-        body: 'Your selection is up. Open the draft board and make the pick.',
-        choices: [{ id: 'open-draft', label: 'Go to the draft board' }],
-        resolved: false,
-      });
+      const id = draftPauseId(league.season, made + 1);
+      // The 15-man wall on the clock item itself (#183): a pick signs a
+      // standard contract on the spot, so a full roster cannot legally
+      // select. The AI branch below waives its weakest body for exactly
+      // this reason; the user seat decides for itself, so the item names
+      // the wall and the two real outs instead.
+      const squeezed = league.teams[slot.teamId]!.roster.length >= league.params.cba.rosterMax;
+      const body = squeezed
+        ? `Your selection is up, but your roster sits at the ${league.params.cba.rosterMax}-man maximum and a draft pick signs a standard contract on the spot. Clear a spot first: waive a player or trade a body out. Then make the pick from the draft board. The night waits on your pick; the day will not advance until it is in.`
+        : 'Your selection is up. Open the draft board and make the pick.';
+      const existing = league.inbox.find((i) => i.id === id);
+      if (existing) {
+        // The pick is still owed: re-issue the SAME pause with today's
+        // roster truth, re-opening it if a navigational answer resolved
+        // it. pushInbox's id dedupe used to eat the re-issue here and
+        // wedge the league silently, with the docstring's "re-issues the
+        // same pause" promise broken (#183). Only the CURRENT owed
+        // pick's item is ever re-opened; made picks stay resolved.
+        existing.body = body;
+        existing.resolved = false;
+      } else {
+        pushInbox(league, {
+          id,
+          date: currentDate(league),
+          kind: 'decision',
+          title: `On the clock: round ${slot.round}, pick ${slot.pickInRound}`,
+          body,
+          choices: [{ id: 'open-draft', label: 'Go to the draft board' }],
+          resolved: false,
+        });
+      }
       return false;
     }
     const team = league.teams[slot.teamId]!;
@@ -697,6 +719,12 @@ function performAction(league: League, action: UserAction): ActionResult {
       const slot = order[made];
       if (!slot || slot.teamId !== league.userTeam) return deny('it is not your pick');
       if (!availableProspects(league).includes(action.playerId)) return deny('that prospect is not on the board');
+      // the 15-man wall is a validation failure, not a thrown 500: this
+      // function's contract says errors return, never throw (#183). Same
+      // wording as executeDraftSelection's own backstop.
+      if (team.roster.length >= league.params.cba.rosterMax) {
+        return deny(`roster already at the ${league.params.cba.rosterMax}-man maximum; clear a spot before the pick`);
+      }
       executeDraftSelection(league, league.userTeam, action.playerId, slot.round, slot.pickInRound);
       const pause = league.inbox.find((i) => i.id === draftPauseId(league.season, made + 1));
       if (pause) pause.resolved = true;

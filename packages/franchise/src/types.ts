@@ -807,6 +807,11 @@ export type SimulateJobs = (jobs: GameJob[]) => Promise<GameJobResult[]> | GameJ
 // ---------------------------------------------------------------------------
 // save file
 
+// The load check is STRICT equality (app/saves.ts), so a bump refuses
+// every existing save. Additive params keys are NOT a bump: they fill
+// from defaults on load (withFranchiseParams in app/saves.ts - the #184
+// wire dials landed this way). Bump only for structural breaks the
+// loader cannot default.
 export const SAVE_FORMAT_VERSION = 1;
 
 export interface SaveFile {
