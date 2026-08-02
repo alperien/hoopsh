@@ -176,6 +176,19 @@ function temperatureFor(gapFrac: number): Negotiation['temperature'] {
   return 'cold';
 }
 
+/**
+ * Consummated talks leave the rumor mill: drop the pair's negotiation
+ * memory once a deal executes (the wire story replaces the smoke).
+ * Called by the AI-AI pulse below and by the user's inbox accept
+ * (tick.ts respondToRequest). Mutates only league.negotiations.
+ */
+export function clearNegotiation(league: League, a: TeamId, b: TeamId): void {
+  const idx = league.negotiations.findIndex(
+    n => (n.teams[0] === a && n.teams[1] === b) || (n.teams[0] === b && n.teams[1] === a),
+  );
+  if (idx >= 0) league.negotiations.splice(idx, 1);
+}
+
 // --------------------------------------------------------------------------
 // counters
 
@@ -527,7 +540,7 @@ function summarizeOffer(league: League, offer: TradeOffer): string {
   const from = league.teams[offer.from]!;
   return `${frontOfficeName(from)} (${from.abbrev}) offers ${names(offer.give.players, offer.give.picks, offer.from)} `
     + `for ${names(offer.get.players, offer.get.picks, offer.to)}. `
-    + `Respond from the trade desk; the live offer is on file.`;
+    + `Accept executes the deal as offered; the live offer is on file at the trade desk to counter.`;
 }
 
 /**
@@ -536,8 +549,10 @@ function summarizeOffer(league: League, offer: TradeOffer): string {
  * both bars and league law execute immediately (capped at ONE trade per
  * pulse day - the wire should crackle, not spam); when the natural
  * counterparty is the user's team, the offer lands as an inbox decision
- * (Accept/Decline/Counter) with the live offer stashed in
- * league.negotiations for the trade desk to read - never auto-executed.
+ * (Accept/Decline/Counter) carrying a frozen copy of the offer - accept
+ * executes exactly that copy (tick.ts respondToRequest) - with the live
+ * offer also stashed in league.negotiations for the trade desk to read.
+ * Never auto-executed against a human chair.
  * All randomness from the registered 'trade:<season>:<day>' stream.
  * Returns the transactions it executed (empty most days).
  */
@@ -568,6 +583,9 @@ export function aiTradePulse(league: League): Transaction[] {
         kind: 'decision',
         title: `Trade offer from ${league.teams[pair.buyer]!.city}`,
         body: summarizeOffer(league, offer),
+        // frozen copy: the stash below is live desk memory and can move
+        // under later talks; the item must execute what it promised
+        offer: cloneOffer(offer),
         choices: [
           { id: 'accept', label: 'Accept' },
           { id: 'decline', label: 'Decline' },
@@ -589,11 +607,6 @@ export function aiTradePulse(league: League): Transaction[] {
 
   // AI-AI: both bars cleared inside assembleOffer; executeTrade re-validates
   const tx = executeTrade(league, offer);
-  // consummated talks leave the rumor mill: the wire story replaces the smoke
-  const negIdx = league.negotiations.findIndex(
-    n => (n.teams[0] === pair.buyer && n.teams[1] === pair.seller)
-      || (n.teams[0] === pair.seller && n.teams[1] === pair.buyer),
-  );
-  if (negIdx >= 0) league.negotiations.splice(negIdx, 1);
+  clearNegotiation(league, pair.buyer, pair.seller);
   return [tx]; // cap: one AI-AI trade per pulse day, by construction
 }

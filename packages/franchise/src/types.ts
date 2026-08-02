@@ -669,6 +669,15 @@ export interface InboxItem {
   body: string;
   /** present on decision items; choices map to respondToRequest actions */
   choices?: Array<{ id: string; label: string }>;
+  /**
+   * The live trade proposal this decision item answers, frozen at post
+   * time (a copy, never a reference into league.negotiations: intervening
+   * desk talks may move the stash, and a loaded save must answer exactly
+   * like the live session that wrote it). 'accept' executes exactly this
+   * offer (tick.ts respondToRequest); absent on notices and on decision
+   * items whose choices are navigational.
+   */
+  offer?: TradeOffer;
   deadline?: LeagueDate;
   resolved: boolean;
 }

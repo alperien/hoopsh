@@ -14,6 +14,9 @@ import { abilityScore, fairAav, offerNet, pickValue, playerValue } from '../src/
 import { aiTradePulse, respondToOffer } from '../src/ai/trade.js';
 import { validateTrade } from '../src/cba/tradelegal.js';
 import { executeTrade } from '../src/transactions.js';
+import { applyUserAction } from '../src/tick.js';
+import { expireInboxDeadlines } from '../src/inbox.js';
+import { streamRng } from '../src/rng.js';
 import { fixtureLeague } from './fixture.js';
 
 // ---------------------------------------------------------------- helpers
@@ -481,5 +484,112 @@ describe('aiTradePulse', () => {
     league.day = league.params.calendar.tradeDeadlineDayIndex + 1;
     expect(aiTradePulse(league).length).toBe(0);
     expect(league.transactions.length).toBe(0);
+  });
+});
+
+// ------------------------------------------------- the accept path (#158)
+
+/**
+ * The response side of the pulse's user offer: before this battery, the
+ * inbox asked Accept/Decline/Counter and the accept executed NOTHING
+ * (issue #158) - the offer lived only in negotiations.lastOffer, which no
+ * endpoint served. The contract pinned here: the item carries a frozen
+ * copy of the offer, accept executes exactly that copy, every other exit
+ * (decline, expiry, dead deal) leaves rosters untouched, and a persona-run
+ * user seat can never reach the path at all.
+ */
+describe('the trade-offer accept path (#158)', () => {
+  it('the inbox item carries a frozen copy of the live offer', () => {
+    const { league } = pulseLeague(USER);
+    aiTradePulse(league);
+    const item = league.inbox[0]!;
+    expect(item.offer).toBeDefined();
+    expect(JSON.stringify(item.offer)).toBe(JSON.stringify(league.negotiations[0]!.lastOffer));
+  });
+
+  it('accept executes exactly the offer the item posted, even after the stash moves', () => {
+    const { league, vet } = pulseLeague(USER);
+    aiTradePulse(league);
+    const item = league.inbox[0]!;
+    const posted = structuredClone(item.offer!);
+    expect(posted.give.players.length + posted.give.picks.length).toBeGreaterThan(0);
+    // intervening desk talks move the live stash IN PLACE; the item's
+    // frozen copy must not care (a shared reference dies here)
+    league.negotiations[0]!.lastOffer.give.players.length = 0;
+    league.negotiations[0]!.lastOffer.give.picks.length = 0;
+    const result = applyUserAction(league, { kind: 'respondToRequest', requestId: item.id, choice: 'accept' });
+    expect(result.ok).toBe(true);
+    expect(item.resolved).toBe(true);
+    // the buyer got his man; every posted piece landed where it was promised
+    expect(league.teams[AI_A]!.roster).toContain(vet);
+    for (const pid of posted.give.players) expect(league.teams[USER]!.roster).toContain(pid);
+    for (const pickId of posted.give.picks) {
+      expect(league.teams[USER]!.picks.some(p => p.id === pickId)).toBe(true);
+    }
+    expect(league.transactions.filter(t => t.kind === 'trade').length).toBe(1);
+    // consummated talks leave the rumor mill (the AI-AI discipline)
+    expect(league.negotiations.length).toBe(0);
+  });
+
+  it('decline resolves the item and leaves the world untouched', () => {
+    const { league } = pulseLeague(USER);
+    aiTradePulse(league);
+    const item = league.inbox[0]!;
+    const before = JSON.stringify({ teams: league.teams, players: league.players, transactions: league.transactions });
+    const result = applyUserAction(league, { kind: 'respondToRequest', requestId: item.id, choice: 'decline' });
+    expect(result.ok).toBe(true);
+    expect(item.resolved).toBe(true);
+    expect(JSON.stringify({ teams: league.teams, players: league.players, transactions: league.transactions })).toBe(before);
+    // a phone no is not a consummation: the rumor mill keeps its smoke
+    expect(league.negotiations.length).toBe(1);
+  });
+
+  it('an ignored offer expires by the morning sweep without executing', () => {
+    const { league, vet } = pulseLeague(USER);
+    aiTradePulse(league);
+    const item = league.inbox[0]!;
+    const before = JSON.stringify({ teams: league.teams, transactions: league.transactions });
+    league.day = item.deadline!.day + 1; // the clock runs out unanswered
+    expireInboxDeadlines(league);
+    expect(item.resolved).toBe(true);
+    expect(JSON.stringify({ teams: league.teams, transactions: league.transactions })).toBe(before);
+    expect(league.teams[USER]!.roster).toContain(vet);
+  });
+
+  it('a dead deal denies the accept and leaves the item open', () => {
+    const { league, vet } = pulseLeague(USER);
+    aiTradePulse(league);
+    const item = league.inbox[0]!;
+    // the asked-for vet leaves the roster before the user answers
+    const team = league.teams[USER]!;
+    team.roster = team.roster.filter(pid => pid !== vet);
+    league.players[vet]!.status = 'freeAgent';
+    const result = applyUserAction(league, { kind: 'respondToRequest', requestId: item.id, choice: 'accept' });
+    expect(result.ok).toBe(false);
+    expect(item.resolved).toBe(false); // saying no to a dead deal is still the user's word
+    expect(league.transactions.length).toBe(0);
+  });
+
+  it('a persona-run user seat never reaches the path: the pulse trades AI-AI instead', () => {
+    const { league, vet } = pulseLeague(USER);
+    league.teams[USER]!.gm = generatePersona(streamRng(league.seed, 'genesis', 'user-gm'));
+    const txs = aiTradePulse(league);
+    expect(txs.length).toBe(1); // executed on the wire, no human in the loop
+    expect(league.inbox.length).toBe(0);
+    expect(league.inbox.some(i => i.offer !== undefined)).toBe(false);
+    expect(league.teams[AI_A]!.roster).toContain(vet);
+  });
+
+  it('a loaded save answers exactly like the live session', () => {
+    const { league } = pulseLeague(USER);
+    aiTradePulse(league);
+    const loaded = JSON.parse(JSON.stringify(league)) as League;
+    const item = league.inbox[0]!;
+    for (const l of [league, loaded]) {
+      const result = applyUserAction(l, { kind: 'respondToRequest', requestId: item.id, choice: 'accept' });
+      expect(result.ok).toBe(true);
+    }
+    expect(JSON.stringify(loaded.teams)).toBe(JSON.stringify(league.teams));
+    expect(JSON.stringify(loaded.transactions)).toBe(JSON.stringify(league.transactions));
   });
 });

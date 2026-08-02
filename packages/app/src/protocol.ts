@@ -34,6 +34,7 @@
  *   GET  /api/records              -> { records: RecordBookEntry[] }
  *   POST /api/action               -> { action: UserAction }; ActionResult (validation errors inline)
  *   POST /api/trade/evaluate       -> { offer: TradeOffer }; TradeVerdict (no execution)
+ *   GET  /api/trade/negotiations   -> { negotiations: Negotiation[] } (the user's live talks; pure read, #158)
  *   POST /api/sim/advance          -> { days?: number; toDate?: LeagueDate; stopOnInbox?: boolean }; { started: true }
  *   GET  /api/sim/status           -> SimStatus (poll during advance)
  *   POST /api/sim/watch/:gameId    -> { ok: true } (mark today's user game for full-event watch mode)
