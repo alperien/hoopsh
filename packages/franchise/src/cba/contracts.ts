@@ -38,7 +38,7 @@
  *   (research 06 4: 3+ YOS one-year minimums hit the cap at the 2-YOS
  *   rate); minimums count at face value.
  */
-import type { Contract, ContractYear, FrPlayer, League, Season, SigningMeans, TeamId } from '../types.js';
+import type { Contract, ContractYear, FrPlayer, League, PlayerId, Season, SigningMeans, TeamId } from '../types.js';
 import { capSheet } from './cap.js';
 
 /**
