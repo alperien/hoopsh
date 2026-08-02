@@ -24,6 +24,7 @@ const SOURCES = [
   'AGENTS.md',
   'docs/PLAYBOOK.md',
   'docs/EMBEDDING.md',
+  'docs/CONTRACT.md',
   'docs/ROSTERS.md',
   'docs/SEASON.md',
   'docs/BROADCAST.md',

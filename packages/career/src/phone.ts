@@ -27,8 +27,11 @@
  *    the agent is transactional and slightly too smooth; the rival
  *    needles; media asks loaded questions; recruiters write in the
  *    formal register; the mentor has seen everything twice; the wire
- *    writes like a beat reporter under one fixed byline (K. Osei, The
- *    Ledger) and quotes real numbers in every line.
+ *    writes like a beat reporter under one byline held for the whole
+ *    career and quotes real numbers in every line. The named identities
+ *    behind these voices (the advisor, the agent, the beat writer, the
+ *    wire byline) are the seeded home cast (phone-shared.ts, issue
+ *    #109): stable for a career's life, different in the next one.
  * 4. Choices only where a real decision exists: scheduling the
  *    recruiting visit, answering media, engaging the rival, the family
  *    ask, and the role-promise grievance. Everything else is read-only
@@ -59,6 +62,11 @@
  *   career-phone-close:<programId>   the losing finalist's door-close
  *                                    temperature (classy or bitter); one
  *                                    chance draw, personality is stable
+ *   career-cast:<identity>           the home cast (agent, advisor,
+ *                                    writer, wire): one pick per
+ *                                    identity, no week in the path —
+ *                                    the people around a career are
+ *                                    people, not fixtures (issue #109)
  *
  * Module map (the surface, split along its seams):
  *   phone-shared.ts      texture constants, shared lookups, the Candidate contract
@@ -69,11 +77,19 @@
  *   phone-press.ts       the beat writer and the wire desk
  *   phone-recruiting.ts  recruiter threads and closing-window warnings
  *   phone-summits.ts     the cap-exempt payoff bursts
+ *   phone-arcs.ts        the formative arcs: offseason, draftPrep, and
+ *                        entry-gap texture for the windows nothing else
+ *                        can speak in (issue #105)
  * This file keeps the public surface: generatePhone and applyPhoneChoice.
  */
 import { clamp } from '@hoopsh/engine';
+import type { AttrGroup } from '@hoopsh/franchise';
 import { streamRng } from '@hoopsh/franchise';
 import { agentCandidates, promiseCandidates } from './phone-agent.js';
+import {
+  TRAINABLE_GROUPS, draftPrepArcCandidates, entryArcCandidates,
+  offseasonArcCandidates,
+} from './phone-arcs.js';
 import {
   familyCandidates, mentorCandidates, rivalCandidates, teammateCandidates,
 } from './phone-circle.js';
@@ -129,6 +145,12 @@ export function generatePhone(career: CareerState): PhoneMessage[] {
   wireCandidates(career, candidates);
   recruiterCandidates(career, candidates);
   lapseWarningCandidates(career, candidates);
+  // the formative arcs: the offseason, the pre-combine block, and the
+  // draft-to-camp gap - the windows every builder above is structurally
+  // silent in (issue #105). Capped and cooled like everything else.
+  offseasonArcCandidates(career, candidates);
+  draftPrepArcCandidates(career, candidates);
+  entryArcCandidates(career, candidates);
   commitmentCandidates(career, candidates);
   draftNightCandidates(career, candidates);
   debutCandidates(career, candidates);
@@ -356,6 +378,28 @@ export function applyPhoneChoice(career: CareerState, messageId: string, choiceI
       pushChoiceEvent(career, messageId, 1, 'morale',
         'drew the line under the promise; self-respect is a stat too', PROMISE_DEMAND_MORALE);
     }
+    return { ok: true, errors: [] };
+  }
+
+  // the formative-arc assignment (phone-arcs.ts): the staff's read becomes
+  // the standing focus only when the player says so - the plan is his, and
+  // both answers are explained so neither reads as a silent consequence.
+  // A later setWeekPlan overrides freely; this is a shortcut, not a lock.
+  if (choiceId === 'arc-focus-keep') {
+    msg.chosen = choiceId;
+    pushChoiceEvent(career, messageId, 0, 'dev',
+      `kept his own program: the training focus stays ${career.weekPlan.focus}`);
+    return { ok: true, errors: [] };
+  }
+  if (choiceId.startsWith('arc-focus:')) {
+    const group = choiceId.slice('arc-focus:'.length) as AttrGroup;
+    if (!TRAINABLE_GROUPS.includes(group)) {
+      return { ok: false, errors: [`career/phone: message '${messageId}' names no trainable group '${group}'`] };
+    }
+    msg.chosen = choiceId;
+    career.weekPlan.focus = group;
+    pushChoiceEvent(career, messageId, 0, 'dev',
+      `took the staff assignment: extra work moves to ${group}`);
     return { ok: true, errors: [] };
   }
 

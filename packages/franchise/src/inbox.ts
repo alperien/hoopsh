@@ -30,9 +30,13 @@
  * produce one item per event. Decision items carry a deadline and the
  * spine's morning sweep (expireInboxDeadlines) retires them once the date
  * passes: an ignored decision must never wedge the advance loop past its
- * real-world expiry. Dead time is this mode's worst failure; the second
- * worst is spam. Every generator filters for relevance to the user's
- * team, its posture, or its watched players before it speaks.
+ * real-world expiry. Notices retire on the same sweep (#187): most carry
+ * a deadline sized to their real lifetime, injury notices retire on state
+ * when the player returns, and season rollover clears the stragglers. An
+ * immortal notice is spam on a delay; the sidebar badge counts unresolved
+ * items and must mean "new". Dead time is this mode's worst failure; the
+ * second worst is spam. Every generator filters for relevance to the
+ * user's team, its posture, or its watched players before it speaks.
  */
 import type { InboxItem, League, LeagueDate, PlayerId, TeamId } from './types.js';
 import { currentDate, optionDecisionDay } from './calendar.js';
@@ -72,17 +76,64 @@ function alreadyPosted(league: League, id: string): boolean {
 }
 
 /**
- * Retire unresolved items whose deadline strictly passed. Wires the
- * previously unconsumed InboxItem.deadline field: deadline means "the
- * last day the decision can still be acted on". Called by the spine every
- * morning (tick.ts); mutates only item.resolved flags. Runs for every
- * chair (state hygiene, a no-op while no deadlined items exist).
+ * Injury notice ids name their subject: `injury-s{season}d{day}-{pid}`
+ * (injuryEscalations). The sweep parses the id to find the player and the
+ * exact injury the notice reported; the format is load-bearing coupling
+ * between the generator and this parser, both in this file.
+ */
+const INJURY_NOTICE_ID = /^injury-s(\d+)d(\d+)-(.+)$/;
+
+/**
+ * True when an injury notice stopped describing a live fact (#187): the
+ * player returned (advanceRecoveries cleared the injury this same
+ * morning, before the sweep - tick.ts order), left the user's roster, or
+ * went down again since (the fresh injury posts its own notice; the old
+ * one is overtaken).
+ */
+function injuryNoticeStale(league: League, id: string): boolean {
+  const m = INJURY_NOTICE_ID.exec(id);
+  if (!m) return false;
+  const pid = m[3]!;
+  const team = league.teams[league.userTeam]!;
+  if (!team.roster.includes(pid) && !team.twoWay.includes(pid)) return true;
+  const injury = league.players[pid]?.health.injury;
+  if (!injury) return true;
+  return injury.startedOn.season !== Number(m[1]) || injury.startedOn.day !== Number(m[2]);
+}
+
+/**
+ * The morning retirement sweep: an item leaves the active inbox the
+ * morning it stops being true. Called by the spine every morning
+ * (tick.ts, after advanceRecoveries); mutates only item.resolved flags.
+ * Runs for every chair (state hygiene).
+ *
+ * Two retirement laws:
+ * - Deadline lapse: deadline means "the last day the item can still be
+ *   acted on"; the strict compare retires it the morning after. The
+ *   deadline-day call bends this on purpose - it posts on the eve with
+ *   deadline = the eve, so ignoring it costs exactly one stop and never
+ *   re-stops past the freeze (#186, see deadlineDayCall). Notices carry
+ *   deadlines too, sized to their real lifetime (#187): a window brief
+ *   lives to the freeze, a ritual lives its day.
+ * - State truth, for notices whose lifetime no clock knows (#187): an
+ *   injury notice retires when the player is back, gone, or hurt anew
+ *   (injuryNoticeStale), and season rollover retires any notice still
+ *   standing from a past season - the backstop that also clears saves
+ *   written before notices retired at all. Decisions never ride the
+ *   backstop: an unanswered decision keeps stopping the loop by design.
  */
 export function expireInboxDeadlines(league: League): void {
   const today = currentDate(league);
   for (const item of league.inbox) {
-    if (item.resolved || !item.deadline) continue;
-    if (dateLt(item.deadline, today)) item.resolved = true;
+    if (item.resolved) continue;
+    if (item.deadline) {
+      if (dateLt(item.deadline, today)) item.resolved = true;
+      continue;
+    }
+    if (item.kind !== 'notice') continue;
+    if (item.date.season < today.season || injuryNoticeStale(league, item.id)) {
+      item.resolved = true;
+    }
   }
 }
 
@@ -91,7 +142,9 @@ export function expireInboxDeadlines(league: League): void {
 /** Deadline season opens: one notice with the user's expiring books. */
 function deadlineWindowBrief(league: League, items: InboxItem[]): void {
   if (!inDeadlineWindow(league)) return;
-  if (league.day === tradeDeadlineDay(league)) return; // the day itself gets the louder item
+  // the eve and the day belong to the louder deadline-day call (#186); a
+  // brief with no shopping days left is noise next to it
+  if (league.day >= tradeDeadlineDay(league) - 1) return;
   const id = `deadline-window-s${league.season}`;
   if (alreadyPosted(league, id)) return;
   const team = league.teams[league.userTeam]!;
@@ -105,6 +158,9 @@ function deadlineWindowBrief(league: League, items: InboxItem[]): void {
   items.push({
     id, date: currentDate(league), kind: 'notice',
     title: 'Deadline season opens', body: lines.join(' '), resolved: false,
+    // the brief lives exactly as long as the window it announces: the
+    // sweep retires it the morning the wire freezes (#187)
+    deadline: { season: league.season, day: tradeDeadlineDay(league) },
   });
 }
 
@@ -146,11 +202,24 @@ function bestSellCandidate(league: League): { playerId: PlayerId; buyer: TeamId 
  * Deadline day: the one decision item of the season's loudest week. The
  * body is posture-aware simulated truth: the same pickSellerTarget and
  * playerValue reads the pulse itself trades on, never invented flavor.
- * Expires at close of business (the morning sweep), so ignoring it costs
- * exactly one stop.
+ *
+ * Posted on the EVE of the deadline, not the day itself (#186). The app's
+ * advance loop checks for stops between ticks, and the freeze applies
+ * inside deadline day's own tick (aiTradePulse runs before the desk
+ * speaks): an item posted on deadline day can only stop the clock at
+ * deadline+1, deep-linking to a desk that answers "the deadline has
+ * passed". Posted on the eve, the stop lands on deadline morning with the
+ * desk open (tradingFrozen is strict-greater), and the body's board reads
+ * are the exact state the desk evaluates at that stop - nothing moves
+ * between the eve tick's close and the user's morning call.
+ *
+ * The deadline field is the post date (the eve), so the morning sweep
+ * retires an ignored call during deadline day's own tick: ignoring it
+ * costs exactly one stop, and the open-decision check in the advance loop
+ * cannot re-stop at deadline+1 on a call that is already dead.
  */
 function deadlineDayCall(league: League, items: InboxItem[]): void {
-  if (league.phase !== 'regular' || league.day !== tradeDeadlineDay(league)) return;
+  if (league.phase !== 'regular' || league.day !== tradeDeadlineDay(league) - 1) return;
   const id = `deadline-day-s${league.season}`;
   if (alreadyPosted(league, id)) return;
   const timeline = league.teams[league.userTeam]!.strategy.timeline;
@@ -219,6 +288,9 @@ function deadlineWrap(league: League, items: InboxItem[]): void {
     id, date: currentDate(league), kind: 'notice',
     title: 'Deadline wrap',
     body: `${windowTrades.length} deal${windowTrades.length === 1 ? '' : 's'} cleared in deadline season. On your radar: ${relevant.slice(0, 3).join('; ')}.`,
+    // a same-day wrap: tomorrow it is yesterday's news, and the archive
+    // belongs to the news desk (#187)
+    deadline: { season: league.season, day: league.day },
     resolved: false,
   });
 }
@@ -272,6 +344,9 @@ function offerSheetResults(league: League, items: InboxItem[]): void {
         body: tx.matched
           ? `${league.teams[tx.teamId]?.city ?? tx.teamId} matched your offer sheet. ${name} stays put.`
           : `${league.teams[tx.teamId]?.city ?? tx.teamId} declined to match. ${name} is yours at the sheet terms.`,
+        // sheet results are day-of events: read at the stop, retired by
+        // the next morning's sweep (#187)
+        deadline: today,
         resolved: false,
       });
     } else if (tx.teamId === league.userTeam && !tx.matched) {
@@ -285,6 +360,7 @@ function offerSheetResults(league: League, items: InboxItem[]): void {
         id, date: today, kind: 'notice',
         title: `${name} signed away`,
         body: `The match window on ${name} lapsed. He signs with ${to}.`,
+        deadline: today,
         resolved: false,
       });
     }
@@ -319,7 +395,12 @@ function optionsDue(league: League, items: InboxItem[]): void {
   const lines = ['Option and tender decisions land across the league today.'];
   if (options.length > 0) lines.push(`On your books: ${options.join(', ')}. Undecided options ride as exercised at the rollover.`);
   if (tenders.length > 0) lines.push(`Qualifying offers out to: ${tenders.join(', ')}. Your tenders stand unless you renounce the rights.`);
-  items.push({ id, date: currentDate(league), kind: 'notice', title: 'Option day', body: lines.join(' '), resolved: false });
+  // the ritual is the day: decisions land today and the documented
+  // defaults answer silence, so by tomorrow the item is spent (#187)
+  items.push({
+    id, date: currentDate(league), kind: 'notice', title: 'Option day', body: lines.join(' '),
+    deadline: { season: league.season, day: league.day }, resolved: false,
+  });
 }
 
 /** Free agency opens: the user's own market exposure and cap position, once. */
@@ -339,7 +420,12 @@ function faOpening(league: League, items: InboxItem[]): void {
   const lines = ['Free agency is open. Signings are legal as of this morning.'];
   if (own.length > 0) lines.push(`Your own free agents: ${own.join(', ')}. Rights held until signed or renounced.`);
   if (cap > 0) lines.push(`Payroll ${money(sheet.total)} against a ${money(cap)} cap.`);
-  items.push({ id, date: currentDate(league), kind: 'notice', title: 'Free agency opens', body: lines.join(' '), resolved: false });
+  // opening-morning ritual: the market snapshot is stale by the next
+  // sweep, and the running FA story belongs to the news desk (#187)
+  items.push({
+    id, date: currentDate(league), kind: 'notice', title: 'Free agency opens', body: lines.join(' '),
+    deadline: { season: league.season, day: league.day }, resolved: false,
+  });
 }
 
 /**
@@ -358,6 +444,9 @@ function injuryEscalations(league: League, items: InboxItem[]): void {
     const id = `injury-s${today.season}d${today.day}-${pid}`;
     if (alreadyPosted(league, id)) continue;
     const starter = team.rotation.starters.includes(pid);
+    // no deadline on purpose: "about N days" is an estimate, not a clock.
+    // The sweep retires this on state the morning he returns, leaves, or
+    // goes down again - injuryNoticeStale parses the id (#187).
     items.push({
       id, date: today, kind: 'notice',
       title: `${p.name} out about ${injury.outDays} days`,

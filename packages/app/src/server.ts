@@ -113,6 +113,7 @@ async function runAdvance(state: AppState, days: number, stopOnInbox: boolean): 
   state.sim.stoppedFor = null;
   try {
     for (let i = 0; i < days; i++) {
+      const before = { season: league.season, day: league.day };
       const digest = await advanceDay(league, state.pool);
       state.lastDigest = digest;
       // stamp replay files onto today's user/featured games (the worker
@@ -122,11 +123,24 @@ async function runAdvance(state: AppState, days: number, stopOnInbox: boolean): 
         const record = league.results[gid];
         if (record && existsSync(file)) record.replayFile = file;
       }
-      state.sim.daysDone = i + 1;
+      // daysDone counts days the CALENDAR completed, not loop iterations:
+      // draft night holds the day for the user's pick, and a held day is
+      // not progress (#183 reported daysDone: 400 with the calendar
+      // unmoved). A season rollover resets day to 0 with season moved on.
+      const dayMoved = league.season !== before.season || league.day !== before.day;
+      if (dayMoved) state.sim.daysDone += 1;
       state.sim.currentDay = { season: league.season, day: league.day };
       state.sim.digests.push(digest);
       if (state.sim.digests.length > state.sim.digestCap) state.sim.digests.shift();
       const openDecisions = league.inbox.some(x => !x.resolved && x.kind === 'decision');
+      if (!dayMoved) {
+        // the day is holding for the user; every further iteration would
+        // be the same no-op. Stop as an inbox stop: the franchise
+        // re-issues the clock item whenever the day holds (#183), so an
+        // open decision is what this stop points at.
+        state.sim.stoppedFor = 'inbox';
+        break;
+      }
       if (stopOnInbox && (digest.inboxIds.length > 0 || openDecisions) && i < days - 1) {
         state.sim.stoppedFor = 'inbox';
         break;

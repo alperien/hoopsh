@@ -11,7 +11,7 @@
  */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { SAVE_FORMAT_VERSION, type League, type SaveFile } from '@hoopsh/franchise';
+import { SAVE_FORMAT_VERSION, withFranchiseParams, type League, type SaveFile } from '@hoopsh/franchise';
 import { CAREER_SAVE_FORMAT_VERSION, type CareerSave, type CareerState } from '@hoopsh/career';
 
 /** out/saves under the repo root (worker/server both run from the root). */
@@ -45,6 +45,11 @@ export function loadLeague(name: string): League {
   if (save.formatVersion !== SAVE_FORMAT_VERSION) {
     throw new Error(`save format ${save.formatVersion} is not supported (current ${SAVE_FORMAT_VERSION})`);
   }
+  // Additive params keys (the #184 wire dials and any dial after them)
+  // fill from defaults here, so a save written before a key existed
+  // stays loadable without a format bump - the strict check above makes
+  // a bump refuse every existing save. Saved values always win.
+  save.league.params = withFranchiseParams(save.league.params);
   return save.league;
 }
 
@@ -74,6 +79,9 @@ export function loadCareer(name: string): CareerState {
   if (career.players[career.me] && career.league.players[career.me]) {
     career.players[career.me] = career.league.players[career.me]!;
   }
+  // same additive-params contract as loadLeague: the embedded league's
+  // params fill new keys from defaults so old career saves keep loading
+  career.league.params = withFranchiseParams(career.league.params);
   return career;
 }
 

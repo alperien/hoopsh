@@ -17,7 +17,7 @@ import type {
 import { buildSeasonCalendar, optionDecisionDay } from '../src/calendar.js';
 import { expireInboxDeadlines, generateGmInbox } from '../src/inbox.js';
 import { advanceDay, applyUserAction } from '../src/tick.js';
-import { aiTradePulse } from '../src/ai/trade.js';
+import { aiTradePulse, respondToOffer } from '../src/ai/trade.js';
 import { fixtureLeague } from './fixture.js';
 
 const USER = 'nye';
@@ -79,26 +79,38 @@ describe('generateGmInbox: the deadline ritual', () => {
     const brief = items.find((i) => i.id === `deadline-window-s${league.season}`);
     expect(brief).toBeDefined();
     expect(brief!.kind).toBe('notice');
+    // the brief carries its own retirement: it dies with the window (#187)
+    expect(brief!.deadline).toEqual({ season: league.season, day: DEADLINE });
     expect(brief!.body).toContain(league.players[rental]!.name);
     // once per season: a second pass with the item on the record stays quiet
     league.inbox.push(brief!);
     expect(ids(generateGmInbox(league))).not.toContain(brief!.id);
   });
 
-  it('stops the clock on deadline day with a decision that expires at close of business', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
-    const items = generateGmInbox(league);
-    const call = items.find((i) => i.id === `deadline-day-s${league.season}`);
+  it('posts the deadline call on the eve, so the stop it creates lands with the desk open (#186)', () => {
+    const eve = calendarLeague(DEADLINE - 1, 'regular');
+    const items = generateGmInbox(eve);
+    const call = items.find((i) => i.id === `deadline-day-s${eve.season}`);
     expect(call).toBeDefined();
     expect(call!.kind).toBe('decision');
     expect(call!.choices!.length).toBeGreaterThan(0);
-    expect(call!.deadline).toEqual({ season: league.season, day: DEADLINE });
-    // the window brief never doubles up with the day item
-    expect(ids(items)).not.toContain(`deadline-window-s${league.season}`);
+    // deadline = the post date: the sweep retires an ignored call during
+    // deadline day's own tick, so the loop cannot re-stop at deadline+1
+    expect(call!.deadline).toEqual({ season: eve.season, day: DEADLINE - 1 });
+    // the eve belongs to the call alone; the window brief stays quiet
+    expect(ids(items)).not.toContain(`deadline-window-s${eve.season}`);
+    // deadline day itself posts nothing: its tick ends past the freeze,
+    // and a stop past the freeze is the #186 pathology
+    const day = calendarLeague(DEADLINE, 'regular');
+    const dayIds = ids(generateGmInbox(day));
+    expect(dayIds).not.toContain(`deadline-day-s${day.season}`);
+    // the window brief stays quiet on the day too (pin restored per the
+    // #213 review: the eve and the day both belong to the call)
+    expect(dayIds).not.toContain(`deadline-window-s${day.season}`);
   });
 
   it('frames deadline day from the trade desk truth: a contender sees the sellers\' best rental', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     league.teams[USER]!.strategy.timeline = 'contend';
     league.teams[AI_A]!.strategy.timeline = 'rebuild';
     const rental = league.teams[AI_A]!.roster[0]!;
@@ -161,6 +173,8 @@ describe('generateGmInbox: the rest of the desk', () => {
     const item = generateGmInbox(league).find((i) => i.id === `options-due-s${league.season}`);
     expect(item).toBeDefined();
     expect(item!.kind).toBe('notice');
+    // the ritual lives its day and not a morning longer (#187)
+    expect(item!.deadline).toEqual({ season: league.season, day: league.day });
     expect(item!.body).toContain(league.players[optioned]!.name);
     expect(item!.body).toContain('team option');
   });
@@ -179,6 +193,7 @@ describe('generateGmInbox: the rest of the desk', () => {
     league.freeAgents.push(fa);
     const item = generateGmInbox(league).find((i) => i.id === `fa-open-s${league.season}`);
     expect(item).toBeDefined();
+    expect(item!.deadline).toEqual({ season: league.season, day: league.day }); // opening-day ritual (#187)
     expect(item!.body).toContain(p.name);
   });
 
@@ -197,6 +212,8 @@ describe('generateGmInbox: the rest of the desk', () => {
     const items = generateGmInbox(league);
     const hole = items.find((i) => i.id === `injury-s${league.season}d${league.day}-${starter}`);
     expect(hole).toBeDefined();
+    // state-retired, never clock-retired: "about 14 days" is an estimate (#187)
+    expect(hole!.deadline).toBeUndefined();
     expect(hole!.body).toContain('rotation needs an answer');
     // day-to-day knocks are noise: the desk stays quiet about the minor one
     expect(ids(items)).not.toContain(`injury-s${league.season}d${league.day}-${bench}`);
@@ -206,13 +223,14 @@ describe('generateGmInbox: the rest of the desk', () => {
   });
 
   it('generates nothing for a persona-run chair: acceptance identity holds by construction', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+    // the eve: the day the desk would speak loudest for a human chair (#186)
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     league.teams[USER]!.gm = { ...persona };
     expect(generateGmInbox(league)).toEqual([]);
   });
 
   it('is a pure function of state: repeated calls return identical items', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     const a = generateGmInbox(league);
     const b = generateGmInbox(structuredClone(league));
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
@@ -244,21 +262,114 @@ describe('expireInboxDeadlines', () => {
     expect(byId['open-ended']).toBe(false); // no deadline: never swept
     expect(byId['last-season']).toBe(true); // season boundary counts as past
   });
+
+  it('retires a deadline-carrying notice exactly like a decision (#187)', () => {
+    const league = fixtureLeague({ teams: 4 });
+    league.day = 50;
+    const mk = (id: string, deadline?: { season: number; day: number }): InboxItem => ({
+      id, date: { season: league.season, day: 40 }, kind: 'notice',
+      title: id, body: id, resolved: false,
+      ...(deadline ? { deadline } : {}),
+    });
+    league.inbox.push(
+      mk('window-shut', { season: league.season, day: 49 }),
+      mk('window-open', { season: league.season, day: 55 }),
+      mk('clockless'),
+    );
+    expireInboxDeadlines(league);
+    const byId = Object.fromEntries(league.inbox.map((i) => [i.id, i.resolved]));
+    expect(byId['window-shut']).toBe(true);
+    expect(byId['window-open']).toBe(false);
+    // current season, no clock, no state rule: it stands until one applies
+    expect(byId['clockless']).toBe(false);
+  });
+
+  it('season rollover retires leftover notices but never decisions (#187)', () => {
+    const league = fixtureLeague({ teams: 4 });
+    league.day = 3;
+    const past = { season: league.season - 1, day: 200 };
+    league.inbox.push(
+      { id: 'old-notice', date: past, kind: 'notice', title: 'x', body: 'x', resolved: false },
+      {
+        id: 'old-decision', date: past, kind: 'decision', title: 'x', body: 'x',
+        choices: [{ id: 'x', label: 'x' }], resolved: false,
+      },
+    );
+    expireInboxDeadlines(league);
+    // the backstop clears notice spam from any past season - including
+    // saves written before notices retired at all (#187's two-season pile)
+    expect(league.inbox.find((i) => i.id === 'old-notice')!.resolved).toBe(true);
+    // an unanswered decision keeps stopping the loop by design
+    expect(league.inbox.find((i) => i.id === 'old-decision')!.resolved).toBe(false);
+  });
+
+  it('retires an injury notice when its fact dies: return, departure, or a fresh injury (#187)', () => {
+    const mk = (): { league: League; pid: PlayerId; id: string } => {
+      const league = fixtureLeague({ teams: 4 });
+      league.day = 60;
+      const pid = league.teams[USER]!.roster[0]!;
+      league.players[pid]!.health.injury = {
+        kind: 'hamstring-strain', label: 'strained left hamstring', severity: 'moderate',
+        startedOn: { season: league.season, day: 55 }, outDays: 14, remainingDays: 9,
+      };
+      const id = `injury-s${league.season}d55-${pid}`;
+      league.inbox.push({
+        id, date: { season: league.season, day: 55 }, kind: 'notice',
+        title: 'out', body: 'out', resolved: false,
+      });
+      return { league, pid, id };
+    };
+    // the injury is live: the notice stands
+    const live = mk();
+    expireInboxDeadlines(live.league);
+    expect(live.league.inbox.find((i) => i.id === live.id)!.resolved).toBe(false);
+    // the player returned: retired
+    const back = mk();
+    back.league.players[back.pid]!.health.injury = null;
+    expireInboxDeadlines(back.league);
+    expect(back.league.inbox.find((i) => i.id === back.id)!.resolved).toBe(true);
+    // the player left the roster: the rotation hole closed by departure
+    const gone = mk();
+    gone.league.teams[USER]!.roster = gone.league.teams[USER]!.roster.filter((p) => p !== gone.pid);
+    expireInboxDeadlines(gone.league);
+    expect(gone.league.inbox.find((i) => i.id === gone.id)!.resolved).toBe(true);
+    // a fresh injury superseded the old one: the new notice owns the story
+    const again = mk();
+    again.league.players[again.pid]!.health.injury!.startedOn = { season: again.league.season, day: 60 };
+    expireInboxDeadlines(again.league);
+    expect(again.league.inbox.find((i) => i.id === again.id)!.resolved).toBe(true);
+  });
 });
 
 // ----------------------------------------------------------- integration
 
 describe('the wired day: advanceDay feeds the inbox', () => {
-  it('deadline day lands in league.inbox and the digest, and expires next morning if ignored', async () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+  it('the eve tick posts the call, the stop stands on deadline morning with a live desk, and ignoring costs exactly one stop (#186)', async () => {
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     const digest = await advanceDay(league, noGames);
     const id = `deadline-day-s${league.season}`;
-    expect(digest.inboxIds).toContain(id);
+    expect(digest.inboxIds).toContain(id); // the eve tick triggers the stop
+    expect(league.day).toBe(DEADLINE); // the stop stands on deadline morning
     const item = league.inbox.find((i) => i.id === id)!;
     expect(item.resolved).toBe(false);
-    // the user ignores it; the next morning's sweep retires it
+    // the desk is OPEN at the stop: a dump-shaped call gets a live verdict,
+    // not the frozen one (#186's repro, through the real desk path). Probe
+    // a clone so negotiation memory never touches the advancing league.
+    const probe: Parameters<typeof respondToOffer>[1] = {
+      from: USER, to: AI_A,
+      give: { players: [league.teams[USER]!.roster[0]!], picks: [] },
+      get: { players: [], picks: [] },
+    };
+    const live = respondToOffer(structuredClone(league), probe);
+    expect(live.reasoning).not.toBe('the deadline has passed; call back in July');
+    // the user ignores the stop; deadline day's own tick retires the call
     await advanceDay(league, noGames);
     expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(true);
+    // no open decision remains: the advance loop cannot re-stop at deadline+1
+    expect(league.inbox.some((i) => !i.resolved && i.kind === 'decision')).toBe(false);
+    // and the same call now meets the freeze: the boundary flipped with the tick
+    const frozen = respondToOffer(structuredClone(league), probe);
+    expect(frozen.reasoning).toBe('the deadline has passed; call back in July');
   });
 
   it('same seed, same items: cloned leagues advance to identical inboxes', async () => {
@@ -278,6 +389,42 @@ describe('the wired day: advanceDay feeds the inbox', () => {
     league.teams[USER]!.gm = { ...persona };
     for (let i = 0; i < 3; i++) await advanceDay(league, noGames);
     expect(league.inbox.filter((i) => i.id.startsWith('deadline-')).length).toBe(0);
+  });
+
+  it('an injury notice retires the morning the player returns, through the real tick (#187)', async () => {
+    const league = calendarLeague(40, 'regular');
+    const starter = league.teams[USER]!.rotation.starters[0]!;
+    league.players[starter]!.health.injury = {
+      kind: 'hamstring-strain', label: 'strained left hamstring', severity: 'moderate',
+      startedOn: { season: league.season, day: league.day }, outDays: 3, remainingDays: 3,
+    };
+    const id = `injury-s${league.season}d${league.day}-${starter}`;
+    const digest = await advanceDay(league, noGames);
+    expect(digest.inboxIds).toContain(id); // posted the day he went down
+    expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(false);
+    // mid-recovery: still out, the notice stands
+    await advanceDay(league, noGames);
+    expect(league.players[starter]!.health.injury).not.toBe(null);
+    expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(false);
+    // recovery clears on the next morning, and the SAME morning's sweep
+    // retires the notice: advanceRecoveries runs before the sweep (tick.ts)
+    await advanceDay(league, noGames);
+    expect(league.players[starter]!.health.injury).toBe(null);
+    expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(true);
+  });
+
+  it('the window brief retires the morning the wire freezes, through the real tick (#187)', async () => {
+    const league = calendarLeague(DEADLINE - 5, 'regular');
+    await advanceDay(league, noGames); // the brief posts on entry day
+    const id = `deadline-window-s${league.season}`;
+    expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(false);
+    while (league.day <= DEADLINE) await advanceDay(league, noGames);
+    // league.day is now DEADLINE+1; the last sweep ran on deadline morning
+    // and the brief stood through it - the deadline is the window's last day
+    expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(false);
+    // the first post-freeze morning retires it
+    await advanceDay(league, noGames);
+    expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(true);
   });
 
   it('runs the offer sheet clock: item on filing day, resolution on every path', async () => {

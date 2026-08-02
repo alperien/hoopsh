@@ -152,14 +152,22 @@ describe('the training pity timer', () => {
     expect((career.trainingBank?.scoring ?? 0)).toBeGreaterThanOrEqual(0);
   });
 
-  it('a finished group banks nothing (the ceiling is honest)', () => {
+  it('a finished group banks nothing and its ceiling speaks exactly once (issue #105)', () => {
+    // The banks-nothing half is unchanged law. The silence half was the
+    // measured aggravator: the drip died at ceiling without a word and dead
+    // windows read at raw length (#100). The issue's adopted acceptance is
+    // that the death IS an event - the hidden-ceiling reveal - once per
+    // group, never weekly.
     const career = fixtureCareer();
     const me = career.players[career.me]!;
     me.potential.scoring = 1; // group mean is already past this
     career.weekPlan = { slots: ['extraWork', 'rest', 'rest'], focus: 'scoring' };
     for (let w = 0; w < 10; w++) resolveAllocation(career);
-    expect(career.trainingBank?.scoring ?? 0).toBe(0);
-    expect(career.events.some(e => e.kind === 'dev')).toBe(false);
+    expect(career.trainingBank?.scoring ?? 0).toBe(0); // still banks nothing
+    const reveals = career.events.filter(e =>
+      e.kind === 'dev' && e.reason.includes('nothing left to add to scoring'));
+    expect(reveals.length).toBe(1); // ten silent weeks, one stated ceiling
+    expect(career.events.filter(e => e.kind === 'dev').length).toBe(1); // and no other dev noise
   });
 });
 

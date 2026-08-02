@@ -26,6 +26,7 @@ import type { GameEvent } from '@hoopsh/engine';
 import type { Injury, League, ScheduledGame } from '../src/types.js';
 import { defaultFranchiseParams } from '../src/params.js';
 import { buildSeasonCalendar, phaseOn } from '../src/calendar.js';
+import { rollCapLines } from '../src/cba/cap.js';
 import { extractKeyPlays, planDayJobs, projectTeam, simulateJobsInline } from '../src/gameday.js';
 import { advanceDay, applyUserAction } from '../src/tick.js';
 import { gameSeedFor } from '../src/rng.js';
@@ -300,6 +301,83 @@ describe('draft night pause', () => {
     const res = applyUserAction(league, { kind: 'draftPick', playerId: 'nobody' });
     expect(res.ok).toBe(false);
     expect(res.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('draft night at the 15-man wall (#183)', () => {
+  // The playtest wedge, pinned end to end: 14 standard contracts and both
+  // picks in a one-team order (no AI turns, so the wall is user-only and
+  // ai/draftai stays out of the sequence). The r1 pick fills slot 15; the
+  // r2 clock item must then name the wall, survive its navigational
+  // answer, and hold the day openly. Sequential its share this league on
+  // purpose, same shape as the pause describe above: the wedge IS a
+  // sequence. Pure state, no engine games.
+  const league = fixtureLeague({ seed: 'i183-wedge', playersPerTeam: 14 });
+  league.calendar = buildSeasonCalendar(league.params, league.season);
+  const draftIdx = league.calendar.findIndex((d) => (d.marks as string[]).includes('draftNight'));
+  league.day = draftIdx;
+  league.phase = 'draft';
+  league.lottery = { season: 2026, order: ['nye'], movement: [] };
+  // draft-night deals price against the signing season: the lottery
+  // transition rolls these lines in the real flow, so a hand-built
+  // draft league must roll them too (rookie scale reads capLines[2027])
+  rollCapLines(league, league.season + 1);
+  let seq = 950;
+  for (const pid of ['pw01', 'pw02', 'pw03']) {
+    const p = fixturePlayer(pid, null, 2026, (seq += 1));
+    p.status = 'draftEligible';
+    league.players[pid] = p;
+    league.draftClass.push(pid);
+  }
+  const MAX = league.params.cba.rosterMax;
+
+  it('round 1 pauses normally; the pick signs to fill slot 15', async () => {
+    await advanceDay(league, simulateJobsInline);
+    expect(league.day).toBe(draftIdx);
+    expect(league.inbox.find((i) => i.id === 'draft-2026-pick-1')!.resolved).toBe(false);
+    const res = applyUserAction(league, { kind: 'draftPick', playerId: 'pw01' });
+    expect(res.ok).toBe(true);
+    expect(league.teams['nye']!.roster.length).toBe(MAX);
+  });
+
+  it('the round-2 clock item names the wall and what clears it', async () => {
+    await advanceDay(league, simulateJobsInline);
+    expect(league.day).toBe(draftIdx); // the night holds
+    const item = league.inbox.find((i) => i.id === 'draft-2026-pick-2')!;
+    expect(item.resolved).toBe(false);
+    expect(item.body).toContain(`${MAX}-man maximum`);
+    expect(item.body).toContain('waive a player');
+    expect(item.body).toContain('trade');
+  });
+
+  it('the wall surfaces as a validation error, never a throw', () => {
+    const res = applyUserAction(league, { kind: 'draftPick', playerId: 'pw02' });
+    expect(res.ok).toBe(false);
+    expect(res.errors.join(' ')).toContain(`${MAX}-man maximum`);
+  });
+
+  it('a navigational answer cannot eat the clock item: the next advance re-opens it', async () => {
+    const answer = applyUserAction(league, { kind: 'respondToRequest', requestId: 'draft-2026-pick-2', choice: 'open-draft' });
+    expect(answer.ok).toBe(true);
+    expect(league.inbox.find((i) => i.id === 'draft-2026-pick-2')!.resolved).toBe(true);
+    // before the fix this advance pinned the day with the item resolved:
+    // nothing answerable, nothing on-surface, the #183 soft-lock
+    await advanceDay(league, simulateJobsInline);
+    expect(league.day).toBe(draftIdx);
+    const item = league.inbox.find((i) => i.id === 'draft-2026-pick-2')!;
+    expect(item.resolved).toBe(false); // re-issued, answerable again
+    expect(item.body).toContain(`${MAX}-man maximum`);
+    expect(league.inbox.filter((i) => i.id === 'draft-2026-pick-2').length).toBe(1);
+  });
+
+  it('clearing a spot un-wedges the night: waive, pick, the draft completes', async () => {
+    const cut = league.teams['nye']!.roster[0]!; // any body; which one is the user's call
+    expect(applyUserAction(league, { kind: 'waive', playerId: cut, stretch: false }).ok).toBe(true);
+    expect(applyUserAction(league, { kind: 'draftPick', playerId: 'pw02' }).ok).toBe(true);
+    await advanceDay(league, simulateJobsInline);
+    expect(league.day).toBe(draftIdx + 1); // the day finally completes
+    expect(league.phase).toBe('moratorium');
+    expect(league.players['pw03']!.status).toBe('freeAgent'); // undrafted to the market
   });
 });
 

@@ -24,7 +24,7 @@ discrepancy (AGENTS.md §2.10 applies here unchanged).
 | `genesis.ts` | `createLeague` | returns calendar/schedule EMPTY; the spine lazy-initializes both on first advance |
 | `calendar.ts` | season calendar + phase machine | day labels are fictional-year real-month arithmetic |
 | `tick.ts` | `advanceDay`, `applyUserAction` | THE order of a league day lives here and nowhere else |
-| `inbox.ts` | the GM desk: inbox item generation + deadline expiry (#152) | read-only over league state, zero rng, human-chair gated; autosims and gm:acceptance run byte-identical with it dark |
+| `inbox.ts` | the GM desk: inbox item generation + the morning retirement sweep (#152, #187) | generation read-only, zero rng, human-chair gated; the sweep mutates only item.resolved (deadline lapse, injury state, season rollover); autosims and gm:acceptance run byte-identical with the desk dark |
 | `gameday.ts` | franchise -> engine projection, result fold, key plays | injuries/fatigue/HCA/rotation all become roster edits here (SEASON.md seam 2) |
 | `schedule.ts` | the 82-game generator | real NBA formula (16/36/30), B2B targets |
 | `standings.ts` | standings fold, tiebreakers, seeding | play-in and playoff games never touch standings |

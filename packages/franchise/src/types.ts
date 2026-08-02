@@ -582,6 +582,14 @@ export interface AwardResult {
   winners: PlayerId[] | TeamId[];
   /** top of the ballot with vote shares, for the story */
   ballot: Array<{ id: PlayerId; share: number }>;
+  /**
+   * Printable winner names, parallel to winners. Baked by archiveSeason
+   * (media/almanac.ts) so the archive is self-contained history, following the
+   * records book's holderName pattern (issue #188). Absent on live-season
+   * award rows and on archives written before the field existed: renderers
+   * fall back to the raw id.
+   */
+  winnerNames?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -799,6 +807,11 @@ export type SimulateJobs = (jobs: GameJob[]) => Promise<GameJobResult[]> | GameJ
 // ---------------------------------------------------------------------------
 // save file
 
+// The load check is STRICT equality (app/saves.ts), so a bump refuses
+// every existing save. Additive params keys are NOT a bump: they fill
+// from defaults on load (withFranchiseParams in app/saves.ts - the #184
+// wire dials landed this way). Bump only for structural breaks the
+// loader cannot default.
 export const SAVE_FORMAT_VERSION = 1;
 
 export interface SaveFile {
