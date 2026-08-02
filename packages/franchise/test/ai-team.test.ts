@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { ATTR_KEYS } from '@hoopsh/data';
 import type { FrPlayer, Injury, League, PlayerId, TeamId, Transaction } from '../src/types.js';
 import { rollCapLines } from '../src/cba/cap.js';
+import { buildContract, minSalaryFor, validateSigning } from '../src/cba/contracts.js';
 import { groupMean } from '../src/people/dev.js';
 import { buildUserReport, perceivedGroup, runCombine } from '../src/scouting.js';
 import { abilityScore, aiRosterUpkeep, defaultRotation, depthChart } from '../src/ai/roster.js';
@@ -575,6 +576,50 @@ describe('#164: free agency convenes (scoop gate, salary floor, tax appetite)', 
     // instead of his pick failing execution validation day after day
     expect(fa.status).toBe('roster');
     expect(league.players['ph1']!.contract!.teamId).not.toBe('bos');
+  });
+
+  it('a live offer sheet reserves a roster spot on both teams that might execute it', () => {
+    // the crash this pins: tick.ts resolves match deadlines by forced
+    // execution (no re-validation) onto the incumbent or the offerer; a
+    // team that filled to the 15-man ceiling during the match window threw
+    // "roster already at the maximum" and killed the day advance. The
+    // reservation keeps both potential executions legal for the sheet's life.
+    const league = fixtureLeague({ seed: 'ai-team-164-reserve' });
+    rollCapLines(league, league.season + 1);
+    league.phase = 'freeAgency';
+    const rfa = fixturePlayer('rs1', null, league.season, 2);
+    rfa.rights = { teamId: 'bos', tier: 'bird', capHold: 9_000_000, restricted: true, qualifyingOffer: 5_000_000 };
+    league.players['rs1'] = rfa;
+    league.freeAgents.push('rs1');
+    league.offerSheets.push({
+      playerId: 'rs1',
+      from: 'bka',
+      contract: buildContract(league, 'bka', 'rs1', { years: 2, startSalary: 12_000_000 }, 'capSpace'),
+      decideBy: { season: league.season, day: league.day + 3 },
+    });
+    // fill offerer and incumbent to 14 of the 15 maximum
+    for (const tid of ['bka', 'bos'] as TeamId[]) {
+      const team = league.teams[tid]!;
+      let i = 0;
+      while (team.roster.length < league.params.cba.rosterMax - 1) {
+        const id = `${tid}r${i}`;
+        league.players[id] = fixturePlayer(id, tid, league.season, i);
+        team.roster.push(id);
+        i += 1;
+      }
+    }
+    const other = fixturePlayer('ot1', null, league.season, 3);
+    league.players['ot1'] = other;
+    league.freeAgents.push('ot1');
+    const terms = { years: 1, startSalary: minSalaryFor(league, other) };
+    // the last visible spot is spoken for on BOTH sides while the sheet lives
+    expect(validateSigning(league, 'bka', 'ot1', terms, 'minimum').ok).toBe(false);
+    expect(validateSigning(league, 'bos', 'ot1', terms, 'minimum').ok).toBe(false);
+    // the sheet's own player never reserves against himself
+    expect(validateSigning(league, 'bos', 'rs1', { years: 1, startSalary: 12_000_000 }, 'bird').ok).toBe(true);
+    // resolution consumes the reservation
+    league.offerSheets.length = 0;
+    expect(validateSigning(league, 'bka', 'ot1', terms, 'minimum').ok).toBe(true);
   });
 
   it('rights-holders return to the patch pool once the market has had its window', () => {
