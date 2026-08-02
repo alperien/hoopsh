@@ -252,10 +252,29 @@ export function startPossession(
  * delivery from a pass caught possessions earlier (wave2 diagnostic).
  * resolvePassArrival stamps the REAL delivery quality just before calling
  * this with 'pass', so the order (stamp, then giveBall) preserves it.
+ *
+ * Side effect (#115 layer A): writes `s.ball.pos` to the new holder's body —
+ * every acquisition relocates the ball to the hands that took it, at the
+ * instant they took it.
  */
 export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy']): void {
   s.ball.holderId = a.p.id;
   s.ball.flight = null;
+  // #115 layer A — the ball is in the new holder's hands FROM the
+  // acquisition instant, so it relocates here, not at the next live tick's
+  // follows-holder write. Before this stamp, the first defensive read after
+  // a dead-ball resume priced the parked whistle spot (ai/defense.ts:
+  // unmatched-man target, deny vector, sag distance, help spot all read
+  // s.ball.pos) while the frames showed an event-less teleport at the
+  // resume (issue #115: 70.2 snaps/g over 6 ft, max 89 ft). Direction is
+  // always the BALL to the player (a steal is a deflection into the
+  // thief's hands), never the player to the ball — teleporting bodies
+  // breaks the replay's physical continuity. (Migrated from passing.ts's
+  // steal branch, whose now-redundant manual snap this stamp absorbs.)
+  // After this stamp nothing live-reads dead-phase ball.pos — the frame
+  // recorder is its only dead-phase consumer — which is what makes the
+  // #115 layer B dead-phase carry frames-only by construction.
+  s.ball.pos = { x: a.pos.x, y: a.pos.y };
   a.catchT = s.t;
   a.dribblesSinceCatch = 0;
   a.dribbleAcc = 0;
@@ -367,6 +386,17 @@ export function deadBall(
     s.params.sub.postMakeSubWindow <= 0 && phSub.kind === 'dead' && phSub.clockRuns;
   if (!liveInbound) checkSubs(s);
   setupDeadTargets(s, nextTeam);
+  // #115 layer B — stage the dead-phase ball relay: the officials walk the
+  // ball from where the whistle caught it to the man play resumes through,
+  // replacing the parked-then-teleport the frames used to show (70.23
+  // event-less snaps/g over 6 ft at base, max 89.3 ft). Stamped LAST, after
+  // maybeTimeout and the review roll above finished stretching resumeIn, so
+  // the relay spans the stoppage's real length; tickDead runs the lerp and
+  // giveBall's acquisition stamp is the arrival write.
+  const phC = s.phase as Extract<Phase, { kind: 'dead' }>;
+  phC.carryFrom = { x: s.ball.pos.x, y: s.ball.pos.y };
+  phC.carryT0 = s.wallT;
+  phC.carryDur = phC.resumeIn;
 }
 
 /**
@@ -474,6 +504,28 @@ export function tickDead(s: GameState, dt: number): void {
   ph.resumeIn -= dt;
   integrateMovement(s, dt);
   applyFatigue(s, dt);
+  // #115 layer B — the relay itself: a wallT-keyed lerp from the whistle
+  // spot toward the handler-designate's CURRENT body across the stoppage's
+  // own duration. The designate (bestHandler — deterministic, attribute-
+  // only, rng-free, the same pick giveBall receives at resume) is walking
+  // to his setupDeadTargets spot through these same ticks, so tracking the
+  // man rather than his staged spot makes the lerp endpoint CONVERGE to
+  // the arrival stamp: a spot-targeted relay overshoots any handler a
+  // short stoppage catches mid-walk and re-teleports at the resume write
+  // (measured, 48-game pool, event-less holder-appears pairs over 6 ft:
+  // spot-targeting 12.54/g at p50 34.0 ft — true snaps, nearly the base
+  // continuation class it exists to fix; man-targeting 1.98/g at p50 7.3,
+  // max 10.1 ft — not snaps but the uniform per-pair speed of long
+  // shortest-stoppage relays, <= ~50 ft/s, the relay-speed class the #82
+  // C1 landing already accepted at 53 ft/s). Progress rides
+  // carryT0/carryDur, both
+  // wall-axis — game-clock t is frozen through clockRuns:false stoppages
+  // (AGENTS §1.5). Frames-only: after the layer A acquisition stamp, the
+  // frame recorder is dead-phase ball.pos's only reader.
+  if (ph.carryFrom !== undefined && ph.carryT0 !== undefined && ph.carryDur !== undefined) {
+    const f = ph.carryDur <= 0 ? 1 : Math.min(1, (s.wallT - ph.carryT0) / ph.carryDur);
+    s.ball.pos = lerp(ph.carryFrom, bestHandler(s, ph.nextTeam).pos, f);
+  }
   if (ph.resumeIn > 0) return;
 
   if (ph.continuation) {
@@ -916,5 +968,18 @@ export function endPeriod(s: GameState): void {
   // openerResetOn 0 in its params); three test fixtures crashed here at
   // the flip (f-assembly §4b).
   if (s.params.ai.openerResetOn > 0) setupDeadTargets(s, team);
+  // #115 layer B — the period-break relay. endPeriod builds its dead phase
+  // without deadBall (the bypass the issue names), so the same carry stamp
+  // lands here: the ball walks from wherever the horn froze it to the next
+  // period's inbound handler across the break — the issue's longest relay
+  // class (a horn ball can sit a full court from the next inbound spot).
+  // Stamped after the wave subs and the opener re-set so the designate
+  // tickDead tracks is the post-sub floor's; at the legacy openerResetOn 0
+  // the designate idles where the horn froze him and the relay simply
+  // walks the ball to that spot — honest in both modes.
+  const phC = s.phase as Extract<Phase, { kind: 'dead' }>;
+  phC.carryFrom = { x: s.ball.pos.x, y: s.ball.pos.y };
+  phC.carryT0 = s.wallT;
+  phC.carryDur = phC.resumeIn;
   // matchup/spot targets refresh when the possession starts
 }

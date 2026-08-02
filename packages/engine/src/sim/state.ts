@@ -227,6 +227,33 @@ export type Phase =
        * only; internal state, never an event/replay field.
        */
       timeout?: { team: TeamSide; reason: TimeoutReason };
+      /** #115 layer B — the whistle-parked ball spot this stoppage's relay
+       *  walks FROM. Stamped LAST at both dead-phase construction sites
+       *  (deadBall; endPeriod, which builds its phase without deadBall),
+       *  after every resumeIn stretch (timeout huddle, replay review) has
+       *  landed, so the relay always spans the stoppage's real length.
+       *  tickDead lerps the ball carryFrom → the handler-designate across
+       *  the stoppage (the #82 C1 free-throw carry shape on the dead
+       *  phase); giveBall's acquisition stamp is the arrival write.
+       *  Deliberately absent on the opening-tip dead phase (game.ts): the
+       *  tip ball is administered at center court, there is no whistle
+       *  displacement to relay. Frames-only by construction after #115
+       *  layer A — the frame recorder is dead-phase ball.pos's only
+       *  reader. */
+      carryFrom?: V2;
+      /** #115 layer B — wall-clock stamp of the relay's zero. wallT on
+       *  purpose, NOT game-clock t: a clockRuns:false stoppage freezes t,
+       *  so a t-keyed lerp would park at zero (the AGENTS §1.5 trap; the
+       *  same axis discipline as the freethrows variant's carryT0). */
+      carryT0?: number;
+      /** #115 layer B — the stoppage's full resumeIn at stamp time (wall
+       *  seconds), the lerp's denominator. Recorded because resumeIn
+       *  itself counts DOWN in tickDead. Not a knob: every stoppage
+       *  relays across exactly the delay it already has (Lead ruling,
+       *  issue #115 — a constant relay speed is a FEEL question with no
+       *  acceptance target; if playtests dislike relay pacing that
+       *  becomes its own issue). */
+      carryDur?: number;
     }
   | {
       kind: 'freethrows';
