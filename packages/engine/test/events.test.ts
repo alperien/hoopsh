@@ -462,7 +462,7 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
 });
 
 describe('per-type field contract', () => {
-  // The GameEvent union, core/events.ts:512-530, plus each interface's
+  // The GameEvent union, core/events.ts:521-539, plus each interface's
   // documented required fields. A consumer types against these; an event
   // missing one is a contract break even if the sim looks fine. The table
   // spans the ENTIRE union — the flow officiating vocabulary (replay v3:
@@ -570,13 +570,13 @@ describe('per-type field contract', () => {
             if (!Number.isInteger(e.remaining) || e.remaining < 0) bad.push('timeout: remaining');
             break;
           case 'substitution':
-            // events.ts:431-434 — parallel arrays; every current caller swaps
+            // events.ts:440-443 — parallel arrays; every current caller swaps
             // exactly one player, and never a player for himself.
             if (e.out.length !== 1 || e.in.length !== 1) bad.push('substitution: array shape');
             if (e.out[0] === e.in[0]) bad.push('substitution: no-op swap');
             break;
           case 'jump_ball':
-            // events.ts:459-470 — two distinct tied-up contestants, the side
+            // events.ts:468-479 — two distinct tied-up contestants, the side
             // that controls the tap, and whoever came up with it.
             if (e.between.length !== 2 || e.between.some((p) => typeof p !== 'string') ||
               e.between[0] === e.between[1]) {
@@ -586,14 +586,14 @@ describe('per-type field contract', () => {
             if (typeof e.gainedBy !== 'string') bad.push('jump_ball: gainedBy');
             break;
           case 'violation':
-            // events.ts:484-491 — kind carries the contract; player is
+            // events.ts:493-500 — kind carries the contract; player is
             // optional (a future team-attributed kind may omit it) but a
             // string when present.
             if (!KINDS.violation.includes(e.kind)) bad.push(`violation: kind ${e.kind}`);
             if (e.player !== undefined && typeof e.player !== 'string') bad.push('violation: player');
             break;
           case 'replay_review':
-            // events.ts:493-509 — trigger only; deliberately NO outcome
+            // events.ts:502-518 — trigger only; deliberately NO outcome
             // field (an always-'stands' outcome would be dead surface per
             // AGENTS.md DO-NOT #5, so don't "strengthen" one in here).
             if (!KINDS.review.includes(e.trigger)) bad.push(`replay_review: trigger ${e.trigger}`);
@@ -610,7 +610,7 @@ describe('per-type field contract', () => {
     expect(bad).toEqual([]);
     // Vacuity floors — every type the pinned seeds deterministically emit
     // actually appeared (timeout included: endgame defaults ON,
-    // events.ts:394-397; the flow trio re-scouted 2 jump_balls, 3
+    // events.ts:403-406; the flow trio re-scouted 2 jump_balls, 3
     // violations, 7 replay_reviews across the pool). held_ball and
     // off_goaltend never occur on these seeds — their forced-rate emission
     // floors are officiating.test.ts's job, not this file's.

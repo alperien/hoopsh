@@ -2,9 +2,9 @@
  * Foul-out → substitution, pinned at the event stream (test-quality audit of
  * the engine suite, finding M19).
  *
- * The gap: `replaceFouledOut` (sim/subs.ts:293-309, called synchronously from
+ * The gap: `replaceFouledOut` (sim/subs.ts:551-567, called synchronously from
  * recordFoul, fouls.ts:110) turned into a no-op survived the audited engine
- * suite. `liveOnCourt` (sim/state.ts:308-310) filters `fouledOut` from every
+ * suite. `liveOnCourt` (sim/state.ts:464-466) filters `fouledOut` from every
  * actor query, so invariants.test.ts's "fouled-out players never act again"
  * held vacuously — the fouled-out player ghost-stood in the lineup for the
  * rest of the game and only a 50-game league-stat band two packages away
@@ -12,14 +12,14 @@
  * unit contract on a hand-built state; this file pins the documented STREAM
  * shape on real games, from the public GameResult boundary only.
  *
- * Spec source — core/events.ts FoulEvent doc (events.ts:338-344): "the engine
+ * Spec source — core/events.ts FoulEvent doc (events.ts:381-387): "the engine
  * immediately attempts a replacement (sim/fouls.ts recordFoul -> sim/subs.ts
  * replaceFouledOut), so a `fouledOut: true` foul is followed by a
  * `substitution` event for the same player UNLESS the team's entire bench is
  * already on the floor or fouled out" (the empty-bench early return,
- * subs.ts:301). recordFoul emits the foul (fouls.ts:99-109) and calls
+ * subs.ts:559). recordFoul emits the foul (fouls.ts:99-109) and calls
  * replaceFouledOut on the next line (fouls.ts:110), which emits through
- * swapPlayers (subs.ts:47) with nothing in between — the substitution is the
+ * swapPlayers (subs.ts:51) with nothing in between — the substitution is the
  * immediately-next event, stamped at the same game-clock instant.
  */
 
@@ -30,9 +30,9 @@ import { sampleMatchup } from '@hoopsh/data';
 /**
  * Foul-outs are rare at calibrated whistle rates (~0.8/game across the
  * invariants pool), so these games crank the whistle knobs through the public
- * per-game GameConfig.params override (game.ts:38) — the calibrated defaults
+ * per-game GameConfig.params override (game.ts:39) — the calibrated defaults
  * in sim/params.ts are untouched. Values are FEEL — test forcing, not
- * calibration: roughly 1.4-12x the swept rates in params.ts:999-1061, all
+ * calibration: roughly 1.4-12x the swept rates in params.foul.ts:68-146, all
  * under the shootFoulCap 0.6 ceiling. At these rates most of both 10-man
  * rosters reach the NBA six-foul limit, exercising BOTH documented arms:
  * measured on the two seeds below, 18-19 foul-outs per game — 10 with an
@@ -65,7 +65,7 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
     for (const r of results) {
       // Bench eligibility is derived from the STREAM — roster minus on-court
       // minus already-fouled-out — never from engine internals. This is
-      // exactly replaceFouledOut's own filter (subs.ts:300) minus the DNP
+      // exactly replaceFouledOut's own filter (subs.ts:558) minus the DNP
       // scratch term: the sample teams carry no rotationMinutes, so the
       // scratch filter is inert on these fixtures.
       const rosters: [Set<string>, Set<string>] = [
@@ -91,18 +91,18 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
         fouledOut.add(e.on);
         const nxt = r.events[idx + 1];
         if (eligible.size === 0) {
-          // the documented exception (events.ts:342-344, subs.ts:301):
+          // the documented exception (events.ts:385-387, subs.ts:559):
           // nobody left in uniform — play on shorthanded. No replacement may
           // be conjured; a checkSubs rotation sub can legitimately follow
           // the whistle, but never one benching the fouled-out man twice
-          // (checkSubs skips fouled-out outgoing players, subs.ts:189).
+          // (checkSubs skips fouled-out outgoing players, subs.ts:341).
           if (nxt?.type === 'substitution') expect(nxt.out).not.toContain(e.on);
           return;
         }
         withBench += 1;
         // the pin M19 exists for: the replacement is immediate — foul event
         // (fouls.ts:99), then replaceFouledOut → swapPlayers → substitution
-        // (fouls.ts:110, subs.ts:308, :47) with no event and no tick between
+        // (fouls.ts:110, subs.ts:566, :51) with no event and no tick between
         expect(nxt?.type).toBe('substitution');
         if (nxt?.type !== 'substitution') return; // unreachable — the expect above threw; TS narrowing only
         expect(nxt.team).toBe(e.team);
@@ -112,7 +112,7 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
         expect(nxt.t).toBe(e.t);
         for (const id of nxt.in) {
           // the incoming body is a real bench option — on the roster, not
-          // already on the floor, and NOT himself fouled out (subs.ts:300)
+          // already on the floor, and NOT himself fouled out (subs.ts:558)
           expect(eligible.has(id)).toBe(true);
           expect(fouledOut.has(id)).toBe(false);
         }
@@ -128,9 +128,9 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
 
   it('a fouled-out player never returns: no later substitution lists him as incoming', () => {
     // Every lineup-insertion path filters fouledOut — the crunch return
-    // (subs.ts:199), the concede bench fill (subs.ts:219), the fatigue
-    // rotation (subs.ts:263), and the foul-out replacement itself
-    // (subs.ts:300) — so once a fouledOut: true foul names a player, no
+    // (subs.ts:354), the concede bench fill (subs.ts:376), the fatigue
+    // rotation (subs.ts:450), and the foul-out replacement itself
+    // (subs.ts:558) — so once a fouledOut: true foul names a player, no
     // substitution event may ever carry him in `in` again.
     let disqualified = 0;
     for (const r of results) {
