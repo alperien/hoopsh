@@ -55,9 +55,9 @@ export function tradeDeadlineDay(league: League): number {
   return marked ? marked.day : league.params.calendar.tradeDeadlineDayIndex;
 }
 
-/** True from the day after the deadline through the end of the postseason. */
+/** True from the day after the deadline through the end of the postseason, and through the July moratorium (deals agreed but not signable). */
 function tradingFrozen(league: League): boolean {
-  if (league.phase === 'playin' || league.phase === 'playoffs') return true;
+  if (league.phase === 'playin' || league.phase === 'playoffs' || league.phase === 'moratorium') return true;
   return league.phase === 'regular' && league.day > tradeDeadlineDay(league);
 }
 
@@ -302,9 +302,11 @@ export function respondToOffer(league: League, offer: TradeOffer): TradeVerdict 
     return { accept: false, reasoning: 'no such front office to call', walkAway: true };
   }
 
-  // deadline law: no trades between the deadline and the new league year
+  // the freeze: deadline law through the postseason, and the July moratorium (#249)
   if (tradingFrozen(league)) {
-    return { accept: false, reasoning: 'the deadline has passed; call back in July', walkAway: true };
+    return league.phase === 'moratorium'
+      ? { accept: false, reasoning: 'the July moratorium is on; call back when free agency opens', walkAway: true }
+      : { accept: false, reasoning: 'the deadline has passed; call back in July', walkAway: true };
   }
 
   // memory: a front office that walked away does not pick up for a while
@@ -389,11 +391,11 @@ const CORE_SALARY_SHARE = 0.18; // FEEL pay above ~18% of cap marks a core piece
 
 /** Per-day probability the wire wakes up, by calendar phase. */
 function pulseChance(league: League): number {
-  if (tradingFrozen(league)) return 0; // deadline means deadline
+  if (tradingFrozen(league)) return 0; // frozen means frozen: deadline law, the postseason, and the July moratorium (#249)
   const t = league.params.trade;
   if (league.phase === 'regular') return inDeadlineWindow(league) ? t.deadlinePulse : t.regularPulse;
   if (league.phase === 'offseason' || league.phase === 'lottery' || league.phase === 'draft'
-    || league.phase === 'moratorium' || league.phase === 'freeAgency') {
+    || league.phase === 'freeAgency') {
     return t.offseasonPulse;
   }
   return t.regularPulse; // camp: preseason tinkering
@@ -776,7 +778,7 @@ function userOfferPass(league: League, rng: ReturnType<typeof streamRng>): void 
  */
 export function aiTradePulse(league: League): Transaction[] {
   const executed: Transaction[] = [];
-  if (tradingFrozen(league)) return executed; // deadline means deadline
+  if (tradingFrozen(league)) return executed; // frozen means frozen: deadline law, the postseason, and the July moratorium (#249)
   const t = league.params.trade;
   const rng = streamRng(league.seed, 'trade', league.season, league.day);
   const window = inDeadlineWindow(league);

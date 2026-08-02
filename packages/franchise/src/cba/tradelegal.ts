@@ -1,7 +1,7 @@
 /**
- * cba/tradelegal.ts - trade legality: the deadline freeze, salary matching
- * bands, apron restrictions, the Stepien rule, recent-signee freezes,
- * roster bounds.
+ * cba/tradelegal.ts - trade legality: the deadline and July-moratorium
+ * freezes, salary matching bands, apron restrictions, the Stepien rule,
+ * recent-signee freezes, roster bounds.
  *
  * Every rule cites docs/history/franchise-research/06-cba-rules.md
  * ("research 06", mostly §6). Money is integer dollars.
@@ -19,6 +19,10 @@
  *   near 14-15; legality only guards the hard floor.
  * - T4 The matching bands' small/expanded thresholds index to the cap by
  *   ratio from the 2026-27 anchors (research 06 §6 notes the indexing).
+ * - T5 The moratorium freeze binds the whole 'moratorium' phase, which
+ *   folds the post-draft dead days in (calendar.ts builder note), so
+ *   late-June trades freeze a few days early. The signing rules already
+ *   read the phase the same way (ai/fa.ts, cba/contracts.ts).
  */
 import type { League, TeamId, TradeOffer } from '../types.js';
 import type { Legality } from './contracts.js';
@@ -79,12 +83,13 @@ function tradeDeadlineDay(league: League): number {
 
 /**
  * True from the day after the deadline through the end of the postseason
- * (research 06 §6: the deadline closes in-season trading). Mirror of
- * ai/trade.ts#tradingFrozen - see tradeDeadlineDay above for why the
- * predicate lives twice.
+ * (research 06 §6: the deadline closes in-season trading), and through
+ * the July moratorium (#249; types.ts: deals agreed but not signable).
+ * Mirror of ai/trade.ts#tradingFrozen - see tradeDeadlineDay above for
+ * why the predicate lives twice.
  */
 function tradingFrozen(league: League): boolean {
-  if (league.phase === 'playin' || league.phase === 'playoffs') return true;
+  if (league.phase === 'playin' || league.phase === 'playoffs' || league.phase === 'moratorium') return true;
   return league.phase === 'regular' && league.day > tradeDeadlineDay(league);
 }
 
@@ -103,13 +108,15 @@ export function validateTrade(league: League, offer: TradeOffer): Legality {
   if (!to) return { ok: false, errors: [`unknown team ${offer.to}`] };
   if (offer.from === offer.to) return { ok: false, errors: ['a team cannot trade with itself'] };
 
-  // deadline law (#231): the freeze binds the ledger, not just the desk.
-  // respondToOffer refuses frozen talks at the negotiation surface, but
-  // every EXECUTION path funnels through this verdict (executeTrade throws
-  // on !ok), so the user's inbox accept at deadline+1, the AI paths, and
-  // any future caller all hit the same wall.
+  // deadline law (#231) and the July moratorium (#249): the freeze binds
+  // the ledger, not just the desk. respondToOffer refuses frozen talks at
+  // the negotiation surface, but every EXECUTION path funnels through this
+  // verdict (executeTrade throws on !ok), so the user's inbox accept at
+  // deadline+1, the AI paths, and any future caller all hit the same wall.
   if (tradingFrozen(league)) {
-    return { ok: false, errors: [`the trade deadline (day ${tradeDeadlineDay(league)}) has passed; trading reopens after the postseason`] };
+    return league.phase === 'moratorium'
+      ? { ok: false, errors: ['the July moratorium is in effect; trades complete when free agency opens'] }
+      : { ok: false, errors: [`the trade deadline (day ${tradeDeadlineDay(league)}) has passed; trading reopens after the postseason`] };
   }
 
   const now = { season: league.season, day: league.day };
