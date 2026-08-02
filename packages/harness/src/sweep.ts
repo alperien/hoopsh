@@ -456,18 +456,44 @@ async function main(): Promise<void> {
   // Rail-pinned convergence report (audit M-25): a final value sitting ON a
   // knob's declared lo/hi rail means the search wanted to go further and the
   // rail — not the bands — chose the value. Silent rail-pinning is how six
-  // shipped defaults came to sit exactly on their rails with nobody knowing
-  // whether that was calibration or clamping. One line, every run: either
-  // widen the range (knobs.ts) deliberately or accept the edge deliberately.
-  const pinned: string[] = [];
+  // shipped defaults (eight by the time of #163) came to sit exactly on
+  // their rails with nobody knowing whether that was calibration or clamping.
+  //
+  // Two different conditions satisfy the same "value on rail" test, and
+  // conflating them was issue #163: shipped defaults that already sat on
+  // their rails tripped the WARNING on every run — including verify-only
+  // runs that move nothing — and every mechanics session re-investigated a
+  // standing fact of the calibration as if its own change had caused it.
+  // The split:
+  //   - SEARCH-PINNED (final value differs from the params.ts default):
+  //     THIS run's search pushed the knob into the clamp. M-25's actual
+  //     target. Loud WARNING — widen the rail or accept the edge before
+  //     baking the diff.
+  //   - DEFAULT-ON-RAIL (final value IS the params.ts default): a
+  //     pre-existing property of the shipped params.ts × knobs.ts pair,
+  //     true before this run started. Reported as a note for visibility
+  //     (the deliberate edges are documented knob-by-knob in knobs.ts),
+  //     not as a warning attributing it to the current session.
+  // Both sets are re-derived from params.ts and knobs.ts on every run, so
+  // the report tracks re-tunes and rail moves by itself — unlike this
+  // comment's historical counts, which are citations, not the live set.
+  const searchPinned: string[] = [];
+  const defaultPinned: string[] = [];
   for (const knob of SWEEPABLE) {
-    const v = current[knob.path] ?? getPath(defaultParams as unknown as Record<string, unknown>, knob.path);
+    const dflt = getPath(defaultParams as unknown as Record<string, unknown>, knob.path);
+    const v = current[knob.path] ?? dflt;
     if (Math.abs(v - knob.lo) <= 1e-9 || Math.abs(v - knob.hi) <= 1e-9) {
-      pinned.push(`${knob.path}=${v} [${knob.lo}..${knob.hi}]`);
+      // same 1e-9 tolerance as the changed-knobs diff above: a search value
+      // that landed back exactly on the shipped default is not a search pin
+      (Math.abs(v - dflt) > 1e-9 ? searchPinned : defaultPinned)
+        .push(`${knob.path}=${v} [${knob.lo}..${knob.hi}]`);
     }
   }
-  if (pinned.length > 0) {
-    console.log(`\nWARNING rail-pinned knobs (value ON its declared search rail — widen the knobs.ts range or accept the edge deliberately): ${pinned.join(', ')}`);
+  if (searchPinned.length > 0) {
+    console.log(`\nWARNING rail-pinned knobs (this search clamped the value ON its declared rail — the rail, not the bands, chose it; widen the knobs.ts range or accept the edge deliberately): ${searchPinned.join(', ')}`);
+  }
+  if (defaultPinned.length > 0) {
+    console.log(`\nnote: ${defaultPinned.length} shipped defaults sit ON a knobs.ts rail (pre-existing calibration fact, not this run's doing — deliberate edges are documented per knob in knobs.ts; issue #163): ${defaultPinned.join(', ')}`);
   }
 
   mkdirSync('out', { recursive: true });
