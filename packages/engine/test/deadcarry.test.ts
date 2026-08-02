@@ -68,6 +68,42 @@
  *   - full pre-#115 revert (both layers): clauses 1 and 3 fire together
  *     (parked resumes everywhere; ball nowhere near the holder on
  *     possession-start frames).
+ *
+ * The sanctioned ball.pos read surface (#167): the frames-only warrant,
+ * made greppable. The warrant behind layer B: during the stoppage
+ * phases ('dead', 'freethrows') nothing reads s.ball.pos except the
+ * frame recorder; stoppage-phase ball motion is frames/viewer surface,
+ * never an input to decisions, probabilities, or events. The #160
+ * review proved this once (statically at review: only recordFrame
+ * reachable in a stoppage phase; dynamically: 569/569 paired games
+ * event-identical under the Red Team's adversarial presets), and
+ * nothing re-runs that proof. A new stoppage-phase ball.pos read
+ * silently converts the carry from frames-only into a mechanics
+ * change. Every s.ball.pos read site at this writing, with its phase
+ * discipline:
+ *   - game.ts#recordFrame: the frame recorder, the only reader
+ *     reachable inside 'dead'/'freethrows' (game.ts#tick calls it
+ *     every tick, all phases). Sanctioned; frames are the point.
+ *   - ai/defense.ts#defenseTick (unmatched-man target, deny vector,
+ *     ball distance, help spot): live ticks only; both dispatch sites
+ *     (the stage-5 windup closeouts and the stage-12 brains) are
+ *     inside game.ts#tickLive.
+ *   - possession.ts#deadBall, possession.ts#endPeriod,
+ *     fouls.ts#enterFreeThrows: the carryFrom stamps. Each reads
+ *     ball.pos once at the whistle/horn instant (the live position
+ *     where play stopped) to arm the frames-only relay.
+ *   - possession.ts#tickScramble: the landing-spot lerp reads its own
+ *     phase's ball.pos; 'scramble' is a live-ball phase (a rebound up
+ *     for grabs), not a stoppage.
+ * Two writes anchor the discipline without reading: giveBall's
+ * acquisition stamp (possession.ts) is the relay's arrival write, and
+ * game.ts stage 12's follows-holder write re-reads the live holder.
+ * Review rule this list exists for: a PR adding an s.ball.pos read
+ * must add its site and phase discipline here, and a read reachable
+ * in a stoppage phase is a mechanics change (full ladder), whatever
+ * the diff looks like. Provenance: #160 layer B (verdict comment
+ * 5155936089), Red Team finding 6 (advisory comment 5155984052),
+ * issue #167.
  */
 import { describe, expect, it } from 'vitest';
 import { simulateGame, type GameEvent } from '@hoopsh/engine';
