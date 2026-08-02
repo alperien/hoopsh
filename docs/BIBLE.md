@@ -200,7 +200,9 @@ consumer you write sits at exactly that distance. Natural fits: season bots,
 custom stat sites, alternative viewers, GM/career layers, LLM color commentary
 (the `CommentaryProvider` seam). The builder's guide is
 [docs/EMBEDDING.md](./docs/EMBEDDING.md): loader recipe, `GameConfig`, the
-supported API surface, worked examples.
+supported API surface, worked examples. The stability contract is
+[docs/CONTRACT.md](./docs/CONTRACT.md): the stable surfaces, the explicitly
+unstable ones, and what a version bump means.
 
 Input contract: `simulateGame` always rejects non-finite ratings loudly; pass
 `validate: 'strict'` to also enforce the data-pack ranges (ratings 0-100) when
