@@ -854,6 +854,17 @@ current state is documented here.
    permanent gates derive widths from it. Its diff is the accepted-drift
    record.
 
+Once the change itself is final, the re-baseline upkeep — the golden corpus,
+the noise floor, and the helper-owned seed pins — is one command:
+`npm run rebaseline` (tools/rebaseline.mjs). It refuses to write while the
+invariant suite or the determinism gate is red, rebakes
+`packages/harness/golden/fingerprints.json`, regenerates the noise floor
+(a stamp-only regen is discarded, so an unchanged kernel is a provable
+no-op), re-anchors stale pins through `reanchor.ts --write`, prints the
+before/after band table, and lists the failing tests that still need a hand
+re-anchor (checksum pins, pool re-scouts — it never edits a test).
+`--dry-run` previews without writing.
+
 ## Etiquette and the noise floor
 
 - The NBA bands (`harness/src/bands.ts`) are the gate — count them there,
