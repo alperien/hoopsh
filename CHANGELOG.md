@@ -15,6 +15,39 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: fouls.test.ts fouls.ts-locator re-point (#136, issue #129)
+
+- 92fa7f9 and the #82 C1 carry landing frame-shifted most fouls.ts
+  line-range breadcrumbs in fouls.test.ts; the #116 sweep re-pointed
+  only the pack-derivation locator. This pass re-points the remaining
+  19 stale locators (21 edit sites, two describe titles among them) at
+  current fouls.ts, each old range reconciled against the pre-shift
+  blob (92fa7f9^) and each new range spot-checked against current main.
+  Comments and title strings only; fingerprint-1 identical (1313
+  events, 121-119); corpus 28/28 byte-identical; suite identical
+  (1643 tests, 1641 pass, 0 fail, 2 todo).
+
+### Docs: post-FT-carry prose truth sweep (#128, issue #116)
+
+- The #82 C1 carry landing (PR #119, `e851169a`) left six prose claims
+  stale or wrong; this sweep corrects them against their records. The
+  REGISTER W82 residual sentence now carries the fixed-class note
+  (25.38/g to 0.02/g, pool rtfg-1..48; the survivor is the #115 C2
+  resume snap). The transcarry delta-F1 header marks its foul-sharing
+  exclusion necessary pre-fix, merely conservative post-fix. Two
+  fouls.ts comments claiming the technical path is unreachable in
+  shipped games are reconciled to FoulOutcome's documented live rate
+  (techPerFoulWhistle 0.017, ~0.71/g). The ftcarry.test.ts header's
+  mutant routes now match the #119 gate review's measurements (review
+  4835956264: lerp-kill posts 0 on the bound clause and 55.6 ft on
+  departure; t-for-wallT posts 51.1 ft on the bound clause, which fires
+  first, plus 85/324 arrival misses, with departure alone green at
+  1.56 ft). The fouls.test.ts pack-derivation locator re-points at the
+  current ftLineSpot helper (fouls.ts:147-163). Comments and docs only;
+  fingerprint-1 identical (1277 events, 115-126); corpus 28/28
+  byte-identical; suite identical (1623 tests, 1621 pass, 0 fail,
+  2 todo).
+
 ### Franchise: late-transaction news (#122, issue #118)
 
 - Draft night and the rollover logged transactions AFTER the day's news
@@ -44,6 +77,27 @@ minutes-targets fix (W65).
   byte-identical, additions confined to draft night and the rollover
   day).
 
+### Engine tests: free-throw carry producer pins (#121, issue #120)
+
+- The #119 carry stamps (`carryFrom`, `carryT0`) are optional fields on
+  the freethrows phase, and tickFreeThrows skips the carry when they are
+  absent: a hand-built stampless phase ends its trip with the ball off
+  the spot and would diverge events through the #115 read chain.
+  Unreachable in shipped flows (enterFreeThrows always writes both
+  stamps), and nothing pinned that. Four unit pins in fouls.test.ts now
+  hold the producer invariant on every entry path: normal, one-and-one,
+  technical prefix, and technical resume (the issue named three paths;
+  the entry signature has a fourth). Filed from the Red Team probe on
+  #119.
+- Test-only: one file, +36 lines, append-only. A stamp-removal mutant
+  verified RED in-tree (five RED in fouls.test.ts, the four pins plus
+  the #82 C1 entry pin; ftcarry.test.ts RED, arrival missed at every
+  attempt) and restored.
+- Verified at the landing: full suite green (1616 tests, 1614 pass,
+  2 todo; the four pins are the whole delta); fingerprint corpus 28/28
+  byte-identical; fingerprint-1 identical at branch base and head
+  (1277 events, 115-126).
+
 ### Franchise: phase-transition news (#117, issue #111)
 
 - The news desk was silent between the finals and the draft: the title
@@ -69,6 +123,61 @@ minutes-targets fix (W65).
   re-run before and after (news page 0 bit-identical at the lottery and
   draft stops before; differing after, with every pre-existing item
   byte-unchanged).
+
+### Engine: free-throw lineup ball carry (#119, issue #82 C1)
+
+- The free-throw entry snap teleported the ball from the whistle spot
+  to the line in one frame, the frame stream's largest teleport class.
+  enterFreeThrows now stamps the whistle-caught ball spot and the entry
+  wallT on the freethrows phase (`carryFrom`, `carryT0`), and
+  tickFreeThrows walks the ball to the line with a wallT-keyed lerp
+  across the existing ftSetupSec window, byte-exact arrival gated on
+  the attempt countdown as well as the wall window, technical prefixes
+  included. No new knob, no duration change, no event change; both
+  changed functions live in fouls.ts.
+- Class metric under the issue conventions: foul-crossing ball jumps
+  over 6 ft fall from 25.38 per game (n=1218, max 74.5 ft) to 0.02
+  (n=1); the one remaining jump is the #115 C2 resume-snap class, zero
+  C1 residue.
+- Frames-only, proven: sha256 of the event stream and rng draw counts
+  identical on 49/49 paired seeds; the corpus regen diff shows events
+  hashes 28/28 unchanged, final scores 28/28 unchanged, frames hashes
+  28/28 moved. Seven hash pins re-anchored hash-only, each pin's
+  event-count and final-score literals passing unchanged. An eighth pin
+  had pinned the removed entry snap itself (a triage-census gap): it
+  was corrected under Lead sanction to assert the no-snap hold plus
+  both carry stamps, and the PR flags the hunk for review. New property
+  pin ftcarry.test.ts (bound, departure, and arrival clauses);
+  lerp-kill and t-for-wallT mutants both verified RED and restored.
+- The post-merge Red Team probe held all five targets across 1,203
+  paired seeds and 11 configs (NCAA, EuroLeague, legacy endgame, and
+  flooded technical paths included): events identity everywhere, no new
+  discontinuity class, the rtfg-30 residual attribution verified.
+  Whistle-instant ball velocity max fell from 372.7 to 50.3 ft/s.
+- Verified at the landing: full suite green (1607 tests, 1605 pass,
+  2 todo; the +1 is the ftcarry pin); fingerprint-1 unchanged
+  (1277 events, 115-126).
+
+### Career: replay-based determinism gate (#96, issue #66)
+
+- The career acceptance determinism gate re-drove the same 40-week
+  script twice and never left year one. It now records one phenom
+  career from creation until it has lived a year wrap, draft night, and
+  4 NBA game weeks, then replays it from the recorded choice log alone:
+  career-replay.ts rebuilds the career from a deterministic creation
+  factory plus the log and byte-compares JSON checkpoints, so the log
+  is the only decision source. The gate fails on coverage shortfall, so
+  the recorded segment cannot silently shrink back to a pre-draft
+  slice. Rides gm:career-acceptance.
+- The recorded gate run: 199 weeks, 247 choices, 4 year wraps, draft
+  night, and 4 NBA game weeks, replayed byte-identical. Red proven: a
+  coin-flip mutant in resolveAllocation diverges the replay at the
+  first year wrap.
+- CAREER.md and CAREER_INTERNALS.md state the recorded-segment coverage
+  in place of the stale 40-week claim.
+- Verified at the landing: full suite green (1545 tests, 1543 pass,
+  2 todo; the +1 is career-replay.test.ts); fingerprint corpus 28/28
+  byte-identical; the engine untouched.
 
 ### Unassisted-creation supply arc, increment 1 (#74, REGISTER W82)
 

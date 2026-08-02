@@ -333,7 +333,10 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
  * sharing the shot's wt: whistle-stamped bookings are the pre-existing
  * FT-lineup reposition class, registered in W82 and filed as its own
  * issue), the last frame strictly before the shot's wt sits within 3.5 ft
- * of the booked x/y.
+ * of the booked x/y. The foul-sharing exclusion was NECESSARY while the
+ * FT-entry snap existed (the snap would have polluted the continuity
+ * read on a fouled booking); PR #119 (`e851169a`) replaced that snap
+ * with a wall-clock carry, so the exclusion is now merely conservative.
  *
  * The 3.5 ft bound: measured max 2.92 ft over n=109 un-fouled carried
  * bookings at the landed default (pool rtfg-1..48, the delta probe's

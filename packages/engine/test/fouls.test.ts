@@ -1,10 +1,10 @@
 /**
  * sim/fouls.ts — recordFoul bookkeeping and the enterFreeThrows setup path.
  *
- * Spec sources: fouls.ts:22-49 (FoulOutcome contract, incl. the techFT
- * rider), fouls.ts:51-126 (offensive fouls are personal-only, the
+ * Spec sources: fouls.ts:23-50 (FoulOutcome contract, incl. the techFT
+ * rider), fouls.ts:52-143 (offensive fouls are personal-only, the
  * bump-then-lookup bonus ordering, foul-out replacement, the after-whistle
- * technical draw), fouls.ts:130-256 (dead ball, windup cleared, pack-derived
+ * technical draw), fouls.ts:147-296 (dead ball, windup cleared, pack-derived
  * FT line, freeze, shooter protection), events.ts:70-93 (FoulKind — the
  * technical's snapshot-not-increment semantics), events.ts:357-391
  * (FoulEvent fields), rules/rulepack.ts (thresholds — read from the NBA
@@ -13,7 +13,7 @@
  * The officiating wave put a live rng draw after every recordFoul whistle
  * (techPerFoulWhistle 0.017), so unit states pin each arm deterministically
  * rather than at the fitted rate's mercy (the officiating.test.ts
- * forced-rate idiom): bookkeeping tests zero the rate (the fouls.ts:96-98
+ * forced-rate idiom): bookkeeping tests zero the rate (the fouls.ts:113-115
  * gate short-circuits and the stream stays untouched), rider tests force it
  * to 1. officiating.test.ts owns the end-to-end tech emission and consumer
  * chain; ncaa-rules.test.ts owns bonusFreeThrowAward arithmetic and
@@ -51,7 +51,7 @@ interface AgentSpec {
   onCourt?: boolean;
   fouledOut?: boolean;
   intent?: string;
-  /** freeThrow rating — the tech-rider shooter pick reads it (fouls.ts:118-123) */
+  /** freeThrow rating — the tech-rider shooter pick reads it (fouls.ts:135-140) */
   ft?: number;
 }
 
@@ -82,7 +82,7 @@ function mkAgent(o: AgentSpec): Agent {
  * enterFreeThrows read: rules/params/court, foul counters, emit's stamp
  * fields, teams/lineup/agents for checkSubs and replaceFouledOut, ball and
  * pendingRelease for the dead-ball reset, and the rng the after-whistle
- * technical draw spends (fouls.ts:105-107).
+ * technical draw spends (fouls.ts:122-124).
  */
 function mkState(o?: {
   teamFouls?: [number, number];
@@ -129,7 +129,7 @@ function mkState(o?: {
 
 const lastEvent = (s: GameState): GameEvent => s.events[s.events.length - 1]!;
 
-describe('recordFoul (fouls.ts:62-126)', () => {
+describe('recordFoul (fouls.ts:63-143)', () => {
   it('a defensive foul bumps personal AND team-period counts and stamps the full foul event', () => {
     const { s, agents } = mkState({ teamFouls: [2, 0] });
     const fouler = agents.get('h3')!;
@@ -158,7 +158,7 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 
   it('an offensive foul is personal-only: the team-period count never moves and no shots can result', () => {
-    // fouls.ts:70-79 — countsTeam gate; events.ts:70-93; the known
+    // fouls.ts:71-96 — countsTeam gate; events.ts:70-93; the known
     // simplification applies the NBA rule under every pack
     const { s, agents } = mkState({ teamFouls: [9, 0] }); // deep in the bonus
     const fouler = agents.get('h4')!;
@@ -173,7 +173,7 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 
   it('the foul that reaches teamFoulBonusAt already pays at the new tier (bump before lookup)', () => {
-    // fouls.ts:76-79 — "on the seventh team foul…" reads the count WITH this
+    // fouls.ts:84-94 — "on the seventh team foul…" reads the count WITH this
     // foul included; thresholds come from the pack, not literals
     const { s, agents } = mkState({ teamFouls: [NBA.teamFoulBonusAt - 1, 0] });
     const out = recordFoul(s, agents.get('h2')!, 'reach', agents.get('a1')!);
@@ -191,7 +191,7 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 
   it('the personal that reaches rules.foulOutAt disqualifies; with the bench exhausted, play on', () => {
-    // fouls.ts:80-93; subs.ts:525-533 — a 5-man roster has no replacement, so
+    // fouls.ts:97-110; subs.ts:525-533 — a 5-man roster has no replacement, so
     // the fouled-out body legally stays in the lineup (the degenerate state
     // liveOnCourt exists for)
     const { s, agents } = mkState();
@@ -234,7 +234,7 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 
   it('a technical rides the whistle: snapshot counts, and the FT pick is the best LIVE opposing shooter', () => {
-    // fouls.ts:95-124 (officiating wave) — the tech is not a personal:
+    // fouls.ts:112-141 (officiating wave) — the tech is not a personal:
     // every stamped count repeats the trigger foul's values unchanged,
     // fouledOut is always false, and techFT is the highest freeThrow rating
     // on the OPPOSING floor through liveOnCourt (a fouled-out floor ghost is
@@ -267,7 +267,7 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 
   it('the tech draw runs AFTER the foul-out replacement, and a tech never disqualifies', () => {
-    // fouls.ts:102-104 ("Draw order at this site is fixed: exactly one
+    // fouls.ts:120-121 ("Draw order at this site is fixed: exactly one
     // chance() after the foul-out replacement") — so the emitted row order
     // is personal → substitution → technical, and the tech's snapshot
     // repeats the disqualifying personal's count without a second bump
@@ -289,10 +289,10 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 
   it('the rate gate spends the stream honestly: zero draws at rate 0, exactly one when live', () => {
-    // fouls.ts:96-98 — "the rate gate still runs before the draw, so a
+    // fouls.ts:113-115 — "the rate gate still runs before the draw, so a
     // zeroed rate leaves the rng stream untouched"; at any live rate the
     // site costs exactly one chance() per whistle, hit or miss
-    // (fouls.ts:102-104). The §1.2 determinism contract hangs on this draw
+    // (fouls.ts:120-121). The §1.2 determinism contract hangs on this draw
     // budget: a same-seed fresh Rng replays the state rng's position
     // exactly. The live arm runs at the SHIPPED 0.017, not the forced 1 —
     // chance(1) never misses, so a short-circuited extra draw would hide
@@ -308,9 +308,9 @@ describe('recordFoul (fouls.ts:62-126)', () => {
   });
 });
 
-describe('enterFreeThrows (fouls.ts:158-256)', () => {
+describe('enterFreeThrows (fouls.ts:194-296)', () => {
   it('parks the ball dead and kills any pending windup — the ghost-shot fix', () => {
-    // fouls.ts:168-175 (scan a1): a stale windup surviving the trip
+    // fouls.ts:204-211 (scan a1): a stale windup surviving the trip
     // resurrected as a shot with pre-whistle contest/moveType
     const { s, agents } = mkState();
     enterFreeThrows(s, agents.get('h1')!, 2);
@@ -331,13 +331,13 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
     expect(ph.oneAndOne).toBe(false);
     expect(ph.nextIn).toBeGreaterThan(0);
     // no-tech trips stay byte-identical: the rider keys are conditionally
-    // spread, never present-but-undefined (fouls.ts:186-191)
+    // spread, never present-but-undefined (fouls.ts:228-233)
     expect('pre' in ph).toBe(false);
     expect('resume' in ph).toBe(false);
   });
 
   it('a one-and-one trip is stamped when the bonus award says so', () => {
-    // fouls.ts:162-192 — bonus callers pass FoulOutcome.bonus.oneAndOne through
+    // fouls.ts:198-234 — bonus callers pass FoulOutcome.bonus.oneAndOne through
     const { s, agents } = mkState();
     enterFreeThrows(s, agents.get('h2')!, 2, true);
     const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
@@ -346,9 +346,10 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
   });
 
   it('the shooter walks to the PACK-DERIVED line; the ball stays put and carries (#82 C1)', () => {
-    // fouls.ts:215-227 — ftLineFt − rimInsetFt replaced a hardcoded 13.75
-    // that silently diverged for non-NBA packs; period 1, side 0 attacks the
-    // high-x rim, so the line sits toward midcourt from it
+    // fouls.ts:147-163 (ftLineSpot) — ftLineFt − rimInsetFt replaced a
+    // hardcoded 13.75 that silently diverged for non-NBA packs (the #82 C1
+    // landing moved the derivation into the shared helper); period 1, side 0
+    // attacks the high-x rim, so the line sits toward midcourt from it
     const { s, agents } = mkState();
     const shooter = agents.get('h3')!;
     const whistleSpot = { ...s.ball.pos };
@@ -409,7 +410,7 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
     enterFreeThrows(s, sh, 1, false, { resume: { nextTeam: 1, continuation: false, resumeIn: 1.8 } }));
 
   it('the other nine freeze for the ritual; the shooter keeps his own intent', () => {
-    // fouls.ts:228-249 — cosmetic lane arrangement, shooter skipped
+    // fouls.ts:268-289 — cosmetic lane arrangement, shooter skipped
     const { s, agents } = mkState();
     const shooter = agents.get('h1')!;
     (shooter as unknown as { intent: string }).intent = 'spot';
@@ -422,7 +423,7 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
   });
 
   it('the man headed to the line is protected from the substitution pass', () => {
-    // fouls.ts:199-211 — checkSubs(s, shooter.p.id, ...): the whistle's sub
+    // fouls.ts:242-253 — checkSubs(s, shooter.p.id, ...): the whistle's sub
     // window must not yank the shooter between the whistle and his attempt.
     // At the shipped sub.ftGapSubMode 3 the trip-entry pass is urgent-only,
     // so the live threat is the foul-trouble pull (subs.ts:374-388): the
@@ -438,7 +439,7 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
     expect(s.lineup[0]).toContain('h1');
     const ph = s.phase as Extract<Phase, { kind: 'freethrows' }>;
     expect(ph.shooterId).toBe('h1');
-    // legacy entry modes (STAGED 0-2, fouls.ts:206-211) run the FULL pass at
+    // legacy entry modes (STAGED 0-2, fouls.ts:248-253) run the FULL pass at
     // the whistle: there the fatigue rotation is the threat, and a gassed
     // shooter with a rested bench body waiting is protected the same way
     const { s: s2, agents: ag2 } = mkState({
