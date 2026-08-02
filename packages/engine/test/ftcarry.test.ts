@@ -53,10 +53,19 @@
  *   3. ARRIVAL — the first frame at-or-after each free_throw event's wt
  *      shows the ball exactly at the trip's ftSpot (round1 of the same
  *      rule-pack derivation fouls.ts uses: NBA 19 − 5.25 = 13.75 ft from
- *      rim center, court centerline). Skipped only where the C3 rim seed
- *      overwrites the spot on the attempt tick itself: a trip-FINAL
- *      non-technical miss. Technical attempts are never skipped — a dead-
- *      ball tech miss produces no rebound and no rim seed by rule.
+ *      rim center, court centerline). Two exclusions, both scope, not
+ *      slack: (a) the C3 rim seed overwrites the spot on the attempt
+ *      tick itself — a trip-FINAL non-technical miss; (b) since the #115
+ *      dead-phase relay landed, an attempt that ENDS the trip into a
+ *      dead ball (a made final, or any technical — a tech's resume
+ *      re-enters deadBall whether it drops or not) hands the ball to the
+ *      relay on its own tick, so an OFF-CADENCE sample (first frame
+ *      strictly after the attempt's wt) reads the relay walking the ball
+ *      to the inbound, not the ritual. On-cadence trip-final samples
+ *      stay checked — the attempt tick's own frame is exact under the
+ *      relay too. Measured at the #115 landing: 89/312 samples were the
+ *      (b) class, every one trip-ending AND off-cadence, zero
+ *      intra-ritual misses.
  *
  * Trip grouping: free_throw events keyed by the last preceding foul wt.
  * Every trip's entry shares its whistle's tick (recordFoul and
@@ -183,8 +192,14 @@ describe('#82 C1: the ball walks to the line (FT-carry honest-path property)', (
             if (frames[i]![0]! >= e.wt - 1e-9) { fi = i; break; }
           }
           if (fi < 0) continue; // no frame at or after the horn-adjacent attempt
-          arrivalChecks += 1;
           const fr = frames[fi]!;
+          // #115 scope-out (header clause 3b): a trip-ending attempt hands
+          // the ball to the dead-phase relay on its own tick; off-cadence
+          // samples read the relay, not the ritual. On-cadence samples
+          // stay checked.
+          const tripEndsDead = k === fts.length - 1 && (e.made || e.technical !== undefined);
+          if (tripEndsDead && fr[0]! > e.wt + 1e-9) continue;
+          arrivalChecks += 1;
           if (fr[3]! !== round1(ftSpot.x) || fr[4]! !== round1(ftSpot.y)) arrivalMisses += 1;
         }
       }

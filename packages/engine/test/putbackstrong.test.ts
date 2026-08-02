@@ -226,15 +226,18 @@ describe('the off-switch pin (explicit logit 0 reproduces the staged stream)', (
   }
 
   it('putbackstrong-1 at logit 0: the recorded stream, exactly', () => {
-    // Re-anchored at the #115 layer A acquisition stamp (giveBall writes
-    // ball.pos to the new holder at every change of hands, moving events
-    // and frames) — a legitimate stream reorder per this block's
-    // doctrine, cause stated in the landing commit.
+    // Re-anchored at the #115 landing, both layers: the layer A
+    // acquisition stamp + stage-12 holder re-read moved events and
+    // frames; the layer B dead-phase relay moved frames ONLY (event
+    // count and final match the layer-A-only bake exactly — the
+    // frames-only contract, the #119 precedent). Legitimate stream
+    // reorders per this block's doctrine, causes stated in the landing
+    // commits.
     const r = game('putbackstrong-1', 0, true);
     const last = r.events[r.events.length - 1]!;
     expect(r.events.length).toBe(1235);
     expect(`${last.score[0]}-${last.score[1]}`).toBe('114-113');
-    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('8b84d213');
+    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('f5ebe149');
   });
 });
 
