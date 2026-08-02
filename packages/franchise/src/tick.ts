@@ -239,26 +239,40 @@ function sheetExecutionBlock(league: League, teamId: TeamId, sheet: League['offe
  * days long and rosters move underneath it, so a decision that was legal
  * when the sheet was lodged can be unexecutable at the deadline. A blocked
  * match falls back to the unmatched outcome; a blocked unmatched signing
- * voids the sheet with the player's rights intact. Every rerouted outcome
- * surfaces an inbox notice naming the block — the day must never die on a
- * raw executor throw.
+ * voids the sheet with the player's rights intact. The day must never die
+ * on a raw executor throw, whichever two teams are involved; a reroute on
+ * a sheet the user's team is party to also surfaces an inbox notice
+ * naming the block.
  */
 function resolveOfferSheet(league: League, sheet: League['offerSheets'][number], matched: boolean): void {
   const player = league.players[sheet.playerId];
   const incumbent = player?.rights?.teamId ?? null;
   const today = currentDate(league);
+  // Reroute notices speak only when the user's team is a party to the
+  // sheet (offering side or rights-holding incumbent). The inbox is the
+  // user's desk, not a league wire: every generator filters for user
+  // relevance (inbox.ts), and an AI-AI reroute is already on the
+  // transaction log for any surface that reads league-wide truth.
+  const userParty = sheet.from === league.userTeam || incumbent === league.userTeam;
   if (matched && incumbent) {
     const block = sheetExecutionBlock(league, incumbent, sheet);
     if (block) {
       // the incumbent decided to keep its player but cannot take delivery:
       // the match lapses to the unmatched outcome instead of a dead day
       matched = false;
-      pushInbox(league, {
-        id: `sheet-match-block-${today.season}-${today.day}-${sheet.playerId}`,
-        date: today, kind: 'notice', resolved: false,
-        title: 'Offer sheet match fails at execution',
-        body: `${teamLabel(league, incumbent)} matched the offer sheet for ${player?.name ?? sheet.playerId} but cannot execute it today: ${block}. The sheet resolves as unmatched.`,
-      });
+      if (userParty) {
+        pushInbox(league, {
+          id: `sheet-match-block-${today.season}-${today.day}-${sheet.playerId}`,
+          date: today, kind: 'notice',
+          title: 'Offer sheet match fails at execution',
+          body: `${teamLabel(league, incumbent)} matched the offer sheet for ${player?.name ?? sheet.playerId} but cannot execute it today: ${block}. The sheet resolves as unmatched.`,
+          // a reroute is day-of news: read at the stop, retired by the
+          // next morning's sweep (#187). A deadline-less notice would
+          // linger to the season rollover.
+          deadline: today,
+          resolved: false,
+        });
+      }
     }
   }
   if (matched && incumbent) {
@@ -268,12 +282,17 @@ function resolveOfferSheet(league: League, sheet: League['offerSheets'][number],
     if (block) {
       // the offering team can no longer take delivery of its own sheet:
       // the sheet dies, the player stays a free agent, rights intact
-      pushInbox(league, {
-        id: `sheet-void-${today.season}-${today.day}-${sheet.playerId}`,
-        date: today, kind: 'notice', resolved: false,
-        title: 'Offer sheet voided at execution',
-        body: `${teamLabel(league, sheet.from)} lodged the offer sheet for ${player?.name ?? sheet.playerId} but cannot execute it today: ${block}. The sheet is void; the player remains a free agent and the incumbent's rights are unchanged.`,
-      });
+      if (userParty) {
+        pushInbox(league, {
+          id: `sheet-void-${today.season}-${today.day}-${sheet.playerId}`,
+          date: today, kind: 'notice',
+          title: 'Offer sheet voided at execution',
+          body: `${teamLabel(league, sheet.from)} lodged the offer sheet for ${player?.name ?? sheet.playerId} but cannot execute it today: ${block}. The sheet is void; the player remains a free agent and the incumbent's rights are unchanged.`,
+          // day-of news, the same #187 lifetime as the match-block notice
+          deadline: today,
+          resolved: false,
+        });
+      }
     } else {
       executeSigning(league, sheet.from, sheet.playerId, sheet.contract, true);
     }

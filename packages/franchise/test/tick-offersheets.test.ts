@@ -102,16 +102,19 @@ function matchDecisionsFor(league: League, pid: PlayerId) {
 }
 
 describe('offer-sheet resolution at the tick (#185)', () => {
-  it('voids a sheet the offering team can no longer execute, explained, without killing the day', async () => {
+  it('voids a sheet the user can no longer execute, explained, without killing the day', async () => {
     const league = leagueOn('regular');
-    const [, incumbent, offering] = Object.keys(league.teams) as TeamId[];
-    // the offering roster filled to the ceiling during the match window
-    padRosterToMax(league, offering!);
+    // live-play shape: the user's chair lodged the sheet (the offerSheet
+    // action is not phase-gated); an AI front office holds the rights
+    const offering = league.userTeam;
+    const incumbent = (Object.keys(league.teams) as TeamId[])[1]!;
+    // the user's roster filled to the ceiling during the match window
+    padRosterToMax(league, offering);
     // year 1 lands the incumbent past the first apron, so the auto-match
-    // rule declines and resolution flows to the offering team's signing
+    // rule declines and resolution flows to the user's signing
     const year1 = league.capLines[league.season]!.apron1 + 1;
     const pid = lodgeSheet(league, {
-      incumbent: incumbent!, from: offering!, year1, contractSeason: league.season,
+      incumbent, from: offering, year1, contractSeason: league.season,
     });
 
     // on the defective base this day dies inside executeSigning:
@@ -130,13 +133,15 @@ describe('offer-sheet resolution at the tick (#185)', () => {
 
   it('falls back to the unmatched signing when the incumbent matches but cannot execute', async () => {
     const league = leagueOn('regular');
-    const [, incumbent, offering] = Object.keys(league.teams) as TeamId[];
-    // the incumbent decided to keep its core but filled to the ceiling
-    // during the window: the match is physically unexecutable today
-    padRosterToMax(league, incumbent!);
+    // the user's chair lodged the sheet; the AI incumbent decided to keep
+    // its core but filled to the ceiling during the window: the match is
+    // physically unexecutable today
+    const offering = league.userTeam;
+    const incumbent = (Object.keys(league.teams) as TeamId[])[1]!;
+    padRosterToMax(league, incumbent);
     const year1 = 1_000_000; // well under the apron: the match rule says yes
     const pid = lodgeSheet(league, {
-      incumbent: incumbent!, from: offering!, year1, contractSeason: league.season,
+      incumbent, from: offering, year1, contractSeason: league.season,
     });
     const sheet = league.capLines[league.season]!;
     // fixture sanity: the matched branch must actually be reachable
@@ -149,12 +154,35 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     const signings = offerSheetSignings(league, pid);
     expect(signings.length).toBe(1);
     expect((signings[0] as { teamId?: string }).teamId).toBe(offering);
-    expect(league.teams[offering!]!.roster).toContain(pid);
+    expect(league.teams[offering]!.roster).toContain(pid);
     const decisions = matchDecisionsFor(league, pid);
     expect(decisions.length).toBe(1);
     expect((decisions[0] as { matched?: boolean }).matched).toBe(false);
     const note = league.inbox.find((i) => i.id.startsWith('sheet-match-block-') && i.id.endsWith(pid));
     expect(note?.kind).toBe('notice');
+  });
+
+  it('reroutes AI-AI sheets silently: the day survives, the desk stays quiet', async () => {
+    const league = leagueOn('regular');
+    // two AI front offices; the user's team is no party to the sheet
+    const [, incumbent, offering] = Object.keys(league.teams) as TeamId[];
+    padRosterToMax(league, offering!);
+    const year1 = league.capLines[league.season]!.apron1 + 1;
+    const pid = lodgeSheet(league, {
+      incumbent: incumbent!, from: offering!, year1, contractSeason: league.season,
+    });
+    const dayBefore = league.day;
+
+    // same defective-base crash shape as the user-party void above: the
+    // fix must survive it for ANY two teams, but only user-party sheets
+    // may reach the user's desk
+    await advanceDay(league, simulateJobsInline);
+
+    expect(league.day).toBe(dayBefore + 1);
+    expect(league.offerSheets.length).toBe(0);
+    expect(offerSheetSignings(league, pid).length).toBe(0);
+    expect(matchDecisionsFor(league, pid).length).toBe(1);
+    expect(league.inbox.some((i) => i.id.startsWith('sheet-void-') || i.id.startsWith('sheet-match-block-'))).toBe(false);
   });
 
   it('prices the auto-match apron test on signing-season books between lottery and rollover', async () => {
