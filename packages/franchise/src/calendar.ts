@@ -160,6 +160,21 @@ export function currentDate(league: League): LeagueDate {
 }
 
 /**
+ * The day option and qualifying-offer decisions land: free agency opens
+ * the day after the moratoriumEnds mark, and decisions fall
+ * params.fa.qualifyingOfferDecisionDay days before that opening (the real
+ * late-June deadline compressed onto our calendar). -1 on hand-built
+ * calendars without the mark. Called by the spine to time the AI pass
+ * (tick.ts) and by the GM desk to time the user's option-day item
+ * (inbox.ts); pure arithmetic, no side effects.
+ */
+export function optionDecisionDay(calendar: CalendarDay[], params: FranchiseParams): number {
+  const morEnd = calendar.findIndex((d) => (d.marks as string[]).includes('moratoriumEnds'));
+  if (morEnd < 0) return -1;
+  return morEnd + 1 - params.fa.qualifyingOfferDecisionDay;
+}
+
+/**
  * Planned phase for an arbitrary day of a calendar, clamped: days before
  * day 0 read as the first day, days past the end as the last (callers may
  * probe "tomorrow" on the final day without guarding). An empty calendar

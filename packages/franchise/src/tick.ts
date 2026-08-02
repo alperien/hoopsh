@@ -34,7 +34,7 @@ import type {
   Coach, DayDigest, GameRecord, InboxItem, League, PlayerId,
   ScheduledGame, ScoutRange, Season, SimulateJobs, TeamId, UserAction,
 } from './types.js';
-import { buildSeasonCalendar, currentDate, phaseOn } from './calendar.js';
+import { buildSeasonCalendar, currentDate, optionDecisionDay, phaseOn } from './calendar.js';
 import { abilityScore, applyGameResults, planDayJobs } from './gameday.js';
 import { officialsNewsFor } from './officials.js';
 import { streamRng } from './rng.js';
@@ -87,18 +87,6 @@ const DISPOSITION_CADENCE = 7;  // FEEL: weekly locker-room pulse; daily would b
 /** Index of the calendar day carrying a mark, or -1 (hand-built test calendars may omit marks). */
 function markDay(calendar: League['calendar'], mark: string): number {
   return calendar.findIndex((d) => (d.marks as string[]).includes(mark));
-}
-
-/**
- * The day AI teams resolve options and tender qualifying offers: free
- * agency opens the day after the moratoriumEnds mark, and decisions land
- * params.fa.qualifyingOfferDecisionDay days before that opening (the real
- * late-June deadline compressed onto our calendar).
- */
-function optionDeadlineDay(league: League): number {
-  const morEnd = markDay(league.calendar, 'moratoriumEnds');
-  if (morEnd < 0) return -1;
-  return morEnd + 1 - league.params.fa.qualifyingOfferDecisionDay;
 }
 
 function deny(...errors: string[]): ActionResult {
@@ -863,7 +851,7 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
   aiTradePulse(league);
   aiRosterUpkeep(league);
   if (league.phase === 'moratorium' || league.phase === 'freeAgency') runFreeAgencyDay(league);
-  if (league.day === optionDeadlineDay(league)) runAiOffseasonDecisions(league);
+  if (league.day === optionDecisionDay(league.calendar, league.params)) runAiOffseasonDecisions(league);
 
   // --------------------------------------------------------------- games
   let records: GameRecord[] = [];
