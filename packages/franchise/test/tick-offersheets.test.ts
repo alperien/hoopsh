@@ -108,13 +108,25 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     // action is not phase-gated); an AI front office holds the rights
     const offering = league.userTeam;
     const incumbent = (Object.keys(league.teams) as TeamId[])[1]!;
-    // the user's roster filled to the ceiling during the match window
+    // both books filled to the ceiling during the match window: the user
+    // cannot take delivery, and the walled incumbent cannot scoop the
+    // voided player back on a quiet upkeep minimum (its own-RFA signing
+    // is legal below the max, ai/roster.ts), so the no-signing void is
+    // the day's true final state
     padRosterToMax(league, offering);
+    padRosterToMax(league, incumbent);
     // year 1 lands the incumbent past the first apron, so the auto-match
     // rule declines and resolution flows to the user's signing
     const year1 = league.capLines[league.season]!.apron1 + 1;
     const pid = lodgeSheet(league, {
       incumbent, from: offering, year1, contractSeason: league.season,
+    });
+    // the user filed this sheet through the action API earlier today:
+    // offerSheetResults keys its "your sheet" narration off the action log
+    league.actionLog.push({
+      seq: (league.actionSeq += 1),
+      date: { season: league.season, day: league.day },
+      action: { kind: 'offerSheet', playerId: pid, years: 2, startSalary: year1 },
     });
 
     // on the defective base this day dies inside executeSigning:
@@ -129,6 +141,12 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     const note = league.inbox.find((i) => i.id.startsWith('sheet-void-') && i.id.endsWith(pid));
     expect(note?.kind).toBe('notice');
     expect(note?.body ?? '').toContain('15-man');
+    // the desk's result item states the void, never a fictional signing
+    expect(league.players[pid]!.status).toBe('freeAgent');
+    const result = league.inbox.find((i) => i.id.startsWith('sheet-result-') && i.id.endsWith(pid));
+    expect(result?.title ?? '').toContain('voided');
+    expect(result?.body ?? '').toContain('remains a free agent');
+    expect(result?.body ?? '').not.toContain('yours at the sheet terms');
   });
 
   it('falls back to the unmatched signing when the incumbent matches but cannot execute', async () => {
@@ -142,6 +160,12 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     const year1 = 1_000_000; // well under the apron: the match rule says yes
     const pid = lodgeSheet(league, {
       incumbent, from: offering, year1, contractSeason: league.season,
+    });
+    // the user filed this sheet through the action API earlier today
+    league.actionLog.push({
+      seq: (league.actionSeq += 1),
+      date: { season: league.season, day: league.day },
+      action: { kind: 'offerSheet', playerId: pid, years: 2, startSalary: year1 },
     });
     const sheet = league.capLines[league.season]!;
     // fixture sanity: the matched branch must actually be reachable
@@ -160,6 +184,10 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     expect((decisions[0] as { matched?: boolean }).matched).toBe(false);
     const note = league.inbox.find((i) => i.id.startsWith('sheet-match-block-') && i.id.endsWith(pid));
     expect(note?.kind).toBe('notice');
+    // the desk's result derives the destination from the day's signing
+    const result = league.inbox.find((i) => i.id.startsWith('sheet-result-') && i.id.endsWith(pid));
+    expect(result?.title ?? '').toContain('unmatched');
+    expect(result?.body ?? '').toContain('yours at the sheet terms');
   });
 
   it('reroutes AI-AI sheets silently: the day survives, the desk stays quiet', async () => {
@@ -219,6 +247,31 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     expect(lapse?.body ?? '').toContain('two-way');
     const voided = league.inbox.find((i) => i.id.startsWith('sheet-void-') && i.id.endsWith(pid));
     expect(voided?.body ?? '').toContain('two-way');
+  });
+
+  it('states the void truthfully when a lapsed match window ends with no signing', async () => {
+    const league = leagueOn('regular');
+    // the user holds the rights and lets the window lapse; the AI
+    // offering team filled its roster during the window, so the lapse
+    // resolves to a void instead of a signing
+    const incumbent = league.userTeam;
+    const offering = (Object.keys(league.teams) as TeamId[])[1]!;
+    padRosterToMax(league, offering);
+    const pid = lodgeSheet(league, {
+      incumbent, from: offering, year1: 1_000_000, contractSeason: league.season,
+    });
+
+    await advanceDay(league, simulateJobsInline);
+
+    expect(offerSheetSignings(league, pid).length).toBe(0);
+    expect(league.players[pid]!.status).toBe('freeAgent');
+    expect(league.players[pid]!.rights?.teamId).toBe(incumbent);
+    const voided = league.inbox.find((i) => i.id.startsWith('sheet-void-') && i.id.endsWith(pid));
+    expect(voided?.kind).toBe('notice');
+    const result = league.inbox.find((i) => i.id.startsWith('sheet-result-') && i.id.endsWith(pid));
+    expect(result?.title ?? '').toContain('voided');
+    expect(result?.body ?? '').toContain('rights are unchanged');
+    expect(result?.body ?? '').not.toContain('signs with');
   });
 
   it('prices the auto-match apron test on signing-season books between lottery and rollover', async () => {
