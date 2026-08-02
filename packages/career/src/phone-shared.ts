@@ -28,8 +28,52 @@ const ANTIREPEAT_WEEKS = 8;
 /** REAL-ish: the banner number. Career points cross a 1,000 step and the gym hangs a sign; the wire files the story. */
 export const MILESTONE_STEP = 1000;
 
-/** The wire's one fixed byline (fictional universe, fictional desk). Picked once and kept so the career reads like one reporter followed it. */
-export const WIRE_BYLINE = 'K. Osei, The Ledger';
+// ---------------------------------------------------------------------------
+// the home cast (issue #109): the recurring people around a career. Every
+// identity below draws ONCE per career from its own registered stream
+// (derivation functions beside recruiterSurname), so the advisor who
+// answers in October still answers at the hall-of-fame vote — but no two
+// careers share a home cast (docs/CAREER.md pillar 4: nothing authored
+// twice; the playtest found every career opening on the same four
+// contacts). Pools are fictional and in-module (the circuits.ts doctrine:
+// career flavor, not @hoopsh/data content), 16 entries in the house pool
+// size (RECRUITER_SURNAMES, COACH_SURNAMES). The legacy names (Marta,
+// Uncle Dee, Dana Marsh, K. Osei) stay in their pools, the same
+// continuity trick creation.ts plays with the fixture's Coach Wexler.
+
+/** FEEL: agent first names — the thread signs texts with the bare first name, so the pool holds first names. Gender- and origin-mixed the way the real agency business is. */
+const AGENT_NAMES: readonly string[] = [
+  'Marta', 'Deb', 'Lena', 'Priya', 'Sloane', 'Yusuf', 'Marcus', 'Elias',
+  'Rich', 'Dominique', 'Carmen', 'Avery', 'Nadia', 'Theo', 'Simone', 'Grant',
+];
+
+/** FEEL: the family-side advisor a US kid actually has — an uncle, an aunt, a cousin who played a little and knows a guy. Relationship rides in the name because that is how the contact is saved. */
+const ADVISOR_NAMES_US: readonly string[] = [
+  'Uncle Dee', 'Uncle Ray', 'Aunt Cee', 'Uncle Mook', 'Cousin Trey', 'Uncle Bo',
+  'Aunt Dot', 'Uncle Chip', 'Cousin Rell', 'Uncle Gus', 'Aunt Fran', 'Uncle Slim',
+  'Cousin Duke', 'Uncle Zeke', 'Aunt Pearl', 'Uncle Ossie',
+];
+
+/** FEEL: the international kid's family corner. Deliberately pan-regional: the creation spec carries a nationality (us/intl), not a region, so a finer pairing has nothing to key on yet — stated rather than faked. */
+const ADVISOR_NAMES_INTL: readonly string[] = [
+  'Uncle Goran', 'Uncle Dragan', 'Cousin Luka', 'Uncle Milos', 'Uncle Sasha', 'Aunt Vesna',
+  'Uncle Timo', 'Cousin Nino', 'Uncle Piet', 'Uncle Yann', 'Aunt Ilka', 'Uncle Andrej',
+  'Cousin Marko', 'Uncle Levan', 'Aunt Mirela', 'Uncle Rasa',
+];
+
+/** FEEL: local beat writers (full names; a byline is a whole name), press-row register, gender-mixed like a real press row. */
+const BEAT_WRITERS: readonly string[] = [
+  'Dana Marsh', 'Terri Voss', 'Cal Whitmore', 'Renata Ruiz', 'Doug Paulsen', 'Gwen Tolliver',
+  'Marcus Denny', 'Sana Qureshi', 'Pete Callahan', 'Ivy Strand', 'Ron Delgado', 'Faith Emerson',
+  'Judd Barker', 'Noor Haddad', 'Ellie Vance', 'Sam Trettel',
+];
+
+/** FEEL: national insiders at The Ledger. The OUTLET is world furniture and persists across careers (the same thirty franchises do too); the reporter is a person and does not. */
+const WIRE_REPORTERS: readonly string[] = [
+  'K. Osei', 'J. Whitcomb', 'R. Castellanos', 'M. Adeyemi', 'T. Brandvold', 'S. Okonkwo',
+  'A. Marceau', 'D. Kowalczyk', 'L. Ferreira', 'C. Nakamura', 'P. Lindqvist', 'B. Attah',
+  'V. Sorrell', 'E. Maldonado', 'H. Pryce', 'N. Vachon',
+];
 
 /** FEEL: the line that makes a beat writer drive over (mirrors stock.ts SHOCK_GAME_PTS: the 30-point game is the doc's own named shock). */
 export const MEDIA_GAME_PTS = 30;
@@ -158,6 +202,42 @@ export function nbaTeamNameOf(career: CareerState, teamId: string): string {
 /** The stable, career-long surname of a program's recruiting coach. */
 export function recruiterSurname(career: CareerState, programId: string): string {
   return streamRng(career.seed, 'career-phone-coach', programId).pick(RECRUITER_SURNAMES);
+}
+
+/**
+ * The agent's first name, one pick on 'career-cast:agent' (the
+ * recruiterSurname doctrine: one identity, one stream, no week in the
+ * path — the person does not change names between calls). Exported bare
+ * because the thread's texts sign with it ('Marta. From this week…').
+ */
+export function agentNameOf(career: CareerState): string {
+  return streamRng(career.seed, 'career-cast', 'agent').pick(AGENT_NAMES);
+}
+
+/** 'Marta (agent)': the agent thread's contact card. */
+export function agentDisplayOf(career: CareerState): string {
+  return `${agentNameOf(career)} (agent)`;
+}
+
+/**
+ * 'Uncle Dee (advisor)': the family-side advisor who fields business
+ * before an agent legally can. One pick on 'career-cast:advisor'. The
+ * pool follows the creation nationality — a kid from Split does not
+ * grow up with a county-gym uncle (issue #109's repro).
+ */
+export function advisorDisplayOf(career: CareerState): string {
+  const pool = career.creation.nationality === 'intl' ? ADVISOR_NAMES_INTL : ADVISOR_NAMES_US;
+  return `${streamRng(career.seed, 'career-cast', 'advisor').pick(pool)} (advisor)`;
+}
+
+/** 'Dana Marsh (beat writer)': the local press seat. One pick on 'career-cast:writer'; one reporter works the beat for the whole career. */
+export function beatWriterOf(career: CareerState): string {
+  return `${streamRng(career.seed, 'career-cast', 'writer').pick(BEAT_WRITERS)} (beat writer)`;
+}
+
+/** 'K. Osei, The Ledger': the wire byline. One pick on 'career-cast:wire'. One reporter follows the whole career (the original fixed-byline intent), but the desk assigns a different one to every career. */
+export function wireBylineOf(career: CareerState): string {
+  return `${streamRng(career.seed, 'career-cast', 'wire').pick(WIRE_REPORTERS)}, The Ledger`;
 }
 
 /** '58-52' with the winner first: how a final gets texted. */
