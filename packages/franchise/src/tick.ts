@@ -3,7 +3,8 @@
  * spine task.
  *
  * Day order (docs/FRANCHISE.md §8), fixed here and nowhere else:
- *   morning        recoveries advance; expired offer sheets auto-resolve
+ *   morning        recoveries advance; expired offer sheets auto-resolve;
+ *                  inbox items past their deadline retire (inbox.ts)
  *   AI block       timeline re-evaluation on season marks; trade pulse;
  *                  roster upkeep; the FA market in moratorium/freeAgency;
  *                  AI option/QO decisions on the option-deadline day
@@ -11,7 +12,8 @@
  *                  post-game injury rolls
  *   league pulse   dispositions weekly; award races on cadence; the news
  *                  desk; recaps and record checks per finished game;
- *                  midseason development review at the all-star mark
+ *                  midseason development review at the all-star mark;
+ *                  LAST, the GM desk surfaces what needs the user (#152)
  *   postseason     advancePostseason schedules the bracket's next games
  *   transitions    calendar marks and real outcomes move league.phase;
  *                  draft night can PAUSE the day on the user's pick; a
@@ -34,9 +36,10 @@ import type {
   Coach, DayDigest, GameRecord, InboxItem, League, PlayerId,
   ScheduledGame, ScoutRange, Season, SimulateJobs, TeamId, UserAction,
 } from './types.js';
-import { buildSeasonCalendar, currentDate, phaseOn } from './calendar.js';
+import { buildSeasonCalendar, currentDate, optionDecisionDay, phaseOn } from './calendar.js';
 import { abilityScore, applyGameResults, planDayJobs } from './gameday.js';
 import { officialsNewsFor } from './officials.js';
+import { expireInboxDeadlines, generateGmInbox } from './inbox.js';
 import { streamRng } from './rng.js';
 import { generateSchedule } from './schedule.js';
 import { emptyStanding } from './standings.js';
@@ -87,18 +90,6 @@ const DISPOSITION_CADENCE = 7;  // FEEL: weekly locker-room pulse; daily would b
 /** Index of the calendar day carrying a mark, or -1 (hand-built test calendars may omit marks). */
 function markDay(calendar: League['calendar'], mark: string): number {
   return calendar.findIndex((d) => (d.marks as string[]).includes(mark));
-}
-
-/**
- * The day AI teams resolve options and tender qualifying offers: free
- * agency opens the day after the moratoriumEnds mark, and decisions land
- * params.fa.qualifyingOfferDecisionDay days before that opening (the real
- * late-June deadline compressed onto our calendar).
- */
-function optionDeadlineDay(league: League): number {
-  const morEnd = markDay(league.calendar, 'moratoriumEnds');
-  if (morEnd < 0) return -1;
-  return morEnd + 1 - league.params.fa.qualifyingOfferDecisionDay;
 }
 
 function deny(...errors: string[]): ActionResult {
@@ -224,6 +215,12 @@ function resolveOfferSheet(league: League, sheet: League['offerSheets'][number],
     });
   }
   league.offerSheets = league.offerSheets.filter((s) => s !== sheet);
+  // the sheet's inbox clock (inbox.ts) dies with the sheet, on every
+  // resolution path: user match action, morning auto-resolve, either way
+  const clock = league.inbox.find(
+    (i) => !i.resolved && i.id.startsWith('sheet-clock-') && i.id.endsWith(`-${sheet.playerId}`),
+  );
+  if (clock) clock.resolved = true;
 }
 
 /**
@@ -853,6 +850,7 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
   // ------------------------------------------------------------- morning
   advanceRecoveries(league);
   resolveExpiredOfferSheets(league);
+  expireInboxDeadlines(league);
 
   // ---------------------------------------------------- AI front offices
   // Timelines re-read at the season's inflection points: camp open, the
@@ -863,7 +861,7 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
   aiTradePulse(league);
   aiRosterUpkeep(league);
   if (league.phase === 'moratorium' || league.phase === 'freeAgency') runFreeAgencyDay(league);
-  if (league.day === optionDeadlineDay(league)) runAiOffseasonDecisions(league);
+  if (league.day === optionDecisionDay(league.calendar, league.params)) runAiOffseasonDecisions(league);
 
   // --------------------------------------------------------------- games
   let records: GameRecord[] = [];
@@ -904,6 +902,11 @@ export async function advanceDay(league: League, sim: SimulateJobs): Promise<Day
     runDevelopmentReview(league, 'midseason');
     for (const award of selectAllStars(league)) league.awards.push(award);
   }
+  // the GM desk speaks last in the pulse (FRANCHISE.md §8: after the news
+  // desk, "the inbox surfaces what needs the user"), so its items read
+  // today's full truth: the AI block's trades, the day's games and
+  // injuries, the market's sheets. Human chair only; see inbox.ts.
+  for (const item of generateGmInbox(league)) pushInbox(league, item);
 
   // ---------------------------------------------------- postseason motion
   let newlyScheduled: ScheduledGame[] = [];
