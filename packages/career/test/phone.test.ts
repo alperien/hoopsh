@@ -15,6 +15,9 @@
 import { describe, expect, it } from 'vitest';
 import type { GameLine, GameRecord, PlayerSeasonRow } from '@hoopsh/franchise';
 import { applyPhoneChoice, generatePhone } from '../src/phone.js';
+import {
+  advisorDisplayOf, agentDisplayOf, beatWriterOf, wireBylineOf,
+} from '../src/phone-shared.js';
 import type { CareerState, PhoneMessage, Program, RouteOffer } from '../src/types.js';
 import { fixtureCareer } from './fixture.js';
 
@@ -225,7 +228,7 @@ describe('season caps hold under a flood', () => {
     const wire = career.phone.filter(m => m.thread === 'wire');
     expect(wire.length).toBe(10);
     for (const m of wire) {
-      expect(m.from).toBe('K. Osei, The Ledger');
+      expect(m.from).toContain(', The Ledger'); // the desk persists; the reporter is the career's seeded byline
       expect(m.body).toContain('all-circuit honor number');
     }
   });
@@ -361,7 +364,7 @@ describe('draft night', () => {
 
     const agent = msgs.find(m => m.thread === 'agent');
     expect(agent).toBeDefined();
-    expect(agent!.from).toBe('Marta (agent)');
+    expect(agent!.from).toContain('(agent)'); // the AGENT calls on draft night, never the advisor
     expect(agent!.body).toContain('21'); // the mock the boards printed
     expect(/\b4\b/.test(agent!.body)).toBe(true); // the pick the room called
     expect(agent!.refs?.teamId).toBe('nye');
@@ -377,7 +380,7 @@ describe('draft night', () => {
 
     const wire = msgs.find(m => m.thread === 'wire');
     expect(wire).toBeDefined();
-    expect(wire!.from).toBe('K. Osei, The Ledger');
+    expect(wire!.from).toContain(', The Ledger');
     expect(wire!.body).toContain('Testville, Ohio'); // the birthplace arc
     expect(/\b4\b/.test(wire!.body)).toBe(true);
   });
@@ -517,7 +520,7 @@ describe('the wire quotes real numbers', () => {
     const msgs = generatePhone(career);
     const wire = msgs.find(m => m.thread === 'wire');
     expect(wire).toBeDefined();
-    expect(wire!.from).toBe('K. Osei, The Ledger');
+    expect(wire!.from).toContain(', The Ledger');
     expect(wire!.body).toContain('1,000'); // the crossed mark
     expect(wire!.body).toContain('26');    // the night that crossed it
   });
@@ -979,6 +982,69 @@ describe('determinism and message discipline', () => {
     gradeGame(career, 'g-id', { pts: 26, adherence: 50, production: 75 });
     const [msg] = generatePhone(career);
     expect(msg!.id).toBe(`ph-coach-${career.clock.year}w${career.clock.week}-0`);
+  });
+});
+
+describe('the home cast is seeded per career (issue #109)', () => {
+  // provenance: playtest session 1 opened two careers on opposite specs
+  // (US aau fourstar vs intl playground walkon) and met the identical
+  // four contacts — advisor, agent, beat writer, wire byline were
+  // hardcoded. The cast must differ across seeds and hold within one.
+
+  it('the four identities are stable for a career\'s whole life', () => {
+    const career = fixtureCareer();
+    const tuple = [advisorDisplayOf(career), agentDisplayOf(career), beatWriterOf(career), wireBylineOf(career)];
+    // derivation is a pure function of the seed: asking twice, or after
+    // the clock moves, never re-rolls a person
+    career.clock.year += 3;
+    career.clock.phase = 'nba';
+    expect([advisorDisplayOf(career), agentDisplayOf(career), beatWriterOf(career), wireBylineOf(career)]).toEqual(tuple);
+  });
+
+  it('two seeds cast two different phones', () => {
+    const a = fixtureCareer({ seed: 'career-fixture' });
+    const b = fixtureCareer({ seed: 'career-fixture-b' });
+    const tupleOf = (c: CareerState): string =>
+      [advisorDisplayOf(c), agentDisplayOf(c), beatWriterOf(c), wireBylineOf(c)].join(' | ');
+    // full-tuple collision odds across 16-entry pools are 16^-4; these
+    // two seeds are verified distinct (re-pick the b seed if a pool
+    // resize ever collides them)
+    expect(tupleOf(a) === tupleOf(b)).toBe(false);
+  });
+
+  it('what the messages carry IS the cast: the wire byline on a story matches the derivation', () => {
+    const career = fixtureCareer();
+    career.events.push({
+      id: 'ev-honor-cast', clock: { phase: 'hs', year: career.clock.year, week: career.clock.week - 1 },
+      kind: 'honor', reason: 'circuit scoring leader',
+    });
+    const wire = generatePhone(career).find(m => m.thread === 'wire');
+    expect(wire).toBeDefined();
+    expect(wire!.from).toBe(wireBylineOf(career));
+  });
+
+  it('the agent introduction signs with the career\'s own agent, not a fixture name', () => {
+    const career = fixtureCareer();
+    career.clock.phase = 'draftPrep';
+    career.events.push({
+      id: 'ev-phase-prep', clock: { ...career.clock }, kind: 'phase',
+      reason: 'in the draft: the pre-draft window opens',
+    });
+    const agent = generatePhone(career).find(m => m.thread === 'agent');
+    expect(agent).toBeDefined();
+    expect(agent!.from).toBe(agentDisplayOf(career));
+    // the body may or may not sign the name (one of four variants does);
+    // the contact card is the contract, the prose is texture
+  });
+
+  it('an international creation gets a family corner from home, never the county-gym uncle pool', () => {
+    const us = fixtureCareer();
+    const intl = fixtureCareer();
+    intl.creation.nationality = 'intl';
+    // the pools are disjoint by construction, so the same seed MUST
+    // resolve to different advisors across the nationality line
+    expect(advisorDisplayOf(us) === advisorDisplayOf(intl)).toBe(false);
+    expect(advisorDisplayOf(intl)).toContain('(advisor)');
   });
 });
 

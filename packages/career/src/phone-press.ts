@@ -6,8 +6,8 @@
 import {
   MEDIA_BLOWOUT_MARGIN, MEDIA_GAME_PTS, MEDIA_STREAK_GAMES, MILESTONE_STEP,
   ROLE_LABEL, SLUMP_MIN_GAMES, SLUMP_RATIO, SLUMP_WINDOW_GAMES, THREAD_RANK,
-  WIRE_BYLINE, alreadySent, eventsThisWeek, eventsWithinWeeks, fmtNum, fmtScore,
-  meOf, round1, teamNameOf, weekRecords,
+  alreadySent, beatWriterOf, eventsThisWeek, eventsWithinWeeks, fmtNum,
+  fmtScore, meOf, round1, teamNameOf, weekRecords, wireBylineOf,
 } from './phone-shared.js';
 import type { Candidate } from './phone-shared.js';
 import type { CareerState } from './types.js';
@@ -19,7 +19,7 @@ import type { CareerState } from './types.js';
  * win streak, the measured slump), never to a generic quiz.
  */
 export function mediaCandidates(career: CareerState, out: Candidate[]): void {
-  const from = 'Dana Marsh (beat writer)';
+  const from = beatWriterOf(career);
   const records = weekRecords(career);
   const playedThisWeek = records.filter(r => r.myLine && r.myLine.min > 0);
 
@@ -219,7 +219,7 @@ export function wireCandidates(career: CareerState, out: Candidate[]): void {
       const pts = last.myLine!.pts;
       out.push({
         thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 80,
-        from: WIRE_BYLINE, tag: `mile${mark}`, refs: { gameId: last.record.id },
+        from: wireBylineOf(career), tag: `mile${mark}`, refs: { gameId: last.record.id },
         variants: [
           `${fmtNum(mark)} career points for ${me.name}, crossed with ${pts} against ${opp}. Round numbers are arbitrary. Watching him get there was not`,
           `${me.name} passed ${fmtNum(mark)} career points tonight, ${pts} against ${opp} doing the honors. The ledger keeps count so the highlight reels do not have to`,
@@ -238,7 +238,7 @@ export function wireCandidates(career: CareerState, out: Candidate[]): void {
     const quoted = honors.slice(0, 3).map(e => e.reason).join('; ');
     out.push({
       thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 60,
-      from: WIRE_BYLINE, tag: `wr-${honors[0]!.id}`,
+      from: wireBylineOf(career), tag: `wr-${honors[0]!.id}`,
       variants: [
         `The season's ledger on ${me.name}: ${quoted}. Written plainly because it does not need help`,
         `For the record: ${quoted}. ${me.name}'s file gets thicker`,
