@@ -96,7 +96,12 @@ registerScreen('career-game', {
 
     const below = el('div');
     const renderBelow = () => {
-      below.replaceChildren(
+      // null marks a section that does not render (pre-spoiler, or absent
+      // data). replaceChildren is raw DOM and, unlike el(), does not filter:
+      // it coerces null to the literal text "null". Four of them printed
+      // under the scorebug (issue #214, the career chair's #190). Collect,
+      // filter, then hand the DOM only what exists.
+      const sections = [
         spoiled && game.grade ? el('div', { class: 'grade-card' },
           el('b', {}, 'the grade'),
           el('div', { class: 'gc-nums' },
@@ -120,7 +125,8 @@ registerScreen('career-game', {
           ? el('div', { style: 'margin-top:10px;font-size:12px;color:#7f8794;letter-spacing:.02em' },
               `Crew: ${game.officials.crew.join(', ')}`)
           : null,
-      );
+      ];
+      below.replaceChildren(...sections.filter(s => s !== null));
     };
     renderBelow();
 
