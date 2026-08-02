@@ -269,6 +269,17 @@ identities around a career (the family advisor, the agent, the beat
 writer, the wire byline) are drawn from the career seed, stable for one
 life and different in the next.
 
+The quiet stretches carry their own rituals: the offseason (the exit
+meeting with the season named honestly, the summer assignment, the
+training ledger in real numbers), the pre-draft window (the program,
+the board read, the league sorting your lottery underneath you), and
+the rookie summer (the scale contract, the depth chart by name, camp).
+These formative-arc beats quote the same real state as everything else
+and live under the same caps; a window with nothing true to say stays
+silent. The #100 measurement is the provenance: two thirds of a pre-NBA
+career had no voice at all, not because nothing was happening, but
+because nothing narrated it.
+
 
 ## Recruiting and draft stock
 

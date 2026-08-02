@@ -34,7 +34,10 @@
  * lands DETERMINISTICALLY when a group's bank reaches 1.0 ('extra work
  * paid: +1 scoring'), so with one extraWork slot the visible tick lands
  * at least every ceil(1/rate) weeks and the season-scale rate is exactly
- * the calibrated truth. Zero rng: the pity timer cannot be streaky.
+ * the calibrated truth. Zero rng: the pity timer cannot be streaky. The
+ * drip DIES LOUDLY at a ceiling: one event per finished group states that
+ * the work stopped paying (the hidden-ceiling reveal, issue #105); the
+ * ongoing dead-window cadence belongs to the phone arcs, not the drip.
  *
  * ENERGY ON THE FLOOR: below params.week.energyLegsFloor my game-night
  * attributes take the linear applyLegs debuff (approach.ts, applied in
@@ -91,13 +94,29 @@ function slotEnergy(career: CareerState, slot: WeekSlotId): number {
  * a landing that overshoots the ceiling spends the bank anyway (the
  * shortfall is a ceiling fact, not saved progress). devReason, when
  * given, also writes the devLog (the extraWork path's existing record).
+ *
+ * THE DRIP DIES LOUDLY (issue #105): the first time a slot targets a
+ * finished group, one event states it. This is the designed hidden-ceiling
+ * reveal (docs/CAREER.md: ceilings are revealed only by development
+ * itself) landing at the exact moment the player would otherwise face
+ * unexplained silence - the measured aggravator was a phenom whose focus
+ * group ceilinged in week 8 and whose only metronome then died without a
+ * word for 195 weeks. Once per group, detected from the event log itself
+ * (events are state; no new fields, old saves replay it correctly).
  */
 function accrueTraining(
   career: CareerState, me: FrPlayer,
   group: AttrGroup, gain: number, label: string, devReason?: string,
 ): void {
   const ceiling = me.potential[group];
-  if (groupMean(me.attr, group) >= ceiling) return;
+  if (groupMean(me.attr, group) >= ceiling) {
+    const marker = `nothing left to add to ${group}`;
+    if (!career.events.some(e => e.kind === 'dev' && e.reason.includes(marker))) {
+      pushEvent(career, 'dev',
+        `${label} stopped paying: ${marker}; that part of his game is finished`);
+    }
+    return;
+  }
   const bank = career.trainingBank ?? (career.trainingBank = {});
   const banked = (bank[group] ?? 0) + Math.max(0, gain);
   const whole = Math.floor(banked);

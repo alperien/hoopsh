@@ -77,11 +77,19 @@
  *   phone-press.ts       the beat writer and the wire desk
  *   phone-recruiting.ts  recruiter threads and closing-window warnings
  *   phone-summits.ts     the cap-exempt payoff bursts
+ *   phone-arcs.ts        the formative arcs: offseason, draftPrep, and
+ *                        entry-gap texture for the windows nothing else
+ *                        can speak in (issue #105)
  * This file keeps the public surface: generatePhone and applyPhoneChoice.
  */
 import { clamp } from '@hoopsh/engine';
+import type { AttrGroup } from '@hoopsh/franchise';
 import { streamRng } from '@hoopsh/franchise';
 import { agentCandidates, promiseCandidates } from './phone-agent.js';
+import {
+  TRAINABLE_GROUPS, draftPrepArcCandidates, entryArcCandidates,
+  offseasonArcCandidates,
+} from './phone-arcs.js';
 import {
   familyCandidates, mentorCandidates, rivalCandidates, teammateCandidates,
 } from './phone-circle.js';
@@ -137,6 +145,12 @@ export function generatePhone(career: CareerState): PhoneMessage[] {
   wireCandidates(career, candidates);
   recruiterCandidates(career, candidates);
   lapseWarningCandidates(career, candidates);
+  // the formative arcs: the offseason, the pre-combine block, and the
+  // draft-to-camp gap - the windows every builder above is structurally
+  // silent in (issue #105). Capped and cooled like everything else.
+  offseasonArcCandidates(career, candidates);
+  draftPrepArcCandidates(career, candidates);
+  entryArcCandidates(career, candidates);
   commitmentCandidates(career, candidates);
   draftNightCandidates(career, candidates);
   debutCandidates(career, candidates);
@@ -364,6 +378,28 @@ export function applyPhoneChoice(career: CareerState, messageId: string, choiceI
       pushChoiceEvent(career, messageId, 1, 'morale',
         'drew the line under the promise; self-respect is a stat too', PROMISE_DEMAND_MORALE);
     }
+    return { ok: true, errors: [] };
+  }
+
+  // the formative-arc assignment (phone-arcs.ts): the staff's read becomes
+  // the standing focus only when the player says so - the plan is his, and
+  // both answers are explained so neither reads as a silent consequence.
+  // A later setWeekPlan overrides freely; this is a shortcut, not a lock.
+  if (choiceId === 'arc-focus-keep') {
+    msg.chosen = choiceId;
+    pushChoiceEvent(career, messageId, 0, 'dev',
+      `kept his own program: the training focus stays ${career.weekPlan.focus}`);
+    return { ok: true, errors: [] };
+  }
+  if (choiceId.startsWith('arc-focus:')) {
+    const group = choiceId.slice('arc-focus:'.length) as AttrGroup;
+    if (!TRAINABLE_GROUPS.includes(group)) {
+      return { ok: false, errors: [`career/phone: message '${messageId}' names no trainable group '${group}'`] };
+    }
+    msg.chosen = choiceId;
+    career.weekPlan.focus = group;
+    pushChoiceEvent(career, messageId, 0, 'dev',
+      `took the staff assignment: extra work moves to ${group}`);
     return { ok: true, errors: [] };
   }
 

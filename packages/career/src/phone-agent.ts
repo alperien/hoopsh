@@ -12,8 +12,8 @@ import {
 import type { Candidate } from './phone-shared.js';
 import type { CareerState } from './types.js';
 
-/** The agent's display name for the phase: a family advisor until one can legally sign. Both identities are the career's own seeded home cast (phone-shared.ts). */
-function agentFrom(career: CareerState): string {
+/** The agent's display name for the phase: a family advisor until one can legally sign. Both identities are the career's own seeded home cast (phone-shared.ts). Exported as the single sender source for every agent-thread module (phone-arcs.ts rides it), so a cast rework changes the name in one place. */
+export function agentFrom(career: CareerState): string {
   return career.clock.phase === 'hs' || career.clock.phase === 'college'
     ? advisorDisplayOf(career)
     : agentDisplayOf(career);
