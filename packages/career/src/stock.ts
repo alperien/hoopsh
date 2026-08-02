@@ -789,7 +789,9 @@ export function attendWorkout(career: CareerState, teamId: TeamId): void {
  * to my human); the rival's life belongs to the sim from here. From this
  * call on, franchise scouting.ts owns every team's read of us through
  * the same scoutSeed identities perception.ts mirrored pre-entry - the
- * design's fog handoff (file header). Idempotent.
+ * design's fog handoff (file header). Idempotent, and a file the league
+ * already owns (the abroad dual-pool binding) never re-enters: entry is
+ * a one-way door (issue #40).
  */
 export function enterDraftClass(career: CareerState): void {
   const league = career.league;
@@ -797,6 +799,14 @@ export function enterDraftClass(career: CareerState): void {
   const enter = (id: string): void => {
     const player = career.players[id];
     if (!player) return; // already entered (or never existed pre-NBA)
+    if (league.players[id]) {
+      // the league already owns this file: the abroad dual-pool binding
+      // (nbabridge applyAbroadOffer) keeps a descent veteran in BOTH
+      // maps, so career.players presence alone does not mean pre-entry.
+      // Re-entering would flip a veteran to 'draftEligible' and put his
+      // real draft record back on the boards to be overwritten (#40).
+      return;
+    }
     player.status = 'draftEligible';
     league.players[id] = player;
     delete career.players[id];

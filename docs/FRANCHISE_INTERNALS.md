@@ -24,6 +24,7 @@ discrepancy (AGENTS.md §2.10 applies here unchanged).
 | `genesis.ts` | `createLeague` | returns calendar/schedule EMPTY; the spine lazy-initializes both on first advance |
 | `calendar.ts` | season calendar + phase machine | day labels are fictional-year real-month arithmetic |
 | `tick.ts` | `advanceDay`, `applyUserAction` | THE order of a league day lives here and nowhere else |
+| `inbox.ts` | the GM desk: inbox item generation + deadline expiry (#152) | read-only over league state, zero rng, human-chair gated; autosims and gm:acceptance run byte-identical with it dark |
 | `gameday.ts` | franchise -> engine projection, result fold, key plays | injuries/fatigue/HCA/rotation all become roster edits here (SEASON.md seam 2) |
 | `schedule.ts` | the 82-game generator | real NBA formula (16/36/30), B2B targets |
 | `standings.ts` | standings fold, tiebreakers, seeding | play-in and playoff games never touch standings |
@@ -46,6 +47,7 @@ discrepancy (AGENTS.md §2.10 applies here unchanged).
 | `ai/draftai.ts` | AI draft boards | built from their own scouts' wrong numbers |
 | `ai/roster.ts` | depth charts, rotations, roster upkeep | |
 | `media/news.ts` | the news desk | template pools, seeded variety, fixed bylines; numbers only from sim data |
+| `media/moments.ts` | phase-transition stories | championship, lottery order, draft preview; written at the transitions (tick.ts) because the daily pulse runs before them |
 | `media/recap.ts` | game recaps | reads GameRecord, never raw events |
 | `media/awards.ts` | races, voting, all-star | 65-game rule in params |
 | `media/almanac.ts` | records book, season archives | |

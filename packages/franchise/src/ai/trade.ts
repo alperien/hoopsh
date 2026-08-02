@@ -35,7 +35,8 @@ import { abilityScore, offerNet, packageSizeM, pickValue, playerValue } from './
 const PATIENCE_BAR_SWING = 0.05;    // FEEL max shift a 100-patience persona adds to the accept bar
 const DISGRUNTLED_RELIEF = 0.06;    // FEEL bar drop when the asked-for player wants out
 const DEADLINE_SELLER_RELIEF = 0.04; // FEEL bar drop for a rebuilder shopping an expiring vet in deadline week
-const DEADLINE_WINDOW_DAYS = 14;    // FEEL "deadline season": the fortnight before the mark
+/** FEEL "deadline season": the fortnight before the mark. Exported so the GM desk (inbox.ts) frames the same window it prices. */
+export const DEADLINE_WINDOW_DAYS = 14;
 const EXPIRING_VET_AGE = 28;        // FEEL the age where an expiring deal is a rental, not a keeper
 const TEMP_HOT_GAP = 0.05;          // FEEL within 5% of acceptance = hot talks
 const TEMP_WARM_GAP = 0.15;         // FEEL within 15% = warm
@@ -47,8 +48,8 @@ function dateLt(a: LeagueDate, b: LeagueDate): boolean {
   return a.season < b.season || (a.season === b.season && a.day < b.day);
 }
 
-/** The trade deadline day: the calendar mark when built, else the params index. */
-function tradeDeadlineDay(league: League): number {
+/** The trade deadline day: the calendar mark when built, else the params index. Pure read; exported for the GM desk (inbox.ts). */
+export function tradeDeadlineDay(league: League): number {
   const marked = league.calendar.find(d => d.marks.includes('tradeDeadline'));
   return marked ? marked.day : league.params.calendar.tradeDeadlineDayIndex;
 }
@@ -59,8 +60,8 @@ function tradingFrozen(league: League): boolean {
   return league.phase === 'regular' && league.day > tradeDeadlineDay(league);
 }
 
-/** True inside the pre-deadline fortnight of the regular season. */
-function inDeadlineWindow(league: League): boolean {
+/** True inside the pre-deadline fortnight of the regular season. Pure read; exported for the GM desk (inbox.ts). */
+export function inDeadlineWindow(league: League): boolean {
   if (league.phase !== 'regular') return false;
   const daysOut = tradeDeadlineDay(league) - league.day;
   return daysOut >= 0 && daysOut <= DEADLINE_WINDOW_DAYS;
@@ -407,8 +408,13 @@ function complementaryPairs(league: League): Array<{ buyer: TeamId; seller: Team
   return tier1.length > 0 ? tier1 : tier2;
 }
 
-/** The seller's most valuable movable rental: best expiring or disgruntled vet. */
-function pickSellerTarget(league: League, buyer: TeamId, seller: TeamId): PlayerId | null {
+/**
+ * The seller's most valuable movable rental: best expiring or disgruntled
+ * vet, priced by the BUYER's board. Pure read (no rng, no mutation);
+ * exported for the GM desk (inbox.ts), which frames deadline-day items
+ * with the same asset the pulse itself would shop.
+ */
+export function pickSellerTarget(league: League, buyer: TeamId, seller: TeamId): PlayerId | null {
   const team = league.teams[seller]!;
   const t = league.params.trade;
   let best: PlayerId | null = null;
@@ -567,6 +573,13 @@ export function aiTradePulse(league: League): Transaction[] {
           { id: 'decline', label: 'Decline' },
           { id: 'counter', label: 'Counter' },
         ],
+        // the offer stands to the deadline in deadline season, else as
+        // long as a walk-away memory would (cooldownDays); the spine's
+        // morning sweep retires it once the date passes (tick.ts), so an
+        // ignored offer never wedges the advance loop forever
+        deadline: inDeadlineWindow(league)
+          ? { season: league.season, day: tradeDeadlineDay(league) }
+          : { season: league.season, day: league.day + league.params.trade.cooldownDays },
         resolved: false,
       });
     }
