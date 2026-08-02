@@ -229,18 +229,16 @@ describe('the off-switch pin (explicit logit 0 reproduces the staged stream)', (
   }
 
   it('putbackstrong-1 at logit 0: the recorded stream, exactly', () => {
-    // Re-anchored at the #115 landing, both layers: the layer A
-    // acquisition stamp + stage-12 holder re-read moved events and
-    // frames; the layer B dead-phase relay moved frames ONLY (event
-    // count and final match the layer-A-only bake exactly — the
-    // frames-only contract, the #119 precedent). Legitimate stream
-    // reorders per this block's doctrine, causes stated in the landing
-    // commits.
+    // Re-anchored at the #142 collision-order landing (movement.ts
+    // reshuffle: every stream moves, logit 0 included — this mechanism's
+    // own off-path is untouched, which is exactly the legitimate-reorder
+    // class the doctrine above allows). Cause stated in the landing
+    // commit.
     const r = game('putbackstrong-1', 0, true);
     const last = r.events[r.events.length - 1]!;
-    expect(r.events.length).toBe(1235);
-    expect(`${last.score[0]}-${last.score[1]}`).toBe('114-113');
-    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('f5ebe149');
+    expect(r.events.length).toBe(1269);
+    expect(`${last.score[0]}-${last.score[1]}`).toBe('133-124');
+    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('0367bba4');
   });
 });
 
