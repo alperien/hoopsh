@@ -66,10 +66,15 @@ const lebron: Player = {
   attr: {
     speed: 90, accel: 88, lateral: 78, stamina: 92, strength: 97, vertical: 85,
     // freeThrow 61 — the engine's own curve is the citation (W7 fixture
-    // correction): resolve.ts#freeThrowP at 61 gives ftBasePct 0.69 +
-    // ftSkillSwing 0.19 × n(61)=0.22 → 73.2% (elite kick starts at 80),
-    // matching his real ~73.1%. The original hand-set 74 shot 78.1% through
-    // the same curve — 5 points hot.
+    // correction): resolve.ts#freeThrowP at 61 gives ftBasePct 0.666
+    // (params.shot.ts) + ftSkillSwing 0.19 × n(61)=0.22 → 70.78% (elite
+    // kick starts at 80); #169's battery measured 70.20% produced
+    // (z=-0.59 vs curve). W7 fitted 61 under the pre-B1 base 0.69 →
+    // 73.2%, matching his real ~73.1%; since the B1 re-center (0.69 →
+    // 0.666, commit 7e05c97) the fixture runs ~2.9pp cold vs that real
+    // reference — re-fitting is a separate fidelity-ladder decision, not
+    // made here (#210). The original hand-set 74 shot 78.1% through the
+    // pre-B1 curve — 5 points hot.
     finishing: 97, midRange: 82, three: 76, freeThrow: 61, drawFoul: 88,
     ballHandle: 90, passAcc: 95, passVision: 97,
     perimeterD: 72, interiorD: 70, steal: 70, block: 62, contestSkill: 65,
