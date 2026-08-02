@@ -181,7 +181,12 @@ the single source of truth it derives from.
 npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
-npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote)
+npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote).
+                 # Its events lines (avg/total/per-game/sig) are the opposite: pinned by the tree,
+                 # byte-reproducible at the same commit + Node version, and labeled with both
+                 # (`tree:`/`node:` contract lines). Compare events figures across boxes only at an
+                 # identical contract; a same-tree mismatch means a dirty/mismatched checkout or a
+                 # determinism break (incident #175).
 ```
 
 `packages/engine/test/invariants.test.ts` permanently enforces what two adversarial
