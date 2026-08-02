@@ -31,7 +31,7 @@ This is the hub. If you don't know which document you need, start here.
 | [`docs/EMBEDDING.md`](./EMBEDDING.md) | **The downstream-builder guide** — consuming the packages from your own project; what works, what's broken, honest caveats | When building ON the engine rather than IN the repo |
 | [`docs/CONTRACT.md`](./CONTRACT.md) | **The engine API contract** — the stable surfaces (event schema, replay, exports, determinism), the explicitly unstable ones, the change policy | Before pinning hoopsh under your own project; when judging whether a change breaks consumers |
 | [`docs/GLOSSARY.md`](./GLOSSARY.md) | Every terse name and process term, decoded once, with where it lives | Whenever jargon blocks you |
-| [`docs/REGISTER.md`](./REGISTER.md) | **The live debt register** — D1–D9, W1–W61, realism-gate tiers | Checking what's open, deferred, or already measured |
+| [`docs/REGISTER.md`](./REGISTER.md) | **The live debt register** — D1–D9, W1–W87, realism-gate tiers | Checking what's open, deferred, or already measured |
 | [`docs/PLAYBOOK.md`](./PLAYBOOK.md) | **The build procedure** — 8 steps, recipes A–G, STOP rules, report format | Every time you write new code |
 | [`docs/ONBOARDING.md`](./ONBOARDING.md) | Two-evening guided path with checkpoints | Your first two evenings |
 | [`docs/ROSTERS.md`](./ROSTERS.md) | **The roster-authoring guide** — the 38 dials in basketball language, archetypes, scaffold → validate → sim loop | When writing a team pack |
