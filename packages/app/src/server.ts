@@ -209,10 +209,25 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
     if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     const body = JSON.parse(await readBody(req) || '{}') as NewCareerBody;
     if (!body.spec) { json(res, 400, { error: 'spec is required' }); return true; }
-    state.career = createCareer({
-      seed: body.seed || `career-${body.name || 'me'}`,
-      spec: body.spec as CreationSpec,
-    });
+    try {
+      state.career = createCareer({
+        seed: body.seed || `career-${body.name || 'me'}`,
+        spec: body.spec as CreationSpec,
+      });
+    } catch (err) {
+      // createCareer's fail-loud gate (career/src/creation.ts) throws on an
+      // invalid spec with the stable 'career/creation: invalid spec:' prefix.
+      // That is the user's own creation sheet coming back to them — a 400,
+      // with validateCreation's plain-language copy traveling unchanged, not
+      // a 500 (issue #112). Anything else is a real fault: rethrow to the
+      // catch-all so it still logs and 500s. Thrown before the assignment,
+      // so no career state mutates on the rejected path.
+      if (err instanceof Error && err.message.startsWith('career/creation: invalid spec:')) {
+        json(res, 400, { error: err.message });
+        return true;
+      }
+      throw err;
+    }
     state.careerSaveName = body.name || 'my-career';
     state.careerSim = newCareerSimStatus();
     state.careerGameArchive = {};
