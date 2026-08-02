@@ -35,6 +35,9 @@ const SOURCES = [
 // them: the Bible is the agent context-pack; agents reach the register via
 // row citations, and history would re-bloat the one file whose size is the
 // point (docs/README.md maintenance rule 4).
+// docs/CHECKLISTS.md is also excluded, deliberately: it restates AGENTS.md
+// §4.2-4.3 and PLAYBOOK Part 3, already compiled (PR #46 DEVIATIONS, reviews
+// 4833168889 and 4833341524; inclusion stays an owner option, issue #239).
 
 const COUNT = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
   'eight', 'nine', 'ten'][SOURCES.length] ?? String(SOURCES.length);

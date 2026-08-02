@@ -101,6 +101,10 @@ possession trace if your task touches the engine.
    Bible decision: guides join the `SOURCES` list; `REGISTER.md` and
    `docs/history/` are excluded by design (the Bible is the agent
    context-pack; history would re-bloat the one file whose size is the
-   point).
+   point). `CHECKLISTS.md` is excluded by decision, not drift: it restates
+   AGENTS §4.2-4.3 and PLAYBOOK Part 3, which the Bible already compiles
+   (PR #46; inclusion stays an owner option, issue #239). Data-pack READMEs
+   (`data/*/README.md`) hold hub rows without joining `SOURCES`; they sit
+   outside this rule.
 5. `docs/history/` files are records: append dated status notes, don't
    rewrite them.
