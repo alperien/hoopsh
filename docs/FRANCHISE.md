@@ -355,8 +355,11 @@ smoke when there is fire (rumors surface real negotiation states,
 anonymized) · transactions with cap context · award races on a weekly
 cadence · milestone and record chases flagged as they approach, not after ·
 draft coverage from combine to grades · firings, hirings, retirements with
-career retrospectives. Two or three byline voices with fixed registers
-(wire-service terse; insider breathless; columnist opinionated) keep the
+career retrospectives · the phase turns written the night they happen: the
+championship story at the horn, the lottery order with its movement, a
+consensus draft preview (media/moments.ts). Two or three byline voices with
+fixed registers (wire-service terse; insider breathless; columnist
+opinionated) keep the
 feed from reading like one machine. No fabricated quotes-as-facts: player
 "quotes" appear only where disposition actually drove an action.
 

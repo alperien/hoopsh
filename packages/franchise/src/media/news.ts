@@ -34,7 +34,7 @@ function teamName(league: League, id: string): string {
 }
 
 /** One transaction, one story. Returns null for wire noise below notice. */
-function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number): NewsItem | null {
+function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number, draftedToday: ReadonlySet<string>): NewsItem | null {
   const id = `n-s${league.season}d${league.day}-tx${seq}`;
   const base = { id, date: { season: league.season, day: league.day }, gameId: undefined };
 
@@ -65,6 +65,11 @@ function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number
       };
     }
     case 'signing': {
+      // a pick's rookie deal signs inside the selection: the draft story
+      // carries the contract line, so its signing row is mechanism, not
+      // news (#118). Skipped before any rng draw so repeated same-day
+      // passes replay identical headline draws.
+      if (draftedToday.has(tx.playerId)) return null;
       const years = tx.contract.years.length;
       const total = tx.contract.years.reduce((s, y) => s + y.salary, 0);
       const kind = tx.contract.kind;
@@ -153,7 +158,7 @@ function transactionStory(league: League, tx: Transaction, rng: Rng, seq: number
   }
 }
 
-function ordinal(n: number): string {
+export function ordinal(n: number): string {
   const rem10 = n % 10, rem100 = n % 100;
   if (rem10 === 1 && rem100 !== 11) return `${n}st`;
   if (rem10 === 2 && rem100 !== 12) return `${n}nd`;
@@ -162,19 +167,29 @@ function ordinal(n: number): string {
 }
 
 /**
- * The day's non-recap stories. Idempotence: callers invoke once per day
- * (the spine's evening fold); ids are deterministic per (day, source).
+ * The day's non-recap stories. Ids are deterministic per (day, source
+ * position), so the spine may run a second same-day pass after late
+ * transactions (draft night's picks, the rollover's retirements: #118).
+ * appendNews's id guard drops the repeats; only new stories land.
  */
 export function writeDailyNews(league: League): NewsItem[] {
   const out: NewsItem[] = [];
   const today = { season: league.season, day: league.day };
   const rng = new Rng(`${league.seed}:news:${league.season}:${league.day}`);
 
-  // transactions dated today
+  // transactions dated today. Players drafted today are collected first:
+  // their rookie-deal signing rows are the pick's mechanism and stay off
+  // the wire (the draft story carries the contract line, #118).
+  const draftedToday = new Set<string>();
+  for (const tx of league.transactions) {
+    if (tx.kind === 'draftSelection' && tx.date.season === today.season && tx.date.day === today.day) {
+      draftedToday.add(tx.playerId);
+    }
+  }
   let seq = 0;
   for (const tx of league.transactions) {
     if (tx.date.season !== today.season || tx.date.day !== today.day) continue;
-    const story = transactionStory(league, tx, rng, seq++);
+    const story = transactionStory(league, tx, rng, seq++, draftedToday);
     if (story) out.push(story);
   }
 

@@ -50,6 +50,7 @@ careers, and the acceptance harness replays that equality as a gate.
 | `server.ts` | The `/api/career/*` routes; a loaded career mounts its NBA world as the current league so every franchise read route serves scenery for free, while the franchise time controls 409 (career time moves only through the choice log). |
 | `saves.ts` | One directory, two shapes (`league` vs `career` key); list rows carry their chair; loadCareer rebinds me to one object when an abroad save forked the two maps. |
 | `career-acceptance.ts` | `npm run gm:career-acceptance`: scripted pilots live whole careers; gates and bands below. |
+| `career-replay.ts` | The choice-log replay driver: rebuild the creation-time state, apply each recorded choice at its logged clock, advance, byte-compare checkpoints. The determinism gate and the app test suite both replay through it. |
 | `role-response.ts` | The reacting-world gate's independent witness (issue #41): replays coach.grades through the documented clock arithmetic and demands the observable role response at each mid-ladder firing. Ladder edges answer silently by design; a coach change is the legal reset. |
 | `public/js/screens/career/` | The player-chair screens (creation, the week, the phone, the plan, the season, the game center, recruiting, stock, money, the journey). The shell (`app.js`) is mode-aware; scenery screens (league, news, almanac) are shared between chairs. |
 
@@ -139,8 +140,11 @@ graded record independently and demands the role move plus its event at
 every mid-ladder firing; the roleClock re-read it replaced was
 tautological, issue #41: trust.ts resets that clock before returning);
 every event, grade, and ledger row carries a nonempty reason (the
-explained-consequence lint); a 40-week scripted career replays
-byte-identical.
+explained-consequence lint); a career recorded from
+creation through the draft into NBA game weeks replays byte-identical
+from its choice log alone (career-replay.ts — abroad phases, the
+descent, retirement, and the epilogue sit outside the replayed
+segment, and the gate fails rather than pass with less coverage).
 
 BANDS (reported, never fatal): draft outcomes track creation quality;
 the boredom audit (content pulse per week, zero-event streaks, phone
