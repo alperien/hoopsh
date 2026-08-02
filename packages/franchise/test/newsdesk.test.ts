@@ -11,16 +11,17 @@
  *
  * COMPUTE BUDGET: three fake-sim league years less a stub (the twin pair
  * through year one, the human chair stopping at the draft), zero engine
- * games — the autosim.test.ts budget class.
+ * games — the autosim.test.ts budget class. The #189 batch-day block adds
+ * two genesis-only leagues (no year sim, no games).
  */
 import { describe, expect, it } from 'vitest';
 import { Rng } from '@hoopsh/engine';
 import {
   advanceDay, applyUserAction, createLeague, generatePersona, streamRng,
 } from '../src/index.js';
-import { COLUMNIST } from '../src/media/news.js';
+import { COLUMNIST, writeDailyNews } from '../src/media/news.js';
 import type {
-  GameJob, GameJobResult, League, LeagueDate, Transaction,
+  Contract, GameJob, GameJobResult, League, LeagueDate, Transaction,
 } from '../src/types.js';
 
 /** Deterministic plausible result from the job seed alone (copied from autosim.test.ts, file-local there). */
@@ -240,5 +241,87 @@ describe('late-transaction news, human chair (issue #118)', () => {
     expect(new Set(digestNewsIds).size).toBe(digestNewsIds.length);
     const feed = new Set(league.news.map(n => n.id));
     expect(digestNewsIds.every(id => feed.has(id))).toBe(true);
+  });
+});
+
+// ---- issue #189: batch-day wire bodies deal from state-quoting pools ----
+
+const C_SEED = 'i189-batch';
+
+/**
+ * A hand-built batch day pushed straight onto the ledger: four signings on
+ * IDENTICAL terms (the issue's 59x case), five waives, five zero-game
+ * retirements. The desk only reads the ledger, so no cap machinery needs
+ * to run. Genesis-only: createLeague, no year sim, no games.
+ */
+function batchDayLeague(): League {
+  const league = createLeague({ seed: C_SEED, userTeam: 'nye' });
+  const today: LeagueDate = { season: league.season, day: league.day };
+  const ids = Object.keys(league.players);
+  const waiver = Object.keys(league.teams).find(t => t !== 'nye')!;
+  const contract = (playerId: string, n: number): Contract => ({
+    id: `c-i189-${n}`, playerId, teamId: 'nye',
+    years: [{ season: league.season, salary: 2_000_000, guaranteed: 2_000_000 }],
+    kind: 'standard', means: 'minimum', signedOn: today, birdYearsAtSigning: 0,
+  });
+  ids.slice(0, 4).forEach((playerId, n) => league.transactions.push(
+    { kind: 'signing', date: today, teamId: 'nye', playerId, contract: contract(playerId, n) }));
+  ids.slice(4, 9).forEach(playerId => league.transactions.push(
+    { kind: 'waive', date: today, teamId: waiver, playerId, stretched: false }));
+  // genesis players have no season rows yet: these are the zero-game briefs
+  ids.slice(20, 25).forEach(playerId => league.transactions.push(
+    { kind: 'retirement', date: today, playerId }));
+  return league;
+}
+
+describe('batch-day wire bodies (issue #189)', () => {
+  const league = batchDayLeague();
+  const news = writeDailyNews(league);
+  const signings = news.filter(n => n.type === 'transactionWire' && /sign|lands with/.test(n.headline));
+  const waives = news.filter(n => n.type === 'transactionWire' && n.headline.includes('waive'));
+  const retirements = news.filter(n => n.type === 'retirement');
+
+  it('identical-terms signings do not print verbatim clones, and every body quotes the terms', () => {
+    expect(signings.length).toBe(4);
+    expect(new Set(signings.map(n => n.body)).size).toBeGreaterThanOrEqual(3);
+    for (const n of signings) expect(n.body.includes('$2.0M')).toBe(true);
+  });
+
+  it('a waiver-run batch varies its bodies', () => {
+    expect(waives.length).toBe(5);
+    expect(new Set(waives.map(n => n.body)).size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('a retirement-day batch varies its bodies and keeps the retires wording', () => {
+    expect(retirements.length).toBe(5);
+    expect(new Set(retirements.map(n => n.body)).size).toBeGreaterThanOrEqual(3);
+    for (const n of retirements) expect(n.body.includes('retires')).toBe(true);
+  });
+
+  it('prose law holds: no em dashes in dealt bodies', () => {
+    for (const n of news) expect(n.body.includes('—')).toBe(false);
+  });
+
+  it('the desk stays a pure function of league state: same state, same feed', () => {
+    expect(JSON.stringify(writeDailyNews(league))).toBe(JSON.stringify(news));
+    expect(JSON.stringify(writeDailyNews(batchDayLeague()))).toBe(JSON.stringify(news));
+  });
+
+  it('replays the prefix identically when late transactions extend the day (#118)', () => {
+    const twin = batchDayLeague();
+    const late = twin.transactions.splice(twin.transactions.length - 3, 3);
+    const pass1 = writeDailyNews(twin);
+    twin.transactions.push(...late);
+    const pass2 = writeDailyNews(twin);
+    expect(JSON.stringify(pass2.slice(0, pass1.length))).toBe(JSON.stringify(pass1));
+  });
+
+  it('draft-night bodies always carry the contract line (the signing row stays off the wire)', { timeout: BUDGET }, async () => {
+    const { league: yearLeague } = await runA;
+    const drafts = yearLeague.news.filter(n => n.type === 'draft');
+    expect(drafts.length).toBeGreaterThanOrEqual(55);
+    for (const n of drafts) {
+      expect(/rookie-scale contract|two-year deal/.test(n.body)).toBe(true);
+    }
   });
 });
