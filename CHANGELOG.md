@@ -15,6 +15,23 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: sibling-file breadcrumb remainder re-point (issue #141)
+
+- The #137/#140 pass fixed the issue-listed locators and verified every
+  neighbor while in there; #141 owns that verified remainder. This pass
+  re-points it: 50 stale locator tokens across 40 comment lines and three
+  describe titles in carom-attribution, foulout-sub, passing, and
+  events test files. All measurement vintages reconstruct exactly: the
+  de3ec1e tree for carom and foulout-sub, a tree four lines short of
+  b52a7b9's passing.ts for every passing ref, and the 5d68eb7 tree
+  plus the single nine-line FoulEvent-doc hunk for the events.test
+  refs. One file re-point: the foul-rate block moved from the
+  monolithic params.ts to params.foul.ts (68-146) in the params split.
+  Comments and title strings only; zero assertion changes;
+  fingerprint-1 identical (1313 events, 121-119); corpus 28/28
+  byte-identical; suite identical both sides (1645 tests, 1643 pass,
+  0 fail, 2 todo).
+
 ### Docs: sibling-file locator breadcrumb re-point (#140, issue #137)
 
 - The #129/#136 sweep scoped to fouls.ts locators inside fouls.test.ts

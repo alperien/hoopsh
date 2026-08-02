@@ -1,9 +1,9 @@
 /**
  * Dead-carom attribution pinned to GROUND TRUTH.
  *
- * The dead-carom branch (sim/possession.ts:442-469) draws a winning side for
+ * The dead-carom branch (sim/possession.ts:641-668) draws a winning side for
  * a loose ball nobody secured and keys BOTH the event label and the award
- * routing off one boolean: `offensive = side === ph.offSide` (line 444). A
+ * routing off one boolean: `offensive = side === ph.offSide` (line 643). A
  * mutation audit (findings/audit-engine-mechanics.md, TR-M3) proved that
  * inverting that comparison survives every semantic test in the repo:
  * teamrebounds.test.ts selects "defensive" caroms BY the flipped label and
@@ -15,17 +15,17 @@
  * This file breaks the circularity by anchoring on stream facts the boolean
  * cannot relabel:
  *  - the MISS that spawned the scramble. A scramble only exists off a missed
- *    shot or missed final free throw (shooting.ts:199-219, fouls.ts:473-491),
+ *    shot or missed final free throw (shooting.ts:272-294, fouls.ts:473-491),
  *    and the loose ball emits nothing until it resolves — so the nearest
  *    preceding shot/free_throw event names the shooting side, independent of
  *    anything the rebound branch stamps.
  *  - the documented label contract: "`offensive` is true when `team` matches
- *    the side that took the missed shot" (core/events.ts:285).
+ *    the side that took the missed shot" (core/events.ts:319).
  *  - the documented award: a carom that dies with the DEFENSE ends the
  *    possession as 'def_rebound' and the awarded side inbounds
- *    (core/events.ts:87-91; possession.ts:465-466), while a carom that dies
+ *    (core/events.ts:106-110; possession.ts:664-665), while a carom that dies
  *    with the OFFENSE is a side out — the same possession continues with no
- *    possession boundary at all (possession.ts:452-460). Basketball reason:
+ *    possession boundary at all (possession.ts:651-659). Basketball reason:
  *    an offensive team rebound never changes whose ball it is, a defensive
  *    one always does.
  *
@@ -77,7 +77,7 @@ interface Carom {
 /**
  * Every dead-carom team rebound with its ground-truth shooting side.
  * Selection is by event SHAPE only (playerless, no deadBall formality flag —
- * core/events.ts:289-307), which the possession.ts:444 boolean does not
+ * core/events.ts:323-341), which the possession.ts:643 boolean does not
  * influence; the shooting side comes from the miss, never from the rebound's
  * own `offensive`/`team` stamps.
  */
@@ -109,7 +109,7 @@ describe('dead-carom attribution vs ground truth (2 games)', () => {
     let def = 0;
     for (const g of games) {
       for (const { reb, shooterSide } of deadCaroms(g.events)) {
-        // core/events.ts:285 verbatim contract. Under the audit mutant the
+        // core/events.ts:319 verbatim contract. Under the audit mutant the
         // label reads `team !== shooterSide` on every carom — both kinds flip.
         expect(reb.offensive).toBe(reb.team === shooterSide);
         if (reb.team === shooterSide) off++;
@@ -128,7 +128,7 @@ describe('dead-carom attribution vs ground truth (2 games)', () => {
         if (reb.team === shooterSide) continue; // ground-truth offensive: covered below
         checked++;
         // The shooting side's possession must CLOSE right here — the defense
-        // was just awarded the ball (possession.ts:465, core/events.ts:87-91).
+        // was just awarded the ball (possession.ts:664, core/events.ts:106-110).
         // Under the mutant this carom takes the side-out continuation branch
         // instead, so the first boundary event is the offense playing on.
         const end = nextBoundary(g.events, idx + 1);
@@ -139,7 +139,7 @@ describe('dead-carom attribution vs ground truth (2 games)', () => {
         ).toBe(true);
         // ...and the side the officials gave the ball inbounds it: a
         // dead-ball 'inbound' start for the carom winner, never a live burst
-        // (possession.ts:466, core/events.ts:170-175)
+        // (possession.ts:665, core/events.ts:194-199)
         const start = nextBoundary(g.events, end.i + 1);
         expect(
           start.e.type === 'possession_start' &&
@@ -159,7 +159,7 @@ describe('dead-carom attribution vs ground truth (2 games)', () => {
         if (reb.team !== shooterSide) continue; // ground-truth defensive: covered above
         checked++;
         // An offensive team rebound is a side out — same possession, same
-        // shot-clock trip (possession.ts:452-460). The next boundary event
+        // shot-clock trip (possession.ts:651-659). The next boundary event
         // must be the offense doing something with the ball, never a
         // possession flip. Under the mutant this carom is routed through the
         // defensive branch: possession_end 'def_rebound' lands immediately.
