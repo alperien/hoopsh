@@ -528,7 +528,7 @@ describe('AI draft boards', () => {
 });
 
 describe('#164: free agency convenes (scoop gate, salary floor, tax appetite)', () => {
-  it('upkeep leaves the July class to the July market: no rights-holding fills in the offseason window', () => {
+  it('upkeep stands down for the whole offseason window: the market prices the holes', () => {
     const league = fixtureLeague({ seed: 'ai-team-164-scoop' });
     rollCapLines(league, league.season + 1);
     league.phase = 'draft'; // post-lottery release, pre-moratorium: the old scoop window
@@ -541,8 +541,40 @@ describe('#164: free agency convenes (scoop gate, salary floor, tax appetite)', 
     league.players['fa90'] = scrap;
     league.freeAgents.push('fa90');
     aiRosterUpkeep(league);
-    expect(vet.status).toBe('freeAgent'); // the expiring class is never scooped
-    expect(scrap.status).toBe('roster'); // the scrap pool still patches rosters
+    // nobody gets a quiet minimum during the window — not the released
+    // class, not the scrap pool: filled slots were exactly why the market
+    // could not clear (one FA-window signing league-wide at the first cut)
+    expect(vet.status).toBe('freeAgent');
+    expect(scrap.status).toBe('freeAgent');
+    expect(league.transactions.filter((t) => t.kind === 'signing').length).toBe(0);
+  });
+
+  it('a full roster never bids: the phantom incumbent offer no longer strands its own free agent', () => {
+    const league = fixtureLeague({ seed: 'ai-team-164-phantom' });
+    rollCapLines(league, league.season + 1);
+    league.phase = 'freeAgency';
+    // bos holds the rights and sits at the roster maximum
+    const bos = league.teams.bos!;
+    let i = 0;
+    while (bos.roster.length < league.params.cba.rosterMax) {
+      const id = `bosx${i}`;
+      league.players[id] = fixturePlayer(id, 'bos', league.season, i);
+      bos.roster.push(id);
+      i += 1;
+    }
+    const fa = fixturePlayer('ph1', null, league.season, 4);
+    setAllAttrs(fa, 70);
+    fa.rights = { teamId: 'bos', tier: 'bird', capHold: 20_000_000, restricted: false };
+    league.players['ph1'] = fa;
+    league.freeAgents.push('ph1');
+    for (let d = 0; d < 3; d += 1) {
+      league.day = d;
+      runFreeAgencyDay(league);
+    }
+    // bos could not bid (no spot); a team with a spot and a need signed him
+    // instead of his pick failing execution validation day after day
+    expect(fa.status).toBe('roster');
+    expect(league.players['ph1']!.contract!.teamId).not.toBe('bos');
   });
 
   it('rights-holders return to the patch pool once the market has had its window', () => {

@@ -320,6 +320,11 @@ export function runFreeAgencyDay(league: League): Transaction[] {
     for (const tid of teamIds) {
       const team = league.teams[tid]!;
       if (team.gm === null) continue; // the user bids through actions, never automatically
+      // no bid without a roster spot (counting offer-sheet reservations): a
+      // full team's money-legal offer would win the player's pick, fail
+      // execution validation, quietly retry tomorrow forever, and block his
+      // camp-deal drift — the post-#164 unsigned-star pileup in one line
+      if (team.roster.length + reservedSheetSpots(league, tid, player.id) >= league.params.cba.rosterMax) continue;
       const incumbent = player.rights?.teamId === tid;
       const w = will.get(tid)!;
       // a team under the salary floor is a buyer by rule: being short of the
