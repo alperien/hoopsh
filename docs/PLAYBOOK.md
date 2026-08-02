@@ -161,7 +161,8 @@ those packs are calibrated.
 `describe`, provenance header).
 1. Reuse the shared-games pattern (sim once, assert many) — keep the suite fast.
 2. Only matchers the shim supports: `toBe, toEqual, toBeGreaterThan(OrEqual),
-   toBeLessThan(OrEqual), toContain, toBeTruthy, .not` (see `tools/shims/vitest.ts`).
+   toBeLessThan(OrEqual), toContain, toBeTruthy, toBeDefined, toBeUndefined,
+   toThrow, .not` (see `tools/shims/vitest.ts`).
 3. A new invariant needs a provenance comment: what bug/audit motivated it.
 4. Never calibrate a test to current behavior just to make it pass — a test asserts
    what SHOULD be true.
