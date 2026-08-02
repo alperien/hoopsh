@@ -22,11 +22,11 @@ import type { GameEvent } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 
 const { home, away } = sampleMatchup();
-// demo seed re-anchored twice on the same mechanism: 'crunch-time' went
-// lead-change-quiet at the #74 amended-dose landing; 'crunch-time-2' did
-// the same at the #115 acquisition-stamp landing. This one shows 17
-// changes and 9-0 / 10-0 runs.
-const result = simulateGame({ seed: 'crunch-time-3', home, away });
+// demo seed re-anchored three times on the same mechanism: 'crunch-time'
+// went lead-change-quiet at the #74 amended-dose landing, 'crunch-time-2'
+// at the #115 acquisition-stamp landing, 'crunch-time-3' at the #142
+// collision-order landing. This one shows 4 changes and 10-0 / 10-0 runs.
+const result = simulateGame({ seed: 'crunch-time-4', home, away });
 const abbrev = [home.abbrev, away.abbrev] as const;
 
 const clockOf = (e: GameEvent): string => {
