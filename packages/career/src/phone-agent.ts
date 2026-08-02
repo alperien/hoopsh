@@ -9,8 +9,8 @@ import { AGENT_MOVE_MIN, ROLE_LABEL, THREAD_RANK, eventsThisWeek, roleIdx } from
 import type { Candidate } from './phone-shared.js';
 import type { CareerState } from './types.js';
 
-/** The agent's display name for the phase: a family advisor until one can legally sign. */
-function agentFrom(career: CareerState): string {
+/** The agent's display name for the phase: a family advisor until one can legally sign. Exported as the single sender source for every agent-thread module (phone-arcs.ts rides it), so a cast rework changes the name in one place. */
+export function agentFrom(career: CareerState): string {
   return career.clock.phase === 'hs' || career.clock.phase === 'college'
     ? 'Uncle Dee (advisor)'
     : 'Marta (agent)';

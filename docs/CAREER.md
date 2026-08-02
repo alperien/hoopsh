@@ -265,6 +265,17 @@ actual line last night, your actual history with the sender); choices
 are few and consequential; frequency is capped so a season reads like a
 season and not a group chat. Two careers never produce the same phone.
 
+The quiet stretches carry their own rituals: the offseason (the exit
+meeting with the season named honestly, the summer assignment, the
+training ledger in real numbers), the pre-draft window (the program,
+the board read, the league sorting your lottery underneath you), and
+the rookie summer (the scale contract, the depth chart by name, camp).
+These formative-arc beats quote the same real state as everything else
+and live under the same caps; a window with nothing true to say stays
+silent. The #100 measurement is the provenance: two thirds of a pre-NBA
+career had no voice at all, not because nothing was happening, but
+because nothing narrated it.
+
 
 ## Recruiting and draft stock
 
