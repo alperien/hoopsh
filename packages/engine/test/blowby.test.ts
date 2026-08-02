@@ -51,12 +51,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  NBA, makeCourt, simulateGame, withParams,
-  type GameEvent, type GameResult, type ShotMoveType
+  NBA, Rng, makeCourt, makePlayer, makeTactics, simulateGame, withParams,
+  type GameEvent, type GameResult, type ShotMoveType, type Team
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { blowsByToRim } from '../src/sim/game.js';
+import { tickDead, tickScramble } from '../src/sim/possession.js';
 import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
+
+type ParamOverrides = Parameters<typeof withParams>[0];
 
 /** the booth's book boundary (narration shotcall.ts DUNK_MAX_FT — real
  *  dunks live at 0-2 ft); inlined the same way transcarry.test.ts and
@@ -382,5 +385,201 @@ describe('the landed default fires (shipped-params existence pin)', () => {
       plane += sig.plane;
     }
     expect(plane).toBeGreaterThanOrEqual(3);
+  });
+});
+
+// ------------------------------------------------------ arm lifecycle pins
+
+/**
+ * #131: the arm's LIFECYCLE. blowByArmed is drawn once in startPossession
+ * and never written again — deliberate #114 consequences, none previously
+ * pinned: a continuation dead ball resumes the SAME poss with no re-roll
+ * (possession.ts tickDead), and an offensive rebound keeps the trip and
+ * flips poss.phase to 'halfcourt' IN PLACE (possession.ts tickScramble), so
+ * a transition-born armed trip can fire the halfcourt gate on the post-ORB
+ * re-drive with no second draw. Phase is not in the event stream (the
+ * transcarry F2 seam), so no stream-side test can see either transition; a
+ * refactor routing continuations or the ORB through startPossession would
+ * change dose semantics with zero failing tests. The F3 checksums above
+ * cannot own this hole either: they die to their own re-anchor doctrine (a
+ * refactorer re-bakes them, the delta-F1 lesson in transcarry.test.ts),
+ * where these pins are re-anchor-proof properties.
+ *
+ * The observable is the raw rng stream itself: every Rng distribution
+ * helper funnels through float(), so an instance-level counting wrapper
+ * sees every draw the sim makes. Each pin runs the same hand-built state at
+ * scale 0.5 (one arming draw per startPossession) and scale 1 (draw-free
+ * arming): the lifecycle sites never read the dose, so their draw counts
+ * must be dose-FLAT — a re-rolling mutant consumes one more draw at 0.5
+ * than at 1, and a startPossession re-route also replaces the poss object
+ * and emits a possession_start. Both lifecycle mutants (re-route the
+ * continuation through startPossession; disarm at the ORB phase flip) were
+ * re-applied by hand and verified RED against these pins before landing —
+ * the mutation-shields doctrine.
+ *
+ * The state builder is the grammar.test.ts mkState shape (typed full
+ * literals: CI types tracks every Possession field here), 5v5 with real
+ * default players, trimmed to what tickDead and tickScramble read.
+ */
+
+/** count raw uniform draws at the source: every Rng helper calls float() */
+function countDraws(rng: Rng): { n: number } {
+  const counter = { n: 0 };
+  const raw = rng.float.bind(rng);
+  (rng as unknown as { float: () => number }).float = () => {
+    counter.n += 1;
+    return raw();
+  };
+  return counter;
+}
+
+/** a mid-Q2 transition trip, armed, ball dead or loose: the lifecycle
+ *  fixtures inject the armed bit a real startPossession would have drawn */
+function mkLifecycleState(seed: string, params: ParamOverrides): GameState {
+  const P = withParams(params);
+  const court = makeCourt(NBA);
+  const mk = (id: string) => makePlayer({ id, name: id, pos: 'SF', heightIn: 78 });
+  const off = [mk('off-1'), mk('off-2'), mk('off-3'), mk('off-4'), mk('off-5')];
+  const def = [mk('def-1'), mk('def-2'), mk('def-3'), mk('def-4'), mk('def-5')];
+  const teamOf = (id: string, players: ReturnType<typeof mk>[]): Team => ({
+    id, name: id, abbrev: id.slice(0, 3).toUpperCase(),
+    players, starters: players.map((p) => p.id), tactics: makeTactics()
+  });
+  const agents = new Map<string, Agent>();
+  const addAgent = (p: ReturnType<typeof mk>, side: 0 | 1): void => {
+    agents.set(p.id, {
+      p, side,
+      pos: { x: court.midX, y: court.centerY },
+      vel: { x: 0, y: 0 },
+      energy: 100, load: 0, secondsPlayed: 0, fouls: 0, onCourt: true, fouledOut: false,
+      lastSwapT: 0,
+      target: { x: court.midX, y: court.centerY },
+      intent: 'spot', sprinting: false, spotKey: null, manId: null,
+      dribblesSinceCatch: 0, dribbleAcc: 0,
+      catchT: -99, acquiredBy: 'deadball',
+      catchQuality: P.shot.passQualityCenter,
+      usedPoss: 0, teamPossOnCourt: 0,
+      driveUntil: -99, cutUntil: -99, relocUntil: -99,
+      screenStunUntil: -99, navUnderUntil: -99
+    });
+  };
+  off.forEach((p) => addAgent(p, 0));
+  def.forEach((p) => addAgent(p, 1));
+  return {
+    rng: new Rng(seed), params: P, rules: NBA, court,
+    teams: [teamOf('lc-off', off), teamOf('lc-def', def)],
+    agents,
+    lineup: [off.map((p) => p.id), def.map((p) => p.id)],
+    ball: { holderId: null, pos: { x: court.midX, y: court.centerY }, flight: null },
+    // mid-Q2, clock-consistent: 320s of Q2 elapsed, trip 5s old, wallT
+    // ahead of t by earlier stoppage time (two-axes discipline)
+    period: 2, clock: 400, t: 1040, wallT: 1250,
+    score: [40, 38],
+    teamFoulsPeriod: [0, 0], teamFoulsLate: [0, 0], tipWinner: 0,
+    endgame: true, timeoutsLeft: [7, 7], runPts: [0, 0],
+    timeoutsThisPeriod: [0, 0], timeoutsUsedFinalPeriod: [0, 0],
+    timeoutsUsedFinalLate: [0, 0], lastTimeoutT: [-99, -99],
+    conceded: [false, false],
+    poss: {
+      team: 0, shotClock: 14, phase: 'transition', startT: 1035, kind: 'live_rebound',
+      leakArmed: false, carryArmed: false,
+      // the trip under test: armed, as a real startPossession draw would
+      // have left it
+      blowByArmed: true,
+      opener: false,
+      lastPass: null, spotMap: new Map(), spots: new Map(), action: null, ended: false
+    },
+    phase: { kind: 'live' },
+    events: [], frames: [], collectFrames: false,
+    decisionAt: 0, pendingRelease: null, over: false
+  };
+}
+
+describe('the arm lifecycle (#131): continuations and the ORB flip re-roll nothing', () => {
+  it('a continuation dead ball resumes the SAME armed poss with zero draws at both doses', () => {
+    const run = (scale: number): { s: GameState; possBefore: GameState['poss']; draws: number } => {
+      const s = mkLifecycleState('bb-life-cont', { ai: { blowByCarryScale: scale } });
+      const possBefore = s.poss;
+      // a non-shooting-whistle stoppage mid-trip, same team resumes (the
+      // loose-ball side-out / reach-in retention shape)
+      s.phase = {
+        kind: 'dead', resumeIn: 0.05, clockRuns: false,
+        nextTeam: 0, possKind: 'inbound', continuation: true
+      };
+      const draws = countDraws(s.rng);
+      tickDead(s, 0.1);
+      return { s, possBefore, draws: draws.n };
+    };
+    for (const scale of [0.5, 1]) {
+      const r = run(scale);
+      // the resume actually happened — the draw pin must not pass vacuously
+      expect(r.s.phase.kind).toBe('live');
+      expect(r.s.ball.holderId).toBe('off-1');
+      // draw-free at every dose: a re-roll would consume one draw at 0.5,
+      // and a startPossession re-route would consume the spot jitter too
+      expect(r.draws).toBe(0);
+      // the SAME possession object, still armed, phase and kind untouched
+      expect(r.s.poss).toBe(r.possBefore);
+      expect(r.s.poss.blowByArmed).toBe(true);
+      expect(r.s.poss.phase).toBe('transition');
+      expect(r.s.poss.kind).toBe('live_rebound');
+    }
+  });
+
+  it('an ORB keeps the trip: in-place halfcourt flip, arm intact, dose-flat draws', () => {
+    const run = (scale: number): { s: GameState; possBefore: GameState['poss']; draws: number } => {
+      // rate-gate the scramble's own chance sites off so the resolution
+      // path is deterministic. The two remaining pre-rolls are UNgated
+      // chance(0) calls (loose-ball foul, dead carom) and the lottery is
+      // one weighted() — a fixed inventory, identical at every dose
+      // because the ORB never re-enters startPossession
+      const s = mkLifecycleState('bb-life-orb', {
+        ai: { blowByCarryScale: scale },
+        foul: { looseBallPerReb: 0 },
+        reb: { deadBallCaromChance: 0 },
+        officiating: { heldBallPerScramble: 0 }
+      });
+      const possBefore = s.poss;
+      const rim = attackedRim(s, 0);
+      const inward = rim.x > s.court.midX ? -1 : 1; // toward midcourt
+      // a long carom: 18 ft from the rim keeps the winner outside
+      // reb.putbackRadiusFt (6), so the putback branch's distance guard
+      // short-circuits before its chance() and the trip continues live
+      const landAt = { x: rim.x + inward * 18, y: rim.y };
+      // off-1 alone at the spot; the other nine parked 55 ft upcourt of the
+      // rim (37 ft from the carom, beyond reb.reboundCutoffFt 24), so the
+      // lottery has exactly one candidate and the board is offensive by
+      // construction
+      let lane = 0;
+      for (const [id, a] of s.agents) {
+        a.pos = id === 'off-1'
+          ? { ...landAt }
+          : { x: rim.x + inward * 55, y: 5 + (lane++ % 9) * 5 };
+        a.target = { ...a.pos };
+      }
+      s.phase = { kind: 'scramble', landAt, resolveIn: 0.05, offSide: 0 };
+      const draws = countDraws(s.rng);
+      tickScramble(s, 0.1);
+      return { s, possBefore, draws: draws.n };
+    };
+    const at05 = run(0.5);
+    const at1 = run(1);
+    for (const r of [at05, at1]) {
+      // the board resolved live to the lone offensive candidate
+      expect(r.s.phase.kind).toBe('live');
+      expect(r.s.ball.holderId).toBe('off-1');
+      // the SAME possession object survives the flip: still the
+      // transition-BORN trip (kind), now in halfcourt phase, arm intact,
+      // possession not ended — the post-ORB re-drive can fire the
+      // halfcourt gate with no second draw
+      expect(r.s.poss).toBe(r.possBefore);
+      expect(r.s.poss.blowByArmed).toBe(true);
+      expect(r.s.poss.phase).toBe('halfcourt');
+      expect(r.s.poss.kind).toBe('live_rebound');
+      expect(r.s.poss.ended).toBe(false);
+    }
+    // dose-FLAT: the ORB continuation never reads the scale. A re-roll (or
+    // a startPossession re-route) consumes one more draw at 0.5 than at 1
+    expect(at05.draws).toBe(at1.draws);
   });
 });
