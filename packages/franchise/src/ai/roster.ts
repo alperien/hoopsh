@@ -188,6 +188,16 @@ function minimumMarket(league: League, teamId: TeamId): FrPlayer[] {
     // An abroad career player parks here as a top free agent for whole
     // seasons; a quiet floor fill must not put him on an NBA roster.
     if (league.careerControlled?.includes(id)) continue;
+    // the July class belongs to the July market (#164): while the signing
+    // season is next season (lottery through free agency), a rights-holding
+    // free agent is never a quiet minimum fill. Before this gate, the
+    // draft-phase fill pass scooped the entire just-released expiring class
+    // at 1-year minimums before free agency convened — measured as THE sink
+    // behind the league's monotonic payroll deflation (zero FA-window
+    // signings on both acceptance seeds). Once the market has had its
+    // window (signing season == label season again), leftover rights-holders
+    // return to the patch pool.
+    if (p.rights && signingSeason(league) !== league.season) continue;
     // a restricted FA belongs to the offer-sheet machinery, not a quiet minimum
     if (p.rights && p.rights.restricted && p.rights.teamId !== teamId) continue;
     if (league.offerSheets.some((s) => s.playerId === id)) continue; // spoken for until the match clock runs
@@ -219,6 +229,15 @@ export function aiRosterUpkeep(league: League): void {
   const cba = league.params.cba;
   // during the market window the FA module owns every signing decision
   const marketOwnsSignings = league.phase === 'moratorium' || league.phase === 'freeAgency';
+  // the whole offseason signing window belongs to the market (#164): no
+  // quiet floor fills between the lottery release and the rollover. The
+  // first cut of this fix only excluded rights-holders from the patch
+  // pool; measurement showed upkeep then stuffed every open slot with
+  // rights-less scrap at minimums before July, so the released class had
+  // nowhere to sign (one FA-window signing league-wide, a 31-player
+  // unsigned pileup at camp). Rosters ride short for the few draft-phase
+  // days; free agency prices the holes.
+  const offseasonWindow = signingSeason(league) !== league.season;
   // signings price against the signing season's cap lines; a hand-built
   // league that never rolled them simply skips patch signings today
   const canPrice = league.capLines[signingSeason(league)] !== undefined;
@@ -227,8 +246,8 @@ export function aiRosterUpkeep(league: League): void {
     const team = league.teams[tid]!;
     if (team.gm === null) continue; // user team: their roster, their calls
 
-    // -- 1. minimum-money fills up to the roster floor
-    if (!marketOwnsSignings && canPrice && team.roster.length < cba.rosterMin) {
+    // -- 1. minimum-money fills up to the roster floor (in-season patches)
+    if (!marketOwnsSignings && !offseasonWindow && canPrice && team.roster.length < cba.rosterMin) {
       let need = cba.rosterMin - team.roster.length;
       for (const p of minimumMarket(league, tid)) {
         if (need <= 0) break;

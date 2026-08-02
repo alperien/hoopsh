@@ -38,7 +38,7 @@
  *   (research 06 4: 3+ YOS one-year minimums hit the cap at the 2-YOS
  *   rate); minimums count at face value.
  */
-import type { Contract, ContractYear, FrPlayer, League, Season, SigningMeans, TeamId } from '../types.js';
+import type { Contract, ContractYear, FrPlayer, League, PlayerId, Season, SigningMeans, TeamId } from '../types.js';
 import { capSheet } from './cap.js';
 
 /**
@@ -393,12 +393,36 @@ export function validateSigning(league: League, teamId: TeamId, playerId: string
   errors.push(...meansErrors(league, teamId, player, terms, means));
 
   // 15-man standard roster ceiling (research 06 8); two-ways live in
-  // team.twoWay and are checked in transactions.ts
-  if (!team.roster.includes(playerId) && team.roster.length >= league.params.cba.rosterMax) {
+  // team.twoWay and are checked in transactions.ts. Pending offer sheets
+  // reserve spots: tick.ts resolves them by forced execution, so both
+  // teams that might execute one must keep a spot open.
+  if (!team.roster.includes(playerId)
+    && team.roster.length + reservedSheetSpots(league, teamId, playerId) >= league.params.cba.rosterMax) {
     errors.push(`roster already at the ${league.params.cba.rosterMax}-man maximum`);
   }
 
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Roster spots committed to unresolved offer sheets. Each pending sheet is
+ * executed by tick.ts at the match deadline WITHOUT re-validation, onto one
+ * of two teams: the rights-holding incumbent (matched) or the offering team
+ * (unmatched). Both must therefore keep a spot open while the sheet is
+ * live, or the forced execution would break the roster ceiling. The
+ * sheet's own player never reserves against himself (executing HIS signing
+ * consumes the reservation). Before #164 this was unreachable in organic
+ * play: restricted free agents were scooped at minimums before the market
+ * convened, so sheets never existed.
+ */
+export function reservedSheetSpots(league: League, teamId: TeamId, exceptPlayerId?: PlayerId): number {
+  let n = 0;
+  for (const s of league.offerSheets) {
+    if (s.playerId === exceptPlayerId) continue;
+    const incumbent = league.players[s.playerId]?.rights?.teamId;
+    if (s.from === teamId || incumbent === teamId) n += 1;
+  }
+  return n;
 }
 
 /**
