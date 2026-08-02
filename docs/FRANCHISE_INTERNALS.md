@@ -42,7 +42,7 @@ discrepancy (AGENTS.md §2.10 applies here unchanged).
 | `scouting.ts` | fog of war | per-team deterministic error, persistent (never re-rolled) |
 | `ai/persona.ts` | GM personas, timeline re-evaluation | |
 | `ai/valuation.ts` | player/pick/package value | team-context value, not global |
-| `ai/trade.ts` | negotiation, verdicts, league trade pulse | anti-fleece = value floor + patience; anti-cowardice = pressure states |
+| `ai/trade.ts` | negotiation, verdicts, league trade pulse | anti-fleece = value floor + patience; anti-cowardice = pressure states; user offers land as inbox items carrying a frozen offer copy - accept executes exactly that copy (tick.ts respondToRequest, #158) |
 | `ai/fa.ts` | the free-agency market | stars first, tail to September |
 | `ai/draftai.ts` | AI draft boards | built from their own scouts' wrong numbers |
 | `ai/roster.ts` | depth charts, rotations, roster upkeep | |
