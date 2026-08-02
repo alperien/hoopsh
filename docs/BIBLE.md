@@ -757,7 +757,12 @@ the single source of truth it derives from.
 npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
-npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote)
+npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote).
+                 # Its events lines (avg/total/per-game/sig) are the opposite: pinned by the tree,
+                 # byte-reproducible at the same commit + Node version, and labeled with both
+                 # (`tree:`/`node:` contract lines). Compare events figures across boxes only at an
+                 # identical contract; a same-tree mismatch means a dirty/mismatched checkout or a
+                 # determinism break (incident #175).
 ```
 
 `packages/engine/test/invariants.test.ts` permanently enforces what two adversarial
@@ -997,8 +1002,20 @@ its as-of commit.
   committed noise floor reads astd n40 center 60.19%, sd 0.86pp, so the
   floor sits 0.46 n40-draw-sd below center. astdShare is now the
   run-to-run boundary band at n<=96 reads (~1 in 3 n40/n48 draws read
-  under; measured this session: 0/12 under at n=48 and one of three n=40 verify bases under at 0.59, i.e. 1 of 15 fresh draws; fresh-base weighted center 60.39 over 1536 games measured over 12 fresh n=48 bases; CI's batch
-  gate floor 16/17 absorbs the lone flicker by design). The center
+  under; measured this session: 0/12 under at n=48 and one of three n=40 verify bases under at 0.59, i.e. 1 of 15 fresh draws; fresh-base weighted center 60.39 over 1536 games, the session's full fresh-base slate of 3x288 + 96 + 12x48, not the 12 n=48 bases alone; CI's batch
+  gate floor 16/17 absorbs the lone flicker by design). Session-read
+  provenance (PR #78 review 4838517576, disposition 5158044082): the
+  12-base n=48 pool's seed names went unrecorded, against the
+  register's pool-naming convention (the W84/W85 "pool name-1..n"
+  shape), so the 0/12 read is not reproducible as recorded and ran
+  high; the review's independent pool flick-1..12 at n=48 read 4/12
+  under the floor (mean 60.23, sd 0.68pp), all 12 CI-green (every
+  failure a lone band at 16/17, at or above RATCHET_FLOOR 16), and
+  stands as the reproducible counter-sample of record. Plan on the
+  analytic ~1 in 3, not 0/12. Count wording, aligned: this row's
+  fourth-count phrasing and the bands.ts comment's three-prior-parses
+  phrasing describe the same series (three prior parses plus this
+  branch's own); the review's clean-clone recount is the fifth. The center
   itself is INSIDE by 2.9 center-se (se 0.14pp over 40 bases): the
   deficit to the real center, ~3.6pp at this head, is the D1b/supply-arc
   story (W84/W85 deliberately spent astd for unassisted rim volume; the

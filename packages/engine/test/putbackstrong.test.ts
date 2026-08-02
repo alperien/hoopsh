@@ -65,7 +65,10 @@ const TEST_LOGIT = 1;
 const game = (seed: string, logit: number, frames = false): GameResult => {
   const { home, away } = sampleMatchup();
   return simulateGame({
-    seed, home, away, ...(frames ? { frames: true } : {}),
+    // the engine's frame switch is collectFrames, default ON (GameConfig has
+    // no "frames" field) — only the off-switch byte pin reads r.frames, so
+    // the pooled arms opt out per the suite's pooled-run convention
+    seed, home, away, collectFrames: frames,
     params: { shot: { putbackStrongLogit: logit } }
   });
 };
