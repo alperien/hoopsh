@@ -48,6 +48,7 @@ function dateLt(a: LeagueDate, b: LeagueDate): boolean {
   return a.season < b.season || (a.season === b.season && a.day < b.day);
 }
 
+// tradeDeadlineDay and tradingFrozen are mirrored in cba/tradelegal.ts (which cannot import from ai/); keep the two in sync.
 /** The trade deadline day: the calendar mark when built, else the params index. Pure read; exported for the GM desk (inbox.ts). */
 export function tradeDeadlineDay(league: League): number {
   const marked = league.calendar.find(d => d.marks.includes('tradeDeadline'));
