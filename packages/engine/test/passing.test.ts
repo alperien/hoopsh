@@ -2,19 +2,19 @@
  * sim/passing.ts — pass-failure routing and the reach-in foul's two paths,
  * pinned at the event-stream boundary.
  *
- * Spec sources: passing.ts:86-124 (a steal starts the thief's possession
+ * Spec sources: passing.ts:92-132 (a steal starts the thief's possession
  * IMMEDIATELY, ball in hand; an out-of-bounds bad pass routes through a
- * dead-ball inbound for the other team), passing.ts:244-266 (a strip is a
+ * dead-ball inbound for the other team), passing.ts:365-411 (a strip is a
  * live steal; a non-bonus reach-in keeps the SAME possession alive with no
  * free throws; a bonus reach-in sends the holder to the line per
- * FoulOutcome.bonus), events.ts:44-53 and :170-175 (turnover/possession
+ * FoulOutcome.bonus), events.ts:44-53 and :194-199 (turnover/possession
  * kinds).
  *
  * One seeded game is this file's entire sim budget; every stream rule is
  * asserted over ALL matching events with an existence floor so an rng
  * reshuffle cannot quietly reduce a rule to an unexecuted branch
  * (invariants.test.ts:131 pattern). The horn can legally swallow a new
- * possession (the phantom-possession guard, passing.ts:102-121), so each
+ * possession (the phantom-possession guard, passing.ts:108-129), so each
  * walk treats period_end as a valid escape — floors require non-escaped
  * instances.
  */
@@ -40,7 +40,7 @@ function nextOf(i: number, stop: ReadonlyArray<GameEvent['type']>): GameEvent | 
   return null;
 }
 
-describe('bad-pass routing (passing.ts:86-124)', () => {
+describe('bad-pass routing (passing.ts:92-132)', () => {
   it("a stolen bad pass carries the thief and starts HIS possession immediately (kind 'steal')", () => {
     let checked = 0;
     for (let i = 0; i < ev.length; i++) {
@@ -59,7 +59,7 @@ describe('bad-pass routing (passing.ts:86-124)', () => {
   });
 
   it('an out-of-bounds bad pass has no thief and routes through a dead-ball INBOUND for the other team', () => {
-    // passing.ts:112-122 — deadBall(other(passer.side)); events.ts:44-53
+    // passing.ts:118-130 — deadBall(other(passer.side)); events.ts:44-53
     // (stolenBy never on out_of_bounds)
     let checked = 0;
     for (let i = 0; i < ev.length; i++) {
@@ -76,9 +76,9 @@ describe('bad-pass routing (passing.ts:86-124)', () => {
   });
 });
 
-describe('reach-in resolution (passing.ts:179-267)', () => {
+describe('reach-in resolution (passing.ts:240-417)', () => {
   it("a clean strip is a live steal: 'lost_ball' credits the defender and his side runs with it", () => {
-    // passing.ts:244-249; events.ts:44-53 (stolenBy ALWAYS on lost_ball)
+    // passing.ts:365-370; events.ts:44-53 (stolenBy ALWAYS on lost_ball)
     let checked = 0;
     for (let i = 0; i < ev.length; i++) {
       const e = ev[i]!;
@@ -96,7 +96,7 @@ describe('reach-in resolution (passing.ts:179-267)', () => {
   });
 
   it('a NON-bonus reach-in continues the same possession: no free throws, no possession flip', () => {
-    // passing.ts:257-266 — the continuation dead ball resumes play with the
+    // passing.ts:389-411 — the continuation dead ball resumes play with the
     // fouled team still in possession; fouls.ts:26-35 (bonus null contract).
     // Walk from each such foul to the next possession boundary: a
     // possession_start before a possession_end means the whistle flipped the
@@ -128,7 +128,7 @@ describe('reach-in resolution (passing.ts:179-267)', () => {
   });
 
   it('a BONUS reach-in sends the fouled team to the line for the pack-awarded trip', () => {
-    // passing.ts:250-256 — award comes from FoulOutcome.bonus (NBA: flat
+    // passing.ts:371-388 — award comes from FoulOutcome.bonus (NBA: flat
     // bonusFreeThrows, read from result.rules, never a literal)
     let checked = 0;
     for (let i = 0; i < ev.length; i++) {
@@ -147,7 +147,7 @@ describe('reach-in resolution (passing.ts:179-267)', () => {
   });
 });
 
-describe('completed passes (passing.ts:126-134)', () => {
+describe('completed passes (passing.ts:134-171)', () => {
   it('every pass connects two DISTINCT teammates on the possessing side', () => {
     let count = 0;
     for (const e of ev) {
