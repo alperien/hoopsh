@@ -3,7 +3,7 @@
  * the engine suite, finding M19).
  *
  * The gap: `replaceFouledOut` (sim/subs.ts:293-309, called synchronously from
- * recordFoul, fouls.ts:75) turned into a no-op survived the audited engine
+ * recordFoul, fouls.ts:110) turned into a no-op survived the audited engine
  * suite. `liveOnCourt` (sim/state.ts:308-310) filters `fouledOut` from every
  * actor query, so invariants.test.ts's "fouled-out players never act again"
  * held vacuously — the fouled-out player ghost-stood in the lineup for the
@@ -17,8 +17,8 @@
  * replaceFouledOut), so a `fouledOut: true` foul is followed by a
  * `substitution` event for the same player UNLESS the team's entire bench is
  * already on the floor or fouled out" (the empty-bench early return,
- * subs.ts:301). recordFoul emits the foul (fouls.ts:64-74) and calls
- * replaceFouledOut on the next line (fouls.ts:75), which emits through
+ * subs.ts:301). recordFoul emits the foul (fouls.ts:99-109) and calls
+ * replaceFouledOut on the next line (fouls.ts:110), which emits through
  * swapPlayers (subs.ts:47) with nothing in between — the substitution is the
  * immediately-next event, stamped at the same game-clock instant.
  */
@@ -101,8 +101,8 @@ describe('foul-out produces a substitution when the bench has bodies (audit M19)
         }
         withBench += 1;
         // the pin M19 exists for: the replacement is immediate — foul event
-        // (fouls.ts:64), then replaceFouledOut → swapPlayers → substitution
-        // (fouls.ts:75, subs.ts:308, :47) with no event and no tick between
+        // (fouls.ts:99), then replaceFouledOut → swapPlayers → substitution
+        // (fouls.ts:110, subs.ts:308, :47) with no event and no tick between
         expect(nxt?.type).toBe('substitution');
         if (nxt?.type !== 'substitution') return; // unreachable — the expect above threw; TS narrowing only
         expect(nxt.team).toBe(e.team);

@@ -233,20 +233,37 @@ function abilityScoreOf(p: FrPlayer): number {
 }
 
 /**
- * Next free 'p####' id across the circuit population AND the NBA world.
- * Scanned rather than counted (people/gen.ts doctrine: a save/load cycle
- * carries no counter) and scanned across BOTH maps because draft entry
- * inserts me into the league, so the two id spaces must never collide.
+ * Next free career-local id number. Circuit kids mint in their own 'c'
+ * alphabet because the two id spaces must never collide and only one of
+ * them can see the other: league draft classes continue the 'p' sequence
+ * by scanning league.players alone (people/gen.ts), and franchise code
+ * never reads career state. Any 'p' id minted here would sit above the
+ * league's watermark once draft entry lifts it, and the first post-entry
+ * class would re-mint my retained HS teammates' numbers onto NBA rookies
+ * (issue #83). An alphabet the league cannot produce keeps the maps
+ * disjoint by construction, with no watermark to maintain. Scanned
+ * rather than counted (people/gen.ts doctrine: a save/load cycle carries
+ * no counter) and scanned across BOTH maps so an id that ever crossed
+ * the seam stays burned.
  */
 function nextIdSeq(career: CareerState): number {
   let seq = 1;
   for (const map of [career.players, career.league.players]) {
     for (const id of Object.keys(map)) {
-      const m = /^p(\d+)$/.exec(id);
+      const m = /^c(\d+)$/.exec(id);
       if (m) seq = Math.max(seq, Number(m[1]) + 1);
     }
   }
   return seq;
+}
+
+/**
+ * Format a career-local player id. Mirrors people/gen.ts's four-digit
+ * padding so ids read the same either side of the seam; the alphabet
+ * carries the invariant, the padding is convention.
+ */
+function careerLocalId(seq: number): PlayerId {
+  return `c${String(seq).padStart(4, '0')}`;
 }
 
 /** All names already on a box score somewhere (career circuits + the NBA world). */
@@ -325,13 +342,19 @@ function fillTeam(
   const roster: PlayerId[] = [...(spec.include ?? [])];
   while (roster.length < ROSTER_SIZE[spec.kind]) {
     const age = ageMin + rng.int(ageMax - ageMin + 1); // uniform across the band
+    const seq = idSeq.next++;
     const p = generatePlayer(rng, {
       age,
       season: career.clock.year,
       quality: clamp(rng.gaussian(spec.quality, PLAYER_QUALITY_SD), QUALITY_RAIL_LO, QUALITY_RAIL_HI),
-      idSeq: idSeq.next++,
+      idSeq: seq,
       params: career.league.params,
     });
+    // a circuit kid is career-local for life: re-key him out of gen.ts's
+    // 'p' alphabet before the id reaches any map, roster, or box score,
+    // or the league's first post-entry draft class re-mints his number
+    // onto an NBA rookie (nextIdSeq above, issue #83). Draws nothing.
+    p.id = careerLocalId(seq);
     // circuit players are not league members: neutral prospect status, no
     // contract or draft record until the real pipeline touches them
     p.status = 'prospect';

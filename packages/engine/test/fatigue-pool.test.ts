@@ -26,7 +26,7 @@ import { applyFatigue, effectiveEnergy } from '../src/sim/movement.js';
 import { shootingFoulP } from '../src/sim/resolve.js';
 import { endgameContinuation } from '../src/sim/ai/concepts.js';
 import { endPeriod } from '../src/sim/possession.js';
-import type { Agent, GameState } from '../src/sim/state.js';
+import type { Agent, GameState, Possession } from '../src/sim/state.js';
 
 function mkAgent(p: Player, side: TeamSide, onCourt: boolean): Agent {
   return {
@@ -178,12 +178,24 @@ describe('the halftime lump (possession.ts endPeriod, forced live)', () => {
       lineup: [[...home.starters], [...away.starters]],
       rng: new Rng('load-ht-unit'),
       ball: { holderId: null, pos: { x: 47, y: 25 }, flight: null },
+      // #130: a full-shape hand-built Possession literal (the 153f110
+      // convention). The fixture-wide cast hides it from tsc, so `satisfies`
+      // makes the convention a compiler guarantee: growing the Possession
+      // shape fails CI types here instead of leaving a silently-undefined
+      // field (the #123 blowByArmed landing patched only the typed grammar
+      // literal and this site broke with no signal).
       poss: {
         team: 0, shotClock: 10, phase: 'halfcourt', startT: 0, kind: 'inbound',
         leakArmed: false,
         carryArmed: false,
+        blowByArmed: false,
+        // opener was silently missing too (fdesign-grammar M1b): false is
+        // what startPossession stamps mid-period, and nothing on the
+        // endPeriod paths reads either field — both additions are
+        // runtime-inert here
+        opener: false,
         lastPass: null, spotMap: new Map(), spots: new Map(), action: null, ended: false
-      },
+      } satisfies Possession,
       phase: { kind: 'live' },
       events: [],
       frames: [],
