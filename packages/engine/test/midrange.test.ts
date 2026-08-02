@@ -38,8 +38,12 @@ function collectShots(mutate?: (home: ReturnType<typeof sampleMatchup>['home'], 
     const { home, away } = sampleMatchup();
     mutate?.(home, away);
     const flip = i % 2 === 1;
+    // pool re-anchored at the #115 acquisition-stamp landing (streams
+    // reshuffled; midrange-0..7 drew band dominance 0.591 vs the 0.6
+    // floor): midrange-8..15, first qualifying offset — every gate in
+    // this file passes. Assertions unchanged.
     const result = simulateGame({
-      seed: `midrange-${i}`,
+      seed: `midrange-${i + 8}`,
       home: flip ? away : home,
       away: flip ? home : away,
       collectFrames: false

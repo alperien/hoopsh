@@ -348,14 +348,23 @@ describe('F3: the arming-draw region is pinned (landing dose + draw-free top)', 
     return (h >>> 0).toString(16).padStart(8, '0');
   };
 
+  // Re-anchored at the #115 layer A acquisition stamp (giveBall writes
+  // ball.pos to the new holder at every change of hands, moving events
+  // AND frames on every stream): all seven rows re-baked per this block's
+  // doctrine — the #127 dose row included — cause stated in the landing
+  // commit.
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    { seed: 'bb3pin-2', scale: 0.25, events: 1275, final: '122-107', hash: '10c7e924' },
-    { seed: 'bb3pin-1', scale: 0.5, events: 1245, final: '105-120', hash: '8e49bed6' },
-    { seed: 'bb3pin-2', scale: 0.5, events: 1190, final: '116-113', hash: '8cd9f0ed' },
-    { seed: 'bb3pin-3', scale: 0.5, events: 1177, final: '121-120', hash: '938b498a' },
-    { seed: 'bb3pin-4', scale: 0.5, events: 1234, final: '110-115', hash: 'b27285d7' },
-    { seed: 'bb3pin-1', scale: 1, events: 1195, final: '120-106', hash: '6f9a636c' },
-    { seed: 'bb3pin-2', scale: 1, events: 1275, final: '126-133', hash: '0f56bbc9' }
+    // (bb3pin-2's arming draws land identically at 0.25 and 0.5 on the
+    // current streams — the row matching its 0.5 sibling is the same
+    // coincidence class transcarry's f3pin-1 showed at 0.37/0.5, not a
+    // copy error)
+    { seed: 'bb3pin-2', scale: 0.25, events: 1232, final: '124-123', hash: '086fa9ed' },
+    { seed: 'bb3pin-1', scale: 0.5, events: 1364, final: '133-120', hash: '9035396e' },
+    { seed: 'bb3pin-2', scale: 0.5, events: 1232, final: '124-123', hash: '086fa9ed' },
+    { seed: 'bb3pin-3', scale: 0.5, events: 1210, final: '137-94', hash: '53b4fff5' },
+    { seed: 'bb3pin-4', scale: 0.5, events: 1206, final: '88-132', hash: '9febffd3' },
+    { seed: 'bb3pin-1', scale: 1, events: 1177, final: '114-119', hash: '78f7b6de' },
+    { seed: 'bb3pin-2', scale: 1, events: 1291, final: '125-123', hash: '94b79a4b' }
   ];
 
   for (const pin of PINNED) {
@@ -643,9 +652,13 @@ describe('the scale-0 off-switch (#138): the hard-zero contract at the retired d
     return (h >>> 0).toString(16).padStart(8, '0');
   };
 
+  // Re-anchored at the #115 layer A acquisition stamp (a legitimate
+  // scale-0 stream reorder — the stamp moves every stream at every scale,
+  // exactly the uniform-shift class this block's own doctrine
+  // anticipates): both rows re-baked, cause stated in the landing commit.
   const PINNED: { seed: string; events: number; final: string; hash: string }[] = [
-    { seed: 'bb0pin-1', events: 1170, final: '111-92', hash: 'd6705f69' },
-    { seed: 'bb0pin-2', events: 1254, final: '108-113', hash: 'ec79d857' }
+    { seed: 'bb0pin-1', events: 1220, final: '116-128', hash: '8f38d6b1' },
+    { seed: 'bb0pin-2', events: 1190, final: '120-109', hash: 'ddab0611' }
   ];
 
   for (const pin of PINNED) {

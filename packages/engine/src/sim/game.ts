@@ -518,8 +518,16 @@ function tickLive(s: GameState, dt: number): void {
   integrateMovement(s, dt);
   applyFatigue(s, dt);
 
-  // ball follows holder
-  s.ball.pos = { x: h.pos.x, y: h.pos.y };
+  // ball follows holder — the CURRENT holder, not the tick-start binding:
+  // a reach-in strip at stage 10 already handed the ball to the thief
+  // (giveBall's acquisition stamp, #115 layer A), and the stale `h` write
+  // here re-parked it on the victim for a tick — the frame showed
+  // holderSlot on the thief with the ball on the stripped man, and the
+  // NEXT tick's defense read priced the victim's body as the ball
+  // (measured: 17 arrival mismatches / 1545 possession starts, all
+  // lost_ball steals, before the re-read).
+  const holderNow = s.ball.holderId ? agent(s, s.ball.holderId) : h;
+  s.ball.pos = { x: holderNow.pos.x, y: holderNow.pos.y };
 }
 
 /**

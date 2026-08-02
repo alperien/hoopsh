@@ -112,9 +112,8 @@ export function resolvePassArrival(s: GameState): void {
       // stamped after the horn) that the next live tick ended as period_end
       if (s.clock < 1e-6) { endPeriod(s); return; }
       startPossession(s, thief.side, 'steal', thief);
-      // the BALL snaps to the thief (a deflection), never the player to the
-      // ball — teleporting bodies breaks the replay's physical continuity
-      s.ball.pos = { x: thief.pos.x, y: thief.pos.y };
+      // ball-to-the-thief relocation happens inside startPossession's
+      // giveBall (#115 layer A) — the deflection note lives there now
     } else {
       emit(s, {
         type: 'turnover', team: passer.side, player: from, kind: 'out_of_bounds'

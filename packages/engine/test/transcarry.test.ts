@@ -297,20 +297,20 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
     return (h >>> 0).toString(16).padStart(8, '0');
   };
 
-  // Re-anchored at the #114 landing (ai.blowByCarryScale 0 -> 0.5 arms a
-  // per-possession draw upstream of every stream, moving events AND
-  // frames) on top of the #119 FT ball-carry frames re-anchor (frames
-  // only; its events byte-identity is why these rows' event counts and
-  // finals match the #114-only bake exactly): all six rows re-baked per
-  // this block's doctrine, both causes stated in the landing commit.
+  // Re-anchored at the #115 layer A acquisition stamp (giveBall writes
+  // ball.pos to the new holder at every change of hands — the first
+  // defensive read after any acquisition prices the honest ball, moving
+  // events AND frames on every stream): all seven rows re-baked per this
+  // block's doctrine — the #127 dose row included — cause stated in the
+  // landing commit.
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    { seed: 'f3pin-1', scale: 0.25, events: 1277, final: '149-129', hash: '02449767' },
-    { seed: 'f3pin-1', scale: 0.5, events: 1247, final: '127-133', hash: 'f81b8d19' },
-    { seed: 'f3pin-2', scale: 0.5, events: 1292, final: '125-127', hash: 'aab07c07' },
-    { seed: 'f3pin-3', scale: 0.5, events: 1262, final: '127-120', hash: 'b10f62cc' },
-    { seed: 'f3pin-4', scale: 0.5, events: 1196, final: '129-114', hash: '2cb72513' },
-    { seed: 'f3pin-1', scale: 1, events: 1249, final: '110-118', hash: '1b00672b' },
-    { seed: 'f3pin-2', scale: 1, events: 1233, final: '120-133', hash: '7db1207b' }
+    { seed: 'f3pin-1', scale: 0.25, events: 1203, final: '123-110', hash: '182b7db2' },
+    { seed: 'f3pin-1', scale: 0.5, events: 1300, final: '123-109', hash: 'ab5b85e4' },
+    { seed: 'f3pin-2', scale: 0.5, events: 1406, final: '136-138', hash: '15bf16c9' },
+    { seed: 'f3pin-3', scale: 0.5, events: 1159, final: '103-88', hash: 'c8fcabf5' },
+    { seed: 'f3pin-4', scale: 0.5, events: 1234, final: '124-133', hash: '71c4b838' },
+    { seed: 'f3pin-1', scale: 1, events: 1215, final: '131-130', hash: '6db1525e' },
+    { seed: 'f3pin-2', scale: 1, events: 1221, final: '126-114', hash: 'cce839c0' }
   ];
 
   for (const pin of PINNED) {

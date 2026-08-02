@@ -252,10 +252,29 @@ export function startPossession(
  * delivery from a pass caught possessions earlier (wave2 diagnostic).
  * resolvePassArrival stamps the REAL delivery quality just before calling
  * this with 'pass', so the order (stamp, then giveBall) preserves it.
+ *
+ * Side effect (#115 layer A): writes `s.ball.pos` to the new holder's body —
+ * every acquisition relocates the ball to the hands that took it, at the
+ * instant they took it.
  */
 export function giveBall(s: GameState, a: Agent, acquisition: Agent['acquiredBy']): void {
   s.ball.holderId = a.p.id;
   s.ball.flight = null;
+  // #115 layer A — the ball is in the new holder's hands FROM the
+  // acquisition instant, so it relocates here, not at the next live tick's
+  // follows-holder write. Before this stamp, the first defensive read after
+  // a dead-ball resume priced the parked whistle spot (ai/defense.ts:
+  // unmatched-man target, deny vector, sag distance, help spot all read
+  // s.ball.pos) while the frames showed an event-less teleport at the
+  // resume (issue #115: 70.2 snaps/g over 6 ft, max 89 ft). Direction is
+  // always the BALL to the player (a steal is a deflection into the
+  // thief's hands), never the player to the ball — teleporting bodies
+  // breaks the replay's physical continuity. (Migrated from passing.ts's
+  // steal branch, whose now-redundant manual snap this stamp absorbs.)
+  // After this stamp nothing live-reads dead-phase ball.pos — the frame
+  // recorder is its only dead-phase consumer — which is what makes the
+  // #115 layer B dead-phase carry frames-only by construction.
+  s.ball.pos = { x: a.pos.x, y: a.pos.y };
   a.catchT = s.t;
   a.dribblesSinceCatch = 0;
   a.dribbleAcc = 0;
