@@ -16,7 +16,7 @@ Verification run (paste outputs below for your tier):
 - [ ] Bible regenerated if a `SOURCES` doc changed (`npm run docs:bible`, zero diff in CI)
 - [ ] `npm run batch -- --games 24` (~7s) — mechanics/params only
 - [ ] `npm run sweep -- --iters 0 --games 4 --verify 40` (~36s) — params only
-- [ ] `npm run fingerprint` (~9s) — pure refactors only (24 seeds byte-identical)
+- [ ] `npm run fingerprint` (~9s) — pure refactors only (28 seeds byte-identical)
 - [ ] `npm run bench` (~8s) — hot-path only
 
 - [ ] **I did not weaken, delete, or re-tune any test, invariant, or band to make this pass** (AGENTS.md §1.6).
