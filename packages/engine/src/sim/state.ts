@@ -236,6 +236,19 @@ export type Phase =
       /** attempts the trip can reach — for a one-and-one this is the potential 2; a front-end miss ends the trip early (fouls.ts tickFreeThrows) */
       of: number;
       nextIn: number;
+      /** #82 C1 — the whistle-caught ball spot the trip's carry walks FROM.
+       *  Entry no longer snaps the ball to the line (that snap was the frame
+       *  stream's largest teleport class: 25.4 foul-crossing jumps/g, p50
+       *  13.9 ft, max ~75 ft); tickFreeThrows lerps it spot→line across the
+       *  ftSetupSec lead-in (fouls.ts). Always stamped by enterFreeThrows,
+       *  the variant's only constructor. */
+      carryFrom?: V2;
+      /** #82 C1 — wall-clock stamp of trip entry, the carry lerp's zero.
+       *  wallT on purpose, NOT game-clock t: the game clock is frozen
+       *  through the ritual, so a t-keyed lerp would freeze at zero (the
+       *  AGENTS §1.5 trap). F1's pendingRelease pair rides t and never
+       *  mixes with wallT; this pair rides wallT and never mixes with t. */
+      carryT0?: number;
       /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
       oneAndOne: boolean;
       /** pending technical prefix attempt (officiating wave, fouls.ts): shot
@@ -279,6 +292,14 @@ export interface Possession {
    *  live_rebound/steal scope, ai.transCarryScale). Constant false
    *  everywhere else; consumed by game.ts's driving branch. */
   carryArmed: boolean;
+  /** #114 halfcourt blow-by dose: this possession rolled a live blow-by
+   *  (the leakArmed heave-guard shape above — one draw at
+   *  0 < blowByCarryScale < 1, zero draws at 0 and >= 1) — but on EVERY
+   *  start kind, where the two transition draws are
+   *  live_rebound/steal-scoped: any possession reaches halfcourt. Rolled
+   *  in startPossession after the carry draw; consumed by game.ts
+   *  blowsByToRim. */
+  blowByArmed: boolean;
   /**
    * The period's first possession (fdesign-grammar M1b). Stamped in
    * startPossession: the game clock still reads the period's full value

@@ -434,7 +434,10 @@ Hard gates (the suite):
 - Every trust, morale, and stock delta carries a stated reason (a lint
   over the career event log: no unexplained consequence).
 - Determinism: same seed plus same choice log replays the identical
-  career, byte for byte.
+  career, byte for byte. The gate records a scripted career from
+  creation through the draft into NBA game weeks, then replays it from
+  the recorded choice log alone; abroad phases, the descent,
+  retirement, and the epilogue sit outside the replayed segment.
 - Careers complete: no stage soft-locks across the auto-career corpus.
 
 Reported bands (npm run gm:career-acceptance):

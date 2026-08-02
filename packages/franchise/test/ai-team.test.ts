@@ -319,6 +319,67 @@ describe('AI roster upkeep', () => {
     expect(bka.twoWay.length).toBe(0);
     expect(league.players['tw01']!.contract!.kind).toBe('restOfSeason');
   });
+
+  it('never fill-signs a careerControlled free agent, even the best body on the market', () => {
+    // provenance: #69 / H-seams-1 — an abroad career player sits in
+    // league.players as a top freeAgent for whole seasons; the floor fill
+    // auto-signed him onto an NBA roster with no career-side event
+    const league = fixtureLeague({ seed: 'ai-team-upkeep-career' });
+    for (let i = 0; i < 5; i++) {
+      const id = `fa2${i}`;
+      league.players[id] = fixturePlayer(id, null, league.season, i);
+      league.freeAgents.push(id);
+    }
+    const abroad = fixturePlayer('ca01', null, league.season, 5);
+    setAllAttrs(abroad, 90); // tops the ability-sorted market by a mile
+    league.players['ca01'] = abroad;
+    league.freeAgents.push('ca01');
+    league.careerControlled = ['ca01'];
+    aiRosterUpkeep(league);
+    // the listed player is untouched: still a free agent, on nobody's roster
+    expect(abroad.status).toBe('freeAgent');
+    expect(league.freeAgents).toEqual(['ca01']);
+    const rostered = Object.values(league.teams).some(
+      (t) => t.roster.includes('ca01') || t.twoWay.includes('ca01'),
+    );
+    expect(rostered).toBe(false);
+    expect(league.transactions.some((t) => t.kind === 'signing' && t.playerId === 'ca01')).toBe(false);
+    // and the skip is a filter, not an abort: every unlisted body signed
+    expect(league.transactions.filter((t) => t.kind === 'signing').length).toBe(5);
+  });
+
+  it('never converts a careerControlled two-way; the best unlisted body goes up instead', () => {
+    // provenance: #69 / H-seams-1 — conversion is a waive plus a re-sign,
+    // both world decisions; a career player on a real two-way contract
+    // (the below-floor offer tier) was reachable as the pick
+    const league = fixtureLeague({ seed: 'ai-team-upkeep-2w-career' });
+    const bka = league.teams.bka!;
+    for (const id of bka.roster.slice(0, 2)) league.players[id]!.health.injury = injury(30);
+    const addTwoWay = (id: PlayerId, builderIdx: number, ability: number): FrPlayer => {
+      const p = fixturePlayer(id, null, league.season, builderIdx);
+      p.status = 'roster';
+      setAllAttrs(p, ability);
+      p.contract = {
+        id: `ct-${id}`, playerId: id, teamId: 'bka',
+        years: [{ season: league.season, salary: 600_000, guaranteed: 0 }],
+        kind: 'twoWay', means: 'minimum', signedOn: { season: league.season, day: 0 }, birdYearsAtSigning: 0,
+      };
+      league.players[id] = p;
+      bka.twoWay.push(id);
+      return p;
+    };
+    const listed = addTwoWay('cw01', 3, 70); // the better body, but career-controlled
+    addTwoWay('tw02', 4, 40);
+    league.careerControlled = ['cw01'];
+    aiRosterUpkeep(league);
+    // the listed two-way is untouched: same slot, same contract, no waive
+    expect(bka.twoWay).toContain('cw01');
+    expect(listed.contract!.kind).toBe('twoWay');
+    expect(league.transactions.some((t) => t.kind === 'waive' && t.playerId === 'cw01')).toBe(false);
+    // the staff still fixes the bench: the unlisted body converts
+    expect(bka.roster).toContain('tw02');
+    expect(league.players['tw02']!.contract!.kind).toBe('restOfSeason');
+  });
 });
 
 describe('the free-agency market', () => {

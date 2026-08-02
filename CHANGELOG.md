@@ -15,6 +15,185 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: sibling-file locator breadcrumb re-point (issue #137)
+
+- The #129/#136 sweep scoped to fouls.ts locators inside fouls.test.ts
+  and reported the same staleness class next door. This pass re-points
+  that remainder: the four stale non-fouls.ts locators in fouls.test.ts
+  (events.ts, state.ts, subs.ts) and the stale fouls.ts locators in
+  carom-attribution, events, foulout-sub, and passing test files (nine
+  sites; the issue counted eight, fouls.ts:75 appears three times, not
+  twice). Each old range reconstructed against the blob it was measured
+  on (5d68eb7 for the flow-wave files, de3ec1e for the audit-wave
+  files); each new range spot-checked against current main. Comments
+  only; zero assertion changes; fingerprint-1 identical (1313 events,
+  121-119); corpus 28/28 byte-identical; suite identical (1643 tests,
+  1641 pass, 0 fail, 2 todo).
+
+### Docs: fouls.test.ts fouls.ts-locator re-point (#136, issue #129)
+
+- 92fa7f9 and the #82 C1 carry landing frame-shifted most fouls.ts
+  line-range breadcrumbs in fouls.test.ts; the #116 sweep re-pointed
+  only the pack-derivation locator. This pass re-points the remaining
+  19 stale locators (21 edit sites, two describe titles among them) at
+  current fouls.ts, each old range reconciled against the pre-shift
+  blob (92fa7f9^) and each new range spot-checked against current main.
+  Comments and title strings only; fingerprint-1 identical (1313
+  events, 121-119); corpus 28/28 byte-identical; suite identical
+  (1643 tests, 1641 pass, 0 fail, 2 todo).
+
+### Docs: post-FT-carry prose truth sweep (#128, issue #116)
+
+- The #82 C1 carry landing (PR #119, `e851169a`) left six prose claims
+  stale or wrong; this sweep corrects them against their records. The
+  REGISTER W82 residual sentence now carries the fixed-class note
+  (25.38/g to 0.02/g, pool rtfg-1..48; the survivor is the #115 C2
+  resume snap). The transcarry delta-F1 header marks its foul-sharing
+  exclusion necessary pre-fix, merely conservative post-fix. Two
+  fouls.ts comments claiming the technical path is unreachable in
+  shipped games are reconciled to FoulOutcome's documented live rate
+  (techPerFoulWhistle 0.017, ~0.71/g). The ftcarry.test.ts header's
+  mutant routes now match the #119 gate review's measurements (review
+  4835956264: lerp-kill posts 0 on the bound clause and 55.6 ft on
+  departure; t-for-wallT posts 51.1 ft on the bound clause, which fires
+  first, plus 85/324 arrival misses, with departure alone green at
+  1.56 ft). The fouls.test.ts pack-derivation locator re-points at the
+  current ftLineSpot helper (fouls.ts:147-163). Comments and docs only;
+  fingerprint-1 identical (1277 events, 115-126); corpus 28/28
+  byte-identical; suite identical (1623 tests, 1621 pass, 0 fail,
+  2 todo).
+
+### Franchise: late-transaction news (#122, issue #118)
+
+- Draft night and the rollover logged transactions AFTER the day's news
+  pulse had already run, so their stories existed in the desk but never
+  printed: 60 draft selections produced 0 pick stories and 33
+  retirements produced 0 retrospectives on the issue's probe (seed
+  probe-draftnews, one fake-sim year). The three seams that create
+  transactions past the pulse (the transitions block's draft branch, the
+  paused draft's re-entry path, which skipped the pulse entirely, and
+  the rollover's retirement loop) now run a second same-day desk pass.
+  Story ids are deterministic per (day, ledger position) and appendNews
+  guards by id, so the repeat is idempotent: every pre-existing item
+  stays byte-identical and only the new stories land.
+- A pick's rookie-deal signing row is the selection's mechanism, not its
+  own story: the desk now skips it (the draft story carries the contract
+  line), keeping draft night at one story per pick plus the real
+  squeeze-waive coverage. No new rng streams; no new draws on existing
+  streams; the engine untouched; the NewsItem shape unchanged, so saves
+  and the replay format carry.
+- Verified at the landing: 7 new gates (newsdesk.test.ts: an AI-run
+  fake-sim year with a determinism twin, and a human-chair year through
+  the draft pause so the re-entry path prints the war room's picks);
+  full suite green (1619 tests, 1617 pass, 2 todo); engine fingerprint
+  untouched (fingerprint-1: 1277 events, 115-126); fingerprint corpus
+  28/28 byte-identical; the issue's probe re-run before and after (60/60
+  pick stories, 33/33 retrospectives, all 1646 pre-existing news items
+  byte-identical, additions confined to draft night and the rollover
+  day).
+
+### Engine tests: free-throw carry producer pins (#121, issue #120)
+
+- The #119 carry stamps (`carryFrom`, `carryT0`) are optional fields on
+  the freethrows phase, and tickFreeThrows skips the carry when they are
+  absent: a hand-built stampless phase ends its trip with the ball off
+  the spot and would diverge events through the #115 read chain.
+  Unreachable in shipped flows (enterFreeThrows always writes both
+  stamps), and nothing pinned that. Four unit pins in fouls.test.ts now
+  hold the producer invariant on every entry path: normal, one-and-one,
+  technical prefix, and technical resume (the issue named three paths;
+  the entry signature has a fourth). Filed from the Red Team probe on
+  #119.
+- Test-only: one file, +36 lines, append-only. A stamp-removal mutant
+  verified RED in-tree (five RED in fouls.test.ts, the four pins plus
+  the #82 C1 entry pin; ftcarry.test.ts RED, arrival missed at every
+  attempt) and restored.
+- Verified at the landing: full suite green (1616 tests, 1614 pass,
+  2 todo; the four pins are the whole delta); fingerprint corpus 28/28
+  byte-identical; fingerprint-1 identical at branch base and head
+  (1277 events, 115-126).
+
+### Franchise: phase-transition news (#117, issue #111)
+
+- The news desk was silent between the finals and the draft: the title
+  clincher existed only as a plain game recap, and lottery night wrote
+  nothing. `media/moments.ts` now writes the calendar's loudest dates at
+  their phase transitions in tick.ts: the championship story at the horn
+  (series score, seed, regular-season record, banner count from the
+  archives, the finals scoring leader folded from the results ledger),
+  the lottery order the night it is drawn (movement framing, settled
+  pick conveyance, the full first-round board, all 30 teams on the
+  story's team filter), and a consensus draft preview (every room's
+  perceived current-plus-ceiling blend through the draftai position
+  lens, averaged, plus the public tape; a class one strength-sd off the
+  mean gets an adjective).
+- One new registered rng stream (`moments:<season>:<day>`); no new draws
+  on any existing stream; the engine untouched. Reserved NewsType values
+  `lottery`, `preview`, and `review` are produced for the first time;
+  the NewsItem shape is unchanged, so saves and the replay format carry.
+- Verified at the landing: 5 new gates (moments.test.ts, two fake-sim
+  league years); full suite green (1611 tests, 1609 pass, 2 todo);
+  engine fingerprint untouched (fingerprint-1: 1277 events, 115-126);
+  fingerprint corpus 28/28 byte-identical; the issue's pt-gm1 repro
+  re-run before and after (news page 0 bit-identical at the lottery and
+  draft stops before; differing after, with every pre-existing item
+  byte-unchanged).
+
+### Engine: free-throw lineup ball carry (#119, issue #82 C1)
+
+- The free-throw entry snap teleported the ball from the whistle spot
+  to the line in one frame, the frame stream's largest teleport class.
+  enterFreeThrows now stamps the whistle-caught ball spot and the entry
+  wallT on the freethrows phase (`carryFrom`, `carryT0`), and
+  tickFreeThrows walks the ball to the line with a wallT-keyed lerp
+  across the existing ftSetupSec window, byte-exact arrival gated on
+  the attempt countdown as well as the wall window, technical prefixes
+  included. No new knob, no duration change, no event change; both
+  changed functions live in fouls.ts.
+- Class metric under the issue conventions: foul-crossing ball jumps
+  over 6 ft fall from 25.38 per game (n=1218, max 74.5 ft) to 0.02
+  (n=1); the one remaining jump is the #115 C2 resume-snap class, zero
+  C1 residue.
+- Frames-only, proven: sha256 of the event stream and rng draw counts
+  identical on 49/49 paired seeds; the corpus regen diff shows events
+  hashes 28/28 unchanged, final scores 28/28 unchanged, frames hashes
+  28/28 moved. Seven hash pins re-anchored hash-only, each pin's
+  event-count and final-score literals passing unchanged. An eighth pin
+  had pinned the removed entry snap itself (a triage-census gap): it
+  was corrected under Lead sanction to assert the no-snap hold plus
+  both carry stamps, and the PR flags the hunk for review. New property
+  pin ftcarry.test.ts (bound, departure, and arrival clauses);
+  lerp-kill and t-for-wallT mutants both verified RED and restored.
+- The post-merge Red Team probe held all five targets across 1,203
+  paired seeds and 11 configs (NCAA, EuroLeague, legacy endgame, and
+  flooded technical paths included): events identity everywhere, no new
+  discontinuity class, the rtfg-30 residual attribution verified.
+  Whistle-instant ball velocity max fell from 372.7 to 50.3 ft/s.
+- Verified at the landing: full suite green (1607 tests, 1605 pass,
+  2 todo; the +1 is the ftcarry pin); fingerprint-1 unchanged
+  (1277 events, 115-126).
+
+### Career: replay-based determinism gate (#96, issue #66)
+
+- The career acceptance determinism gate re-drove the same 40-week
+  script twice and never left year one. It now records one phenom
+  career from creation until it has lived a year wrap, draft night, and
+  4 NBA game weeks, then replays it from the recorded choice log alone:
+  career-replay.ts rebuilds the career from a deterministic creation
+  factory plus the log and byte-compares JSON checkpoints, so the log
+  is the only decision source. The gate fails on coverage shortfall, so
+  the recorded segment cannot silently shrink back to a pre-draft
+  slice. Rides gm:career-acceptance.
+- The recorded gate run: 199 weeks, 247 choices, 4 year wraps, draft
+  night, and 4 NBA game weeks, replayed byte-identical. Red proven: a
+  coin-flip mutant in resolveAllocation diverges the replay at the
+  first year wrap.
+- CAREER.md and CAREER_INTERNALS.md state the recorded-segment coverage
+  in place of the stale 40-week claim.
+- Verified at the landing: full suite green (1545 tests, 1543 pass,
+  2 todo; the +1 is career-replay.test.ts); fingerprint corpus 28/28
+  byte-identical; the engine untouched.
+
 ### Unassisted-creation supply arc, increment 1 (#74, REGISTER W82)
 
 - The transition carry, STAGED at `ai.transCarryScale: 0`: on a
@@ -56,6 +235,48 @@ minutes-targets fix (W65).
   re-anchored per protocol, including one franchise-side pin
   (officials dir seeds) touched from an engine landing for the first
   time.
+
+### Unassisted-creation supply arc, increment 2 (#86, REGISTER W84)
+
+- The putback finish class: a gate-clearing rebounder (clearsDunkGate,
+  the booth-mirror athlete gate extracted byte-identically from
+  leakerOf) who secures the board inside the restricted area resolves
+  the automatic putback as a rim-plane throw-down. The release moves
+  to the plane through the #74 carryRim construction, the contest
+  still reads off the body, and the make logit gains the one new knob,
+  shot.putbackStrongLogit (FEEL, landed at 0.3, staged hard-zero
+  checked first, knobs.ts range in the same commit). The class adds no
+  rng draws at any knob value; a scale-0 override rebuilds all 28
+  corpus entries byte-identical against the pre-flip corpus. Scoped to
+  the automatic putback branch; the decide-layer putback keeps the
+  generic logit in EV and resolution both. Crash and rebound
+  positioning untouched: the mechanism changes how a secured putback
+  resolves, never how often one happens (attempts flat, 1126 to 1120
+  on the shared base).
+- Booking rides the booth's own dunk rule, and the set claim is
+  one-directional, restated pre-merge on the Red Team probe: every
+  engine-strong make books dunk, and the booth's putback-dunk set is
+  strictly larger at every knob value (the decide-layer sibling and
+  the pre-existing 1.6-2.25 ft window book dunk without the class),
+  with a booth relabel share of about 0.2 dunks per game at knob 0.
+  dunkgate-sync.test.ts gains the putback branch of the mirror and the
+  probe's three reorder pins.
+- Measured at the landing: putback FG% 50.0 to 50.5 on the shared base
+  (+0.9pp on the acceptance base), dunks +0.46 and +0.76 per game on
+  the two n=96 bases (booking, as priced), flowboard G11 made dunks
+  3.6 to 4.6 per game. The n=96 dose ladder that selected 0.3 does not
+  survive its own exact supersets: pooled n=864 per arm, astd -0.04pp
+  (se 0.16), fgPct +0.10pp (se 0.09), unassisted makes +0.05 per
+  team-game (se 0.06), all consistent with zero. Increment 2 consumes
+  approximately zero astd headroom; increment 3 prices against the
+  same window. Bands 17/17 at the landed dose on every n=48, n=96, and
+  n=288 read (batch n=24 at the head reads 15/17 on two high-side
+  vintage edges, recorded as a property of n=24 pools); GAP/SELF
+  confirm-flat at n=432 per arm, the GAP margin tail resolving as a
+  draw artifact at n=1296. Tests 1599 / 1597 pass / 0 fail / 2 todo at
+  the approved head; 17 of 28 corpus entries re-baked at the dose flip;
+  fingerprint-1 itself coincidentally byte-identical (the class fired
+  zero times on that stream).
 
 ### Franchise (the realism wave)
 
@@ -272,6 +493,24 @@ reacting-world, and explained-consequence gates all holding.
   nine files (1,943 moved lines, none duplicated). Re-verified:
   fingerprint corpus 28/28 byte-identical, test counts identical before
   and after.
+- The seed-pin re-anchor helper (#88, issue #50):
+  `harness/src/reanchor.ts` verifies the six rng-order-sensitive
+  pinned test files (engine events, subs, timeouts, leakout; harness
+  season; narration pbp) and, on `--write`, re-scouts and re-anchors
+  them in one command. The W54/W56-class hand anchors are extracted
+  byte-for-byte into a generated `seed-pins.gen.ts` per package test
+  dir, assertions and floors untouched. Per-pin collapse
+  discriminators refuse to launder a dead mechanism through lucky
+  seeds: a late-Q4 spend on any scanned 0-cap arm, a leak flip that
+  fails to double the staged arm, a mean home-win probability under
+  0.65 across scanned bases, and exhausted scans all refuse with
+  nothing written (all-or-nothing writes). Confirmation runs classify
+  failing tests against a KNOWN_UNMANAGED registry
+  (`--keep-unmanaged-red` keeps the re-anchor with exit 2), so rename
+  drift is never tolerated by mistake. Proven on five worktree legs
+  including the review's cap-collapse laundering mutant. Re-verified:
+  zero tests added, counts identical both sides, fingerprint corpus
+  28/28 byte-identical.
 
 ### Fixed
 
@@ -304,6 +543,44 @@ reacting-world, and explained-consequence gates all holding.
   the rejection explainer (#79, issue #60). Re-verified: test counts 1542
   to 1544 (the two new validation tests), fingerprint corpus 28/28
   byte-identical.
+- The career acceptance fleet's reacting-world gate is rebuilt on an
+  independent replay witness, closing the C1 tautology (#89, issue
+  #41; REGISTER W83). The old gate re-read career.coach.roleClock,
+  which trust.ts zeroes inside the same call that raises it, so it
+  verified clock hygiene: a regression that kept the reset while
+  dropping the role move stayed green. The witness
+  (packages/app/src/role-response.ts) replays coach grades through the
+  documented clock arithmetic with the ladder pinned locally, and
+  demands the observable response at every mid-ladder firing: the role
+  moves one rung and carries its ev-role- event with the matching
+  delta. Mutant-proven: suppressing the promote branch's role
+  assignment ran a nine-year career green under the old gate and fails
+  the new one naming the missing move. No career public-surface
+  change. Re-verified: 16 new unit tests in one suite (counts 1542 to
+  1558), fingerprint corpus 28/28 byte-identical.
+- enterDraftClass is a one-way door: a file the league owns is never
+  re-entered (#90, issue #40). The tick.ts year-wrap guard now also
+  requires that the league holds no file on the player, so Euro/NBL
+  descent veterans stop re-entering draftPrep at year wrap and fall
+  through to the age-40 retirement line, previously unreachable on
+  those routes. enterDraftClass itself skips any id the league already
+  owns, ending executeDraftSelection overwriting a veteran's draft
+  record. Re-verified: red tests first on the unfixed tree in both
+  commits (counts 1537 to 1540), fingerprint corpus 28/28
+  byte-identical, three-career acceptance fleet exit 0.
+- Retirement ends league presence: no ghost seasons (#92, issue #68).
+  retireFromLeague guards on a live league file and calls the
+  franchise's executeRetirement in the retire choice arm and the
+  age-40 forced wrap, both before buildEpilogue, with an idempotent
+  call at the top of the retired-phase advance so saves written before
+  the fix self-heal. The award branch of harvestSeasonHonors is gated
+  on a season row for the award season, mirroring the landed ring
+  gate; pre-retirement honors survive. On unfixed code the ghost was
+  demonstrated: 82 regular and 5 playoff games accrued in one
+  retired-phase season, with a ghost award harvested. Re-verified:
+  five new tests red on unfixed code (counts 1544 to 1550),
+  fingerprint corpus 28/28 byte-identical, at-head career acceptance
+  exit 0 twice.
 
 ### Docs
 
@@ -324,6 +601,36 @@ reacting-world, and explained-consequence gates all holding.
   pins the mid-season case (rows on both teams, exactly one ring).
   Re-verified: fingerprint corpus 28/28 byte-identical, sim
   fingerprint-1 identical before and after.
+- docs(career): playing hurt is registered as unreachable in every
+  phase (#93, issue #84; C17, REGISTER W67 item i). CAREER.md now
+  states the shipped v1 behavior: a listed player always sits in both
+  phases, and the card's playingHurt flag has effects only for a
+  healthy player who sets it (the dulled sheet, the wear compound at
+  grading, the skipped post-game injury re-roll). "Playing-hurt
+  choices on the real wear model" leaves the v1 In list; the cut is
+  registered as C17 and on W67, and the week.ts header comment is
+  corrected to the same truth. Making the choice reachable is a
+  mechanics-tier availability seam. Re-verified: sim fingerprint-1 and
+  test counts identical before and after.
+- docs: the transCarryGatherFt comment arithmetic is corrected to the
+  W82 triple at both comment sites in params.ai.ts (#95, issue #85).
+  The effective windup is 0.50 s on every released carry, the 0.45 s
+  windupDrive param tick-quantized to the next 0.1 s boundary, so a
+  16 ft/s sprint covers 8.0 ft and the 4.5 ft gate needs 9 ft/s; the
+  stale sites said 0.45 s, 7.2 ft, and 10 ft/s. The value itself stays
+  4.5. Re-verified: test counts, sim fingerprint-1, replay and pbp
+  sha256, and the 28-seed corpus all identical before and after.
+- docs: the game.ts windup comment distinguishes the parameter from
+  the effective windup (#99, issue #97). One sentence added to the
+  transition-carry stopping-distance comment: the 0.45 s is the
+  windupDrive param; the effective windup is 0.50 s on every released
+  carry, the param tick-quantized to the next 0.1 s boundary. The
+  three sites (game.ts, the params.ai.ts pair from #95, the W82 row)
+  now speak the same language, and the quantization mechanism is
+  confirmed in code (tickHz 10, release on the first tick at or past
+  releaseAt), closing the unknown #95 reported. Re-verified: test
+  counts identical both sides, replay and pbp sha256 byte-identical,
+  corpus 28/28.
 
 ## [0.3.0] - 2026-07-31
 

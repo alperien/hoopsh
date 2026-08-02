@@ -284,13 +284,19 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
     return (h >>> 0).toString(16).padStart(8, '0');
   };
 
+  // Re-anchored at the #114 landing (ai.blowByCarryScale 0 -> 0.5 arms a
+  // per-possession draw upstream of every stream, moving events AND
+  // frames) on top of the #119 FT ball-carry frames re-anchor (frames
+  // only; its events byte-identity is why these rows' event counts and
+  // finals match the #114-only bake exactly): all six rows re-baked per
+  // this block's doctrine, both causes stated in the landing commit.
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    { seed: 'f3pin-1', scale: 0.5, events: 1153, final: '87-139', hash: '2d6d23f7' },
-    { seed: 'f3pin-2', scale: 0.5, events: 1271, final: '103-112', hash: '717407b9' },
-    { seed: 'f3pin-3', scale: 0.5, events: 1339, final: '122-126', hash: '80215e2f' },
-    { seed: 'f3pin-4', scale: 0.5, events: 1214, final: '103-113', hash: 'd2671c5e' },
-    { seed: 'f3pin-1', scale: 1, events: 1181, final: '120-112', hash: 'b6e0f3c4' },
-    { seed: 'f3pin-2', scale: 1, events: 1252, final: '132-114', hash: 'f64bbff8' }
+    { seed: 'f3pin-1', scale: 0.5, events: 1247, final: '127-133', hash: 'f81b8d19' },
+    { seed: 'f3pin-2', scale: 0.5, events: 1292, final: '125-127', hash: 'aab07c07' },
+    { seed: 'f3pin-3', scale: 0.5, events: 1262, final: '127-120', hash: 'b10f62cc' },
+    { seed: 'f3pin-4', scale: 0.5, events: 1196, final: '129-114', hash: '2cb72513' },
+    { seed: 'f3pin-1', scale: 1, events: 1249, final: '110-118', hash: '1b00672b' },
+    { seed: 'f3pin-2', scale: 1, events: 1233, final: '120-133', hash: '7db1207b' }
   ];
 
   for (const pin of PINNED) {
@@ -327,7 +333,10 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
  * sharing the shot's wt: whistle-stamped bookings are the pre-existing
  * FT-lineup reposition class, registered in W82 and filed as its own
  * issue), the last frame strictly before the shot's wt sits within 3.5 ft
- * of the booked x/y.
+ * of the booked x/y. The foul-sharing exclusion was NECESSARY while the
+ * FT-entry snap existed (the snap would have polluted the continuity
+ * read on a fouled booking); PR #119 (`e851169a`) replaced that snap
+ * with a wall-clock carry, so the exclusion is now merely conservative.
  *
  * The 3.5 ft bound: measured max 2.92 ft over n=109 un-fouled carried
  * bookings at the landed default (pool rtfg-1..48, the delta probe's
