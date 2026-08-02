@@ -273,6 +273,19 @@ describe('F2: the carry gate, condition by condition (hand-built states)', () =>
  * the landing commit. f3pin-1's checksum happens to match its 0.37
  * bake (that seed's arming draws land identically at both scales);
  * the other three differ, which is the pin being alive.
+ *
+ * The landing-dose row cannot pin the draw's DIRECTION (#127, the PR
+ * #123 probe — the blow-by finding's twin, same cause): 0.5 is the
+ * unique fixed point of p -> 1-p, so chance(scale) and
+ * chance(1 - scale) are the same draw there, and the endpoint rows are
+ * draw-free by the guard shape — a dose-inversion mutant agrees with
+ * the clean engine at {0, 0.5, 1}. The scale-0.25 row is the
+ * asymmetric kill: arming 75% instead of 25% of the kind-scoped
+ * possessions separates the streams (f3pin-1's 0.25 stream diverges
+ * from its 0.5 bake, and the row was verified RED against the
+ * hand-applied inversion before landing, the mutation-shields
+ * doctrine). Rider for future increments: a landing dose of exactly
+ * 0.5 always needs one asymmetric row beside it.
  */
 describe('F3: the arming-draw region is pinned (intermediate scale + draw-free top)', () => {
   const fnv1a = (str: string): string => {
@@ -291,6 +304,7 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
   // finals match the #114-only bake exactly): all six rows re-baked per
   // this block's doctrine, both causes stated in the landing commit.
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
+    { seed: 'f3pin-1', scale: 0.25, events: 1277, final: '149-129', hash: '02449767' },
     { seed: 'f3pin-1', scale: 0.5, events: 1247, final: '127-133', hash: 'f81b8d19' },
     { seed: 'f3pin-2', scale: 0.5, events: 1292, final: '125-127', hash: 'aab07c07' },
     { seed: 'f3pin-3', scale: 0.5, events: 1262, final: '127-120', hash: 'b10f62cc' },
