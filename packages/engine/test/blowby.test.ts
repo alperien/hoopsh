@@ -305,6 +305,20 @@ describe('F2: the blow-by gate, condition by condition (hand-built states)', () 
  * The intermediate scale IS the landing dose (0.5), per the transcarry
  * F3 ruling — one pinned scale in (0, 1), anchored where the shipped
  * default actually lives.
+ *
+ * The landing-dose row cannot pin the draw's DIRECTION (#127, the PR
+ * #123 probe): 0.5 is the unique fixed point of p -> 1-p, so
+ * chance(scale) and chance(1 - scale) are the same draw there, and the
+ * endpoint rows are draw-free by the guard shape — a dose-inversion
+ * mutant agrees with the clean engine at {0, 0.5, 1}. The scale-0.25
+ * row is the asymmetric kill: arming 75% instead of 25% of possessions
+ * separates the streams (verified RED against the hand-applied
+ * inversion before landing, the mutation-shields doctrine). The seed is
+ * deliberate: bb3pin-1/-3/-4 bake byte-identical at 0.25 and 0.5 (their
+ * armed-bit differences never reach a firing gate), so the row pins
+ * bb3pin-2, where the interior dose moves the stream. Rider for future
+ * increments: a landing dose of exactly 0.5 always needs one asymmetric
+ * row beside it.
  */
 describe('F3: the arming-draw region is pinned (landing dose + draw-free top)', () => {
   const fnv1a = (str: string): string => {
@@ -317,6 +331,7 @@ describe('F3: the arming-draw region is pinned (landing dose + draw-free top)', 
   };
 
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
+    { seed: 'bb3pin-2', scale: 0.25, events: 1275, final: '122-107', hash: '10c7e924' },
     { seed: 'bb3pin-1', scale: 0.5, events: 1245, final: '105-120', hash: '8e49bed6' },
     { seed: 'bb3pin-2', scale: 0.5, events: 1190, final: '116-113', hash: '8cd9f0ed' },
     { seed: 'bb3pin-3', scale: 0.5, events: 1177, final: '121-120', hash: '938b498a' },
