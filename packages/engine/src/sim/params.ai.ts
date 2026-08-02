@@ -819,7 +819,10 @@ export const aiDefaults: AiParams = {
   // engine credited three 97% / rim 66% / mid 57% — it was crediting
   // SELF-CREATED shots, which is exactly what a "direct scoring move"
   // rule exists to exclude, and it put league assisted share at 63-65%
-  // against the 54-62% band (debt D1) while inflating star assist totals
+  // against the then-enforced 54-62% band (debt D1; #56 / PR #78 later
+  // corrected the band itself to 59.8-67.8 around the sourced corpus
+  // center 63.80; the correction moves the league-total gate, not the
+  // zone-level misattribution above) while inflating star assist totals
   // past their real identities.
   assistWindowSec: 2.0,
   /** perimeter/jumper allowance: the catch-and-rise is the pass's shot;

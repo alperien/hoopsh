@@ -582,6 +582,14 @@ export interface AwardResult {
   winners: PlayerId[] | TeamId[];
   /** top of the ballot with vote shares, for the story */
   ballot: Array<{ id: PlayerId; share: number }>;
+  /**
+   * Printable winner names, parallel to winners. Baked by archiveSeason
+   * (media/almanac.ts) so the archive is self-contained history, following the
+   * records book's holderName pattern (issue #188). Absent on live-season
+   * award rows and on archives written before the field existed: renderers
+   * fall back to the raw id.
+   */
+  winnerNames?: string[];
 }
 
 // ---------------------------------------------------------------------------

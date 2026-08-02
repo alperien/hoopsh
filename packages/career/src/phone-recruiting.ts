@@ -4,8 +4,8 @@
  * the phone surface; see phone.ts for the discipline rules and module map.
  */
 import {
-  ROLE_LABEL, THREAD_RANK, eventsThisWeek, fmtMoney, recruiterSurname,
-  teamNameOf,
+  ROLE_LABEL, THREAD_RANK, advisorDisplayOf, agentDisplayOf, eventsThisWeek,
+  fmtMoney, recruiterSurname, teamNameOf,
 } from './phone-shared.js';
 import type { Candidate, WeekRecord } from './phone-shared.js';
 import type { CareerState, PhoneMessage, ThreadId } from './types.js';
@@ -48,7 +48,7 @@ export function lapseWarningCandidates(career: CareerState, out: Candidate[]): v
       thread: program ? `recruiter:${program.id}` : 'agent',
       threadRank: program ? 8 : THREAD_RANK.agent!,
       priority: 88,
-      from: program ? `Coach ${surname} (${dest})` : 'Marta (agent)',
+      from: program ? `Coach ${surname} (${dest})` : agentDisplayOf(career),
       capExempt: true, tag: `lapse-${offer.id}`,
       refs: program ? { programId: program.id } : undefined,
       variants: program ? [
@@ -67,7 +67,7 @@ export function lapseWarningCandidates(career: CareerState, out: Candidate[]): v
       rec.programs.find(pr => pr.id === o.programId)?.name ?? o.clubName ?? 'a club').join(', ');
     out.push({
       thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 92,
-      from: 'Uncle Dee (advisor)',
+      from: advisorDisplayOf(career),
       capExempt: true, tag: `lapsechorus-${career.clock.year}`,
       variants: [
         `${closing.length} windows close inside two weeks (${names}). Holding out is a strategy right up until it is just waiting. Pick a door or the year picks for you`,

@@ -8,7 +8,7 @@ import { api } from '../api.js';
 import { el, chip, ledger, table, toast } from '../ui.js';
 import { seasonLabel } from '../format.js';
 
-/** AwardResult carries kind + ids only; the printed label lives UI-side. */
+/** AwardResult carries kind + ids (+ baked winnerNames in archives, #188); the printed label lives UI-side. */
 const AWARD_LABELS = {
   mvp: 'Most valuable player', dpoy: 'Defensive player of the year',
   roy: 'Rookie of the year', smoy: 'Sixth man of the year',
@@ -52,9 +52,12 @@ function seasonSection(a) {
     table({
       columns: [
         { key: 'kind', label: 'award', format: v => AWARD_LABELS[v] ?? v },
-        // winners and ballots carry raw player ids in v1; resolving names
-        // for retired-and-archived men is a debt this screen owns later
-        { key: 'winners', label: 'winner', format: v => el('span', { class: 'mono', style: 'font-size:12px' }, v.join(', ')) },
+        // winnerNames are baked into the archive at archive time (#188),
+        // the record book's own pattern. Archives from before the field
+        // existed fall back to the raw id, honest like the book's
+        // claims. Ballots still carry ids only; that debt comes due if
+        // they ever render.
+        { key: 'winners', label: 'winner', format: (v, r) => v.map((id, i) => r.winnerNames?.[i] ?? id).join(', ') },
       ],
       rows: a.awards,
       empty: 'no ballots in the file',
