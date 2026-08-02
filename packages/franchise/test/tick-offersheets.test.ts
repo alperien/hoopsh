@@ -5,12 +5,15 @@
  * read $0 between the lottery and the calendar rollover, so the apron
  * test at the old read waved every match through on fiction.
  *
- * The path is organically unreachable on this base (free agency never
- * convenes before #164/#232 lands, so sheets never exist in live play).
- * Every scenario here CONSTRUCTS the sheet state directly and drives it
+ * AI free agency never convenes on this base (#164/#232), so no sheet
+ * arises organically. Sheets DO exist in live play today: the offerSheet
+ * and matchOfferSheet actions are not phase-gated. A user match into a
+ * full roster died on the raw executeSigning throw at the action site,
+ * and the morning auto-resolve died the same way at the deadline. Every
+ * scenario here CONSTRUCTS the sheet state directly and drives it
  * through advanceDay, the public seam. After #232 arms the path
- * organically, these pins keep holding: they assert resolution behavior,
- * not how the sheet came to exist.
+ * organically, the same pins keep holding: they assert resolution
+ * behavior, not how the sheet came to exist.
  *
  * COMPUTE BUDGET: zero engine games. Quiet no-game days only; everything
  * is pure state.

@@ -103,6 +103,11 @@ export function executeTrade(league: League, offer: TradeOffer): Transaction {
  * deals the caller ran validateSigning to pick the means; this executor
  * re-checks the structural facts it can see (signable status, roster and
  * two-way ceilings) so a stale contract object cannot slip in.
+ *
+ * Lockstep: sheetExecutionBlock (tick.ts) mirrors these structural
+ * re-checks so offer-sheet resolution can route around a block instead
+ * of dying on the throw mid-day (#185). A structural throw added here
+ * needs its mirror there.
  */
 export function executeSigning(league: League, teamId: TeamId, playerId: PlayerId, contract: Contract, offerSheet?: boolean): Transaction {
   const player = must(league.players[playerId], `player ${playerId}`);
