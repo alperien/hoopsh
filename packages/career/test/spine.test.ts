@@ -6,8 +6,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { simulateJobsInline } from '@hoopsh/franchise';
+import type { FrPlayer, TeamId } from '@hoopsh/franchise';
 import { advanceCareerWeek, applyChoice } from '../src/tick.js';
 import { resolveAllocation, resolveWeek } from '../src/week.js';
+import { buildMyOffers } from '../src/nbabridge.js';
 import { fastSim } from '../src/fastsim.js';
 import { fixtureCareer } from '../test/fixture.js';
 
@@ -20,6 +22,35 @@ function offseason(career: ReturnType<typeof fixtureCareer>, kind?: 'hs' | 'coll
     finish: 'lost regional final', honors: [],
   });
   return career;
+}
+
+/**
+ * A drafted-and-done NBA veteran on the market: the descent's doorstep.
+ * The league owns my file (the post-entry pool law, types.ts) and my
+ * draft record is real history the descent must never touch.
+ */
+function vetFreeAgent(career: ReturnType<typeof fixtureCareer>, age = 34): FrPlayer {
+  const league = career.league;
+  for (const tid of Object.keys(league.teams)) {
+    const team = league.teams[tid]!;
+    if (team.gm === null) {
+      team.gm = { name: 'Autopilot', timeline: 'retool', risk: 50, pickLove: 50, starChase: 50, patience: 50 };
+    }
+  }
+  const me = career.players[career.me]!;
+  delete career.players[career.me];
+  me.status = 'freeAgent';
+  me.contract = null;
+  me.rights = null;
+  me.bornSeason = league.season - age;
+  me.draft = { season: league.season - 12, round: 1, pick: 12, teamId: Object.keys(league.teams).sort()[0]! as TeamId };
+  league.players[career.me] = me;
+  if (!league.freeAgents.includes(career.me)) league.freeAgents.push(career.me);
+  league.careerControlled = [career.me];
+  career.nbaTeam = null;
+  career.clock.phase = 'nba';
+  career.circuit = null;
+  return me;
 }
 
 describe('applyChoice validates, applies, logs', () => {
@@ -206,6 +237,42 @@ describe('the week and the world clock', () => {
     career.clock.week = career.params.tick.weeksPerYear - 1;
     await advanceCareerWeek(career, fastSim);
     expect(career.clock.phase).toBe('draftPrep');
+  });
+
+  it('a descent veteran\'s year wrap stays abroad: never back into draftPrep (issue #40)', async () => {
+    const career = fixtureCareer({ seed: 'descent-vet' });
+    const me = vetFreeAgent(career);
+    const draftBefore = JSON.stringify(me.draft);
+    const euro = buildMyOffers(career).find(o => o.id.startsWith('abroad:euro:'))!;
+    expect(applyChoice(career, { kind: 'acceptAbroadOffer', offerId: euro.id }).ok).toBe(true);
+    expect(career.clock.phase).toBe('euro');
+
+    offseason(career, 'euro'); // the euro season played out and archived
+    career.clock.week = career.params.tick.weeksPerYear - 1;
+    const digest = await advanceCareerWeek(career, fastSim);
+
+    expect(career.clock.phase).toBe('euro'); // multi-year descents live; a veteran is not a prospect
+    expect(digest.phaseChangedTo).toBe(undefined);
+    expect(JSON.stringify(me.draft)).toBe(draftBefore); // the record survives the wrap untouched
+    expect(me.status).not.toBe('draftEligible');
+    expect(career.league.draftClass.includes(career.me)).toBe(false);
+  });
+
+  it('the forty line retires the euro descent, the ending china already had (issue #40)', async () => {
+    const career = fixtureCareer({ seed: 'descent-forty' });
+    const me = vetFreeAgent(career, 39); // 40 at the wrap: the career year advances first
+    const draftBefore = JSON.stringify(me.draft);
+    const euro = buildMyOffers(career).find(o => o.id.startsWith('abroad:euro:'))!;
+    expect(applyChoice(career, { kind: 'acceptAbroadOffer', offerId: euro.id }).ok).toBe(true);
+
+    offseason(career, 'euro');
+    career.clock.week = career.params.tick.weeksPerYear - 1;
+    const digest = await advanceCareerWeek(career, fastSim);
+
+    expect(career.clock.phase).toBe('retired');
+    expect(digest.phaseChangedTo).toBe('retired');
+    expect(career.epilogue).not.toBe(null);
+    expect(JSON.stringify(me.draft)).toBe(draftBefore); // retirement reads the real record
   });
 
   it('runs the same week the same way twice (determinism spine)', async () => {

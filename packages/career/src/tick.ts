@@ -21,7 +21,9 @@
  * 'career-gm-fill' persona backfill so no draft ever waits on a human.
  */
 import type { SimulateJobs, TeamId } from '@hoopsh/franchise';
-import { advanceDay, generatePersona, streamRng } from '@hoopsh/franchise';
+import {
+  advanceDay, currentDate, executeRetirement, generatePersona, streamRng,
+} from '@hoopsh/franchise';
 import type {
   ApproachCard, CareerChoice, CareerPhase, CareerState, ChoiceResult,
   CircuitKind, RoleId, WeekDigest, WeekSlotId,
@@ -58,6 +60,23 @@ function deny(...errors: string[]): ChoiceResult { return { ok: false, errors };
 
 function validCard(card: ApproachCard): boolean {
   return APPROACH_DIALS.every(d => Number.isFinite(card[d]) && card[d] >= 0 && card[d] <= 100);
+}
+
+/**
+ * The league side of hanging it up. The career flips its own phase, but
+ * my FrPlayer must leave the league the same moment: the retired-phase
+ * advance fast-sims whole seasons, and a still-rostered me keeps playing
+ * them — ghost seasons accruing rows and honors (issue #68). The spine's
+ * own executor does the cleanup (roster spot dropped, contract void, FA
+ * pool exit, status 'retired', retiredSeason stamped); the franchise
+ * careerControlled skips that kept the world from retiring me then have
+ * nothing left to skip. Idempotent, and a no-op pre-entry, where no
+ * league file exists to close.
+ */
+function retireFromLeague(career: CareerState): void {
+  const me = career.league.players[career.me];
+  if (!me || me.status === 'retired') return;
+  executeRetirement(career.league, career.me, currentDate(career.league));
 }
 
 /** The last declare/return decision logged in the given career year wins. */
@@ -179,6 +198,7 @@ export function applyChoice(career: CareerState, choice: CareerChoice): ChoiceRe
       break;
     case 'retire': {
       if (phase !== 'nba' && phase !== 'china') { result = deny('there is nothing to retire from yet'); break; }
+      retireFromLeague(career); // the league file closes the same moment the phase flips
       career.clock.phase = 'retired';
       career.epilogue = buildEpilogue(career);
       pushEvent(career, 'phase', 'called it: retired');
@@ -394,14 +414,23 @@ function transitionAtYearWrap(career: CareerState): CareerPhase | undefined {
     return undefined;
   }
 
-  if ((phase === 'euro' || phase === 'nbl') && career.nbaTeam === null && !career.epilogue) {
-    // the showcase route only: a descent veteran abroad is not a prospect
+  if ((phase === 'euro' || phase === 'nbl') && career.nbaTeam === null && !career.epilogue
+    && !career.league.players[career.me]) {
+    // the showcase route only: a pre-entry teen has no league file yet
+    // (enterDraftClass is the single handoff into league.players, the
+    // pool law in types.ts), so a missing file is the prospect test.
+    // A descent veteran abroad keeps his file for the road back
+    // (nbabridge applyAbroadOffer) and his draft is behind him: he rides
+    // the descent until the market calls him back or the forty line
+    // below retires him — never draftPrep. nbaTeam alone cannot make
+    // this cut: the descent nulls it too (issue #40).
     career.clock.phase = 'draftPrep';
     pushEvent(career, 'phase', 'the showcase year is over; automatically eligible. The pre-draft window opens');
     return 'draftPrep';
   }
 
   if ((phase === 'china' || phase === 'euro' || phase === 'nbl') && age >= 40) {
+    retireFromLeague(career); // the forced ending closes the league file too
     career.clock.phase = 'retired';
     career.epilogue = buildEpilogue(career);
     pushEvent(career, 'phase', 'the body decided at forty: retired');
@@ -426,6 +455,9 @@ export async function advanceCareerWeek(career: CareerState, sim: SimulateJobs):
   } else if (phase === 'retired') {
     // retirement moves a year at a time: the ball has stopped, the world
     // has not. One advance = one league season and one legacy tick.
+    // Saves written before the #68 fix carry a still-live league me;
+    // close the file before the season advance would play him again.
+    retireFromLeague(career);
     digest = {
       clock: { ...career.clock }, gamesPlayed: [], messages: [], events: [], energy: career.energy,
     };

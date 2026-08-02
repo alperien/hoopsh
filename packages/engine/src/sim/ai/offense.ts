@@ -244,16 +244,31 @@ export function assignSpots(s: GameState, side: TeamSide): void {
  * wins): DHO receiver > posting big > screener > active cut > cut trigger >
  * active relocation > relocation trigger > hold the spacing spot.
  */
+/**
+ * The engine-side athlete gate: does this player's vertical/finishing
+ * blend clear the booth's dunk gate? The ONE engine expression of the
+ * ai.dunkAthleteGate / dunkBlendVert / dunkBlendFin mirror (params.ai
+ * KEEP IN SYNC note; narration's dunkgate-sync.test.ts pins the pair
+ * from the outside, since the engine imports nothing): who dunks is who
+ * leaks out (leakerOf below) — and the seam for any future engine read
+ * that must agree with the booth about who throws it down (#86 takes it
+ * for the strong-putback gate). Pure read: no rng, no writes. Extracted
+ * byte-identically from leakerOf (`x < g` → `!(x >= g)`, same floats).
+ */
+export function clearsDunkGate(s: GameState, a: Agent): boolean {
+  const A = s.params.ai;
+  return A.dunkBlendVert * a.p.attr.vertical + A.dunkBlendFin * a.p.attr.finishing >= A.dunkAthleteGate;
+}
+
 /** the designated transition leaker: fastest non-handler whose athlete
  *  blend clears the lob gate (the booth's dunk gate — who leaks is who
  *  finishes). Deterministic: strict > keeps the FIRST of tied speeds in
  *  lineup order. */
 function leakerOf(s: GameState, side: TeamSide, holderId: string): string | null {
-  const A = s.params.ai;
   let best: Agent | null = null;
   for (const a of liveOnCourt(s, side)) {
     if (a.p.id === holderId) continue;
-    if (A.dunkBlendVert * a.p.attr.vertical + A.dunkBlendFin * a.p.attr.finishing < A.dunkAthleteGate) continue;
+    if (!clearsDunkGate(s, a)) continue;
     if (!best || sprintSpeed(a.p.attr) > sprintSpeed(best.p.attr)) best = a;
   }
   return best === null ? null : best.p.id;

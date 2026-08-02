@@ -35,7 +35,8 @@ export function startShot(
   s: GameState,
   shooter: Agent,
   moveType: ShotMoveType,
-  contest0?: number
+  contest0?: number,
+  carryRim?: boolean
 ): void {
   // usage bookkeeping: a shot attempt uses the possession (v1 counts FGA
   // only — FT trips and turnovers are omitted, which slightly undercounts
@@ -49,8 +50,22 @@ export function startShot(
     const rel = s.params.shot.contestReleaseBlend;
     contest.level = (1 - rel) * contest0 + rel * contest.level;
   }
-  const loc = classifyShot(s.rules, s.court, rim, shooter.pos);
-  const p = shotMakeP(s, shooter, loc.zone, loc.distFt, moveType, contest);
+  // #74 transition carry: a carried break finish RELEASES at the rim plane
+  // by construction — the ball's extension meets the hoop while the body
+  // is still traveling (a sprinting body's stopping distance is the
+  // behind-plane artifact the carry exists to remove). The release POINT
+  // is the rim; the CONTEST above already read off the body, so traffic
+  // still prices the attempt honestly through the make model. #86 reuses
+  // the same construction for the strong putback: the gate-clearing
+  // rebounder's throw-down releases at the plane (possession.ts
+  // putbackResolvesStrong passes carryRim), contest off the body either way.
+  const releasePos = carryRim ? rim : shooter.pos;
+  const loc = classifyShot(s.rules, s.court, rim, releasePos);
+  // #86: a carried putback IS the strong class — the one new logit prices
+  // the throw-down over the generic tap (params.shot.putbackStrongLogit).
+  // Carried DRIVES (#74) keep their own pricing: geometry did that work.
+  const strongPutback = carryRim === true && moveType === 'putback';
+  const p = shotMakeP(s, shooter, loc.zone, loc.distFt, moveType, contest, undefined, strongPutback);
   let made = s.rng.chance(p);
 
   // blocks only happen on would-be misses (keeps make % calibration clean)
@@ -128,8 +143,8 @@ export function startShot(
   const pending: PendingShot = {
     shooterId: shooter.p.id,
     side: shooter.side,
-    x: round1(shooter.pos.x),
-    y: round1(shooter.pos.y),
+    x: round1(releasePos.x),
+    y: round1(releasePos.y),
     distFt: round1(loc.distFt),
     zone: loc.zone,
     three: loc.three,

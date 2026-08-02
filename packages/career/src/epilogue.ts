@@ -35,11 +35,19 @@ export function harvestSeasonHonors(career: CareerState): void {
   for (const archive of career.league.archives) {
     if (archive.draftClass !== undefined) { // a fully stamped archive
       // A ring requires a season row on the champion team for that specific
-      // season. This is the only check that is correct across all phases:
+      // season. Season rows are history, not the current team pointer, so
+      // the check holds in descent and retirement where the prior guards
+      // failed:
       // - 'career.nbaTeam === archive.champion' used the current team pointer,
       //   granting pre-entry titles and missing rings after trades or descent.
       // - 'wasMySeason' returned true unconditionally while phase === 'nba',
       //   making the guard vacuous for any player in their NBA career.
+      // TRAP: rows are keyed (season, teamId, type) in franchise/src/gameday.ts,
+      // so a player traded away from the eventual champion mid-season keeps his
+      // old-team row and still receives the ring. Deliberate, not an
+      // oversight: the archive stores no roster, and real teams often award
+      // rings to departed mid-season contributors at their discretion.
+      // Registered as C16 in docs/CAREER.md; pinned in epilogue.test.ts.
       const onChampion = career.league.players[career.me]?.seasons.some(
         s => s.season === archive.season && s.teamId === archive.champion,
       );
@@ -49,10 +57,18 @@ export function harvestSeasonHonors(career: CareerState): void {
       }
     }
     for (const award of archive.awards) {
-      if ((award.winners as string[]).includes(career.me)) {
-        const label = AWARD_LABELS[award.kind] ?? award.kind;
-        push(`ev-honor-${award.kind}-${award.season}`, `${label}, ${award.season}`);
-      }
+      if (!(award.winners as string[]).includes(career.me)) continue;
+      // An honor attaches to a season actually played, which a season row
+      // proves — the same evidence the ring branch reads. Without the gate
+      // the retired-phase harvest read every new archive forever, and a
+      // league-presence bug (issue #68: a ghost me still playing after
+      // retirement) compounded into a posthumously growing resume.
+      const played = career.league.players[career.me]?.seasons.some(
+        s => s.season === award.season,
+      );
+      if (!played) continue;
+      const label = AWARD_LABELS[award.kind] ?? award.kind;
+      push(`ev-honor-${award.kind}-${award.season}`, `${label}, ${award.season}`);
     }
   }
 }

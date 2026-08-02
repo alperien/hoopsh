@@ -27,7 +27,7 @@ careers, and the acceptance harness replays that equality as a gate.
 | `params.ts` | Every tunable, sectioned by owner (creation, circuits, week, trust, recruiting, stock, phone, nbabridge, money, tick) and classed REAL / CAL / FEEL in the franchise params tradition. |
 | `packs.ts` | Rule packs as career-side data: PREP (4x8min, 35s/one-and-one), FIBA, NBL, CBA_CHINA. Circuit jobs carry them through `GameJob.rules`; the engine never learned league names. |
 | `creation.ts` | CreationSpec validation (plain-language refusals) and createCareer: me at seventeen (budget over group base, background shifts, signature tendency identities probed from the data archetypes, hidden ceilings sampled OVER the visible priors), the rival, the NBA world via createLeague with an AI persona in every chair, `careerControlled = [me]`. |
-| `circuits.ts` | Every league that is not the NBA: fictional program/club generation, rosters via generatePlayer in kind-true age bands, circle-method round robins on absolute week anchors, reseeded single-elimination brackets, engine-real week jobs (my games keep full event streams), result folds, standings, summaries, honors. |
+| `circuits.ts` | Every league that is not the NBA: fictional program/club generation, rosters via generatePlayer in kind-true age bands (re-keyed into the career-local 'c' id alphabet, issue #83), circle-method round robins on absolute week anchors, reseeded single-elimination brackets, engine-real week jobs (my games keep full event streams), result folds, standings, summaries, honors. |
 | `perception.ts` | perceiveProspect: the one fog primitive. Fixed draws per (observer, player), per-observer bias, error easing with coverage — recruiters and NBA rooms mis-read the same kid differently and consistently. |
 | `recruiting.ts` | Programs, the interest ladder (rungs move one step a week, cold streaks cool boards), offers that extend/lapse/pull with stated reasons, classes that fill, the once-per-career Euro and NBL doors. |
 | `stock.ts` | Draft stock: per-team boards tilted by persona risk appetite, the weekly mock under move caps (shock cap for statement games, listed injuries, combine week), the combine, private workouts, and enterDraftClass — me and the rival move INTO league.players so the real AI boards do the choosing natively. |
@@ -50,6 +50,8 @@ careers, and the acceptance harness replays that equality as a gate.
 | `server.ts` | The `/api/career/*` routes; a loaded career mounts its NBA world as the current league so every franchise read route serves scenery for free, while the franchise time controls 409 (career time moves only through the choice log). |
 | `saves.ts` | One directory, two shapes (`league` vs `career` key); list rows carry their chair; loadCareer rebinds me to one object when an abroad save forked the two maps. |
 | `career-acceptance.ts` | `npm run gm:career-acceptance`: scripted pilots live whole careers; gates and bands below. |
+| `career-replay.ts` | The choice-log replay driver: rebuild the creation-time state, apply each recorded choice at its logged clock, advance, byte-compare checkpoints. The determinism gate and the app test suite both replay through it. |
+| `role-response.ts` | The reacting-world gate's independent witness (issue #41): replays coach.grades through the documented clock arithmetic and demands the observable role response at each mid-ladder firing. Ladder edges answer silently by design; a coach change is the legal reset. |
 | `public/js/screens/career/` | The player-chair screens (creation, the week, the phone, the plan, the season, the game center, recruiting, stock, money, the journey). The shell (`app.js`) is mode-aware; scenery screens (league, news, almanac) are shared between chairs. |
 
 
@@ -108,6 +110,11 @@ their owning module headers and collected here.
   the development review (RNG-order preserving), so career training rides
   the same growth model the league uses. `distributeGrowth`/`groupMean`
   are exported for the weekly landings.
+- `transactions.executeRetirement` — both career retire seams (the chosen
+  retirement and the age-40 forced wrap) close my league file through the
+  spine's own executor, so the retired-phase season advances run a world
+  without me in it (issue #68: a still-rostered me kept playing ghost
+  seasons and harvesting honors).
 - The engine itself is untouched by the career build: every wave was
   verified byte-identical against the then-current fingerprint baseline
   (1143 events, CAS 132-116, pre-rules-landing; the rules landing that
@@ -127,11 +134,17 @@ byte determinism), nbabridge (the swap leak check, offers, determinism).
 design): scripted pilots (phenom-aggressive, fourstar-balanced,
 walkon-grinder) live whole careers on the worker pool.
 
-GATES (exit 1): careers complete their arcs without throwing; the role
-clocks never sit at reactGames unanswered (the reacting-world invariant
-at fleet scale); every event, grade, and ledger row carries a nonempty
-reason (the explained-consequence lint); a 40-week scripted career
-replays byte-identical.
+GATES (exit 1): careers complete their arcs without throwing; the
+reacting-world invariant at fleet scale (role-response.ts replays the
+graded record independently and demands the role move plus its event at
+every mid-ladder firing; the roleClock re-read it replaced was
+tautological, issue #41: trust.ts resets that clock before returning);
+every event, grade, and ledger row carries a nonempty reason (the
+explained-consequence lint); a career recorded from
+creation through the draft into NBA game weeks replays byte-identical
+from its choice log alone (career-replay.ts — abroad phases, the
+descent, retirement, and the epilogue sit outside the replayed
+segment, and the gate fails rather than pass with less coverage).
 
 BANDS (reported, never fatal): draft outcomes track creation quality;
 the boredom audit (content pulse per week, zero-event streaks, phone
@@ -150,3 +163,8 @@ volume); the energy economy holds off the floor; career shapes by phase.
   `abroad:china:`, `abroad:euro:`) are authoritative (nbabridge header).
 - An abroad phase holds me as one object in BOTH player maps; JSON saves
   fork it and loadCareer rebinds (never deep-copy me on load paths).
+- Career-local ids live in the 'c' alphabet (circuits.ts#nextIdSeq); the
+  only 'p' ids career.players ever holds are me and the rival pre-entry,
+  then me again abroad. League draft classes continue the 'p' sequence
+  from a league-only scan, so a 'p'-minted circuit kid collides with the
+  first post-entry class (issue #83).
