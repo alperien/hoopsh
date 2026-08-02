@@ -15,6 +15,51 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Engine: dead-ball resume relay (#160, issue #115)
+
+- The C2 resume snap, the last surviving teleport class: at dead-ball
+  stoppages the ball jumped from the whistle spot to the resume taker
+  in one frame (70.23/g at the class record). Two bisectable layers:
+  layer A stamps the ball to its taker (the behavioral kernel), layer B
+  relays it across the stoppage in frames only. Layer B proven pure
+  presentation: all 49 event streams byte-identical while all 49 frame
+  streams move (per-seed sha256 over events and frames separately, the
+  paired 49-seed pool of the #82 C1 convention). C2 metric 70.23/g to
+  0.00/g at zero event drift. Mechanics tier, sole slot occupant; full
+  ladder at review 5155936089; delta re-check PASS at comment
+  5156117360; Red Team advisory probe 569/569 paired games
+  event-identical across 12 adversarial presets. The ftcarry test
+  correction shipped here was ruled a legitimate scope amendment, not a
+  weakened invariant (verdict section 1.6); the de-scoped coverage
+  class is re-covered by #166. The fingerprint baseline moves:
+  fingerprint-1 is now 1188 events, 108-121 (was 1313 events, 121-119);
+  goldens re-baked. Merged 45e55267.
+
+### Franchise: the GM desk generates inbox items from tick state (#157, issue #152)
+
+- Playtest P1: a full GM season produced zero inbox items and zero
+  inbox-caused stops; the February deadline passed silently inside a
+  15-day advance and the season's first decision arrived at the draft
+  clock. The stop machinery was always live (the advance loop stops on
+  digest.inboxIds and open decisions); the generation side was silent.
+  New packages/franchise/src/inbox.ts, wired into the tick at the
+  documented position (FRANCHISE.md section 8, after the news desk).
+  Items derive read-only from state the tick already computes; no new
+  simulation, zero rng verified mechanically down the read chain.
+  Acceptance invisibility reproduced as the reviewer's own measurement
+  (review 4837475012). Consumer tier: suite green, engine fingerprint
+  untouched. Merged 42ef196b.
+
+### Engine tests: transcarry scale-0 off-switch (#156, issue #139)
+
+- The #138 twin one phase over: pins the hard-zero contract at the
+  transition carry's retired default. transcarry.test.ts only, +203/-2
+  (the -2 is an import widen), one additive block beside the #145
+  f3pin-1 dose row; no assertion weakened or removed. Guard-drop
+  mutant re-run with exactly the claimed three failures and the corpus
+  green under the mutant; kind-scope isolation verified against source
+  (review 4837428750). Test-only tier. Merged 1ba8552c.
+
 ### Docs: sibling-file breadcrumb remainder re-point (issue #141)
 
 - The #137/#140 pass fixed the issue-listed locators and verified every
@@ -31,6 +76,64 @@ minutes-targets fix (W65).
   fingerprint-1 identical (1313 events, 121-119); corpus 28/28
   byte-identical; suite identical both sides (1645 tests, 1643 pass,
   0 fail, 2 todo).
+
+### Engine tests: blow-by scale-0 off-switch (#149, issue #138)
+
+- Stack position 4 of 4; the blowby.test.ts family is complete. Pins
+  the hard-zero contract at the retired default: chance(0) consumes
+  one draw and never arms, and inbound-kind scoping makes the
+  draw-count property exact. +90/-2. Guard-drop mutant fails exactly
+  the three new pins with every pre-existing test green, restoring the
+  gap the #132 review named as contract (relay review 5155327529).
+  Test-only tier. Merged bc97a6dc.
+
+### Engine tests: blow-by gate FALSE for cut_finish, post, and heave (#148, issue #133)
+
+- The label-widen kill, stack position 3: pins the gate FALSE for the
+  three ineligible shot labels. The widen mutant runs RED on exactly
+  the new pin while the pre-existing LABEL row stays green, which is
+  the #133 blind spot demonstrated. blowby.test.ts +15 (relay review
+  5155327465). Test-only tier. Merged fe8e2293.
+
+### Engine tests: full-shape Possession convention via satisfies (#146, issue #130)
+
+- Enforces the full-shape Possession convention with satisfies on the
+  two cast literals (fatigue-pool.test.ts, timeouts.test.ts).
+  satisfies is tsc surface: the verification rides the CI types job,
+  and the suite is runtime-inert (review 4836983395). Test-only tier;
+  independent of the blowby stack. Merged 614b5f93.
+
+### Engine tests: blow-by arm lifecycle pins (#147, issue #131)
+
+- Stack position 2: pins the arm lifecycle across continuations and
+  the ORB phase flip; lifecycle mutants re-run RED. blowby.test.ts
+  +201/-2 (review 4837020612). Test-only tier. Merged ae9f80a9.
+
+### Engine tests: arming-dose direction at scale 0.25 (#145, issue #127)
+
+- Stack root of the blowby.test.ts family. One F3-class checksum row
+  per live carry mechanism at the asymmetric dose: blowby bb3pin-2 at
+  0.25 (1275 events, 122-107, hash 10c7e924) and transcarry f3pin-1 at
+  0.25 (1277 events, 149-129, hash 02449767), plus the asymmetric-dose
+  rider on both F3 headers. The dose-inversion mutant runs RED at 0.25
+  and stays GREEN at the 0.5 fixed point on the old suite (review
+  4836954650). Test-only tier. Merged 88d1d01a.
+
+### Career: circuit kids mint in a career-local id alphabet (#106, issue #83)
+
+- Two minting authorities shared one id space and only one could see
+  the other: career nextIdSeq scans both maps, while franchise
+  generateDraftClass continues the p sequence from a league-only scan.
+  Draft entry lifts the league watermark past the career build's ids,
+  so the first post-entry class re-minted the retained ids of abroad
+  HS teammates onto NBA rookies; no watermark repair works from the
+  career side of the seam without polluting league.players. The fix
+  removes the shared space: circuit kids mint in a career-local 'c'
+  alphabet. Consumer tier; the A/B adjudication at the merge parent
+  proved the three zero-event-streak MISS lines pre-existing (relay
+  5155089238 discharging conditional 4835559260); the #96 replay
+  determinism gate re-run byte-identical from the choice log alone
+  (careers 1, seed cacc-1, 199 weeks, 247 choices). Merged 98eb72b5.
 
 ### Docs: sibling-file locator breadcrumb re-point (#140, issue #137)
 
