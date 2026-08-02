@@ -93,6 +93,19 @@ export const SWEEPABLE: Knob[] = [
   // the optimizer pinned ORtg 122-126 with every other dial at boundary.
   { path: 'shot.contestCoef', lo: -2.0, hi: -0.82 },
   { path: 'shot.blockBase', lo: 0.18, hi: 0.45 },
+  // #86 strong-putback class (unassisted-creation arc, increment 2): the
+  // throw-down's make-logit premium over the generic tap, applied only when
+  // possession.ts putbackResolvesStrong fires. Pure finish pricing, so the
+  // hi rail brackets believable conversion: at 1.2 a wide-open strong
+  // putback tops out around the low-90s make% (baseRim + movePutback + 1.2
+  // + typical rim terms), the top of the real putback-dunk range. Landing
+  // value is FEEL (the increment selects it against the astd window; see
+  // params.shot); registered so the coordinated re-sweep can trade the
+  // class's make surplus against the putback economy's registered pair
+  // (reb.putbackChance / putbackRadiusFt). The class SHAPE — the
+  // restricted-area read and the booth's athlete gate — is definition, not
+  // calibration, and stays off the surface (the transCarryGatherFt rule).
+  { path: 'shot.putbackStrongLogit', lo: 0, hi: 1.2 },
   // ftBasePct's floor was the fitted value itself ("explore up only"),
   // authored when league FT% read low. Post-endgame the league mix sits
   // ~2pp ABOVE the real 78.4% (league-averages-2023-24.json) and the 2026-07-28
@@ -225,6 +238,31 @@ export const SWEEPABLE: Knob[] = [
   // assisted-share floor margin (center 54.7 vs floor 54), so a sweep
   // moving this dial should watch astdShare with it.
   { path: 'ai.pullUpThreeBonus', lo: 0.35, hi: 1.0 },
+  // #74 transition carry (unassisted-creation arc, increment 1): the
+  // per-possession arming chance of the beaten-break gather-through-windup
+  // carry — pure dose, so the whole [0, 1] interval is legal. The landing
+  // value is FEEL (the increment selects it against the fgPct ceiling; see
+  // the params.ai comment); registered so the coordinated re-sweep can
+  // trade the carry's make surplus against the jumper economy it funds.
+  // The beaten-break SHAPE (defendersBack < transSetBackCount, the gather
+  // riding the existing windup) is definition, not calibration, and stays
+  // off the surface — as does the F1 gather gate (ai.transCarryGatherFt):
+  // reach is part of what a carry IS, and a sweep pushing it outward
+  // would re-create the unbounded release-gap tail the bound exists to
+  // remove (PR #75 probe F1).
+  { path: 'ai.transCarryScale', lo: 0, hi: 1 },
+  // #114 halfcourt blow-by (unassisted-creation arc): the per-possession
+  // arming chance of the won-matchup gather-through-windup carry in
+  // halfcourt phase — pure dose, so the whole [0, 1] interval is legal.
+  // The landing value is FEEL (the increment selects it on the supply
+  // counters against the astd band; see the params.ai comment). The
+  // beaten/lane/reach SHAPE (ai.blowByBeatenFt / blowByLaneMax /
+  // blowByGatherFt) is definition, not calibration, and stays off the
+  // surface per the transCarryGatherFt rule: a sweep pushing the beaten
+  // threshold down would admit the blurred p80 boundary the probe's
+  // threshold grid rejected, and pushing reach outward would re-create
+  // the #75-F1 release-gap tail.
+  { path: 'ai.blowByCarryScale', lo: 0, hi: 1 },
 
   // Endgame layer (params.endgame; live only under GameConfig.endgame) —
   // registered for the flag-ON coordinated re-sweep: the n=1260/arm flag-on

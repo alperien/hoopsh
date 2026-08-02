@@ -21,14 +21,17 @@
  * Scouted at the staged landing (out/scout-leakout.mjs): pool
  * leakout-1..24, staged arm 24 transition leak-signature finishes, flipped
  * arm 148 (+517%); opener-context finishes 1 staged vs 0 flipped (the
- * exclusion holds dark and lit). Floors sit well under scout (vacuity
- * >= 15 vs 24; margin >= +40 vs the +124 gap; opener guard <= staged + 6).
- * Re-anchor: re-run the scout, same safety shape (vacuity ~60% of scout,
- * margin ~a third of the gap).
+ * exclusion holds dark and lit). Floors sit well under scout; the CURRENT
+ * scout numbers and floors live in ./seed-pins.gen.ts (GENERATED).
+ * Re-anchor (issue #50): run the helper named there — it re-runs this
+ * scout and rewrites the floors at the same safety shape (vacuity ~60% of
+ * the staged scout, margin ~a third of the gap), and REFUSES when the
+ * fresh scout shows the mechanism itself collapsed rather than reshuffled.
  */
 import { describe, expect, it } from 'vitest';
 import { simulateGame, type GameEvent, type GameResult } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
+import { SEED_PINS } from './seed-pins.gen.js';
 
 const POOL = Array.from({ length: 24 }, (_, i) => `leakout-${i + 1}`);
 
@@ -85,8 +88,8 @@ describe('the transition leak-out (W64 channel 3, offense.ts)', () => {
       sTrans += signatures(staged[i]!).transition;
       lTrans += signatures(live[i]!).transition;
     }
-    expect(sTrans).toBeGreaterThanOrEqual(15); // vacuity: the premise exists dark
-    expect(lTrans).toBeGreaterThanOrEqual(sTrans + 40); // the mechanism, with margin
+    expect(sTrans).toBeGreaterThanOrEqual(SEED_PINS.leakout.floors.stagedVacuityMin); // vacuity: the premise exists dark
+    expect(lTrans).toBeGreaterThanOrEqual(sTrans + SEED_PINS.leakout.floors.liveRiseMin); // the mechanism, with margin
   });
 
   it('openers and post-make possessions carry no leak (the G3 exclusion)', () => {
@@ -98,6 +101,6 @@ describe('the transition leak-out (W64 channel 3, offense.ts)', () => {
     }
     // the phase gate is 'transition': non-transition contexts must not RISE
     // (they may fall — transition converts earlier and steals share)
-    expect(lOpen).toBeLessThanOrEqual(sOpen + 6);
+    expect(lOpen).toBeLessThanOrEqual(sOpen + SEED_PINS.leakout.floors.openerSlack);
   });
 });

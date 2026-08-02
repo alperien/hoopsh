@@ -16,30 +16,24 @@
  * forced-rate emission floors and consumer chains live there — this file
  * pins the DEFAULT-stream shape of whatever the pinned seeds emit.
  *
- * Budget: exactly TWO game sims, frames OFF (~1s). Seeds re-anchored
- * 2026-07-30 (second anchor — the first was the PR #11 SimParams-hoist
- * reshuffle) after the flow re-fits (two AI dials: openerShootMalus,
- * pullUpThreeBonus; findings/refit-g3.md, g5) reshuffled every rng stream:
- * evstream-19 dropped from OT back to regulation — exactly the failure mode
- * the previous header predicted — and slot 1 moved off evstream-1 (still
- * regulation, but zero violations on the new streams) so the pool keeps
- * every flow-vocabulary event type live. Re-scouted at the rules landing
- * (OT bonus threshold + last-2:00 window penalty + made-basket clock stops
- * reshuffled every stream; same re-anchor doctrine as the prior two
- * re-scouts; re-anchored again at the session-7 pass-volume flip, scanned
- * evstream-1..240 on that tree):
- *   evstream-182 — regulation; 2 DEFENSE-won and 1 OFFENSE-won mid-game
- *                  jump balls, 1 offensive foul, 3 technicals, 2
- *                  violations, 3 replay reviews.
- *   evstream-77  — reaches OVERTIME (period 5) with a tied Q4 period_end;
- *                  1 DEFENSE-won jump ball, 4 offensive fouls, 1 technical,
- *                  1 violation, 5 replay reviews.
- * The OT seed gives the overtime legs a live branch without a seed hunt. An
- * engine rng-sequence change (legal per AGENTS §1.2) may reshuffle it back to
- * regulation — the explicit OT existence floor below then fails LOUDLY and
- * the fix is to re-scout an OT seed for the second slot (same doctrine as
- * ncaa-rules.test.ts's throw-on-scan-exhaustion; the subs.test.ts H-02
- * comment keeps the same re-anchor trail for its own OT seeds).
+ * Budget: exactly TWO game sims, frames OFF (~1s). The pool's anchors live
+ * in ./seed-pins.gen.ts (GENERATED). Slot semantics: one regulation game
+ * rich in the flow vocabulary + one OVERTIME game, so the overtime legs
+ * have a live branch without a seed hunt. Anchor history: re-anchored by
+ * hand at the PR #11 SimParams-hoist reshuffle, 2026-07-30 after the flow
+ * re-fits (evstream-19 dropped from OT back to regulation — exactly the
+ * failure mode the previous header predicted), at the rules landing, a
+ * fourth time at the session-7 pass-volume flip (scanned evstream-1..240),
+ * and a fifth at the #74 amended-dose landing (the arming draw on every
+ * transition possession reshuffled the streams and evstream-77 fell back
+ * to regulation; re-scanned evstream-1..300 — the doctrine pool widened —
+ * and slot 1 held); mechanical since issue #50. An engine rng-sequence
+ * change (legal per AGENTS §1.2) may strand the anchors — the vacuity
+ * floors below then fail LOUDLY, and the fix is the one-command re-anchor
+ * helper named in seed-pins.gen.ts (it re-scans the evstream pool,
+ * rewrites the anchor file, and re-runs this suite). Never weaken a floor
+ * (AGENTS §1.6). A floor edit here must be mirrored in reanchor.ts
+ * EVSTREAM_FLOORS — the helper's confirmation run catches a miss loudly.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -50,8 +44,9 @@ import {
   type ShotEvent
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
+import { SEED_PINS } from './seed-pins.gen.js';
 
-const pool: GameResult[] = ['evstream-182', 'evstream-77'].map((seed) => {
+const pool: GameResult[] = [SEED_PINS.evstreamPool.regulation, SEED_PINS.evstreamPool.overtime].map((seed) => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed, home, away, collectFrames: false });
 });
@@ -187,13 +182,13 @@ describe('stream framing: game_start / tip_off / period boundaries / game_end', 
         }
       }
     }
-    // Vacuity floor: the evstream-48 OT game contributes its tied Q4 horn.
+    // Vacuity floor: the pool's OT slot contributes its tied Q4 horn.
     expect(tiedEndsSeen).toBeGreaterThanOrEqual(1);
   });
 
-  // Existence floor for every OT-conditional assert in this file. Scouted:
-  // evstream-48 plays period 5. If an rng-sequence change reshuffles this
-  // seed back to regulation, re-scout a fresh OT seed (see file header).
+  // Existence floor for every OT-conditional assert in this file: the OT
+  // slot of seed-pins.gen.ts plays a period 5. If an rng-sequence change
+  // reshuffles it back to regulation, run the re-anchor helper (file header).
   it('the pool reaches overtime (existence floor for the OT legs)', () => {
     const otPeriods = pool.reduce(
       (n, g) => n + Math.max(0, maxPeriod(g) - rules.periods), 0);
@@ -467,7 +462,7 @@ describe('two time axes: Base.t vs Base.wt (AGENTS §1.5)', () => {
 });
 
 describe('per-type field contract', () => {
-  // The GameEvent union, core/events.ts:512-530, plus each interface's
+  // The GameEvent union, core/events.ts:521-539, plus each interface's
   // documented required fields. A consumer types against these; an event
   // missing one is a contract break even if the sim looks fine. The table
   // spans the ENTIRE union — the flow officiating vocabulary (replay v3:
@@ -575,13 +570,13 @@ describe('per-type field contract', () => {
             if (!Number.isInteger(e.remaining) || e.remaining < 0) bad.push('timeout: remaining');
             break;
           case 'substitution':
-            // events.ts:431-434 — parallel arrays; every current caller swaps
+            // events.ts:440-443 — parallel arrays; every current caller swaps
             // exactly one player, and never a player for himself.
             if (e.out.length !== 1 || e.in.length !== 1) bad.push('substitution: array shape');
             if (e.out[0] === e.in[0]) bad.push('substitution: no-op swap');
             break;
           case 'jump_ball':
-            // events.ts:459-470 — two distinct tied-up contestants, the side
+            // events.ts:468-479 — two distinct tied-up contestants, the side
             // that controls the tap, and whoever came up with it.
             if (e.between.length !== 2 || e.between.some((p) => typeof p !== 'string') ||
               e.between[0] === e.between[1]) {
@@ -591,14 +586,14 @@ describe('per-type field contract', () => {
             if (typeof e.gainedBy !== 'string') bad.push('jump_ball: gainedBy');
             break;
           case 'violation':
-            // events.ts:484-491 — kind carries the contract; player is
+            // events.ts:493-500 — kind carries the contract; player is
             // optional (a future team-attributed kind may omit it) but a
             // string when present.
             if (!KINDS.violation.includes(e.kind)) bad.push(`violation: kind ${e.kind}`);
             if (e.player !== undefined && typeof e.player !== 'string') bad.push('violation: player');
             break;
           case 'replay_review':
-            // events.ts:493-509 — trigger only; deliberately NO outcome
+            // events.ts:502-518 — trigger only; deliberately NO outcome
             // field (an always-'stands' outcome would be dead surface per
             // AGENTS.md DO-NOT #5, so don't "strengthen" one in here).
             if (!KINDS.review.includes(e.trigger)) bad.push(`replay_review: trigger ${e.trigger}`);
@@ -615,7 +610,7 @@ describe('per-type field contract', () => {
     expect(bad).toEqual([]);
     // Vacuity floors — every type the pinned seeds deterministically emit
     // actually appeared (timeout included: endgame defaults ON,
-    // events.ts:394-397; the flow trio re-scouted 2 jump_balls, 3
+    // events.ts:403-406; the flow trio re-scouted 2 jump_balls, 3
     // violations, 7 replay_reviews across the pool). held_ball and
     // off_goaltend never occur on these seeds — their forced-rate emission
     // floors are officiating.test.ts's job, not this file's.
@@ -750,8 +745,9 @@ describe('shot event invariants (events.ts:238-258)', () => {
       }
     }
     expect(bad).toEqual([]);
-    // re-scouted 56 (19 and-ones) — incl. ONE tech-rider interposition on
-    // evstream-48, so the non-technical skip above is a live branch.
+    // re-scouted 56 (19 and-ones); the non-technical skip above was
+    // exercised by a tech-rider interposition on an earlier anchor's stream
+    // (not floored — anchors move, see seed-pins.gen.ts).
     expect(fouled).toBeGreaterThanOrEqual(5);
     expect(andOnes).toBeGreaterThanOrEqual(1);
   });
@@ -824,7 +820,7 @@ describe('turnover and foul bookkeeping', () => {
   // game (not the period)": +1 per foul, never resetting across periods.
   // Kind 'technical' is the documented exception (events.ts:85-91): a tech
   // is not a personal in NBA accounting, so its stamp REPEATS the fouler's
-  // current total unchanged — "snapshot, not an increment" (fouls.ts:113).
+  // current total unchanged — "snapshot, not an increment" (fouls.ts:130).
   // (invariants.test.ts pins the TEAM chain; the per-player chain is here.)
   it('personalCount chains +1 per personal foul, never resets; a technical repeats it unchanged', () => {
     let techs = 0;
@@ -852,7 +848,7 @@ describe('turnover and foul bookkeeping', () => {
   // rules.teamFoulBonusAt (a tech's snapshot count included); fouledOut is
   // "true exactly when personalCount >= rules.foulOutAt" — EXCEPT kind
   // 'technical', where it "is always false" (events.ts:88-91). The tech
-  // draw runs AFTER the foul-out replacement (fouls.ts:103-116), so a tech
+  // draw runs AFTER the foul-out replacement (fouls.ts:120-133), so a tech
   // riding a foul-out whistle legally stamps personalCount AT the limit
   // with fouledOut still false — the naive formula is wrong for techs.
   // Thresholds read from result.rules, not literals.

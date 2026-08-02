@@ -138,7 +138,14 @@ export function shotMakeP(
   /** prospective delivery quality (n-space) — decideBall passes the HOLDER's
    *  own delivery when valuing a pass; resolution omits it and the shooter's
    *  actual catchQuality (stamped at the catch) is used */
-  catchQ?: number
+  catchQ?: number,
+  /** #86: the resolving putback is the STRONG class — the rim-plane
+   *  throw-down (possession.ts putbackResolvesStrong); adds
+   *  shot.putbackStrongLogit to the putback move adjustment. Resolution-
+   *  only by design: the automatic putback is never EV-priced, and the
+   *  decide-layer (surveyed) putback keeps the generic logit in both its
+   *  EV and its resolution — decision and resolution cannot drift. */
+  strongPutback?: boolean
 ): number {
   const P = s.params.shot;
   const base =
@@ -156,7 +163,10 @@ export function shotMakeP(
     moveType === 'drive' ? P.moveDrive :
     moveType === 'cut_finish' ? P.moveCutFinish :
     moveType === 'post' ? P.movePost :
-    moveType === 'putback' ? P.movePutback :
+    // the strong class (#86) prices the throw-down over the generic tap;
+    // `x + 0 === x` for finite logits, so a non-strong putback's bits are
+    // untouched by construction (the staged-zero contract)
+    moveType === 'putback' ? P.movePutback + (strongPutback ? P.putbackStrongLogit : 0) :
     moveType === 'heave' ? P.moveHeave : 0;
 
   // deep threes get harder past the line; rim shots get harder away from point-blank

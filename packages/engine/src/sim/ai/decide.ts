@@ -14,13 +14,13 @@
  */
 
 import { clamp } from '../../core/rng.js';
-import { add, dist, lerp, scale, segmentT, type V2 } from '../../core/vec.js';
+import { add, dist, lerp, scale } from '../../core/vec.js';
 import { n } from '../../model/derived.js';
 import type { ShotMoveType } from '../../core/events.js';
 import { classifyShot } from '../../geometry/court.js';
 import { agent, attackedRim, liveOnCourt, other, type Agent, type GameState } from '../state.js';
 import { anticipatedContest, defendersBack, openness, passRisk, shotEV } from '../resolve.js';
-import { onBallDefender } from './shared.js';
+import { defendersInLane, onBallDefender } from './shared.js';
 import { advantagePass, commitmentDrive, commitmentHold, commitmentPass, decisiveness, endgameContinuation, openerSet, probeCulture, scorePressure, tempo } from './concepts.js';
 
 export type BallAction =
@@ -444,30 +444,4 @@ export function decideBall(s: GameState): BallAction {
   const weights = actions.map((x) => Math.exp((x.u - maxU) / temp));
   const idx = s.rng.weighted(weights);
   return actions[idx]!.a;
-}
-
-/**
- * How crowded the drive lane is: a soft count of defenders sitting between the
- * handler and the rim. Feeds both the projected contest on a drive and a
- * direct utility penalty — this is what makes a packed paint deter drives and
- * (via the kickout branch) makes help defense produce open shooters.
- *
- * along ∈ (laneAlongMin, laneAlongMax): ignore defenders standing on top of
- * the handler (that's the on-ball matchup, handled separately) and those
- * already under the rim. (`along` is segmentT's parametric position on the
- * handler→rim segment — geometry, NOT the game clock this file otherwise
- * calls t.) lat < laneWidthFt: within a body's width of the driving line,
- * weighted linearly. All three constants live in params.ai.lane*.
- */
-function defendersInLane(s: GameState, h: Agent, rim: V2): number {
-  const A = s.params.ai;
-  let count = 0;
-  for (const d of liveOnCourt(s, other(h.side))) {
-    const along = segmentT(h.pos, rim, d.pos);
-    if (along > A.laneAlongMin && along < A.laneAlongMax) {
-      const lat = dist(d.pos, lerp(h.pos, rim, along));
-      if (lat < A.laneWidthFt) count += 1 - lat / A.laneWidthFt;
-    }
-  }
-  return count;
 }

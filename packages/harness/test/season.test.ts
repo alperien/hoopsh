@@ -25,6 +25,7 @@ import {
   percentileSorted, simsToResolveEdge, simulateMatchup, wilsonInterval
 } from '../src/matchup.js';
 import { cloneTeamWithIds, makeLeague, scaleTeam } from '../src/league.js';
+import { SEED_PINS } from './seed-pins.gen.js';
 
 // ---------------------------------------------------------------- fixtures
 // Shared across tests so the expensive sims run ONCE per file execution.
@@ -52,7 +53,10 @@ const WEAK = scaleTeam(cascadiaBreakers(), -8, 'weak');
 // twin-heavy 30 whose CI excluded 0.5; scanned mc-even..mc-even5, -4 reads
 // ci [0.39, 0.73], mean +2.9 — the most centered draw)
 const even = await simulateMatchup(BASE, TWIN, 30, { seedBase: 'mc-even4' });
-const lopsided = await simulateMatchup(STRONG, WEAK, 30, { seedBase: 'mc-edge' });
+// the lopsided seedBase lives in ./seed-pins.gen.ts (issue #50): if the CI
+// floor below trips after an rng-order change, run the re-anchor helper
+// named there instead of scanning by hand (the practice mc-even4 records)
+const lopsided = await simulateMatchup(STRONG, WEAK, 30, { seedBase: SEED_PINS.mcEdge.seedBase });
 
 // ---------------------------------------------------------------- schedule
 

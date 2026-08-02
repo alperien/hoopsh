@@ -7,13 +7,19 @@
  *
  *   GATES  (exit 1 on failure):
  *     - careers complete their scripted arcs without throwing
- *     - THE REACTING-WORLD INVARIANT: the role clocks never reach
- *       reactGames unanswered (sustained production always moves the
- *       job; docs/CAREER.md pillar 1, the flagship gate)
+ *     - THE REACTING-WORLD INVARIANT: sustained production moves the
+ *       job within reactGames, verified by an independent replay of the
+ *       graded record (role-response.ts; docs/CAREER.md pillar 1, the
+ *       flagship gate). The old roleClock re-read was tautological,
+ *       issue #41: trust.ts resets that clock before returning.
  *     - the explained-consequence lint: every event, grade, and ledger
  *       row carries its reason
- *     - determinism: the same seed and the same choices replay to a
- *       byte-identical career
+ *     - determinism: a career recorded from creation through the draft
+ *       into NBA game weeks replays byte-identical from its seed and
+ *       recorded choice log alone (career-replay.ts). Abroad phases,
+ *       the descent, retirement, and the epilogue sit outside the
+ *       replayed segment; a full-career double-run would double
+ *       acceptance wall time.
  *
  *   BANDS  (reported PASS/MISS, never fatal): draft outcomes track
  *     creation quality; the boredom audit (content per week, phone
@@ -25,8 +31,13 @@
 import {
   advanceCareerWeek, applyChoice, createCareer,
 } from '@hoopsh/career';
-import type { ApproachCard, CareerState, CreationSpec, PresetId } from '@hoopsh/career';
+import type {
+  ApproachCard, CareerState, CreationSpec, LoggedChoice, PresetId, SimulateJobs,
+} from '@hoopsh/career';
+import { createRoleTracker, observeRoleResponses } from './role-response.js';
 import { makeWorkerPool } from './runner.js';
+import { replayCareerFromLog } from './career-replay.js';
+import type { ReplayCheckpoint } from './career-replay.js';
 
 function flag(name: string, fallback: string): string {
   const idx = process.argv.indexOf(`--${name}`);
@@ -98,6 +109,7 @@ interface CareerReport {
   earnings: number;
   honors: number;
   invariantBreaches: number;
+  invariantNotes: string[];
   lintFailures: number;
   crashed: string | null;
 }
@@ -119,6 +131,35 @@ function ppgFrom(career: CareerState, kind: string): number {
   return Math.round((last.myLine.pts / last.myLine.gp) * 10) / 10;
 }
 
+/**
+ * The pilots' standing weekly decisions, shared by the fleet careers and
+ * the determinism recorder so the recorded choice log carries exactly
+ * the choice kinds the fleet exercises: the energy-adaptive week plan (a
+ * sane player rests a drained body; the bands then measure the design,
+ * not script stubbornness), the approach card while a season is live,
+ * the declare at the pilot's scripted college mark, and every workout
+ * invite in the pre-draft window.
+ */
+function scriptWeek(career: CareerState, pilot: Pilot): void {
+  if (career.energy < 35 && career.clock.phase !== 'retired') {
+    applyChoice(career, { kind: 'setWeekPlan', plan: { slots: ['rest', 'rest', 'life'], focus: pilot.plan.focus } as never });
+  } else {
+    applyChoice(career, { kind: 'setWeekPlan', plan: pilot.plan as never });
+  }
+  if (career.circuit && !career.circuit.complete) {
+    applyChoice(career, { kind: 'setApproach', card: pilot.approach });
+  }
+  if (career.clock.phase === 'college' && career.clock.week === 0
+    && career.circuitHistory.filter(h => h.kind === 'college').length >= pilot.declareAfterCollegeSeasons) {
+    applyChoice(career, { kind: 'declareDraft' });
+  }
+  if (career.clock.phase === 'draftPrep' && career.stock?.workoutInvites.length) {
+    for (const t of [...career.stock.workoutInvites]) {
+      applyChoice(career, { kind: 'attendWorkout', teamId: t });
+    }
+  }
+}
+
 /** Drive one whole career on a fixed script; judge as it goes. */
 async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advanceCareerWeek>[1]): Promise<CareerReport> {
   const seed = `${SEED}:${pilot.name}:${i}`;
@@ -126,7 +167,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
     pilot: pilot.name, seed, finalPhase: 'hs', years: 0, draft: 'undrafted', pick: null,
     hsPpg: 0, lastPrePpg: 0, events: 0, phone: 0,
     maxZeroEventStreak: 0, meanEventsPerWeek: 0, inSeasonEnergyMin: 100, pinnedWeeksPct: 0,
-    earnings: 0, honors: 0, invariantBreaches: 0, lintFailures: 0, crashed: null,
+    earnings: 0, honors: 0, invariantBreaches: 0, invariantNotes: [], lintFailures: 0, crashed: null,
   };
   let career: CareerState;
   try {
@@ -136,6 +177,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
     return report;
   }
   applyChoice(career, { kind: 'setWeekPlan', plan: pilot.plan as never });
+  const roleTracker = createRoleTracker(career);
 
   const startYear = career.clock.year;
   let weeks = 0;
@@ -151,25 +193,7 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
       const phase = career.clock.phase;
       if (phase === 'retired' && retiredYearsLived >= 5) break;
 
-      // the script's standing decisions: a sane player rests a drained
-      // body (the band then measures the design, not script stubbornness)
-      if (career.energy < 35 && phase !== 'retired') {
-        applyChoice(career, { kind: 'setWeekPlan', plan: { slots: ['rest', 'rest', 'life'], focus: pilot.plan.focus } as never });
-      } else {
-        applyChoice(career, { kind: 'setWeekPlan', plan: pilot.plan as never });
-      }
-      if (career.circuit && !career.circuit.complete) {
-        applyChoice(career, { kind: 'setApproach', card: pilot.approach });
-      }
-      if (phase === 'college' && career.clock.week === 0
-        && career.circuitHistory.filter(h => h.kind === 'college').length >= pilot.declareAfterCollegeSeasons) {
-        applyChoice(career, { kind: 'declareDraft' });
-      }
-      if (phase === 'draftPrep' && career.stock?.workoutInvites.length) {
-        for (const t of [...career.stock.workoutInvites]) {
-          applyChoice(career, { kind: 'attendWorkout', teamId: t });
-        }
-      }
+      scriptWeek(career, pilot);
       if (phase === 'nba' && nbaWeeksLived >= NBA_SEASONS * 52) {
         const r = applyChoice(career, { kind: 'retire' });
         if (r.ok) continue; // the retired loop finishes the story
@@ -195,10 +219,14 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
       if (phase === 'nba') nbaWeeksLived += 1;
       if (phase === 'retired') retiredYearsLived += 1; // one advance = one retired year
 
-      // THE INVARIANT, live: the clocks must never sit at reactGames
-      const t = career.params.trust;
-      if (career.coach.roleClock.above >= t.reactGames || career.coach.roleClock.below >= t.reactGames) {
+      // THE INVARIANT, live: replay the graded record independently and
+      // demand the role response (role-response.ts; the roleClock re-read
+      // this replaces was tautological, issue #41)
+      for (const breach of observeRoleResponses(roleTracker, career)) {
         report.invariantBreaches += 1;
+        if (report.invariantNotes.length < 3) {
+          report.invariantNotes.push(`week ${weeks} (${phase}): ${breach}`);
+        }
       }
     }
   } catch (err) {
@@ -237,26 +265,105 @@ async function runCareer(pilot: Pilot, i: number, sim: Parameters<typeof advance
   return report;
 }
 
-/** The determinism gate: 40 identical scripted weeks, twice, byte-equal. */
-async function determinismGate(sim: Parameters<typeof advanceCareerWeek>[1]): Promise<string | null> {
-  const snap = async (): Promise<string> => {
-    const career = createCareer({ seed: `${SEED}:det`, spec: specFor(PILOTS[1]!, 99) });
-    applyChoice(career, { kind: 'setWeekPlan', plan: PILOTS[1]!.plan as never });
-    for (let w = 0; w < 40; w++) {
-      if (career.circuit && !career.circuit.complete) {
-        applyChoice(career, { kind: 'setApproach', card: PILOTS[1]!.approach });
-      }
-      await advanceCareerWeek(career, sim);
-    }
-    return JSON.stringify(career);
+// ---------------------------------------------------------------------------
+// the determinism gate: CareerState = f(seed, choiceLog)
+
+/**
+ * NBA in-season weeks (a week whose digest lists a finished game of
+ * mine) the recorded determinism segment must reach. Each one drives the
+ * bridge's approach swap and delta-reconcile (nbabridge.ts), the
+ * mutation-heaviest surface in the layer. FEEL — enough repetitions to
+ * exercise the swap without paying for a full NBA season.
+ */
+const DET_NBA_GAME_WEEKS = 4;
+
+/**
+ * Recording hard stop, in advances. The phenom route needs ~210 (42 HS
+ * weeks to the first wrap, two 52-week college years, 39 draftPrep weeks
+ * to draft night, then the league's on-ramp to its first game weeks);
+ * 320 leaves calendar slack without letting a stalled career record
+ * unbounded. FEEL.
+ */
+const DET_MAX_WEEKS = 320;
+
+interface DetRecording {
+  advances: number;
+  choiceLog: LoggedChoice[];
+  checkpoints: ReplayCheckpoint[];
+  yearWraps: number;
+  nbaGameWeeks: number;
+  drafted: boolean;
+}
+
+/**
+ * Record one scripted career from creation until DET_NBA_GAME_WEEKS NBA
+ * game weeks have been lived (or DET_MAX_WEEKS advances). The recording
+ * is the career's own choice log plus byte checkpoints at the first
+ * year wrap, draft night, and the final advance — the surfaces issue
+ * #66 found outside the old 40-week compare.
+ */
+async function recordDetCareer(seed: string, spec: CreationSpec, pilot: Pilot, sim: SimulateJobs): Promise<DetRecording> {
+  const career = createCareer({ seed, spec });
+  const rec: DetRecording = {
+    advances: 0, choiceLog: [], checkpoints: [], yearWraps: 0, nbaGameWeeks: 0, drafted: false,
   };
-  const a = await snap();
-  const b = await snap();
-  if (a === b) return null;
-  // locate the first divergence for the report
-  let at = 0;
-  while (at < Math.min(a.length, b.length) && a[at] === b[at]) at++;
-  return `states diverge at char ${at}: ...${a.slice(Math.max(0, at - 60), at + 40)}... vs ...${b.slice(Math.max(0, at - 60), at + 40)}...`;
+  while (rec.advances < DET_MAX_WEEKS) {
+    scriptWeek(career, pilot);
+    const yearBefore = career.clock.year;
+    const phaseBefore = career.clock.phase;
+    const digest = await advanceCareerWeek(career, sim);
+    rec.advances += 1;
+    if (career.clock.year !== yearBefore) {
+      rec.yearWraps += 1;
+      if (rec.yearWraps === 1) {
+        rec.checkpoints.push({ at: rec.advances, label: 'the first year wrap', json: JSON.stringify(career) });
+      }
+    }
+    if (phaseBefore !== 'nba' && career.clock.phase === 'nba') {
+      // resolveDraftNight flips the phase only when a board called the name
+      rec.drafted = true;
+      rec.checkpoints.push({ at: rec.advances, label: 'draft night', json: JSON.stringify(career) });
+    }
+    if (career.clock.phase === 'nba' && digest.gamesPlayed.length > 0) {
+      rec.nbaGameWeeks += 1;
+      if (rec.nbaGameWeeks >= DET_NBA_GAME_WEEKS) break;
+    }
+  }
+  rec.checkpoints.push({ at: rec.advances, label: `the final advance (${rec.advances})`, json: JSON.stringify(career) });
+  rec.choiceLog = structuredClone(career.choiceLog);
+  return rec;
+}
+
+/**
+ * The determinism gate. Records a scripted career through at least one
+ * year wrap, draft night, and DET_NBA_GAME_WEEKS NBA game weeks, then
+ * replays it from the recorded choice log alone (career-replay.ts; the
+ * script never runs again) and byte-compares every checkpoint. Fails on
+ * any divergence AND on a recording that never covered the named
+ * surface, so coverage cannot silently shrink back to a pre-draft
+ * slice. Returns the failure (null on pass) and the covered surface for
+ * the console line.
+ */
+async function determinismGate(sim: SimulateJobs): Promise<{ failure: string | null; coverage: string }> {
+  const pilot = PILOTS[0]!; // the phenom: the shortest scripted route into the league
+  const seed = `${SEED}:det`;
+  const spec = specFor(pilot, 99);
+  const rec = await recordDetCareer(seed, spec, pilot, sim);
+  const coverage = `${rec.advances} weeks, ${rec.choiceLog.length} choices, ${rec.yearWraps} year wraps, `
+    + `${rec.drafted ? 'draft night' : 'NO DRAFT NIGHT'}, ${rec.nbaGameWeeks} NBA game weeks`;
+  if (rec.yearWraps < 1 || !rec.drafted || rec.nbaGameWeeks < DET_NBA_GAME_WEEKS) {
+    return {
+      failure: 'coverage: the recorded segment must span a year wrap, draft night, and '
+        + `${DET_NBA_GAME_WEEKS} NBA game weeks; got ${coverage}. Replay determinism was not judged. `
+        + 'A det career this seed leaves undrafted cannot cover the NBA bridge; rerun with another --seed',
+      coverage,
+    };
+  }
+  const problem = await replayCareerFromLog({
+    makeCareer: () => createCareer({ seed, spec }),
+    log: rec.choiceLog, advances: rec.advances, expected: rec.checkpoints, sim,
+  });
+  return { failure: problem, coverage };
 }
 
 async function main(): Promise<void> {
@@ -267,8 +374,11 @@ async function main(): Promise<void> {
 
   // GATE: determinism first (everything else is noise if it fails)
   const det = await determinismGate(pool);
-  if (det) gateFailures.push(`determinism: ${det}`);
-  console.log(`determinism: ${det ? 'FAIL' : 'ok'} (${Math.round((Date.now() - started) / 1000)}s)`);
+  if (det.failure) gateFailures.push(`determinism: ${det.failure}`);
+  console.log(`determinism: ${det.failure
+    ? 'FAIL'
+    : `ok — recorded ${det.coverage}; replayed byte-identical from the choice log alone`} `
+    + `(${Math.round((Date.now() - started) / 1000)}s)`);
 
   const reports: CareerReport[] = [];
   for (let i = 0; i < CAREERS; i++) {
@@ -284,7 +394,7 @@ async function main(): Promise<void> {
   // GATES over the fleet
   for (const r of reports) {
     if (r.crashed) gateFailures.push(`${r.pilot}: crashed: ${r.crashed}`);
-    if (r.invariantBreaches > 0) gateFailures.push(`${r.pilot}: reacting-world invariant breached ${r.invariantBreaches}x (role clock sat at reactGames)`);
+    if (r.invariantBreaches > 0) gateFailures.push(`${r.pilot}: reacting-world invariant breached ${r.invariantBreaches}x (${r.invariantNotes.join(' | ')})`);
     if (r.lintFailures > 0) gateFailures.push(`${r.pilot}: ${r.lintFailures} unexplained consequences (empty reasons)`);
     if (r.finalPhase === 'hs' || r.finalPhase === 'college') gateFailures.push(`${r.pilot}: career stalled in ${r.finalPhase}`);
   }

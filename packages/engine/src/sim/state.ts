@@ -227,6 +227,33 @@ export type Phase =
        * only; internal state, never an event/replay field.
        */
       timeout?: { team: TeamSide; reason: TimeoutReason };
+      /** #115 layer B — the whistle-parked ball spot this stoppage's relay
+       *  walks FROM. Stamped LAST at both dead-phase construction sites
+       *  (deadBall; endPeriod, which builds its phase without deadBall),
+       *  after every resumeIn stretch (timeout huddle, replay review) has
+       *  landed, so the relay always spans the stoppage's real length.
+       *  tickDead lerps the ball carryFrom → the handler-designate across
+       *  the stoppage (the #82 C1 free-throw carry shape on the dead
+       *  phase); giveBall's acquisition stamp is the arrival write.
+       *  Deliberately absent on the opening-tip dead phase (game.ts): the
+       *  tip ball is administered at center court, there is no whistle
+       *  displacement to relay. Frames-only by construction after #115
+       *  layer A — the frame recorder is dead-phase ball.pos's only
+       *  reader. */
+      carryFrom?: V2;
+      /** #115 layer B — wall-clock stamp of the relay's zero. wallT on
+       *  purpose, NOT game-clock t: a clockRuns:false stoppage freezes t,
+       *  so a t-keyed lerp would park at zero (the AGENTS §1.5 trap; the
+       *  same axis discipline as the freethrows variant's carryT0). */
+      carryT0?: number;
+      /** #115 layer B — the stoppage's full resumeIn at stamp time (wall
+       *  seconds), the lerp's denominator. Recorded because resumeIn
+       *  itself counts DOWN in tickDead. Not a knob: every stoppage
+       *  relays across exactly the delay it already has (Lead ruling,
+       *  issue #115 — a constant relay speed is a FEEL question with no
+       *  acceptance target; if playtests dislike relay pacing that
+       *  becomes its own issue). */
+      carryDur?: number;
     }
   | {
       kind: 'freethrows';
@@ -236,6 +263,19 @@ export type Phase =
       /** attempts the trip can reach — for a one-and-one this is the potential 2; a front-end miss ends the trip early (fouls.ts tickFreeThrows) */
       of: number;
       nextIn: number;
+      /** #82 C1 — the whistle-caught ball spot the trip's carry walks FROM.
+       *  Entry no longer snaps the ball to the line (that snap was the frame
+       *  stream's largest teleport class: 25.4 foul-crossing jumps/g, p50
+       *  13.9 ft, max ~75 ft); tickFreeThrows lerps it spot→line across the
+       *  ftSetupSec lead-in (fouls.ts). Always stamped by enterFreeThrows,
+       *  the variant's only constructor. */
+      carryFrom?: V2;
+      /** #82 C1 — wall-clock stamp of trip entry, the carry lerp's zero.
+       *  wallT on purpose, NOT game-clock t: the game clock is frozen
+       *  through the ritual, so a t-keyed lerp would freeze at zero (the
+       *  AGENTS §1.5 trap). F1's pendingRelease pair rides t and never
+       *  mixes with wallT; this pair rides wallT and never mixes with t. */
+      carryT0?: number;
       /** one-and-one bonus trip (NCAA men, rules.bonusRule): the second attempt exists only if the first is made; a front-end miss is a LIVE ball */
       oneAndOne: boolean;
       /** pending technical prefix attempt (officiating wave, fouls.ts): shot
@@ -274,6 +314,19 @@ export interface Possession {
    *  0 < leakOutScale < 1 (heave-guard shape: 0 never draws, >= 1
    *  short-circuits draw-free). Constant false everywhere else. */
   leakArmed: boolean;
+  /** #74 transition-carry dose: this transition possession rolled a live
+   *  carry (the exact leakArmed shape above — one heave-guard draw, same
+   *  live_rebound/steal scope, ai.transCarryScale). Constant false
+   *  everywhere else; consumed by game.ts's driving branch. */
+  carryArmed: boolean;
+  /** #114 halfcourt blow-by dose: this possession rolled a live blow-by
+   *  (the leakArmed heave-guard shape above — one draw at
+   *  0 < blowByCarryScale < 1, zero draws at 0 and >= 1) — but on EVERY
+   *  start kind, where the two transition draws are
+   *  live_rebound/steal-scoped: any possession reaches halfcourt. Rolled
+   *  in startPossession after the carry draw; consumed by game.ts
+   *  blowsByToRim. */
+  blowByArmed: boolean;
   /**
    * The period's first possession (fdesign-grammar M1b). Stamped in
    * startPossession: the game clock still reads the period's full value
@@ -386,6 +439,28 @@ export interface GameState {
     releaseAt: number;
     /** contest level when the shot was decided (late closeouts count less) */
     contest0: number;
+    /** #74 transition carry: this windup is a carried break finish — the
+     *  RELEASE point is the rim plane by construction (startShot), because
+     *  a sprinting body's stopping distance is exactly the behind-plane
+     *  artifact the carry removes; the CONTEST still reads off the body at
+     *  release, so traffic prices the finish honestly. Absent everywhere
+     *  else. */
+    carryRim?: boolean;
+    /** #74 F1 amendment — the carried gather's ball path: the windup-start
+     *  ball spot (the decide-time body position) the ball travels FROM.
+     *  During a carried windup the ball no longer rides the sliding body:
+     *  it moves body-to-rim across the windup (game.ts), meeting the hoop
+     *  exactly at release — so the rim-plane booking is continuous instead
+     *  of a release-tick teleport off a body that has already passed the
+     *  plane (measured slide: release-tick body-to-rim p50 4.87 ft, max
+     *  9.95, on decide gaps of at most the gather gate). Defense reads the
+     *  honest ball (windup closeouts converge on the finish, not the
+     *  fly-by). Stamped with carryRim; absent everywhere else. */
+    carryFrom?: V2;
+    /** #74 F1 amendment — game-clock stamp of the carried windup's start
+     *  (the decide tick), the lerp's zero. Game-clock t on purpose, the
+     *  same axis as releaseAt: the pair never mixes with wallT. */
+    carryT0?: number;
   } | null;
   over: boolean;
 }

@@ -7,7 +7,7 @@
 import { makeCourt } from '../geometry/court.js';
 import { NBA, type RulePack } from '../rules/rulepack.js';
 import type { Team } from '../model/player.js';
-import type { GameEvent, TeamSide } from '../core/events.js';
+import type { GameEvent, ShotMoveType, TeamSide } from '../core/events.js';
 import { defaultParams, withParams, type SimParams } from './params.js';
 import {
   agent, attackedRim, emit, liveOnCourt, round1,
@@ -16,7 +16,8 @@ import {
 import { Rng } from '../core/rng.js';
 import { add, dist, len, lerp, norm, scale, sub } from '../core/vec.js';
 import {
-  decideBall, defenseTick, midPullUpLight, offenseOffBallTick, type BallAction
+  decideBall, defendersInLane, defenseTick, midPullUpLight, offenseOffBallTick,
+  onBallDefender, type BallAction
 } from './ai.js';
 import { contestAt, defendersBack } from './resolve.js';
 import {
@@ -222,6 +223,8 @@ function initState(cfg: GameConfig): GameState {
       startT: 0,
       kind: 'tip',
       leakArmed: false,
+      carryArmed: false,
+      blowByArmed: false,
       // pre-tip placeholder; the tip possession itself is stamped by
       // startPossession like every period start
       opener: false,
@@ -324,10 +327,28 @@ function tickLive(s: GameState, dt: number): void {
     defenseTick(s);
     integrateMovement(s, dt);
     applyFatigue(s, dt);
-    s.ball.pos = { x: h.pos.x, y: h.pos.y };
+    if (pr.carryRim && pr.carryFrom !== undefined && pr.carryT0 !== undefined) {
+      // #74 F1 amendment — the carried gather's honest ball path: the
+      // ball extends from the gather spot to the rim across the windup
+      // instead of riding a body that passes the plane and keeps sliding
+      // (measured at scale 1: every gated carry brings the body within
+      // 4.35 ft of the rim mid-windup, but the release-tick body sits
+      // p50 4.87 / max 9.95 ft past-or-beside it). The lerp makes the
+      // rim-plane booking CONTINUOUS — the ball is already at the hoop
+      // when the shot books — and the defense reads the honest ball
+      // (closeouts converge on the finish, not the fly-by; contest at
+      // release still prices off the body per the approved sketch).
+      // Both stamps are game-clock t, the releaseAt axis — never wallT.
+      const dur = pr.releaseAt - pr.carryT0;
+      const raw = dur > 0 ? (s.t - pr.carryT0) / dur : 1;
+      const f = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+      s.ball.pos = lerp(pr.carryFrom, attackedRim(s, h.side), f);
+    } else {
+      s.ball.pos = { x: h.pos.x, y: h.pos.y };
+    }
     if (s.t >= pr.releaseAt) {
       s.pendingRelease = null;
-      startShot(s, h, pr.moveType, pr.contest0);
+      startShot(s, h, pr.moveType, pr.contest0, pr.carryRim);
     }
     return;
   }
@@ -497,8 +518,90 @@ function tickLive(s: GameState, dt: number): void {
   integrateMovement(s, dt);
   applyFatigue(s, dt);
 
-  // ball follows holder
-  s.ball.pos = { x: h.pos.x, y: h.pos.y };
+  // ball follows holder — the CURRENT holder, not the tick-start binding:
+  // a reach-in strip at stage 10 already handed the ball to the thief
+  // (giveBall's acquisition stamp, #115 layer A), and the stale `h` write
+  // here re-parked it on the victim for a tick — the frame showed
+  // holderSlot on the thief with the ball on the stripped man, and the
+  // NEXT tick's defense read priced the victim's body as the ball
+  // (measured: 17 arrival mismatches / 1545 possession starts, all
+  // lost_ball steals, before the re-read).
+  const holderNow = s.ball.holderId ? agent(s, s.ball.holderId) : h;
+  s.ball.pos = { x: holderNow.pos.x, y: holderNow.pos.y };
+}
+
+/**
+ * #74: does this committed drive finish carry to a rim-plane release?
+ * The transition carry's full gate in short-circuit order: the stage
+ * switch (transCarryScale, checked FIRST — the staged-zero contract),
+ * the possession's arming draw (carryArmed, rolled in startPossession),
+ * the label (only 'drive' finishes), the live commit window
+ * (driveUntil), the phase, the beaten retreat, and the F1 gather gate
+ * (the carry's own reach — params.ai.transCarryGatherFt). Pure read: no
+ * rng, no writes, no side effects on GameState. Called from
+ * executeAction's shoot branch at decide time; exported so
+ * transcarry.test.ts can pin it condition-by-condition on hand-built
+ * states (probe F2: phase is not in the event stream and the
+ * scope-guard buckets by possession START kind, so a within-possession
+ * gate regression is invisible to every stream-side test).
+ */
+export function carriesToRim(s: GameState, h: Agent, moveType: ShotMoveType): boolean {
+  return (
+    s.params.ai.transCarryScale > 0 &&
+    s.poss.carryArmed &&
+    moveType === 'drive' &&
+    s.t < h.driveUntil &&
+    s.poss.phase === 'transition' &&
+    defendersBack(s, h.side) < s.params.move.transSetBackCount &&
+    dist(h.pos, attackedRim(s, h.side)) <= s.params.ai.transCarryGatherFt
+  );
+}
+
+/**
+ * #114: does this committed HALFCOURT drive finish carry to a rim-plane
+ * release? The transition carry's halfcourt sibling (carriesToRim,
+ * above) — the same gather-through-the-windup construction, gated on the
+ * halfcourt geometry that means "won the matchup" instead of the break's
+ * beaten retreat. In short-circuit order: the stage switch
+ * (blowByCarryScale, checked FIRST — the staged-zero contract), the
+ * possession's arming draw (blowByArmed, rolled in startPossession on
+ * every start kind), the label (only 'drive' finishes), the live commit
+ * window (driveUntil), the phase (halfcourt — disjoint from carriesToRim
+ * by construction: phase is a single enum cell, at most one gate can
+ * fire), the beaten read (no on-ball defender within ai.onBallRadiusFt,
+ * or behindFt — his rim distance minus the handler's — at least
+ * ai.blowByBeatenFt), the lane read (ai/shared.ts defendersInLane, the
+ * SAME definition the drive chooser prices, under ai.blowByLaneMax), and
+ * the reach gate (ai.blowByGatherFt — one windup of cover, the
+ * transCarryGatherFt arithmetic). The cheap boolean chain runs before
+ * any geometry read so the staged gate adds no work. Pure read: no rng,
+ * no writes, no side effects on GameState. Called from executeAction's
+ * shoot branch at decide time; exported so blowby.test.ts can pin it
+ * condition by condition on hand-built states (the transcarry F2 seam
+ * shape: phase is not in the event stream, so a within-possession gate
+ * regression is invisible to every stream-side test).
+ */
+export function blowsByToRim(s: GameState, h: Agent, moveType: ShotMoveType): boolean {
+  if (
+    !(
+      s.params.ai.blowByCarryScale > 0 &&
+      s.poss.blowByArmed &&
+      moveType === 'drive' &&
+      s.t < h.driveUntil &&
+      s.poss.phase === 'halfcourt'
+    )
+  ) return false;
+  const rim = attackedRim(s, h.side);
+  const onBall = onBallDefender(s, h);
+  return (
+    // beaten: the matchup is won — nobody on the ball, or the man trails
+    // the handler's rim distance by the full beaten margin
+    (!onBall || dist(onBall.pos, rim) - dist(h.pos, rim) >= s.params.ai.blowByBeatenFt) &&
+    // lane: help has not committed (the chooser's own crowd definition)
+    defendersInLane(s, h, rim) < s.params.ai.blowByLaneMax &&
+    // reach: inside one windup of cover, the carry's own bound
+    dist(h.pos, rim) <= s.params.ai.blowByGatherFt
+  );
 }
 
 function executeAction(s: GameState, h: Agent, action: BallAction): void {
@@ -512,6 +615,78 @@ function executeAction(s: GameState, h: Agent, action: BallAction): void {
         releaseAt: s.t + windupSec(s, action.moveType),
         contest0: contestAt(s, h, h.pos).level
       };
+      // THE TRANSITION CARRY (#74, unassisted-creation arc increment 1): a
+      // committed drive finish on a beaten break CARRIES to a rim-plane
+      // release by construction. Everything about the decision is
+      // unchanged — same re-read cadence, same commit expiry, same 'drive'
+      // label, same windup race, same make model — but the body keeps
+      // carrying at the rim through the windup and the RELEASE point is
+      // the plane itself (startShot, carryRim). The #74 probe measured the
+      // deficit as pure release geometry (beaten-break finishes at median
+      // 4.8 ft against the booth's 2.25 ft book boundary, 0-8% at the
+      // plane, while plane releases convert at 59-67%), and instrumenting
+      // this branch localized the artifact one level deeper: decide-time
+      // rim distances on these finishes read 0.2-3.9 ft, so the
+      // behind-plane release IS the sprinting body's stopping distance —
+      // a 16 ft/s carry slides 4-6 ft during the 0.45 s windup whatever
+      // the steering target says, and no movement shape can land the
+      // plane. The 0.45 s is the windupDrive param; the effective windup
+      // is 0.50 s on every released carry, the param tick-quantized to
+      // the next 0.1 s boundary. The finish's extension at the rim has
+      // to be constructed,
+      // exactly as the approved sketch words it. The CONTEST still reads
+      // off the body at release (startShot), so a carry into traffic
+      // prices as the heavily-contested rim attempt it is — probabilistic
+      // resolution over hard physics, the engine's core bet. Dunk-class
+      // then books through the booth's own deterministic rule (made,
+      // inside its range, athlete gate) — the sync contract extended by
+      // reuse, not duplicated. The beaten read is the shared defendersBack
+      // measure the phase flip and the EV brain already use. No decide
+      // re-entry (W64 attempt 2), no speed change (attempt 1),
+      // drive-labeled attempt count untouched by construction (the same
+      // decides fire the same shots — only where the ball goes up moves).
+      // transCarryScale is the stage switch, checked FIRST.
+      //
+      // F1 amendment (PR #75 probe, Lead-ruled): the carry's reach is its
+      // OWN gate — the decide-time body-to-rim gap must sit inside
+      // ai.transCarryGatherFt or the finish stays an ordinary drive
+      // release. The only distance cap before it was
+      // decide.driveShotRangeFt (12 ft, the drive LABEL gate — a knob the
+      // carry's docs never named), and that tail booked the ball at the
+      // rim with the body 6+ ft away on 17.5% of scale-1 carries (release
+      // gap p90 7.44 ft, max 10.06 — not a human finish). NOTE: the
+      // defendersBack condition below is exactly redundant with
+      // phase === 'transition' today — the phase flip shares the read,
+      // runs earlier in the same tick, and positions are frozen between
+      // integrations (probe-verified: its deletion moves 0/12 streams).
+      // It stays as belt-and-suspenders on separately-owned conditions;
+      // do not "fix" the redundancy in either direction silently. The
+      // conditions themselves live in carriesToRim (above executeAction),
+      // extracted so the F2 pins can drive them one at a time.
+      // #114 — THE HALFCOURT BLOW-BY: the same carry, one phase over. A
+      // halfcourt handler who has WON the matchup (on-ball man beaten or
+      // absent, lane not yet collapsed, inside one windup of the rim)
+      // gathers through the windup exactly as the transition carry does —
+      // blowsByToRim OR-ed into the SAME carryRim construction, so the
+      // ball path, the plane release, the body-read contest, and the
+      // booth's booking rule are one mechanism behind two phase-disjoint
+      // gates. When help commits, the crowd count kills the gate and the
+      // existing kick-out valuation prices the pass (G4 moves as a
+      // byproduct, watched not chased). The W64 gates restated: no decide
+      // re-entry (the read rides the driveRecheckSec re-read that already
+      // exists), no speed change, no interior-catch gather (holder only,
+      // acquiredBy untouched), drive-labeled attempt count flat by
+      // construction — the same decides fire the same shots, only the
+      // release point moves.
+      if (carriesToRim(s, h, action.moveType) || blowsByToRim(s, h, action.moveType)) {
+        s.pendingRelease.carryRim = true;
+        // F1: the gather's ball path starts here (decide-time body spot,
+        // decide-tick clock) and meets the rim at release — tickLive
+        // moves the ball along it so the rim booking lands continuously.
+        s.pendingRelease.carryFrom = { x: h.pos.x, y: h.pos.y };
+        s.pendingRelease.carryT0 = s.t;
+        break; // carry the finish: target stays the rim, sprint stays on
+      }
       h.target = h.pos;
       h.sprinting = false;
       break;

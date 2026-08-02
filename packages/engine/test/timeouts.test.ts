@@ -18,7 +18,8 @@ import {
 import { sampleMatchup } from '@hoopsh/data';
 import { decideLiveTimeout, maybeFtTimeout } from '../src/sim/endgame.js';
 import { endPeriod } from '../src/sim/possession.js';
-import type { Agent, GameState, TimeoutReason } from '../src/sim/state.js';
+import type { Agent, GameState, Possession, TimeoutReason } from '../src/sim/state.js';
+import { SEED_PINS } from './seed-pins.gen.js';
 
 type TO = Extract<GameEvent, { type: 'timeout' }>;
 const timeouts = (r: GameResult): TO[] =>
@@ -194,14 +195,18 @@ describe('mandatory / TV stoppages (forced live)', () => {
   it('the Q4 late cap really blocks spending (0-cap arm) while Q1-Q3 are untouched', () => {
     // control (late cap 2) vs treatment (late cap 0) on the same seeds.
     // Probed: control shows 1-2 late-Q4 timeouts per game, treatment 0.
-    // Seeds re-anchored at the post-audit rebase, and again at the rules
-    // landing (rng reshuffles moved control games to zero late-Q4 calls by
-    // seed luck — the same re-anchor practice as the audit wave's own
-    // fixture shifts; scouted to-cap-1..16, picked 2 and 4).
-    for (const i of [2, 4]) {
+    // Seeds re-anchored by hand at the post-audit rebase, at the rules
+    // landing, and again at the #74 amended-dose landing (rng reshuffles
+    // moved control games to zero late-Q4 calls by seed luck — the same
+    // re-anchor practice as the audit wave's own fixture shifts; scouted
+    // to-cap-1..16, picked 1 and 7 — control late-Q4 counts 4 and 3);
+    // anchors live in ./seed-pins.gen.ts since issue #50 — if the vacuity
+    // guard below trips, run the re-anchor helper named there instead of
+    // re-scouting by hand.
+    for (const seed of SEED_PINS.tocap.seeds) {
       const { home, away } = sampleMatchup();
       const mk = (late: number): GameResult => simulateGame({
-        seed: `to-cap-${i}`, home, away, collectFrames: false,
+        seed, home, away, collectFrames: false,
         params: { endgame: { ...MAND.endgame, toFinalPeriodLateMaxTimeouts: late } }
       });
       const late = (r: GameResult): number =>
@@ -550,11 +555,24 @@ describe('endPeriod bookkeeping (hand-built state)', () => {
       lineup: [[...home.starters], [...away.starters]],
       rng: new Rng('to-ot-unit'),
       ball: { holderId: null, pos: { x: 47, y: 25 }, flight: null },
+      // #130: a full-shape hand-built Possession literal (the 153f110
+      // convention). The fixture-wide cast hides it from tsc, so `satisfies`
+      // makes the convention a compiler guarantee: growing the Possession
+      // shape fails CI types here instead of leaving a silently-undefined
+      // field (the #123 blowByArmed landing patched only the typed grammar
+      // literal and this site broke with no signal).
       poss: {
         team: 0, shotClock: 10, phase: 'halfcourt', startT: 0, kind: 'inbound',
         leakArmed: false,
+        carryArmed: false,
+        blowByArmed: false,
+        // opener was silently missing too (fdesign-grammar M1b): false is
+        // what startPossession stamps mid-period, and nothing on the
+        // endPeriod paths reads either field — both additions are
+        // runtime-inert here
+        opener: false,
         lastPass: null, spotMap: new Map(), spots: new Map(), action: null, ended: false
-      },
+      } satisfies Possession,
       phase: { kind: 'live' },
       events: [],
       frames: [],

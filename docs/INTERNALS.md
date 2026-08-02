@@ -51,7 +51,9 @@ event `wt` key on it). Do not mix them.
 | `sim/ai/shared.ts` | creation hierarchy, defender queries, locomotion policy | cross-layer queries |
 | `sim/endgame.ts` | endgame layer (`GameConfig.endgame`, **default ON** since the n=1260/arm flag-on survey; explicit `endgame: false` is the byte-identical legacy path): timeout brain (plus the game-wide timeout economy since the FLOW flip — below), intentional-foul targeting, chase arithmetic shared with concept 6 | late-game management |
 | `sim/resolve.ts` | probability models: shots, contests, passes, rebounds | make/miss math |
-| `sim/params.ts` | **every tunable constant** (`SimParams`) | calibration; never hardcode a constant elsewhere |
+| `sim/params.ts` | **every tunable constant** — the composed calibration surface: `SimParams`, `defaultParams`, `paramProvenance`, `withParams` (#36 split) | calibration; never hardcode a constant elsewhere |
+| `sim/params.<block>.ts` | one module per block (`shot` `foul` `pass` `reb` `decide` `move` `fatigue` `sub` `endgame` `officiating` `ai`): the block's interface, calibrated defaults, and per-knob provenance map | an individual knob's value, docs, or provenance |
+| `sim/params.provenance.ts` | the `Provenance` tag vocabulary (`REAL`/`SWEPT`/`FEEL`) and the #36 adjudication rules | what a provenance tag means |
 | `sim/state.ts` | shared types + `emit()` | event stamping, new state fields |
 | `core/events.ts` | the event schema — **the public contract** | anything consumers see |
 | `core/rng.ts` | seeded sfc32 + distributions | never use Math.random |
@@ -135,6 +137,7 @@ modules an agent is likely to be pointed at):
 | `fingerprint.ts` | golden fingerprint corpus — the pure-refactor byte-identity tripwire (default mode, run locally) and the CI determinism gate (`--determinism`: corpus double-built in-process, the two runs must match; not a gameplay gate since issue #33) |
 | `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
 | `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
+| `reanchor.ts` | the seed-pin re-anchor helper (issue #50): verifies every `seed-pins.gen.ts` anchor — the W54/W56 pinned-fixture class consumed by events/subs/timeouts/leakout (engine), season (harness), pbp (narration) — against the current streams; `--write` re-scouts stranded anchors per each pin's documented doctrine, rewrites the generated anchor files, and re-runs the consuming tests as confirmation. Never edits a test or lowers a floor; REFUSES (exit 1) when a scan exhausts or a collapse discriminator trips (per-pin guards against laundering a dead mechanism through lucky seeds — the review #88 finding; doctrine audit in the file header). Confirmation red is classified: managed failures restore and exit 1; failures matching only the KNOWN_UNMANAGED registry restore too unless `--keep-unmanaged-red` keeps the re-anchor and exits 2, loudly listing the remaining hand tax |
 
 Roster-authoring tooling (`tools/gen-schema.mjs`, `roster-new.mjs`,
 `roster-validate.mjs` — `npm run schema:gen` / `roster:new` / `roster:validate`)
