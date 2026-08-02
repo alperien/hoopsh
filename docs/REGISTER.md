@@ -1,7 +1,7 @@
 # The debt register
 
 The live register of calibration/modeling debt (D1–D9) and audit/landing
-items (W1–W73). Rows are appended per landing and never renumbered; resolved
+items (W1+). Rows are appended per landing and never renumbered; resolved
 rows keep their record in place — the register is the project's memory of
 what was measured, decided, and deferred.
 
