@@ -5,6 +5,8 @@
  * never consulted the boundary: an AI offer pending at the deadline could
  * be accepted at deadline+1 through respondToRequest. validateTrade is
  * the choke-point every path funnels through, so the wall lives there.
+ * #249 extends the freeze through the July moratorium (phase 'moratorium':
+ * deals agreed but not signable), pinned below at ledger and backstop.
  */
 import { describe, expect, it } from 'vitest';
 import type { InboxItem, League, TradeOffer } from '../src/types.js';
@@ -131,5 +133,29 @@ describe('the deadline freeze binds the ledger (#231)', () => {
     expect(item.resolved).toBe(true);
     expect(league.transactions.length).toBe(1);
     expect(league.transactions[0]!.kind).toBe('trade');
+  });
+
+  it('the #249 gap: the July moratorium freezes the ledger, and free agency reopens it', () => {
+    const league = fixtureLeague();
+    league.phase = 'moratorium';
+    const frozen = validateTrade(league, legalOffer(league));
+    expect(frozen.ok).toBe(false);
+    expect(frozen.errors.join(' ')).toContain('moratorium');
+    // the day after the moratorium: the market opens and the ledger follows
+    league.phase = 'freeAgency';
+    expect(validateTrade(league, legalOffer(league)).ok).toBe(true);
+  });
+
+  it('executeTrade backstop: a moratorium trade throws and the ledger stays clean (#249)', () => {
+    const league = fixtureLeague();
+    league.phase = 'moratorium';
+    let thrown = '';
+    try {
+      executeTrade(league, legalOffer(league));
+    } catch (err) {
+      thrown = String(err);
+    }
+    expect(thrown).toContain('moratorium');
+    expect(league.transactions.length).toBe(0);
   });
 });

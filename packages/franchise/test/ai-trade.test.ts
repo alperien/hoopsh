@@ -420,6 +420,18 @@ describe('respondToOffer: negotiation texture', () => {
     expect(verdict.accept).toBe(false);
     expect(verdict.reasoning).toContain('deadline');
   });
+
+  it('the July moratorium hangs up the phones (#249)', () => {
+    const league = fixtureLeague();
+    league.phase = 'moratorium';
+    const verdict = respondToOffer(league, {
+      from: USER, to: AI_A,
+      give: { players: [league.teams[USER]!.roster[0]!], picks: [] },
+      get: { players: [league.teams[AI_A]!.roster[0]!], picks: [] },
+    });
+    expect(verdict.accept).toBe(false);
+    expect(verdict.reasoning).toContain('moratorium');
+  });
 });
 
 // ------------------------------------------------------------ league pulse
@@ -484,6 +496,25 @@ describe('aiTradePulse', () => {
     league.day = league.params.calendar.tradeDeadlineDayIndex + 1;
     expect(aiTradePulse(league).length).toBe(0);
     expect(league.transactions.length).toBe(0);
+  });
+
+  it('goes quiet through the July moratorium even at pulse probability 1 (#249)', () => {
+    const { league } = pulseLeague(AI_B);
+    league.phase = 'moratorium'; // phase decides; the deadline-week day index is irrelevant here
+    league.params.trade.offseasonPulse = 1; // the offseason dice at certainty: the gate on trial, not the dice
+    expect(aiTradePulse(league).length).toBe(0);
+    expect(league.transactions.length).toBe(0);
+    expect(league.negotiations.length).toBe(0); // no probes, no memory: the wire never woke
+    expect(league.inbox.length).toBe(0);
+  });
+
+  it('the day after the moratorium the wire is live again: free agency executes the same deal (#249)', () => {
+    const { league, vet } = pulseLeague(AI_B);
+    league.phase = 'freeAgency';
+    league.params.trade.offseasonPulse = 1;
+    const txs = aiTradePulse(league);
+    expect(txs.length).toBe(1);
+    expect(league.teams[AI_A]!.roster).toContain(vet);
   });
 });
 
