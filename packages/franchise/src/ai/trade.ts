@@ -24,7 +24,7 @@ import type {
   TradeOffer, TradeVerdict, Transaction,
 } from '../types.js';
 import { streamRng } from '../rng.js';
-import { validateTrade } from '../cba/tradelegal.js';
+import { maxIncomingFor, validateTrade } from '../cba/tradelegal.js';
 import { executeTrade } from '../transactions.js';
 import { abilityScore, offerNet, packageSizeM, pickValue, playerValue } from './valuation.js';
 
@@ -383,6 +383,8 @@ export function respondToOffer(league: League, offer: TradeOffer): TradeVerdict 
 const MAX_PACKAGE_ADDS = 5;   // FEEL a sensible AI package tops out around 5 pieces
 const MAX_ASSEMBLY_SCANS = 24; // FEEL bounded search over buyer assets per pulse
 const YOUNG_ASSET_AGE = 25;    // FEEL "young" for a contender's sweetener purposes
+const SALARY_LEAD_TRIES = 3;   // FEEL matching-money leads probed in pass 2 before giving up
+const CORE_SALARY_SHARE = 0.18; // FEEL pay above ~18% of cap marks a core piece whatever its surplus reads
 
 /** Per-day probability the wire wakes up, by calendar phase. */
 function pulseChance(league: League): number {
@@ -465,7 +467,13 @@ function buyerSweeteners(league: League, buyer: TeamId): Array<{ kind: 'player' 
     // shape, priced by the sweetener math in respondToOffer)
     const value = playerValue(league, buyer, pid);
     if (value < 0) continue;
-    if (age <= YOUNG_ASSET_AGE || value < 12) out.push({ kind: 'player', id: pid, value }); // 12 = FEEL $M line between filler and core
+    // the filler line alone is a trap: a fairly-paid STAR prices near
+    // zero surplus (pay tracks worth) and reads as filler by value - the
+    // core-salary guard keeps the franchise off the sweetener table
+    const row = contract.years.find(y => y.season === league.season);
+    const capNow = league.capLines[league.season]?.cap ?? league.params.cba.genesisCap;
+    const corePaid = (row ? row.salary : 0) >= capNow * CORE_SALARY_SHARE;
+    if (age <= YOUNG_ASSET_AGE || (value < 12 && !corePaid)) out.push({ kind: 'player', id: pid, value }); // 12 = FEEL $M line between filler and core
   }
   out.sort((a, b) => a.value - b.value || (a.id < b.id ? -1 : 1)); // give up what you value least
   return out;
@@ -555,11 +563,41 @@ function assembleOffer(
   const bothBarsCleared = valueFirst.sellerEval.net >= valueFirst.sellerEval.target
     && valueFirst.buyerEval.net >= valueFirst.buyerEval.target;
   if (bothBarsCleared) {
-    // value said yes, league law said no: retry with matching salary first
-    const bySalary = [...candidates].sort((a, b) =>
-      candidateSalary(league, b) - candidateSalary(league, a) || a.value - b.value || (a.id < b.id ? -1 : 1));
-    const salaryFirst = walkPackage(league, buyer, seller, target, bySalary);
-    if (salaryFirst.closed) return salaryFirst.offer;
+    // Value said yes, league law said no - the usual culprit is salary
+    // matching, because picks carry no salary. Real deadline packages
+    // lead with MATCHING MONEY: the CHEAPEST single contract whose
+    // salary legalizes the return (tried cheapest-up, a few deep), then
+    // the value order for the rest. When no single contract matches,
+    // aggregate cheapest-up until the band clears - the classic
+    // three-fillers-and-a-pick shape. Cheapest-first is the realism
+    // guard: salary-descending order would lead with the best-paid
+    // roster and offer the franchise to absorb a rental.
+    const targetRow = league.players[target]!.contract?.years.find(y => y.season === league.season);
+    const incoming = targetRow ? targetRow.salary : 0;
+    const bySalaryAsc = candidates
+      .filter(c => candidateSalary(league, c) > 0)
+      .sort((a, b) => candidateSalary(league, a) - candidateSalary(league, b)
+        || a.value - b.value || (a.id < b.id ? -1 : 1));
+    const sufficient = bySalaryAsc
+      .filter(c => maxIncomingFor(league, buyer, candidateSalary(league, c)) >= incoming);
+    const leads: Sweetener[][] = sufficient.slice(0, SALARY_LEAD_TRIES).map(c => [c]);
+    if (leads.length === 0) {
+      const stack: Sweetener[] = [];
+      let sum = 0;
+      for (const c of bySalaryAsc) {
+        stack.push(c);
+        sum += candidateSalary(league, c);
+        if (maxIncomingFor(league, buyer, sum) >= incoming) {
+          leads.push([...stack]);
+          break;
+        }
+      }
+    }
+    for (const lead of leads) {
+      const rest = candidates.filter(c => !lead.includes(c));
+      const salaryFirst = walkPackage(league, buyer, seller, target, [...lead, ...rest]);
+      if (salaryFirst.closed) return salaryFirst.offer;
+    }
   }
 
   // close-but-no talks are real negotiation state: the rumor mill may print smoke
