@@ -56,7 +56,7 @@ import {
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { blowsByToRim } from '../src/sim/game.js';
-import { tickDead, tickScramble } from '../src/sim/possession.js';
+import { startPossession, tickDead, tickScramble } from '../src/sim/possession.js';
 import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
 
 type ParamOverrides = Parameters<typeof withParams>[0];
@@ -449,7 +449,9 @@ function countDraws(rng: Rng): { n: number } {
 }
 
 /** a mid-Q2 transition trip, armed, ball dead or loose: the lifecycle
- *  fixtures inject the armed bit a real startPossession would have drawn */
+ *  fixtures inject the armed bit a real startPossession would have drawn.
+ *  Also serves the #138 off-switch pin below, which calls the real
+ *  startPossession on it (replacing poss) to count the arming site's draws */
 function mkLifecycleState(seed: string, params: ParamOverrides): GameState {
   const P = withParams(params);
   const court = makeCourt(NBA);
@@ -596,5 +598,91 @@ describe('the arm lifecycle (#131): continuations and the ORB flip re-roll nothi
     // dose-FLAT: the ORB continuation never reads the scale. A re-roll (or
     // a startPossession re-route) consumes one more draw at 0.5 than at 1
     expect(at05.draws).toBe(at1.draws);
+  });
+});
+
+// --------------------------------------------------- scale-0 off-switch pins
+
+/**
+ * #138: the hard-zero contract, pinned explicitly at the retired default.
+ * The arming draw's scale guard (`blowByScale > 0 &&`, possession.ts) is
+ * what makes scale 0 draw-free and byte-identical — the #123 increment's
+ * byte contract. The golden corpus covered it only while the shipped
+ * default was 0; the #123 tune moved the default to 0.5, so no corpus
+ * config reaches the guard's false arm any more, and the #132 review
+ * reproduced the gap: guard dropped, full suite and corpus all green.
+ * Two layers re-cover the OFF direction:
+ *
+ *  1. Baked stream checksums at scale 0 (the F3 shape, frames on, same
+ *     RE-ANCHOR doctrine). No live two-arm comparison can own this pin:
+ *     chance(0) consumes one float and never arms, so a dropped guard
+ *     shifts every scale-0 stream UNIFORMLY — any two in-engine configs
+ *     with scale <= 0 stay pairwise identical under the mutant, and only
+ *     a fixture baked from the guarded engine can witness the shift.
+ *  2. A draw-count property at the arming site, which survives re-anchors:
+ *     on identical hand-built states, startPossession consumes IDENTICAL
+ *     draws at scale 0 and scale 1 (both draw-free by the guard shape, so
+ *     the two runs' rng streams never diverge at all) and exactly one more
+ *     at the landing dose. The guard-drop breaks the equality from the 0
+ *     side; dropping the >= 1 short-circuit breaks it from the 1 side.
+ *
+ * Both layers were verified RED under the hand-applied guard-drop before
+ * landing — the harness supplies scale 0 through its own params patch, no
+ * defaults edited — and the interior-dose stream direction next to these
+ * rows is #127's separate concern. The mutation-shields doctrine.
+ */
+describe('the scale-0 off-switch (#138): the hard-zero contract at the retired default', () => {
+  // the F3 hashing convention, duplicated locally so the F3 block above
+  // stays untouched (stacked test-only diffs stay additive)
+  const fnv1a = (str: string): string => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  };
+
+  const PINNED: { seed: string; events: number; final: string; hash: string }[] = [
+    { seed: 'bb0pin-1', events: 1170, final: '111-92', hash: 'd6705f69' },
+    { seed: 'bb0pin-2', events: 1254, final: '108-113', hash: 'ec79d857' }
+  ];
+
+  for (const pin of PINNED) {
+    it(`${pin.seed} at scale 0 streams exactly the baked checksum`, () => {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({
+        seed: pin.seed, home, away, collectFrames: true,
+        params: { ai: { blowByCarryScale: 0 } }
+      });
+      const last = r.events[r.events.length - 1]!;
+      expect(r.events.length).toBe(pin.events);
+      expect(`${last.score[0]}-${last.score[1]}`).toBe(pin.final);
+      expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe(pin.hash);
+    });
+  }
+
+  it('the arming site is draw-free at both ends and draws exactly once at the landing dose', () => {
+    const run = (scale: number): { n: number; armed: boolean } => {
+      const s = mkLifecycleState('bb-off-switch', { ai: { blowByCarryScale: scale } });
+      const counter = countDraws(s.rng);
+      startPossession(s, 0, 'inbound');
+      return { n: counter.n, armed: s.poss.blowByArmed };
+    };
+    const at0 = run(0);
+    const at1 = run(1);
+    const at05 = run(0.5);
+    // the off-switch equality: 0 and 1 are both draw-free by the guard
+    // shape, so their whole startPossession draw sequences are identical.
+    // A dropped scale guard consumes chance(0) and breaks this from the 0
+    // side; a dropped >= 1 short-circuit breaks it from the 1 side
+    expect(at0.n).toBe(at1.n);
+    // the landing dose draws exactly the one arming chance() more: the
+    // draw precedes assignSpots' fixed-count jitter (its header documents
+    // the fixed draw count), so the offset is exact, not approximate
+    expect(at05.n).toBe(at0.n + 1);
+    // and the arming semantics at the ends: 0 is OFF, 1 always arms
+    expect(at0.armed).toBe(false);
+    expect(at1.armed).toBe(true);
   });
 });
