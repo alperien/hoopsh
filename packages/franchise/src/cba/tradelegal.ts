@@ -1,6 +1,7 @@
 /**
- * cba/tradelegal.ts - trade legality: salary matching bands, apron
- * restrictions, the Stepien rule, recent-signee freezes, roster bounds.
+ * cba/tradelegal.ts - trade legality: the deadline freeze, salary matching
+ * bands, apron restrictions, the Stepien rule, recent-signee freezes,
+ * roster bounds.
  *
  * Every rule cites docs/history/franchise-research/06-cba-rules.md
  * ("research 06", mostly §6). Money is integer dollars.
@@ -66,9 +67,32 @@ function dateLte(a: { season: number; day: number }, b: { season: number; day: n
 }
 
 /**
- * Full legality verdict for a two-team offer. Checks both directions:
- * player ownership and tradeability, salary matching per apron status,
- * second-apron aggregation, roster bounds, pick ownership, and Stepien.
+ * The trade deadline day: the calendar mark when built, else the params
+ * index. Mirror of ai/trade.ts#tradeDeadlineDay - legality cannot import
+ * from ai/ (ai/trade.ts consumes this module; the import would be
+ * circular), so the read is duplicated here. Keep the two in sync.
+ */
+function tradeDeadlineDay(league: League): number {
+  const marked = league.calendar.find(d => d.marks.includes('tradeDeadline'));
+  return marked ? marked.day : league.params.calendar.tradeDeadlineDayIndex;
+}
+
+/**
+ * True from the day after the deadline through the end of the postseason
+ * (research 06 §6: the deadline closes in-season trading). Mirror of
+ * ai/trade.ts#tradingFrozen - see tradeDeadlineDay above for why the
+ * predicate lives twice.
+ */
+function tradingFrozen(league: League): boolean {
+  if (league.phase === 'playin' || league.phase === 'playoffs') return true;
+  return league.phase === 'regular' && league.day > tradeDeadlineDay(league);
+}
+
+/**
+ * Full legality verdict for a two-team offer. Checks the deadline freeze
+ * first, then both directions: player ownership and tradeability, salary
+ * matching per apron status, second-apron aggregation, roster bounds,
+ * pick ownership, and Stepien.
  * Pure read; executeTrade calls it and throws on failure.
  */
 export function validateTrade(league: League, offer: TradeOffer): Legality {
@@ -78,6 +102,15 @@ export function validateTrade(league: League, offer: TradeOffer): Legality {
   if (!from) return { ok: false, errors: [`unknown team ${offer.from}`] };
   if (!to) return { ok: false, errors: [`unknown team ${offer.to}`] };
   if (offer.from === offer.to) return { ok: false, errors: ['a team cannot trade with itself'] };
+
+  // deadline law (#231): the freeze binds the ledger, not just the desk.
+  // respondToOffer refuses frozen talks at the negotiation surface, but
+  // every EXECUTION path funnels through this verdict (executeTrade throws
+  // on !ok), so the user's inbox accept at deadline+1, the AI paths, and
+  // any future caller all hit the same wall.
+  if (tradingFrozen(league)) {
+    return { ok: false, errors: [`the trade deadline (day ${tradeDeadlineDay(league)}) has passed; trading reopens after the postseason`] };
+  }
 
   const now = { season: league.season, day: league.day };
 
