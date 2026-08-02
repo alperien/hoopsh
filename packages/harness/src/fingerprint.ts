@@ -1,18 +1,39 @@
 /**
- * Golden fingerprint corpus — the refactor tripwire.
+ * Golden fingerprint corpus — determinism gate and refactor tripwire.
  *
- *   npm run fingerprint            verify current engine output against the
- *                                  checked-in corpus (exit 1 on any mismatch)
- *   npm run fingerprint:write      regenerate the corpus (ONLY after a
- *                                  deliberate, documented behavior change)
+ *   npm run fingerprint                verify current engine output against
+ *                                      the checked-in corpus (exit 1 on any
+ *                                      mismatch) — the pure-refactor tier's
+ *                                      byte-identity assertion (AGENTS §4.3)
+ *   npm run fingerprint:determinism    build the corpus twice in one process;
+ *                                      the two runs must be byte-identical.
+ *                                      The CI determinism gate. Never reads
+ *                                      or writes the golden file.
+ *   npm run fingerprint:write          regenerate the corpus — at the base
+ *                                      commit of a refactor you intend to
+ *                                      prove byte-identical (when the corpus
+ *                                      is stale), or at a deliberate
+ *                                      re-baseline
  *
- * WHY THIS EXISTS: behavior-preserving refactors (moving inline constants
- * into SimParams, deduplicating helpers, deriving values from the rule pack)
- * must be provably behavior-preserving, not hopefully so. This script hashes
- * the full event stream AND the replay frames for a fixed set of seeds; a
- * refactor commit that changes any hash is wrong by definition and gets
- * redone. This is the same byte-stability discipline the concepts.ts
- * consolidation used, made permanent and runnable.
+ * GATE ROLES (issue #33): the golden comparison is NOT a gameplay-regression
+ * gate and does not run in CI. Any rng-order change legitimately invalidates
+ * every hash (AGENTS §1.2), so a golden mismatch cannot distinguish a
+ * regression from an allowed change — measured at 53788fe, 42 of 463 commits
+ * were recalibration/re-baseline upkeep. Gameplay regressions are gated by
+ * the acceptance bands (`npm run batch -- --games 48` at RATCHET_FLOOR) plus
+ * the invariant suite, both of which survive rng-order changes. Consequence:
+ * the checked-in corpus MAY lag the engine. `npm run fingerprint` failing on
+ * an untouched tree means exactly that; regenerate at your base commit (its
+ * own commit) before starting a byte-identity-verified change.
+ *
+ * WHY THE GOLDEN COMPARISON STILL EXISTS: behavior-preserving refactors
+ * (moving inline constants into SimParams, deduplicating helpers, deriving
+ * values from the rule pack) must be provably behavior-preserving, not
+ * hopefully so. This script hashes the full event stream AND the replay
+ * frames for a fixed set of seeds; a refactor commit that changes any hash
+ * against a fresh corpus is wrong by definition and gets redone. This is the
+ * same byte-stability discipline the concepts.ts consolidation used, made
+ * permanent and runnable.
  *
  * The corpus covers both CI seeds (`ci-fp`, `acceptance-0`) so the existing
  * CI determinism/band steps are anchored to the same baseline, plus 22
@@ -133,6 +154,13 @@ function buildCorpus(): Corpus {
 }
 
 const write = process.argv.includes('--write');
+const determinism = process.argv.includes('--determinism');
+if (write && determinism) {
+  // loud flag grammar (H-03 discipline): one regenerates the reference, the
+  // other must never touch it — silently letting one win would hide a mistake
+  console.error('--write and --determinism are mutually exclusive');
+  process.exit(2);
+}
 const t0 = performance.now();
 
 if (write) {
@@ -141,6 +169,37 @@ if (write) {
   writeFileSync(GOLDEN_PATH, JSON.stringify(corpus, null, 2) + '\n');
   console.log(`wrote ${CORPUS_ENTRIES.length} fingerprints to ${path.relative(process.cwd(), GOLDEN_PATH)}`);
   console.log(`(${((performance.now() - t0) / 1000).toFixed(1)}s)`);
+} else if (determinism) {
+  // The CI determinism gate (issue #33): the corpus built twice in ONE
+  // process, compared run-to-run. Catches module-level state leaking across
+  // simulateGame calls — run 2 sees run 1's contamination. Its complement in
+  // the verify job, the two-PROCESS `npm run sim` stdout diff, catches
+  // process-stable ambient state (e.g. time-seeded init) that an in-process
+  // double build cannot see. Neither consults the golden file.
+  const run1 = buildCorpus();
+  const run2 = buildCorpus();
+  const failures: string[] = [];
+  for (const { seed } of CORPUS_ENTRIES) {
+    const a = run1[seed];
+    const b = run2[seed];
+    if (!a || !b) { failures.push(`${seed}: missing from a run`); continue; }
+    if (a.events !== b.events) failures.push(`${seed}: EVENTS hash differs between runs (${a.events.slice(0, 12)}… vs ${b.events.slice(0, 12)}…)`);
+    if (a.frames !== b.frames) failures.push(`${seed}: FRAMES hash differs between runs (${a.frames.slice(0, 12)}… vs ${b.frames.slice(0, 12)}…)`);
+    if (a.finalScore[0] !== b.finalScore[0] || a.finalScore[1] !== b.finalScore[1]) {
+      failures.push(`${seed}: final score differs between runs (${a.finalScore.join('-')} vs ${b.finalScore.join('-')})`);
+    }
+  }
+  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+  if (failures.length > 0) {
+    console.error(`DETERMINISM BREAK — same seeds, same process, different streams (${failures.length} deviation${failures.length === 1 ? '' : 's'}, ${secs}s):`);
+    for (const f of failures) console.error(`  ${f}`);
+    console.error(
+      '\nThis is never legitimate (AGENTS §1.2 — same seed must mean bit-identical output).\n' +
+      'Ambient state is leaking between simulations. Find it; there is nothing to re-baseline.'
+    );
+    process.exit(1);
+  }
+  console.log(`determinism OK — ${CORPUS_ENTRIES.length} seeds × 2 runs byte-identical (${secs}s)`);
 } else {
   if (!existsSync(GOLDEN_PATH)) {
     console.error(`no golden corpus at ${GOLDEN_PATH} — run: npm run fingerprint:write`);
@@ -165,9 +224,9 @@ if (write) {
     console.error(`FINGERPRINT MISMATCH — engine behavior changed (${failures.length} deviation${failures.length === 1 ? '' : 's'}, ${secs}s):`);
     for (const f of failures) console.error(`  ${f}`);
     console.error(
-      '\nIf this change is a DELIBERATE behavior change: re-baseline with ' +
-      '`npm run fingerprint:write` in the same commit and say why in the commit message.\n' +
-      'If it was supposed to be behavior-preserving: the commit is wrong — fix it, do not re-baseline.'
+      '\nIf your change claims byte-identity (pure refactor, docs-only): the commit is wrong — fix it, do not re-baseline.\n' +
+      'If it is a deliberate rng/behavior change: expected, and not a gate (issue #33) — bands + invariants gate gameplay.\n' +
+      'Regenerate (`npm run fingerprint:write`, its own commit) only when a byte-identity check needs a fresh base.'
     );
     process.exit(1);
   }
