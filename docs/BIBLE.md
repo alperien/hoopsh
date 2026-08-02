@@ -710,7 +710,7 @@ modules an agent is likely to be pointed at):
 | `season.ts` / `matchup.ts` / `league.ts` | season driver + standings, Monte-Carlo matchup distributions, deterministic fictional leagues — see `docs/SEASON.md` |
 | `leagues.ts` | league selection: one id resolves rule pack + bands + pace basis TOGETHER (`--league`; prevents grading NCAA play against NBA bands) |
 | `parallel.ts` | worker-pool game runner; determinism across worker counts is the acceptance test |
-| `fingerprint.ts` | golden fingerprint corpus — the refactor tripwire |
+| `fingerprint.ts` | golden fingerprint corpus — the pure-refactor byte-identity tripwire (default mode, run locally) and the CI determinism gate (`--determinism`: corpus double-built in-process, the two runs must match; not a gameplay gate since issue #33) |
 | `fit-roster.ts` | stats → ratings inversion (`rosters:fit`): real box lines → validated 38-dial packs |
 | `args.ts` | shared loud CLI flag parsing (exists because of the silent `--seed` incident) |
 | `reanchor.ts` | the seed-pin re-anchor helper (issue #50): verifies every `seed-pins.gen.ts` anchor — the W54/W56 pinned-fixture class consumed by events/subs/timeouts/leakout (engine), season (harness), pbp (narration) — against the current streams; `--write` re-scouts stranded anchors per each pin's documented doctrine, rewrites the generated anchor files, and re-runs the consuming tests as confirmation. Never edits a test or lowers a floor; REFUSES (exit 1) when a scan exhausts or a collapse discriminator trips (per-pin guards against laundering a dead mechanism through lucky seeds — the review #88 finding; doctrine audit in the file header). Confirmation red is classified: managed failures restore and exit 1; failures matching only the KNOWN_UNMANAGED registry restore too unless `--keep-unmanaged-red` keeps the re-anchor and exits 2, loudly listing the remaining hand tax |
@@ -2780,7 +2780,7 @@ NCAA bonus free throw earned only by making the first).
 | Term | Plain meaning | Where it lives / is used |
 |---|---|---|
 | fingerprint | the docs-tier identity check: `npm run sim -- --seed fingerprint-1` event count + final score, plus `npm test` counts — identical before/after proves a no-behavior change | AGENTS §4.1/§4.3, PLAYBOOK step 3 |
-| golden corpus | 28 seeds' events+frames SHA-256 hashes, checked in — the refactor tripwire; regenerated only at deliberate re-baselines | packages/harness/golden/fingerprints.json, fingerprint.ts |
+| golden corpus | 28 seeds' events+frames SHA-256 hashes, checked in — the pure-refactor tier's byte-identity reference (`npm run fingerprint`) and the seed set for CI's determinism gate (corpus built twice per run, `fingerprint:determinism`). Not a gameplay gate since issue #33 — bands + invariants own that; regenerate on demand at a refactor base or a deliberate re-baseline | packages/harness/golden/fingerprints.json, fingerprint.ts |
 | acceptance bands | the league-mean ranges (pace, FG%, 3PA share, …) a batch run is graded against | harness/src/bands.ts `NBA_BANDS`; `npm run batch` |
 | band lock / "locked" | at 40+ games, every band's measured CENTER sits inside its band — necessary, not sufficient (the sweep tunes the same knobs the bands grade) | docs/CALIBRATION.md |
 | sweep | the parameter optimizer: searches `knobs.ts` ranges over `SimParams` against the bands; its printed diff gets baked into params.ts | harness/src/sweep.ts; `npm run sweep` |

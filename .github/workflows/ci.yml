@@ -3,8 +3,13 @@
 # Two jobs:
 #   verify — zero-install by design: the repo runs on Node 24's native type
 #            stripping (tools/register.mjs + hooks), so nothing here needs
-#            npm install. Tests, gated acceptance bands, golden fingerprints,
-#            determinism, and docs drift.
+#            npm install. Tests, gated acceptance bands, determinism (the
+#            fingerprint corpus double-built in-process, plus a two-process
+#            stdout diff), and docs drift. Since issue #33 the checked-in
+#            golden corpus is NOT compared here — gameplay regressions are
+#            gated by the bands + the invariant suite, which survive
+#            rng-order changes; the golden file serves the pure-refactor
+#            tier's local byte-identity assertion (npm run fingerprint).
 #   types  — the one job that DOES install: `tsc --noEmit` (strict +
 #            noUncheckedIndexedAccess) and the same suites under real vitest.
 #            Until this job existed the TypeScript in this repo had never been
@@ -31,9 +36,16 @@ jobs:
         # bands flicker; see REFACTOR.md). The pass/fail floor lives in cli.ts
         # as RATCHET_FLOOR next to the measurements that justify it.
         run: npm run batch -- --games 48
-      - name: golden fingerprint corpus (28 seeds, events+frames byte-identical)
-        run: npm run fingerprint
-      - name: fingerprint determinism (two runs must match)
+      - name: fingerprint determinism (28 seeds, two in-process corpus builds must match)
+        # Determinism-only since issue #33: this builds the corpus twice in
+        # one process and compares run-to-run — it does NOT read the golden
+        # file. An rng-order change legitimately moves every golden hash, so
+        # a golden diff cannot tell a regression from an allowed change; the
+        # gameplay gates are the bands step above and the invariant suite in
+        # npm test. Catches module state leaking across simulateGame calls;
+        # the two-process diff below catches process-stable ambient state.
+        run: npm run fingerprint:determinism
+      - name: sim stdout determinism (two processes must match)
         # normalize the wall-clock timing line — the SIMULATION is
         # deterministic, the "simulated in Xms" stopwatch is not (run #1
         # failed on exactly this)

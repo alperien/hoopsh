@@ -91,7 +91,14 @@ with a named exemplar for each shape of change.
   the recipe in [docs/PLAYBOOK.md](./docs/PLAYBOOK.md) Part 2 (usually
   Recipe G).
 - **Pure refactor** — fingerprint and test counts identical, provably
-  (`npm run fingerprint` checks 28 seeds byte-for-byte).
+  (`npm run fingerprint` checks 28 seeds byte-for-byte). If that check fails
+  on the untouched base — a deliberate rng-order change landed without a
+  corpus regen, which is normal since issue #33 — regenerate at your base
+  commit first (`npm run fingerprint:write`, its own commit), then prove
+  identity against the fresh corpus. The regen commit also re-arms the
+  flag-off guard in `packages/harness/test/fingerprint.test.ts` and accepts
+  the current legacy-path stream, so keep it its own commit at a base you
+  trust.
 - **Mechanics or params change** — the whole ladder, and expect band drift.
   **Open an issue first** (feature template): the calibrated defaults are
   coupled, re-tuning is a sweep task (see [docs/CALIBRATION.md](./docs/CALIBRATION.md)),
@@ -103,9 +110,11 @@ with a named exemplar for each shape of change.
 Two jobs (`.github/workflows/ci.yml`), on every PR:
 
 - **verify** (zero-install): `npm test` · gated 48-game acceptance bands
-  (~14s locally, exits nonzero below the ratchet floor) · 24-seed golden
-  fingerprint corpus · determinism double-run diff · Bible regeneration drift.
-  Everything this job runs, you can run on a bare clone.
+  (~14s locally, exits nonzero below the ratchet floor) · fingerprint
+  determinism (the 28-entry corpus built twice in one process, runs must
+  match; the golden file itself is not compared in CI — bands + invariants
+  are the gameplay gate, issue #33) · determinism double-run diff · Bible
+  regeneration drift. Everything this job runs, you can run on a bare clone.
 - **types**: `npm install` + `tsc --noEmit` (strict) + the same suite under
   real vitest. This is the one job a bare clone can't reproduce; with the dev
   install, `npm run typecheck` takes ~3s.
