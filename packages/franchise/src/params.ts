@@ -226,10 +226,31 @@ export interface FranchiseParams {
     fleeceFloor: number;              // CAL -0.06
     counterThreshold: number;         // CAL -0.18 (worse than this => walk, no counter)
     cooldownDays: number;             // FEEL 10 (after a walk-away)
-    /** per-day probability an AI pair opens talks in deadline season */
-    deadlinePulse: number;            // CAL 0.09
+    /**
+     * Wire cadence (#184). Anchor: the real league runs roughly 5-15
+     * in-season trades with a deadline-week cluster. Expected deals =
+     * sum over days of fireChance x P(some probed pair closes); the pulse
+     * probes `attempts` pairs per fire, so one dead pair no longer
+     * silences the whole day. The shipped 0.012/0.09 single-pair dials
+     * gave ~2.8 expected fires/season before attrition - a fully silent
+     * season was the modal outcome (#184's measured playtest).
+     */
+    /** per-day probability the wire wakes in deadline season */
+    deadlinePulse: number;            // FEEL 0.5 (15-day window; cadence note above)
     offseasonPulse: number;           // CAL 0.035
-    regularPulse: number;             // CAL 0.012
+    /** per-day probability the wire wakes in the regular season / camp */
+    regularPulse: number;             // FEEL 0.04 (cadence note above)
+    /** buyer/seller pairs probed per pulse fire outside deadline season */
+    regularAttempts: number;          // FEEL 2
+    /** pairs probed per fire in deadline season: more doors get knocked */
+    deadlineAttempts: number;         // FEEL 4
+    /** conversion floor: inside the window's last floorDays, force the pulse until the window has this many deals (a silent deadline is a defect, not a mood) */
+    deadlineFloorTrades: number;      // FEEL 2
+    deadlineFloorDays: number;        // FEEL 3
+    /** deals the wire may execute on deadline day itself (the season's loudest day; 1 everywhere else - crackle, not spam) */
+    deadlineDayMaxTrades: number;     // FEEL 3
+    /** per-day chance (window, human chair) an AI front office builds an offer AT the user; situation-gated, with a deadline-eve backstop so a quiet window still produces one attempt */
+    userOfferPulse: number;           // FEEL 0.12 (~1-2 organic attempts per window)
     /** disgruntled-star pressure: morale below this arms a trade request */
     requestMoraleFloor: number;       // FEEL 25
   };
@@ -440,9 +461,15 @@ export function defaultFranchiseParams(): FranchiseParams {
       fleeceFloor: -0.06,
       counterThreshold: -0.18,
       cooldownDays: 10,
-      deadlinePulse: 0.09,
+      deadlinePulse: 0.5,
       offseasonPulse: 0.035,
-      regularPulse: 0.012,
+      regularPulse: 0.04,
+      regularAttempts: 2,
+      deadlineAttempts: 4,
+      deadlineFloorTrades: 2,
+      deadlineFloorDays: 3,
+      deadlineDayMaxTrades: 3,
+      userOfferPulse: 0.12,
       requestMoraleFloor: 25,
     },
     fa: {

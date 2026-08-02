@@ -471,20 +471,31 @@ function buyerSweeteners(league: League, buyer: TeamId): Array<{ kind: 'player' 
   return out;
 }
 
+type Sweetener = { kind: 'player' | 'pick'; id: string; value: number; season?: number };
+
+/** This-season salary of a sweetener candidate, for matching math; picks carry no salary. */
+function candidateSalary(league: League, cand: Sweetener): number {
+  if (cand.kind !== 'player') return 0;
+  const contract = league.players[cand.id]?.contract;
+  const row = contract?.years.find(y => y.season === league.season);
+  return row ? row.salary : 0;
+}
+
 /**
- * Assemble a buyer offer for one seller asset that clears BOTH sides'
- * accept bars and validateTrade, adding the buyer's least-valued assets
- * one at a time. Adjacent-season own firsts are skipped while stacking so
- * the package stays Stepien-shaped. Bounded search; null when no package
- * closes.
+ * One bounded greedy walk: add candidates in the given order, skipping any
+ * piece that flips the buyer under its own bar, until both accept bars and
+ * validateTrade clear. Shared by assembleOffer's two passes (value-first,
+ * then salary-first). Returns the package and both final evals; mutates
+ * nothing outside the offer it builds.
  */
-function assembleOffer(league: League, buyer: TeamId, seller: TeamId, target: PlayerId): TradeOffer | null {
+function walkPackage(
+  league: League, buyer: TeamId, seller: TeamId, target: PlayerId, candidates: Sweetener[],
+): { offer: TradeOffer; closed: boolean; sellerEval: OfferEval; buyerEval: OfferEval } {
   const offer: TradeOffer = {
     from: buyer, to: seller,
     give: { players: [], picks: [] },
     get: { players: [target], picks: [] },
   };
-  const candidates = buyerSweeteners(league, buyer);
   const usedPickSeasons = new Set<number>();
   let scans = 0;
   let adds = 0;
@@ -494,7 +505,7 @@ function assembleOffer(league: League, buyer: TeamId, seller: TeamId, target: Pl
     const buyerEval = evaluateOffer(league, buyer, offer);
     if (sellerEval.net >= sellerEval.target && buyerEval.net >= buyerEval.target
       && validateTrade(league, offer).ok) {
-      return offer;
+      return { offer, closed: true, sellerEval, buyerEval };
     }
     const cand = candidates[idx]!;
     idx += 1;
@@ -515,13 +526,45 @@ function assembleOffer(league: League, buyer: TeamId, seller: TeamId, target: Pl
   }
   const sellerEval = evaluateOffer(league, seller, offer);
   const buyerEval = evaluateOffer(league, buyer, offer);
-  if (sellerEval.net >= sellerEval.target && buyerEval.net >= buyerEval.target
-    && validateTrade(league, offer).ok) {
-    return offer;
+  const closed = sellerEval.net >= sellerEval.target && buyerEval.net >= buyerEval.target
+    && validateTrade(league, offer).ok;
+  return { offer, closed, sellerEval, buyerEval };
+}
+
+/**
+ * Assemble a buyer offer for one seller asset that clears BOTH sides'
+ * accept bars and validateTrade. Pass 1 adds the buyer's least-valued
+ * assets first (give up what you value least). When that walk clears both
+ * value bars but league law still says no - the usual culprit is the
+ * salary-matching bands, because picks carry no salary and a pick-heavy
+ * package cannot legally return a big expiring contract - pass 2 rebuilds
+ * the package salary-first, shipping the fairly-paid ballast the buyer
+ * barely values, the way real deadline packages carry matching money.
+ * Bounded search; null when no package closes. Near-miss talks record
+ * negotiation smoke for the rumor mill unless recordSmoke is false
+ * (the directed user pass probes quietly; its SENT offer is what lands
+ * on the desk).
+ */
+function assembleOffer(
+  league: League, buyer: TeamId, seller: TeamId, target: PlayerId, recordSmoke: boolean = true,
+): TradeOffer | null {
+  const candidates = buyerSweeteners(league, buyer);
+  const valueFirst = walkPackage(league, buyer, seller, target, candidates);
+  if (valueFirst.closed) return valueFirst.offer;
+
+  const bothBarsCleared = valueFirst.sellerEval.net >= valueFirst.sellerEval.target
+    && valueFirst.buyerEval.net >= valueFirst.buyerEval.target;
+  if (bothBarsCleared) {
+    // value said yes, league law said no: retry with matching salary first
+    const bySalary = [...candidates].sort((a, b) =>
+      candidateSalary(league, b) - candidateSalary(league, a) || a.value - b.value || (a.id < b.id ? -1 : 1));
+    const salaryFirst = walkPackage(league, buyer, seller, target, bySalary);
+    if (salaryFirst.closed) return salaryFirst.offer;
   }
+
   // close-but-no talks are real negotiation state: the rumor mill may print smoke
-  if (sellerEval.gapFrac <= TEMP_WARM_GAP) {
-    recordNegotiation(league, offer, temperatureFor(sellerEval.gapFrac), false);
+  if (recordSmoke && valueFirst.sellerEval.gapFrac <= TEMP_WARM_GAP) {
+    recordNegotiation(league, valueFirst.offer, temperatureFor(valueFirst.sellerEval.gapFrac), false);
   }
   return null;
 }
@@ -544,69 +587,197 @@ function summarizeOffer(league: League, offer: TradeOffer): string {
 }
 
 /**
- * The daily league pulse: with a per-day, phase-dependent probability,
- * one complementary buyer/seller pair opens talks. AI-AI deals that clear
- * both bars and league law execute immediately (capped at ONE trade per
- * pulse day - the wire should crackle, not spam); when the natural
- * counterparty is the user's team, the offer lands as an inbox decision
+ * Land an AI-built offer on the human user's desk: an inbox decision
  * (Accept/Decline/Counter) carrying a frozen copy of the offer - accept
  * executes exactly that copy (tick.ts respondToRequest) - with the live
  * offer also stashed in league.negotiations for the trade desk to read.
- * Never auto-executed against a human chair.
- * All randomness from the registered 'trade:<season>:<day>' stream.
- * Returns the transactions it executed (empty most days).
+ * Dedupes on the deterministic day/proposer id. Shared by the organic
+ * pulse (user sampled as the natural seller) and the directed
+ * deadline-window pass (#184). Mutates league.inbox and negotiations.
+ */
+function pushUserOffer(league: League, offer: TradeOffer): void {
+  const id = `trade-offer-s${league.season}d${league.day}-${offer.from}`;
+  if (!league.inbox.some(i => i.id === id)) {
+    league.inbox.push({
+      id,
+      date: { season: league.season, day: league.day },
+      kind: 'decision',
+      title: `Trade offer from ${league.teams[offer.from]!.city}`,
+      body: summarizeOffer(league, offer),
+      // frozen copy: the stash below is live desk memory and can move
+      // under later talks; the item must execute what it promised
+      offer: cloneOffer(offer),
+      choices: [
+        { id: 'accept', label: 'Accept' },
+        { id: 'decline', label: 'Decline' },
+        { id: 'counter', label: 'Counter' },
+      ],
+      // the offer stands to the deadline in deadline season, else as
+      // long as a walk-away memory would (cooldownDays); the spine's
+      // morning sweep retires it once the date passes (tick.ts), so an
+      // ignored offer never wedges the advance loop forever
+      deadline: inDeadlineWindow(league)
+        ? { season: league.season, day: tradeDeadlineDay(league) }
+        : { season: league.season, day: league.day + league.params.trade.cooldownDays },
+      resolved: false,
+    });
+  }
+  recordNegotiation(league, offer, 'warm', false); // the trade desk reads lastOffer
+}
+
+/** Executed trades so far inside this season's deadline window. Ledger-derived: no new save state. */
+function windowTradesSoFar(league: League, deadlineDay: number): number {
+  return league.transactions.filter(tx => tx.kind === 'trade'
+    && tx.date.season === league.season
+    && tx.date.day >= deadlineDay - DEADLINE_WINDOW_DAYS && tx.date.day <= deadlineDay).length;
+}
+
+/** Flip proposer and receiver: identical trade content, inbound framing. */
+function mirrorOffer(offer: TradeOffer): TradeOffer {
+  return {
+    from: offer.to, to: offer.from,
+    give: { players: [...offer.get.players], picks: [...offer.get.picks] },
+    get: { players: [...offer.give.players], picks: [...offer.give.picks] },
+  };
+}
+
+const USER_OFFER_PROBES = 4;   // FEEL bounded counterparty teams probed per directed attempt
+const USER_OFFER_EVE_DAYS = 1; // FEEL deadline-eve backstop: this close to the mark, a windowful of silence forces one attempt
+
+/**
+ * Build one situation-driven offer AT the human user chair, or null when
+ * no counterparty and package genuinely exist. The user's timeline picks
+ * the direction with the same complementary tiers the league pulse uses:
+ * a selling chair (rebuild/retool) draws an AI buyer calling about its
+ * movable vet; a competitive chair (contend/retool) draws an AI seller
+ * pitching its rental, assembled from the user's own board and mirrored
+ * into an inbound offer. Every package clears both accept bars and league
+ * law - a plausible offer, never filler. Probes record no smoke; only the
+ * sent offer becomes desk state.
+ */
+function assembleUserOffer(league: League, rng: ReturnType<typeof streamRng>): TradeOffer | null {
+  const userId = league.userTeam;
+  const user = league.teams[userId]!;
+  const today: LeagueDate = { season: league.season, day: league.day };
+  const ut = user.strategy.timeline;
+  const probes: Array<{ dir: 'sell' | 'buy'; other: TeamId }> = [];
+  for (const id of Object.keys(league.teams).sort()) {
+    if (id === userId) continue;
+    const team = league.teams[id]!;
+    if (!team.gm) continue;
+    const neg = findNegotiation(league, id, userId);
+    if (neg?.cooldownUntil && dateLt(today, neg.cooldownUntil)) continue; // walked away recently
+    const tl = team.strategy.timeline;
+    if ((tl === 'contend' && (ut === 'rebuild' || ut === 'retool')) || (tl === 'retool' && ut === 'rebuild')) {
+      probes.push({ dir: 'sell', other: id });
+    }
+    if ((ut === 'contend' && (tl === 'rebuild' || tl === 'retool')) || (ut === 'retool' && tl === 'rebuild')) {
+      probes.push({ dir: 'buy', other: id });
+    }
+  }
+  for (let tried = 0; probes.length > 0 && tried < USER_OFFER_PROBES; tried++) {
+    const probe = rng.pick(probes);
+    probes.splice(probes.indexOf(probe), 1);
+    if (probe.dir === 'sell') {
+      const target = pickSellerTarget(league, probe.other, userId);
+      if (!target) continue;
+      const offer = assembleOffer(league, probe.other, userId, target, false);
+      if (offer) return offer; // from = the AI buyer: already inbound
+    } else {
+      const target = pickSellerTarget(league, userId, probe.other);
+      if (!target) continue;
+      const offer = assembleOffer(league, userId, probe.other, target, false);
+      if (offer) return mirrorOffer(offer); // reframe: the AI seller pitches its rental
+    }
+  }
+  return null;
+}
+
+/**
+ * The directed offer cadence (#184): inside deadline season a human user
+ * chair gets called directly, on its own dial (params.trade.userOfferPulse),
+ * independent of whether the league pulse sampled the user organically.
+ * Fires only when no other offer sits unresolved on the desk; the
+ * deadline-eve backstop converts a fully quiet window into one forced
+ * attempt, so a chair with a workable situation sees the market call.
+ * Draws in fixed order from the caller's day stream. No-op for persona
+ * chairs and outside the window.
+ */
+function userOfferPass(league: League, rng: ReturnType<typeof streamRng>): void {
+  if (!inDeadlineWindow(league)) return;
+  const user = league.teams[league.userTeam];
+  if (!user || user.gm !== null) return; // persona-run seats trade AI-AI
+  if (league.inbox.some(i => i.id.startsWith('trade-offer-') && !i.resolved)) return; // one live decision at a time
+  const dl = tradeDeadlineDay(league);
+  const gotOneThisWindow = league.inbox.some(i => i.id.startsWith('trade-offer-')
+    && i.date.season === league.season
+    && i.date.day >= dl - DEADLINE_WINDOW_DAYS && i.date.day <= dl);
+  const forced = dl - league.day <= USER_OFFER_EVE_DAYS && !gotOneThisWindow;
+  if (!forced && !rng.chance(league.params.trade.userOfferPulse)) return;
+  const offer = assembleUserOffer(league, rng);
+  if (offer) pushUserOffer(league, offer);
+}
+
+/**
+ * The daily league pulse, sized by #184: with a per-day, phase-dependent
+ * probability the wire wakes and probes several complementary buyer/seller
+ * pairs (params.trade.regularAttempts / deadlineAttempts), executing the
+ * first AI-AI deal that clears both bars and league law. Execution stays
+ * capped at ONE deal per day - the wire should crackle, not spam - except
+ * deadline day itself, which allows params.trade.deadlineDayMaxTrades. A
+ * conversion floor forces the pulse across the window's last
+ * deadlineFloorDays until the window holds deadlineFloorTrades deals, so
+ * a silent deadline is a tail event, not the mode. When a probed pair's
+ * natural counterparty is the human user chair, the offer lands via
+ * pushUserOffer and the day's probing stops; the directed userOfferPass
+ * then runs on its own cadence. Never auto-executes against a human
+ * chair. All randomness from the registered 'trade:<season>:<day>'
+ * stream, drawn in fixed order. Returns the transactions it executed
+ * (empty most days).
  */
 export function aiTradePulse(league: League): Transaction[] {
-  const chance = pulseChance(league);
-  if (chance <= 0) return [];
+  const executed: Transaction[] = [];
+  if (tradingFrozen(league)) return executed; // deadline means deadline
+  const t = league.params.trade;
   const rng = streamRng(league.seed, 'trade', league.season, league.day);
-  if (!rng.chance(chance)) return [];
+  const window = inDeadlineWindow(league);
+  const dl = tradeDeadlineDay(league);
+  const humanChair = league.teams[league.userTeam]!.gm === null;
 
-  const pairs = complementaryPairs(league);
-  if (pairs.length === 0) return [];
-  const pair = rng.pick(pairs);
+  const floorActive = window
+    && dl - league.day < t.deadlineFloorDays
+    && windowTradesSoFar(league, dl) < t.deadlineFloorTrades;
 
-  const target = pickSellerTarget(league, pair.buyer, pair.seller);
-  if (!target) return [];
-  const offer = assembleOffer(league, pair.buyer, pair.seller, target);
-  if (!offer) return [];
-
-  if (pair.seller === league.userTeam && league.teams[league.userTeam]!.gm === null) {
-    // a HUMAN GM chair is the natural counterparty: propose, never
-    // execute. A persona-run user seat (career mode, autosims) trades
-    // like any AI team and falls through to the AI-AI path below.
-    const id = `trade-offer-s${league.season}d${league.day}-${pair.buyer}`;
-    if (!league.inbox.some(i => i.id === id)) {
-      league.inbox.push({
-        id,
-        date: { season: league.season, day: league.day },
-        kind: 'decision',
-        title: `Trade offer from ${league.teams[pair.buyer]!.city}`,
-        body: summarizeOffer(league, offer),
-        // frozen copy: the stash below is live desk memory and can move
-        // under later talks; the item must execute what it promised
-        offer: cloneOffer(offer),
-        choices: [
-          { id: 'accept', label: 'Accept' },
-          { id: 'decline', label: 'Decline' },
-          { id: 'counter', label: 'Counter' },
-        ],
-        // the offer stands to the deadline in deadline season, else as
-        // long as a walk-away memory would (cooldownDays); the spine's
-        // morning sweep retires it once the date passes (tick.ts), so an
-        // ignored offer never wedges the advance loop forever
-        deadline: inDeadlineWindow(league)
-          ? { season: league.season, day: tradeDeadlineDay(league) }
-          : { season: league.season, day: league.day + league.params.trade.cooldownDays },
-        resolved: false,
-      });
+  const chance = pulseChance(league);
+  if (floorActive || (chance > 0 && rng.chance(chance))) {
+    const attempts = window ? t.deadlineAttempts : t.regularAttempts;
+    const dayCap = league.day === dl ? t.deadlineDayMaxTrades : 1;
+    let pairs = complementaryPairs(league);
+    // the floor guarantees LEAGUE deals; an offer parked on the user's desk cannot satisfy it
+    if (floorActive && humanChair) pairs = pairs.filter(p => p.seller !== league.userTeam);
+    for (let i = 0; i < attempts && executed.length < dayCap && pairs.length > 0; i++) {
+      const pair = rng.pick(pairs);
+      pairs = pairs.filter(p => p !== pair); // a probed pair is done for the day
+      const target = pickSellerTarget(league, pair.buyer, pair.seller);
+      if (!target) continue;
+      const offer = assembleOffer(league, pair.buyer, pair.seller, target);
+      if (!offer) continue;
+      if (pair.seller === league.userTeam && humanChair) {
+        // a HUMAN GM chair is the natural counterparty: propose, never
+        // execute; one live decision at a time ends the day's probing.
+        // (A persona-run user seat trades like any AI team.)
+        pushUserOffer(league, offer);
+        break;
+      }
+      // AI-AI: both bars cleared inside assembleOffer; executeTrade re-validates
+      executed.push(executeTrade(league, offer));
+      clearNegotiation(league, pair.buyer, pair.seller);
+      // rosters just moved: today's remaining probes exclude both parties
+      pairs = pairs.filter(p => p.buyer !== pair.buyer && p.seller !== pair.buyer
+        && p.buyer !== pair.seller && p.seller !== pair.seller);
     }
-    recordNegotiation(league, offer, 'warm', false); // the trade desk reads lastOffer
-    return [];
   }
 
-  // AI-AI: both bars cleared inside assembleOffer; executeTrade re-validates
-  const tx = executeTrade(league, offer);
-  clearNegotiation(league, pair.buyer, pair.seller);
-  return [tx]; // cap: one AI-AI trade per pulse day, by construction
+  userOfferPass(league, rng);
+  return executed;
 }

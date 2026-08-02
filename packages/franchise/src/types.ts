@@ -799,7 +799,7 @@ export type SimulateJobs = (jobs: GameJob[]) => Promise<GameJobResult[]> | GameJ
 // ---------------------------------------------------------------------------
 // save file
 
-export const SAVE_FORMAT_VERSION = 1;
+export const SAVE_FORMAT_VERSION = 2; // v2: params.trade grew the wire-cadence dials (#184) - a v1 save's params shape starves the pulse
 
 export interface SaveFile {
   formatVersion: typeof SAVE_FORMAT_VERSION;
