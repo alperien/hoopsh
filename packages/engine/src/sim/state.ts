@@ -292,6 +292,14 @@ export interface Possession {
    *  live_rebound/steal scope, ai.transCarryScale). Constant false
    *  everywhere else; consumed by game.ts's driving branch. */
   carryArmed: boolean;
+  /** #114 halfcourt blow-by dose: this possession rolled a live blow-by
+   *  (the leakArmed heave-guard shape above — one draw at
+   *  0 < blowByCarryScale < 1, zero draws at 0 and >= 1) — but on EVERY
+   *  start kind, where the two transition draws are
+   *  live_rebound/steal-scoped: any possession reaches halfcourt. Rolled
+   *  in startPossession after the carry draw; consumed by game.ts
+   *  blowsByToRim. */
+  blowByArmed: boolean;
   /**
    * The period's first possession (fdesign-grammar M1b). Stamped in
    * startPossession: the game clock still reads the period's full value

@@ -226,11 +226,16 @@ describe('the off-switch pin (explicit logit 0 reproduces the staged stream)', (
   }
 
   it('putbackstrong-1 at logit 0: the recorded stream, exactly', () => {
+    // Re-anchored at the #114 landing (ai.blowByCarryScale 0 -> 0.5 arms
+    // a per-possession draw upstream, moving events and frames) on top of
+    // the #119 FT ball-carry frames re-anchor (frames only) — legitimate
+    // stream reorders per this block's doctrine, both causes stated in
+    // the #114 landing commit.
     const r = game('putbackstrong-1', 0, true);
     const last = r.events[r.events.length - 1]!;
-    expect(r.events.length).toBe(1298);
-    expect(`${last.score[0]}-${last.score[1]}`).toBe('116-111');
-    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('0d02f5df');
+    expect(r.events.length).toBe(1235);
+    expect(`${last.score[0]}-${last.score[1]}`).toBe('131-116');
+    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('df39b435');
   });
 });
 

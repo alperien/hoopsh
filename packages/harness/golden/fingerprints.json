@@ -1,226 +1,226 @@
 {
   "ci-fp": {
-    "events": "59a2ca6e4b90ac840edbb5a65f1c2a189d04888d7b5609013072af22cafbb6c6",
-    "frames": "23eb709e507d5c32f9caa900d571c060d276278340a3b168f546e07cfad9d365",
+    "events": "7c19d283f675b3a2064fa6515f1980e8d48ba9edeca7e3bc1a1e414334a93c7e",
+    "frames": "6d001079a1a0a7886ee6b346aab75fb4e2d5abe613014744436500fb4e282349",
     "finalScore": [
-      138,
-      129
+      127,
+      118
     ]
   },
   "acceptance-0": {
-    "events": "406b59a8430411cd032495cb9e957fbecb9e650668528120a1e3ebeacbfce47b",
-    "frames": "2e556489ca27e7caa4e0f2674a6737c43b4db9a5a9920d8e6d63fe8f3c9c0bf3",
+    "events": "b9cef8c94a8f4a0fef5ee3b75610b7df58a83d8c74053e247b4cb75b3e10eeb8",
+    "frames": "3beafa94a2cb190df38ef3984cdd29e46219a37679bb5cd591a05c0af9592a05",
     "finalScore": [
-      119,
-      134
-    ]
-  },
-  "golden-0": {
-    "events": "7ee4ff5e8e1f0e4a0ba1dc201f59999ddd9d23c8166c07e95187d127898eac75",
-    "frames": "50411864d00613aada4ac6cc5edf6eca166d388100c1e5ce46463392669df96d",
-    "finalScore": [
-      124,
-      134
-    ]
-  },
-  "golden-1": {
-    "events": "19910366d874e1c63bc14c2fe6aec1f4b443d8ade9d09e44273784061536d631",
-    "frames": "e95635e7c96ba9f1c13864706166aef3000f0438682446710f266f852596fcc8",
-    "finalScore": [
-      110,
-      106
-    ]
-  },
-  "golden-2": {
-    "events": "feb6e6a23b7780d452ec43f3f9ccd6bf1fbc94c3e135abcdcef2b9b7ed0412ec",
-    "frames": "d0a06862fa031c29dac2d1cac34a32a6ffbabb7e6a22975cec29376f86c12367",
-    "finalScore": [
-      112,
+      107,
       115
     ]
   },
-  "golden-3": {
-    "events": "f7f3438bdf8a9e591c083958d18d0538fef6436821312db042c4ccee9d0a555f",
-    "frames": "f9c915d05bb3c99af36e0783974a6f5dbf532eba2435bd0a041d6d3855628e0d",
+  "golden-0": {
+    "events": "f3f88d96258ad64d783d1cc43ba81690541a0358dc27508c3aa66cc6099fe341",
+    "frames": "9c0e796892988e7a6f6acc3ed95e93e5ccac19b7084d2592730915d128a8d954",
     "finalScore": [
-      123,
-      153
+      129,
+      122
+    ]
+  },
+  "golden-1": {
+    "events": "c66bf8e5ebc8db4f8e6874fe8085ea837479ef76cbdc89d6d334dd958a7428d7",
+    "frames": "a2d3db10e9bbdac715a4e993d69174f55b75c1e0019f09fcdcbe15cf8ae2019c",
+    "finalScore": [
+      109,
+      122
+    ]
+  },
+  "golden-2": {
+    "events": "fcfd3a2ea8a14cf19b4202cf977fcb21233a6c2bd9cb6d3e7dfee48dca1832f2",
+    "frames": "ea1dd3739a74d89ab5bdc8783160f0581a8f7109bb1f689ddecec781a73cdd8a",
+    "finalScore": [
+      138,
+      134
+    ]
+  },
+  "golden-3": {
+    "events": "be2df64888c2907990e6310c796563299793de524a6e2f220aa365211dc3534c",
+    "frames": "34e4515a2624b06859b5c38cb9f7c35c7f80746e044b0fca01e5677e7c5cef5b",
+    "finalScore": [
+      141,
+      130
     ]
   },
   "golden-4": {
-    "events": "f18da7318c58e415e900f1c146b02579576a7651829ddc1176edc0f1614c7eb0",
-    "frames": "af5fc88e31e35e47a83375fc064b346db62f708b560ec492403efa7129ff6245",
+    "events": "12f8b0cd5665789db909cc1877e5431a96244771acef31fee067c1863695fbd6",
+    "frames": "0271f8aa9456e9d93db7eaa662864c13d8e4d9929c412646754625f1c0425b8a",
     "finalScore": [
-      122,
-      120
+      124,
+      112
     ]
   },
   "golden-5": {
-    "events": "9983c06f8ff0f59e84f46a4371513164f6bb287bd502f083123229884fecccc8",
-    "frames": "7c6f146d5a6647ed4c24058a33d5f6bfffe808d2766bc116e37b90681043f2d0",
+    "events": "6b865ed222866087ca89881bfb8a4d8f394257f5b9233607d81fb3f5c3b2e775",
+    "frames": "4225b511f66b0b4b817c8e2384958aac0f91576914543f3168edaff9370eaea6",
     "finalScore": [
-      125,
+      117,
       112
     ]
   },
   "golden-6": {
-    "events": "8ab6f18bfd71553a66d1f3471dd19a71ccdcdb5dee09b06a75ed03702be9dee6",
-    "frames": "f870091531d2421091a5a6d6978ef224cf6ac521ff973417d0f9ea0c4e95ab79",
+    "events": "1a72c351b573742ef9c8cc87084e8a7f232a7e58856c372ade6026f3565aa82e",
+    "frames": "fe6e8c832460dd61e05e4290594b0882f41480e2ebc7f483259537e24ff2bad0",
     "finalScore": [
-      116,
-      113
+      115,
+      107
     ]
   },
   "golden-7": {
-    "events": "314274b20813c621f921359852a38506570f59debefc085f646b459aab2cbe8a",
-    "frames": "6281f87e3ccee3bca3e884b384488aa8773b4f0b289d89f81c12b294c31731ff",
+    "events": "f1606edb45a42ad4877244935975e9e01b7be8c81be9ee9986298642625e044a",
+    "frames": "74ff4289194608b06fed6115402849a9e468c295dda4e90691349083d143baa2",
     "finalScore": [
-      116,
-      113
+      102,
+      120
     ]
   },
   "golden-8": {
-    "events": "ef98b8c9e8a97767e601cb25f7b7a3bfed13f018bbbf7a5df1c6845c5db62fdf",
-    "frames": "8a990d6f5de8606e469a34ced618ae87d559309f30c1e082cefda2c5a45c7147",
+    "events": "6990305172a183aabca7cb7676517bb32e6fc5b1055004bc737ad396b236fc33",
+    "frames": "5b325f6ff420133d7b56254e65fd938f571ba3b717aa89180b5ad634b131c967",
     "finalScore": [
-      124,
-      115
+      137,
+      121
     ]
   },
   "golden-9": {
-    "events": "1c2b45a3c232ca5a137262900e3d5ce2673c67e9afe2589e23a2ae396fe92675",
-    "frames": "d6d613c47d30d31fc7a758190f4413431d975210743e9be46d8a136a25e7703d",
+    "events": "9f0a7f5edd0862e235414efbf1c732c145bc18f9483899b9c5c1871813764201",
+    "frames": "b4f12e76757d318168985a8e62dc3a57fa02c90c39d4fd0b8470fda2abe1992d",
     "finalScore": [
-      126,
-      127
+      93,
+      85
     ]
   },
   "golden-10": {
-    "events": "2c147ebb2b0f0d24fd8a4d4f519231266fef81bcfd34f1ecc339abff8da4c323",
-    "frames": "55544991058d44a70d001c0429ef48c35cc3d674a669171de333e803a32884ed",
+    "events": "a712058ca56560e653377f017501186845c588c38694206c3d190f385bbca6a1",
+    "frames": "9bfa3b25377434eead44e237a0acd6c5e4805a8c95bd38a21445f186363567c8",
     "finalScore": [
-      145,
-      138
-    ]
-  },
-  "golden-11": {
-    "events": "f504951c217308dd6e801a286dd984b291d94b855b47766c7c961e853fc10314",
-    "frames": "ec9b50b620220e24b380ee8d32c2fcd95e933ce9cfd97f15c06e8c16cc6384da",
-    "finalScore": [
-      101,
-      119
-    ]
-  },
-  "golden-12": {
-    "events": "15247652a74dd9e114aef16eb06407934b3bdd335bb04f3b959fc45879ac3be0",
-    "frames": "87be26dbebae191cf3152b56615929cee4f73e9f4b5a758f10fb92c2831a4f57",
-    "finalScore": [
-      91,
-      104
-    ]
-  },
-  "golden-13": {
-    "events": "937e1348907fec3b1ef3ff2a5e6eee32614c30c34de3824c07321bca240104e8",
-    "frames": "90ff00b832c3bea7f1c3bbdbdcdb8f0af3221df9c4adda7cd8c488582418332e",
-    "finalScore": [
-      116,
-      123
-    ]
-  },
-  "golden-14": {
-    "events": "3912c27dd62612f6110330618fc2c3b4008358952e9a4b52aca5a18da1778bc7",
-    "frames": "bb7e927950352517884f89aac6614dd33939310b16c399ca920e70847477238d",
-    "finalScore": [
-      105,
-      73
-    ]
-  },
-  "golden-15": {
-    "events": "1de12e1573ca99adaddf70b8879791ad0c0eb34277372dbf87ef1890972bad38",
-    "frames": "10f3b366bde968488bdb4beb75bbbba5a5bee913b2d73632fe1b20abce51aa57",
-    "finalScore": [
-      139,
+      113,
       126
     ]
   },
-  "golden-16": {
-    "events": "652d3013161a7a1a0c87ad54940daa4a6ca28a3bef4bda85b59d1f8b3fce74e5",
-    "frames": "f9bacca8917796c6e40a7cb91d2375dde4e3ce14ad42acb97b75c72c9768faa1",
+  "golden-11": {
+    "events": "4026585fd99add61c8fb7836b9492421c382d2563c82eb5686b04f93ccaf3f3a",
+    "frames": "dc46411ce237c735f3c3325bf0b0b42a45f66486925e261a03dc3a7571abc527",
     "finalScore": [
-      110,
+      128,
+      129
+    ]
+  },
+  "golden-12": {
+    "events": "d98641515fb2212cb8326475d77c399fe3e8e4a94ec2efeddb008ca5d03948a4",
+    "frames": "3803b92f5b97857298174212897cf5a9572a5c405cb3714db0863a5c86eda8dd",
+    "finalScore": [
+      134,
       95
     ]
   },
-  "golden-17": {
-    "events": "4a9d1a0a2714b37f3ae42b4266b08310c8cd91d0504c269c2b34be7e19b35c76",
-    "frames": "a0bb030a6f44708c8a7962a2cc701e745e79b4c0db72d398a6173e92c9cfc292",
+  "golden-13": {
+    "events": "63374c6d583456d3924e6c9e7870d83c9c8f46f430666ffaae02269b6e171a39",
+    "frames": "6799159f9377250787d45d52afb674975a278abff0b153b3a9ea689c9db65f8b",
     "finalScore": [
       121,
-      108
+      116
+    ]
+  },
+  "golden-14": {
+    "events": "efa7c6b9efc6836dba140431d5cc535b2f4a546427460e7ae789cf10315fb96d",
+    "frames": "19ced8c3a9d1359d19a60287e229e79f34e06de24e4f21f5dedfb2b3bd393df6",
+    "finalScore": [
+      110,
+      101
+    ]
+  },
+  "golden-15": {
+    "events": "53f5fe1c24bd7e3f949e6551304518dd2e9ac8a4c830fce5931fe858d1d7c1e3",
+    "frames": "0a1bb5ec12f57c1c159227e34b5eb0a06578d3d71eacd3c9e87dbfe236820dd9",
+    "finalScore": [
+      128,
+      146
+    ]
+  },
+  "golden-16": {
+    "events": "cc1c6cdff132002475cc1cd6dddf6d64acc877fac328a71cf8e9a5f96dbcdfcb",
+    "frames": "fa43ee50c9abe5e42405882032ee46fa5c2daf411fe9363c69967b47dd867272",
+    "finalScore": [
+      101,
+      132
+    ]
+  },
+  "golden-17": {
+    "events": "53cdd340b9304b14aed63e62f6314f2df039637abfc302a00c22f5d4768de72b",
+    "frames": "44bbf44a1fcae653420b9288a380c121ae98b0f1bb230a423c18c591058e3186",
+    "finalScore": [
+      98,
+      134
     ]
   },
   "golden-18": {
-    "events": "f5c4ce5abf9a6dc0e3d44ad3ef944848622dd6d9e07f24268cd0129978843b5c",
-    "frames": "24b9e1078b69975a8a62c062c742680bbda794fcbf71caf8a82a3611593a7dc1",
+    "events": "fbcd633601523164099479e5f97cef21982be080f1614ced1ed22191edbdb401",
+    "frames": "32e7d6afce1ff71d9d708f358ef89ab497ac4e1ad8ad9ddb03913daae5af4e9f",
     "finalScore": [
-      127,
-      115
+      109,
+      103
     ]
   },
   "golden-19": {
-    "events": "9404925af21b623f616a05d622e6514aa763e0af5a50e087aad9831fcba24c7c",
-    "frames": "9d86a9ed9cf1e6c4a8f906e88ab0033127640352b1d1435a252f21c72bc14836",
+    "events": "4fca5e2763cb7259c14bd1c332bfd3e39733e47031f9db72af28674d216c0f75",
+    "frames": "98ff3411b7dd1cba936e3a932bdcab79adb05ecac03ef409c6698f478c8b0338",
     "finalScore": [
-      116,
-      96
+      128,
+      121
     ]
   },
   "golden-20": {
-    "events": "3bffc32afd1ae9e16523376594bb4c7ab4470b9190968659926915cf0de0629b",
-    "frames": "b83c2e8357ba6cf84dadead6613add05b4afd441e0941e6f1b2416db919ca79b",
+    "events": "eb1368b6ad32d1823ee0d308ba8d59d1eb5059fa5f5919cbfd85a853d2ab81b9",
+    "frames": "60d81f14b5d07a8b41ca494414328b6d0a9bc6864355acdbda501a724731ba14",
     "finalScore": [
-      87,
-      120
+      135,
+      124
     ]
   },
   "golden-21": {
-    "events": "5d32818ad977305e682a8e330e5b06fc305874931631d51148a30d72a1b46f3e",
-    "frames": "95f7740ea3f8798939a353a676c7f2d98f3b04d08dd9b2f39612b5f69b8f1318",
+    "events": "ff759d6c94c4c6e31cbd5db23eb8fd9e4e059e945f5edddae4202317616fd0ef",
+    "frames": "5928ff382d280155fb205255f6adce7b0a1c2afbab04c3597e39198f4615f708",
     "finalScore": [
-      109,
-      118
+      117,
+      129
     ]
   },
   "flagoff-legacy-0": {
-    "events": "e5d94960f26e9a6fb2b236ed9b0d04a6f1577f8fcadeba46bc4856cd6a94ea3d",
-    "frames": "7bd6fc2ecd3d9afb4d1e10e636f51fda31c504c344d7399bf45913549f24fcdd",
+    "events": "d900823fa26230d3cf86192a5591dad3f61cbdc7d9264b4d2537796a7c8fee23",
+    "frames": "0246ac2761115e4855a5a348719eb8e361c89047bdee28caba034f41739cad78",
     "finalScore": [
-      118,
-      120
+      129,
+      127
     ]
   },
   "flagoff-legacy-1": {
-    "events": "e72b355162fc6efef4d03449cc3df26cd05ce3d30880137fd51bd31f2d0c49a9",
-    "frames": "00c26211556b00d84f867815a6e0f490d83228157b5ca7786620d84de49b83c6",
+    "events": "dd59e32be34bed841af30c337f1c12af4c087548ecc30000079a969bbae8db8a",
+    "frames": "56a838c4a6eecfe5a531abfe0b380d408b502a0a49989b533a8bd51de88d06f7",
     "finalScore": [
-      117,
-      122
+      118,
+      133
     ]
   },
   "ncaa-0": {
-    "events": "0fc82643492d74014c3c2518211e68b63219fd20c9320c61383d71e4844c4be3",
-    "frames": "09e291bd91bea83e7468f55bbf667e8105d224754bca6b18fd870745bb0e0cd0",
+    "events": "32ff31860d2e1e09818e85bec69f1cd461d3bf7f87b4aabc00e2867c89a64c61",
+    "frames": "a10f5af064a5567cae1d0c3dd748d1f379fe83876a64c0823bbe4d670fd89909",
     "finalScore": [
-      83,
-      90
+      110,
+      98
     ]
   },
   "euro-0": {
-    "events": "7655bc4c47e97978cc267705b2107d365c31724966f7d36a4c6b845b1156e121",
-    "frames": "eb81e9a912bbaa06690476ffd47248bcebfed62449ba4118ca8b376122e970e2",
+    "events": "127e1645bf832914d98902d3882a02b403177cf93c40333fe8a233109fb481fa",
+    "frames": "1435f072c7f60e2dae01853bf4d8f07569862c7a7026c66efb89816fb91f4964",
     "finalScore": [
-      105,
-      86
+      88,
+      114
     ]
   }
 }

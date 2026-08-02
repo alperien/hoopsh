@@ -22,7 +22,7 @@ export const SEED_PINS = {
     "note": "Anchors consumed by pbp.test.ts (pbpGame). Assertions and floors live in the test; this file only answers which seed currently exhibits the pinned phenomenon."
   },
   "pbpGame": {
-    "seed": "pbp-7",
-    "provenance": "re-scouted by hand at the rules landing (the old pbp-1 stream diverged to a wire-to-wire blowout with zero lead changes — pbp.test.ts header). Anchor is a 4-point game with ~10 lead flips; the M-37 floor is > 0 lead/tie moments."
+    "seed": "pbp-35",
+    "provenance": "re-anchored 2026-08-01 by the helper (scanned pbp-1..64; picked the lead/tie-richest stream: 42 moments). The M-37 floor is > 0 lead/tie moments."
   }
 };

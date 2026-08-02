@@ -251,6 +251,18 @@ export const SWEEPABLE: Knob[] = [
   // would re-create the unbounded release-gap tail the bound exists to
   // remove (PR #75 probe F1).
   { path: 'ai.transCarryScale', lo: 0, hi: 1 },
+  // #114 halfcourt blow-by (unassisted-creation arc): the per-possession
+  // arming chance of the won-matchup gather-through-windup carry in
+  // halfcourt phase — pure dose, so the whole [0, 1] interval is legal.
+  // The landing value is FEEL (the increment selects it on the supply
+  // counters against the astd band; see the params.ai comment). The
+  // beaten/lane/reach SHAPE (ai.blowByBeatenFt / blowByLaneMax /
+  // blowByGatherFt) is definition, not calibration, and stays off the
+  // surface per the transCarryGatherFt rule: a sweep pushing the beaten
+  // threshold down would admit the blurred p80 boundary the probe's
+  // threshold grid rejected, and pushing reach outward would re-create
+  // the #75-F1 release-gap tail.
+  { path: 'ai.blowByCarryScale', lo: 0, hi: 1 },
 
   // Endgame layer (params.endgame; live only under GameConfig.endgame) —
   // registered for the flag-ON coordinated re-sweep: the n=1260/arm flag-on
