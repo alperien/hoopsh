@@ -56,8 +56,13 @@ describe('windupSec (shooting.ts:20-32)', () => {
 
 // one seeded game WITH frames — the file's entire sim budget.
 // Frame row layout (replay.ts:6-35): [0] wallT, [1] period, [2] game clock.
+// Seed re-anchored at the #115 acquisition-stamp landing (streams
+// reshuffled; d2shoot-1's new draw had no clean final-period last-2:00
+// make, starving the existence floor): d2shoot-2, first qualifying —
+// both the late clock-stop and early clock-runs premises sampled.
+// Assertions unchanged.
 const { home, away } = sampleMatchup();
-const result = simulateGame({ seed: 'd2shoot-1', home, away });
+const result = simulateGame({ seed: 'd2shoot-2', home, away });
 const ev = result.events;
 
 /** frames whose wall time falls strictly inside the made-shot dead ball
