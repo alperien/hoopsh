@@ -91,6 +91,9 @@ their owning module headers and collected here.
 | `career-scout:<observerKey>:<playerId>`, `career-scout-bias:<observerKey>` | perception.ts | 12 + 6 |
 | `career-stock:<year>:<week>` | stock.ts | 1 gaussian |
 | `career-phone:<year>:<week>` | phone.ts | sampling |
+| `career-phone-coach:<programId>` | phone-shared.ts | 1 pick (a program's recruiting-coach surname; no week — the man does not change names between letters) |
+| `career-phone-close:<programId>` | phone-summits.ts | 1 chance (the losing finalist's door-close temperature) |
+| `career-cast:<identity>` | phone-shared.ts | 1 pick per identity (agent, advisor, writer, wire): the home cast, drawn once per career so no two careers open on the same contacts (issue #109) |
 | `career-gm-fill` | tick.ts / nbabridge.ts | persona backfill (first filler wins) |
 | `career-nba-coach:<teamId>` | nbabridge.ts | 1 int |
 | `career-nba-offers:<year>:<week>` | nbabridge.ts | 5 |

@@ -165,17 +165,17 @@ interface TalentTier {
 }
 
 const TALENT_TIERS: readonly TalentTier[] = [
-  { key: 'generational', weight: 1.2, qLo: 74, qHi: 84, youthBias: 3.6 },
-  { key: 'star', weight: 5.0, qLo: 65, qHi: 78, youthBias: 3.0 },
-  { key: 'starter', weight: 13, qLo: 55, qHi: 67, youthBias: 2.2 },
-  { key: 'rotation', weight: 34, qLo: 45, qHi: 57, youthBias: 1.15 },
-  { key: 'fringe', weight: 46, qLo: 34, qHi: 43, youthBias: 0.26 },
+  { key: 'generational', weight: 1.2, qLo: 82, qHi: 92, youthBias: 3.6 },
+  { key: 'star', weight: 5.0, qLo: 73, qHi: 86, youthBias: 3 },
+  { key: 'starter', weight: 13, qLo: 63, qHi: 75, youthBias: 2.2 },
+  { key: 'rotation', weight: 34, qLo: 53, qHi: 65, youthBias: 1.15 },
+  { key: 'fringe', weight: 46, qLo: 42, qHi: 51, youthBias: 0.26 },
 ];
 
 /** Top-two-tier weight response to the class wave. FEEL: a loaded class is loaded at the TOP. */
 const WAVE_TIER_EXP = 4;
 /** Prospect quality never reaches a peak superstar's level on day one. FEEL. */
-const PROSPECT_QUALITY_HI = 82;
+const PROSPECT_QUALITY_HI = 90;
 /** Class strength wave clamp. FEEL: historic weak/loaded classes stay inside +-15%. */
 const WAVE_LO = 0.85;
 const WAVE_HI = 1.15;

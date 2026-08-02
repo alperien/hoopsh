@@ -34,7 +34,7 @@ import type { AttrGroup, FrPlayer } from '@hoopsh/franchise';
 import { groupMean } from '@hoopsh/franchise';
 import { agentFrom } from './phone-agent.js';
 import {
-  ROLE_LABEL, THREAD_RANK, WIRE_BYLINE, fmtMoney, meOf, nbaTeamNameOf, round1,
+  ROLE_LABEL, THREAD_RANK, fmtMoney, meOf, nbaTeamNameOf, round1, wireBylineOf,
 } from './phone-shared.js';
 import type { Candidate } from './phone-shared.js';
 import type { CareerPhase, CareerState, CircuitSummary, PhoneChoice } from './types.js';
@@ -327,7 +327,7 @@ export function offseasonArcCandidates(career: CareerState, out: Candidate[]): v
       if (rooms) {
         out.push({
           thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 50,
-          from: WIRE_BYLINE, tag: `arc-brd-${year}`,
+          from: wireBylineOf(career), tag: `arc-brd-${year}`,
           variants: [
             `Summer board check: no games, same number - ${rank}. ${rooms.high}'s room grades him warmest; ${rooms.low} stays the holdout. Offseasons do not move locked boards. Falls do`,
             `The July mock is out and the number next to his name still reads ${rank}. Warmest room in the league: ${rooms.high}. Coldest: ${rooms.low}. The gyms are closed; the arguments are not`,
@@ -361,7 +361,7 @@ export function offseasonArcCandidates(career: CareerState, out: Candidate[]): v
         : 'a season already in the books';
       out.push({
         thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 45,
-        from: WIRE_BYLINE, tag: `arc-blk-${year}`,
+        from: wireBylineOf(career), tag: `arc-blk-${year}`,
         variants: [
           `Checked in on the offseason, ${since} weeks since the horn: ${gym} work sessions a week, doors closed, ${seasonLine} on the resume. The boring months write the loud ones`,
           `Offseason file: ${since} weeks of gym-rat quiet, ${gym} scheduled sessions a week. ${seasonLine} says the work has been paying for a while`,
@@ -468,7 +468,7 @@ export function draftPrepArcCandidates(career: CareerState, out: Candidate[]): v
         : 'The bottom of that table decides which rooms pick where he lands';
       out.push({
         thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 50,
-        from: WIRE_BYLINE, tag: `arc-dp-race-${year}`,
+        from: wireBylineOf(career), tag: `arc-dp-race-${year}`,
         variants: live
           ? [
             `Around the league: ${a.name} (${a.w}-${a.l}) and ${b.name} (${b.w}-${b.l}) own the bottom of the standings. ${stake}. Prospects train; franchises jockey`,
@@ -525,7 +525,7 @@ export function draftPrepArcCandidates(career: CareerState, out: Candidate[]): v
         || career.league.phase === 'draft';
       out.push({
         thread: 'wire', threadRank: THREAD_RANK.wire!, priority: 45,
-        from: WIRE_BYLINE, tag: `arc-dp-run-${year}`,
+        from: wireBylineOf(career), tag: `arc-dp-run-${year}`,
         variants: playoffs
           ? [
             `Sixteen teams are playing for June the loud way. ${a.name} finished ${a.w}-${a.l} and is playing for it the quiet way: ping-pong balls and prospect film. Draft season has functionally begun`,
@@ -592,7 +592,7 @@ export function entryArcCandidates(career: CareerState, out: Candidate[]): void 
     const first = c.years[0]!;
     out.push({
       thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 60,
-      from: 'Marta (agent)', tag: `arc-nba-ppr-${year}`,
+      from: agentFrom(career), tag: `arc-nba-ppr-${year}`,
       refs: { teamId: career.nbaTeam },
       variants: [
         `Paper is done. ${c.years.length} years on the rookie scale, ${fmtMoney(first.salary)} in year one. The slot sets the number; everything after this deal, you set. Frame the first stub`,
@@ -632,7 +632,7 @@ export function entryArcCandidates(career: CareerState, out: Candidate[]): void 
       const names = mates.slice(0, 2).map(p => p.name).join(' and ');
       out.push({
         thread: 'agent', threadRank: THREAD_RANK.agent!, priority: 55,
-        from: 'Marta (agent)', tag: `arc-nba-room-${year}`,
+        from: agentFrom(career), tag: `arc-nba-room-${year}`,
         refs: { players: mates.slice(0, 2).map(p => p.id) },
         variants: [
           `Scouted your own locker room today: ${names} at your spot, both ahead of you on the payroll. Camp decides what the payroll cannot. That is the whole opportunity`,

@@ -263,7 +263,11 @@ Discipline rules, from the research's failure list: no filler quizzes
 state (trust, morale, contract, stock) and quotes real events (your
 actual line last night, your actual history with the sender); choices
 are few and consequential; frequency is capped so a season reads like a
-season and not a group chat. Two careers never produce the same phone.
+season and not a group chat. Two careers never produce the same phone,
+and the phone never belongs to the same people twice: the recurring
+identities around a career (the family advisor, the agent, the beat
+writer, the wire byline) are drawn from the career seed, stable for one
+life and different in the next.
 
 The quiet stretches carry their own rituals: the offseason (the exit
 meeting with the season named honestly, the summer assignment, the

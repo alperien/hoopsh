@@ -27,8 +27,11 @@
  *    the agent is transactional and slightly too smooth; the rival
  *    needles; media asks loaded questions; recruiters write in the
  *    formal register; the mentor has seen everything twice; the wire
- *    writes like a beat reporter under one fixed byline (K. Osei, The
- *    Ledger) and quotes real numbers in every line.
+ *    writes like a beat reporter under one byline held for the whole
+ *    career and quotes real numbers in every line. The named identities
+ *    behind these voices (the advisor, the agent, the beat writer, the
+ *    wire byline) are the seeded home cast (phone-shared.ts, issue
+ *    #109): stable for a career's life, different in the next one.
  * 4. Choices only where a real decision exists: scheduling the
  *    recruiting visit, answering media, engaging the rival, the family
  *    ask, and the role-promise grievance. Everything else is read-only
@@ -59,6 +62,11 @@
  *   career-phone-close:<programId>   the losing finalist's door-close
  *                                    temperature (classy or bitter); one
  *                                    chance draw, personality is stable
+ *   career-cast:<identity>           the home cast (agent, advisor,
+ *                                    writer, wire): one pick per
+ *                                    identity, no week in the path —
+ *                                    the people around a career are
+ *                                    people, not fixtures (issue #109)
  *
  * Module map (the surface, split along its seams):
  *   phone-shared.ts      texture constants, shared lookups, the Candidate contract
