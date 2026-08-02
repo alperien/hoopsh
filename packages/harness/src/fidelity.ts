@@ -18,6 +18,9 @@
  * The exit code is the gate (issue #43): any enforced-row miss exits 1.
  * Ratchet rows (RTCH) and quarantined rows (QUAR) report loudly and never
  * gate — see Target.ratchet / Target.quarantine below for what each means.
+ * Boundary-fragile rows grade on a grand center pooled across MULTI_BASES
+ * instead of the single deterministic slate (Target.multiBase, issue #169);
+ * the slate's own read stays on the line as the per-slate diagnostic.
  */
 
 import { simulateGame, type Player, type Team } from '@hoopsh/engine';
@@ -201,6 +204,21 @@ export interface Target {
    *  inventory test in fidelity.test.ts gates every local `npm test`, where
    *  tsc is unavailable by design. */
   quarantine?: `W${number}`;
+  /** boundary-fragile row (the W86/W87 class): the statistic's per-slate
+   *  sample is small enough that a band edge sits within per-draw noise of
+   *  the produced center, so single-slate grading false-trips on stream
+   *  reshuffles. Calibration for the class (issue #169, FT% at n≈268 FTA
+   *  per 40-game slate): the 88.0 floor sat −1.36 per-draw sd from the
+   *  produced 90.20 center — an ~8% false trip per stream-moving landing,
+   *  and the drift window held four such landings (P(≥1 trip) ≈ 29%). The
+   *  CLI therefore grades the row on the grand center pooled across
+   *  MULTI_BASES (the W29 watch protocol; CALIBRATION.md noise doctrine:
+   *  never adjudicate from one or two draws) and prints the deterministic
+   *  slate's own read as the per-slate diagnostic. Composable with
+   *  quarantine (W86 carries both until #170 rules). The fast gate in
+   *  fidelity.test.ts is unaffected — its widths already come from the
+   *  measured noise floor at z=3. */
+  multiBase?: boolean;
   get: (l: AggLine) => number;
 }
 
@@ -236,13 +254,15 @@ export function gradeTarget(t: Target, v: number): TargetGrade {
  * landed: downhill 3PA (the transition pull-up exists and doubled his
  * attempts, but reaching 3+ needs a larger transition share of his touches)
  * and hub Post shots (REGISTER W58 — real post-entry generation is the
- * missing mechanism). Four rows are QUARANTINED (hub TRB → W29 and shooter
- * AST → W71, pending owner rulings; shooter PTS → W86 and shooter FT% →
- * W87, pending the post-#160 kernel-drift investigations, issues #170 and
- * #169): reported loudly, not counted toward the exit code, still gated by
- * the widened tripwire. Quarantined target values
- * stay untouched while the ruling is pending — the ruling decides which
- * side moves.
+ * missing mechanism). Three rows are QUARANTINED (hub TRB → W29 and shooter
+ * AST → W71, pending owner rulings; shooter PTS → W86, pending the #170
+ * re-read): reported loudly, not counted toward the exit code, still gated
+ * by the widened tripwire. Quarantined target values stay untouched while
+ * the ruling is pending — the ruling decides which side moves. Two rows are
+ * MULTI-BASE (shooter PTS and FT% — the boundary-fragile class, issue
+ * #169): graded on the MULTI_BASES grand center, per-slate read printed as
+ * the diagnostic. The W87 FT% quarantine lifted at #169's resolution:
+ * measured no-regression, row back to enforced under the multi-base method.
  */
 export const TARGETS: Record<string, Target[]> = {
   'fid-curry': [
@@ -254,8 +274,11 @@ export const TARGETS: Record<string, Target[]> = {
     // noise-floor read at higher n (the W29 arc's method: grand center and
     // se at n40+) and, only if the center truly moved, the target-re-fit vs
     // mechanism fork are issue #170 — enforcement suspended until it lands.
-    // Range deliberately untouched.
-    { label: 'PTS', lo: 24, hi: 32, quarantine: 'W86', get: per((l) => l.pts) },
+    // Range deliberately untouched. Method update (#169): same
+    // boundary-fragile class as the FT% row below, so it now grades on the
+    // multi-base grand center (per-slate read kept as the diagnostic); the
+    // #170 adjudication becomes a re-read under this method.
+    { label: 'PTS', lo: 24, hi: 32, quarantine: 'W86', multiBase: true, get: per((l) => l.pts) },
     // QUARANTINED pending REGISTER W71: the W69 generalization audit
     // confirmed the probe era drifted the elite shooter's assists above his
     // identity ceiling at n=40 (W71 measured 9.0 vs the 8.5 ceiling; the
@@ -269,19 +292,21 @@ export const TARGETS: Record<string, Target[]> = {
     { label: 'TRB', lo: 3.5, hi: 6, get: per((l) => l.trb) },
     { label: '3PA', lo: 10, hi: 14, get: per((l) => l.tpa) },
     { label: '3P%', lo: 0.38, hi: 0.455, pct: true, get: (l) => l.tpm / Math.max(1, l.tpa) },
-    // QUARANTINED pending REGISTER W87: the post-#160 kernel reads the
-    // deterministic 40-game CLI slate at 87.3% vs the 88.0% floor — 0.7pp
-    // under at freeThrow 99. A 99-rated shooter converting 87.3% reads as
-    // mechanism, not target: likely a real regression among the kernel
-    // movers between the Aug 1 baseline and main 45e55267 (the window that
-    // took fingerprint-1 from 1236 to 1313 to 1188 events). It rode into
-    // main silently under the pre-#43 exit-0 defect and was caught by this
-    // PR's own gate at the delta re-check (review 4837720984). Measurement
-    // first (an n-scaling read with the se stated — 40 games may
-    // under-sample FT attempts — and a bisect over the movers), then the
-    // mechanism-fix vs target-re-fit fork, is issue #169 — enforcement
-    // suspended until it lands. Range deliberately untouched.
-    { label: 'FT%', lo: 0.88, hi: 0.965, pct: true, quarantine: 'W87', get: (l) => l.ftm / Math.max(1, l.fta) },
+    // ENFORCED on the multi-base grand center (REGISTER W87 closed at issue
+    // #169, 2026-08-02: measured no-regression). The 87.3% single-slate
+    // read that quarantined this row was a −1.74 per-draw-sd binomial draw
+    // at n=268 FTA on a stream reshuffled by #160 — the FT make path is
+    // byte-identical across the drift window, p(freeThrow 99) an unchanged
+    // context-free constant 0.90445, and the produced grand center at main
+    // measures 3369/3735 = 90.20% (16×40-game bases, se 0.49pp, z = −0.50
+    // vs the curve), inside this band. No cross-player depression (Jokić
+    // and LeBron both produce their curve values). Because the 88.0 floor
+    // sits only −1.36 per-draw sd from that center, single-slate grading
+    // false-trips ~8% per stream-moving landing — this row grades on the
+    // multi-base grand center instead (Target.multiBase). Range untouched:
+    // the produced center is inside; widening would blind the row to a
+    // real ~2pp mechanism regression.
+    { label: 'FT%', lo: 0.88, hi: 0.965, pct: true, multiBase: true, get: (l) => l.ftm / Math.max(1, l.fta) },
     { label: '3PA share', lo: 0.5, hi: 0.68, pct: true, get: (l) => l.tpa / Math.max(1, l.fga) }
   ],
   'fid-lebron': [
@@ -376,6 +401,38 @@ export function runBenchmark(bench: Team, starId: string, games: number, seedBas
   return agg!;
 }
 
+/**
+ * Seed bases pooled for multiBase rows: the deterministic CLI base first
+ * (so the graded pool always contains the slate the diagnostic line
+ * prints), plus four fresh bases — the W29 watch protocol's 5×40-game
+ * shape, adopted for the boundary-fragile class at issue #169. Five draws
+ * put the pooled sd at 1/√5 of the per-slate sd; for W87 (FT%, ~268 FTA
+ * per 40-game slate, per-draw sd 1.80pp) that moves the 88.0 floor from
+ * −1.36 to −3.04 pooled-sd below the produced 90.20 center — false-trip
+ * ~0.1% per stream-moving landing vs ~8% single-slate, while a real
+ * regression that drags the produced center to the floor still trips.
+ * Cost: a benchmark carrying a multiBase row simulates 4×games extra.
+ */
+export const MULTI_BASES = ['fid', 'fid2', 'fid3', 'fid4', 'fid5'];
+
+/**
+ * Fold a second benchmark slate into a pooled aggregate — multiBase rows
+ * grade on this grand-center pool. Mutates and returns `into`. Sums the
+ * same 16 counting keys as runBenchmark's own accumulator plus the
+ * games/postShots/driveShots ride-alongs; `zones` and `plusMinus` keep
+ * first-slate values, exactly runBenchmark's documented convention (scan
+ * finding B3-5 — no TARGETS getter or CLI line reads them).
+ */
+export function mergeAgg(into: AggLine, from: AggLine): AggLine {
+  into.games += from.games;
+  into.postShots += from.postShots;
+  into.driveShots += from.driveShots;
+  for (const k of ['min', 'pts', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'orb', 'drb', 'trb', 'ast', 'stl', 'blk', 'tov', 'pf'] as const) {
+    into[k] += from[k];
+  }
+  return into;
+}
+
 const fmt = (v: number, pct?: boolean) => (pct ? `${(v * 100).toFixed(1)}%` : v.toFixed(1));
 
 // the CLI report — the fine-grained 40-game read (the fast, widened GATE
@@ -399,17 +456,30 @@ if (import.meta.main) {
   for (const bench of BENCHMARKS) {
     const star = bench.players[0]!;
     const agg = runBenchmark(bench, star.id, games);
+    // grand-center pool for multiBase rows: the deterministic slate above
+    // (MULTI_BASES[0] is runBenchmark's default base) plus the fresh bases.
+    // Built once per benchmark, only when a row asks for it — the other
+    // benchmarks pay nothing.
+    let pooled: AggLine | null = null;
+    if (TARGETS[star.id]!.some((t) => t.multiBase)) {
+      pooled = { ...agg };
+      for (const b of MULTI_BASES.slice(1)) mergeAgg(pooled, runBenchmark(bench, star.id, games, b));
+    }
     console.log(`── ${star.name} (${bench.name}) — ${(agg.min / agg.games).toFixed(1)} min/g`);
     for (const t of TARGETS[star.id]!) {
-      const v = t.get(agg);
+      const slate = t.get(agg);
+      // multiBase rows grade on the pooled grand center (issue #169 — see
+      // Target.multiBase); the slate read stays printed as the diagnostic
+      const v = t.multiBase && pooled ? t.get(pooled) : slate;
       const grade = gradeTarget(t, v);
       if (grade === 'fail') failures++;
       if (grade === 'quarantined-miss') {
         quarantined.push(`${star.name} ${t.label}: ${fmt(v, t.pct)} vs ${fmt(t.lo, t.pct)} – ${fmt(t.hi, t.pct)}  (docs/REGISTER.md ${t.quarantine})`);
       }
       const mark = grade === 'ok' ? ' OK ' : grade === 'ratchet-miss' ? 'RTCH' : grade === 'quarantined-miss' ? 'QUAR' : 'FAIL';
+      const diag = t.multiBase ? `  (${MULTI_BASES.length}-base center; this slate ${fmt(slate, t.pct)})` : '';
       console.log(
-        ` ${mark}  ${t.label.padEnd(12)} ${fmt(v, t.pct).padStart(7)}   target ${fmt(t.lo, t.pct)} – ${fmt(t.hi, t.pct)}`
+        ` ${mark}  ${t.label.padEnd(12)} ${fmt(v, t.pct).padStart(7)}   target ${fmt(t.lo, t.pct)} – ${fmt(t.hi, t.pct)}${diag}`
       );
     }
     console.log('');

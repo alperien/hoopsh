@@ -18,11 +18,13 @@
  * named owner ruling, issue #43) are NOT skipped: they keep their widened
  * gate below, so a further regression on a quarantined row still fails CI
  * even while the CLI's exit code exempts the known, register-adjudicated
- * miss.
+ * miss. Multi-base rows (Target.multiBase, issue #169) change only the
+ * CLI's grading center; this gate grades the reduced slate as before —
+ * its widths already come from the measured noise floor.
  */
 
 import { describe, expect, it } from 'vitest';
-import { BENCHMARKS, TARGETS, gradeTarget, runBenchmark, type Target } from '../src/fidelity.js';
+import { BENCHMARKS, MULTI_BASES, TARGETS, gradeTarget, runBenchmark, type Target } from '../src/fidelity.js';
 import { NOISE_FLOOR } from '../src/noise-floor.gen.js';
 
 const GAMES = 12; // the gate's speed tier; the CLI owns precision
@@ -83,6 +85,37 @@ describe('gradeTarget — the CLI exit-code classification (issue #43)', () => {
     }
     expect(badRefs).toEqual([]);
     expect(doubled).toEqual([]);
+  });
+
+  // The live inventories, pinned as literal sets (W80 discipline): lifting
+  // a quarantine or adopting the multi-base method for a row is register
+  // paperwork, and this pin makes it a reviewable diff HERE in the same
+  // change — never a silent row edit. Current state: W87 (shooter FT%)
+  // lifted at issue #169, measured no-regression; W29/W71/W86 stand.
+  it('quarantine inventory: exactly the register-adjudicated rows carry the flag', () => {
+    const live: string[] = [];
+    for (const [starId, rows] of Object.entries(TARGETS)) {
+      for (const t of rows) {
+        if (t.quarantine !== undefined) live.push(`${starId} ${t.label} ${t.quarantine}`);
+      }
+    }
+    expect(live).toEqual(['fid-curry PTS W86', 'fid-curry AST W71', 'fid-jokic TRB W29']);
+  });
+
+  // The boundary-fragile class (issue #169): rows whose band edge sits
+  // within per-draw noise of the produced center. The CLI grades these on
+  // the MULTI_BASES grand center; the pool leads with runBenchmark's
+  // default base so the graded pool always contains the printed slate.
+  it('multiBase inventory: the boundary-fragile class, pooled on the deterministic base first', () => {
+    const live: string[] = [];
+    for (const [starId, rows] of Object.entries(TARGETS)) {
+      for (const t of rows) {
+        if (t.multiBase) live.push(`${starId} ${t.label}`);
+      }
+    }
+    expect(live).toEqual(['fid-curry PTS', 'fid-curry FT%']);
+    expect(MULTI_BASES[0]).toBe('fid');   // the CLI's per-slate diagnostic depends on this
+    expect(MULTI_BASES.length).toBe(5);   // the W29 watch protocol's 5×40-game shape
   });
 });
 

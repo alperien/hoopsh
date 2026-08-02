@@ -200,7 +200,9 @@ consumer you write sits at exactly that distance. Natural fits: season bots,
 custom stat sites, alternative viewers, GM/career layers, LLM color commentary
 (the `CommentaryProvider` seam). The builder's guide is
 [docs/EMBEDDING.md](./docs/EMBEDDING.md): loader recipe, `GameConfig`, the
-supported API surface, worked examples.
+supported API surface, worked examples. The stability contract is
+[docs/CONTRACT.md](./docs/CONTRACT.md): the stable surfaces, the explicitly
+unstable ones, and what a version bump means.
 
 Input contract: `simulateGame` always rejects non-finite ratings loudly; pass
 `validate: 'strict'` to also enforce the data-pack ranges (ratings 0-100) when
@@ -757,7 +759,12 @@ the single source of truth it derives from.
 npm run test     # full suite: determinism, geometry, archetypes, narration, schema,
                  # wide-band realism guard, and the INVARIANT SUITE (below)
 npm run batch -- --games 24    # fine-grained NBA acceptance bands
-npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote)
+npm run bench    # ≥1 game/sec budget (throughput is hardware-dependent — measure locally, don't quote).
+                 # Its events lines (avg/total/per-game/sig) are the opposite: pinned by the tree,
+                 # byte-reproducible at the same commit + Node version, and labeled with both
+                 # (`tree:`/`node:` contract lines). Compare events figures across boxes only at an
+                 # identical contract; a same-tree mismatch means a dirty/mismatched checkout or a
+                 # determinism break (incident #175).
 ```
 
 `packages/engine/test/invariants.test.ts` permanently enforces what two adversarial
@@ -965,6 +972,67 @@ its as-of commit.
   reads live in the landing rows (W63: G8 closed at 1.75-2.48/g live-ball
   subs; W73: flowboard 10/13; W77: the staged leak-out's reads). A full
   flow/flowboard sweep at HEAD is issue #39's deliverable.
+- **astdShare band corrected from sourced data; fgPct edges annotated
+  (#56; owner draft PR #78 `1d7dc743`, adopted, re-cut and re-measured
+  2026-08-02 at main `e05267fb`, branch `calib/i56-astd-band`).** The
+  enforced astdShare band was 54.0-62.0 on a recalled provenance claim
+  ("recent seasons ~56-59%"). Sourced reads, reproduced fresh at this
+  branch (fourth independent count, exact): 63.80% pooled (9795/15352
+  assisted FGM, 184-game 2025-26 pbp corpus; per-game mean 63.73%, sd
+  6.49pp, se 0.48pp, n=184; parse recorded at the band; corpus shards
+  bit-identical since the draft, tree `594f3034`) and 63.27% derived
+  for 2023-24 (ast 26.7 / fg 42.2, both verbatim in
+  league-averages-2023-24.json). Both sourced seasons sit above the old
+  ceiling: a sim matching reality exactly failed the old band.
+  Corrected band 59.8-67.8 = sourced center 63.8 +/- the incumbent
+  4.0pp half-width (width FEEL until era data lands). One provenance
+  correction against the draft: corpus FGA is 32452 (makes 15352 +
+  misses 17100, zero dual-pattern rows), not the draft prose's 32458;
+  FG% 47.31 was already consistent only with 32452. This row supersedes
+  the 62.0-ceiling framing in the acceptance and G11 rows above. What
+  the edit re-prices: W6's n=96 adjudication frame (superseded; 62.0
+  was not a real edge); the two binding adjudications, re-measured
+  against the corpus in the #39 addendum (probe dose 1.5 at n=1440/arm,
+  W77 leak 0.35 at n=288/arm); the G11 headroom arithmetic (~7.6pp from
+  the 60.19 n40 floor center to the 67.8 ceiling at this head); and the
+  sweep's centering objective (sweep.ts CENTER_W), which now pulls
+  astdShare UP toward 63.8 instead of DOWN toward 58.0. THE KERNEL
+  MOVED UNDER THE DRAFT and the draft's flicker claim is superseded:
+  the draft measured the corrected floor 2.4 draw-sd below the 61.43
+  center (<1% per-draw flicker); four kernel movers later (W84 putback
+  0.3, W85 blow-by 0.5 at a measured -0.63pp astd, #119, #160) the
+  committed noise floor reads astd n40 center 60.19%, sd 0.86pp, so the
+  floor sits 0.46 n40-draw-sd below center. astdShare is now the
+  run-to-run boundary band at n<=96 reads (~1 in 3 n40/n48 draws read
+  under; measured this session: 0/12 under at n=48 and one of three n=40 verify bases under at 0.59, i.e. 1 of 15 fresh draws; fresh-base weighted center 60.39 over 1536 games, the session's full fresh-base slate of 3x288 + 96 + 12x48, not the 12 n=48 bases alone; CI's batch
+  gate floor 16/17 absorbs the lone flicker by design). Session-read
+  provenance (PR #78 review 4838517576, disposition 5158044082): the
+  12-base n=48 pool's seed names went unrecorded, against the
+  register's pool-naming convention (the W84/W85 "pool name-1..n"
+  shape), so the 0/12 read is not reproducible as recorded and ran
+  high; the review's independent pool flick-1..12 at n=48 read 4/12
+  under the floor (mean 60.23, sd 0.68pp), all 12 CI-green (every
+  failure a lone band at 16/17, at or above RATCHET_FLOOR 16), and
+  stands as the reproducible counter-sample of record. Plan on the
+  analytic ~1 in 3, not 0/12. Count wording, aligned: this row's
+  fourth-count phrasing and the bands.ts comment's three-prior-parses
+  phrasing describe the same series (three prior parses plus this
+  branch's own); the review's clean-clone recount is the fifth. The center
+  itself is INSIDE by 2.9 center-se (se 0.14pp over 40 bases): the
+  deficit to the real center, ~3.6pp at this head, is the D1b/supply-arc
+  story (W84/W85 deliberately spent astd for unassisted rim volume; the
+  #58 arc exit buys it back toward 63.8). Measured at this branch:
+  fingerprint identical (1188 events / CAS 108 - MER 121; corpus
+  28/28 both trees), suite 1696/1694/0/2 (452 suites) identical both sides, batch
+  n=96 17/17 (astd 60.2 vs 59.8-67.8; fresh n=288 bases 60.1/60.4/60.3, 17/17 x3),
+  verify 40x3 17/17, 17/17, 16/17 (swp-gamma astd 0.59; the rung exits nonzero, adjudicated per the W85 verify precedent), oos 15/17 report-only (astd 58.6, the W14 class; fgPct 50.1, ceiling flicker), fidelity gate exit 0 with
+  the registered W29/W86/W87 QUAR lines standing and Curry AST 8.4 in
+  range (W71, silent). fgPct: sourced 47.4% (2023-24) and 47.31%
+  (corpus) sit inside 44.0-49.5 with house-normal margins (ceiling
+  +2.1/+2.2pp, the tpPct/ftPct margin family); the edges stand,
+  annotated at the band; the sim's high-in-band position stays the live
+  watch item. Re-measure: `npm run batch -- --games 48|96`; adjudicate
+  astd at n>=288.
 
 ## Endgame layer status
 
@@ -2790,7 +2858,7 @@ NCAA bonus free throw earned only by making the first).
 | recipes A–G | the per-change-shape build procedures (new tendency, new knob, new action, new event, new rule field, new test, new consumer) | docs/PLAYBOOK.md Part 2 |
 | rule pack vs data pack | league rules as JSON (`RulePack` — periods, clocks, bonus, geometry) vs roster content as JSON (team packs) | rules/rulepack.ts; docs/ROSTERS.md |
 | the Bible | docs/BIBLE.md — a GENERATED concatenation of the source docs for one-context-window handoff; never edited directly | tools/build-bible.mjs; `npm run docs:bible` |
-| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W61 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
+| the register | docs/REGISTER.md — the live debt rows D1–D9 and W1–W87 (formerly REFACTOR.md's tables) | docs/REGISTER.md |
 | Phase 2R | the current roadmap phase: tuning and validating the implemented mechanics, not building new ones | README.md Roadmap |
 | B2 / game-state coupling | the score-pressure mechanic: trailing team's defense presses up, leader's sags (concept 7 channel 2), plus the garbage-time concede rotation | REGISTER W17/W18; concepts.ts, subs.ts |
 | concepts 6/7/8 | numbered bounded-rationality concepts: 6 = game-state urgency (clock kill, hold-for-last, 2-for-1), 7 = score pressure, 8 = probe culture; concept 4 (usage pressure) lives in decide.ts | sim/ai/concepts.ts (in-file order 1–3, 6, 5, 7, 8) |
