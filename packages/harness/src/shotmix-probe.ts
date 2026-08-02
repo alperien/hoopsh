@@ -155,7 +155,7 @@ if (isMain) {
     console.log(`  ${z.padEnd(14)} ${String(a).padStart(6)} ${pct(a, t.fga).padStart(9)} ${pct(k, a).padStart(9)}`);
   }
   console.log(`\n  interior catch_shoot (mislabel)   ${pct(t.interiorCsAtt, t.fga)} of attempts, ${pct(t.interiorCsMake, t.fgm)} of makes`);
-  console.log(`  assisted share of makes           ${pct(t.assisted, t.fgm)}   (band 54-62%)`);
+  console.log(`  assisted share of makes           ${pct(t.assisted, t.fgm)}   (band 59.8-67.8%, #56)`);
   console.log(`  OREB -> FGA <=6s (putback share)  ${pct(t.putback6, t.oreb)}   (real 71.6%)`);
   console.log(`  steal -> score <=6s               ${pct(t.stealScore6, t.steals)}   (real 29.3%)`);
   console.log(`  steal -> FGA <=6s                 ${pct(t.stealShot6, t.steals)}   (first shot after ${(t.stealShotDelay / Math.max(1, t.stealShot6)).toFixed(1)}s avg)`);
