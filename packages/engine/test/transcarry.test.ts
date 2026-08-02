@@ -50,11 +50,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  NBA, makeCourt, simulateGame, withParams,
-  type GameEvent, type GameResult, type ShotMoveType
+  NBA, Rng, makeCourt, makePlayer, makeTactics, simulateGame, withParams,
+  type GameEvent, type GameResult, type ShotMoveType, type Team
 } from '@hoopsh/engine';
 import { sampleMatchup } from '@hoopsh/data';
 import { carriesToRim } from '../src/sim/game.js';
+import { startPossession } from '../src/sim/possession.js';
 import { attackedRim, type Agent, type GameState } from '../src/sim/state.js';
 
 /** the booth's book boundary (narration shotcall.ts DUNK_MAX_FT — real
@@ -400,5 +401,212 @@ describe('delta F1: the frame ball meets the carried booking (honest-path proper
     // asserts over an empty slice
     expect(signatures).toBeGreaterThanOrEqual(20);
     expect(maxGapFt).toBeLessThanOrEqual(3.5);
+  });
+});
+
+// --------------------------------------------------- scale-0 off-switch pins
+
+/**
+ * #139: the hard-zero contract, pinned explicitly at the retired default —
+ * the #138 blow-by pin's transition twin (filed from the #132 re-review:
+ * transCarryScale ships 0.5 with the same staged-guard shape and the same
+ * retired corpus shield). The arming draw's scale guard (`carryScale > 0
+ * &&`, possession.ts startPossession) is what makes scale 0 draw-free and
+ * byte-identical — the #74 staged-zero contract. The golden corpus covered
+ * it only while the shipped default was 0; the #74 dose landing moved the
+ * default to 0.5, so no corpus config reaches the guard's false arm any
+ * more, and the #132 review demonstrated the class on the blow-by: guard
+ * dropped, full suite and corpus all green. The F2 STAGE row above does
+ * not cover this site — it pins the GATE's own scale read (game.ts
+ * carriesToRim), a separate check the drive branch makes at decide time,
+ * and it never runs startPossession at all. Two layers re-cover the OFF
+ * direction at the draw:
+ *
+ *  1. Baked stream checksums at scale 0 (the F3 shape, frames on, same
+ *     RE-ANCHOR doctrine). No live two-arm comparison can own this pin:
+ *     chance(0) consumes one float and never arms, so a dropped guard
+ *     shifts every scale-0 stream UNIFORMLY — any two in-engine configs
+ *     with scale <= 0 stay pairwise identical under the mutant, and only
+ *     a fixture baked from the guarded engine can witness the shift.
+ *  2. A draw-count property at the arming site, which survives re-anchors:
+ *     on identical hand-built states, startPossession consumes IDENTICAL
+ *     draws at scale 0 and scale 1 (both draw-free by the guard shape, so
+ *     the two runs' rng streams never diverge at all) and exactly one more
+ *     at the landing dose. The guard-drop breaks the equality from the 0
+ *     side; dropping the >= 1 short-circuit breaks it from the 1 side.
+ *
+ * The isolation is the #138 shape derived for the carry's kind scope. The
+ * blow-by pin starts an 'inbound' possession and lets the kind scope strip
+ * the leak and carry draws away (the blow-by arms on every start kind);
+ * the carry's draw exists ONLY on live_rebound/steal starts, so this
+ * fixture starts a 'live_rebound' possession and switches the other
+ * scale-sensitive sites on that path off through their own documented
+ * off-arms instead: ai.leakOutScale 0 and ai.blowByCarryScale 0 (the same
+ * heave-guard shape — 0 never reaches either draw), and
+ * endgame.toLiveSiteOn 0 (the live-ball timeout site at the
+ * startPossession tail runs only on live_rebound/steal starts and its
+ * coach-hazard evaluation ends in a real chance() at the shipped fits; 0
+ * is that site's own staging off-path, returning before the draw). What
+ * remains scale-sensitive is exactly one draw — the carry's, rolled after
+ * the dead leak site and before the dead blow-by site, ahead of
+ * assignSpots' fixed-count jitter (rollSpots' header documents the fixed
+ * consumption) — so the +1 offset at the landing dose is exact.
+ *
+ * Both layers were verified RED under the hand-applied guard-drop before
+ * landing — the test's own params patch supplies scale 0, no defaults
+ * edited — and the interior-dose stream DIRECTION beside these rows is
+ * #127's concern, already owned by the f3pin-1@0.25 row above. The
+ * mutation-shields doctrine.
+ */
+
+type ParamOverrides = Parameters<typeof withParams>[0];
+
+/** count raw uniform draws at the source: every Rng distribution helper
+ *  funnels through float() — the blowby.test.ts #131 counting shape */
+function countDraws(rng: Rng): { n: number } {
+  const counter = { n: 0 };
+  const raw = rng.float.bind(rng);
+  (rng as unknown as { float: () => number }).float = () => {
+    counter.n += 1;
+    return raw();
+  };
+  return counter;
+}
+
+/**
+ * A mid-Q2 game state one call away from a fresh possession — the
+ * blowby.test.ts mkLifecycleState shape (typed full literals: CI types
+ * tracks every field), trimmed to this file's one consumer: the #139
+ * off-switch pin calls the real startPossession on it (replacing poss)
+ * to count the arming site's draws. 5v5 real default players so
+ * assignSpots/assignMatchups/bestHandler read honest lineups.
+ */
+function mkOffSwitchState(seed: string, params: ParamOverrides): GameState {
+  const P = withParams(params);
+  const court = makeCourt(NBA);
+  const mk = (id: string) => makePlayer({ id, name: id, pos: 'SF', heightIn: 78 });
+  const off = [mk('off-1'), mk('off-2'), mk('off-3'), mk('off-4'), mk('off-5')];
+  const def = [mk('def-1'), mk('def-2'), mk('def-3'), mk('def-4'), mk('def-5')];
+  const teamOf = (id: string, players: ReturnType<typeof mk>[]): Team => ({
+    id, name: id, abbrev: id.slice(0, 3).toUpperCase(),
+    players, starters: players.map((p) => p.id), tactics: makeTactics()
+  });
+  const agents = new Map<string, Agent>();
+  const addAgent = (p: ReturnType<typeof mk>, side: 0 | 1): void => {
+    agents.set(p.id, {
+      p, side,
+      pos: { x: court.midX, y: court.centerY },
+      vel: { x: 0, y: 0 },
+      energy: 100, load: 0, secondsPlayed: 0, fouls: 0, onCourt: true, fouledOut: false,
+      lastSwapT: 0,
+      target: { x: court.midX, y: court.centerY },
+      intent: 'spot', sprinting: false, spotKey: null, manId: null,
+      dribblesSinceCatch: 0, dribbleAcc: 0,
+      catchT: -99, acquiredBy: 'deadball',
+      catchQuality: P.shot.passQualityCenter,
+      usedPoss: 0, teamPossOnCourt: 0,
+      driveUntil: -99, cutUntil: -99, relocUntil: -99,
+      screenStunUntil: -99, navUnderUntil: -99
+    });
+  };
+  off.forEach((p) => addAgent(p, 0));
+  def.forEach((p) => addAgent(p, 1));
+  return {
+    rng: new Rng(seed), params: P, rules: NBA, court,
+    teams: [teamOf('tc-off', off), teamOf('tc-def', def)],
+    agents,
+    lineup: [off.map((p) => p.id), def.map((p) => p.id)],
+    ball: { holderId: null, pos: { x: court.midX, y: court.centerY }, flight: null },
+    // mid-Q2, clock-consistent: 320s of Q2 elapsed, wallT ahead of t by
+    // earlier stoppage time (two-axes discipline)
+    period: 2, clock: 400, t: 1040, wallT: 1250,
+    score: [40, 38],
+    teamFoulsPeriod: [0, 0], teamFoulsLate: [0, 0], tipWinner: 0,
+    endgame: true, timeoutsLeft: [7, 7], runPts: [0, 0],
+    timeoutsThisPeriod: [0, 0], timeoutsUsedFinalPeriod: [0, 0],
+    timeoutsUsedFinalLate: [0, 0], lastTimeoutT: [-99, -99],
+    conceded: [false, false],
+    // a placeholder trip: the pin below calls the real startPossession on
+    // this state, which replaces this whole object before anything reads it
+    poss: {
+      team: 0, shotClock: 14, phase: 'advance', startT: 1035, kind: 'inbound',
+      leakArmed: false, carryArmed: false, blowByArmed: false,
+      opener: false,
+      lastPass: null, spotMap: new Map(), spots: new Map(), action: null, ended: false
+    },
+    phase: { kind: 'live' },
+    events: [], frames: [], collectFrames: false,
+    decisionAt: 0, pendingRelease: null, over: false
+  };
+}
+
+describe('the scale-0 off-switch (#139): the hard-zero contract at the retired default', () => {
+  // the F3 hashing convention, duplicated locally so the F3 block above
+  // stays untouched (stacked test-only diffs stay additive — the #138 shape)
+  const fnv1a = (str: string): string => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  };
+
+  // Re-anchored at the #115 landing, both layers (legitimate scale-0
+  // stream reorders, the uniform-shift class this block's own doctrine
+  // anticipates: the layer A acquisition stamp moves every stream at
+  // every scale, and the layer B dead-phase relay moves frames at every
+  // scale — a scale-0 game holds dead-ball stoppages like any other).
+  // The #156 bake predates the #115 merge, so both rows re-baked at the
+  // merge commit; causes stated there.
+  const PINNED: { seed: string; events: number; final: string; hash: string }[] = [
+    { seed: 'tc0pin-1', events: 1251, final: '87-98', hash: '93ef470c' },
+    { seed: 'tc0pin-2', events: 1203, final: '103-122', hash: '03e7f882' }
+  ];
+
+  for (const pin of PINNED) {
+    it(`${pin.seed} at scale 0 streams exactly the baked checksum`, () => {
+      const { home, away } = sampleMatchup();
+      const r = simulateGame({
+        seed: pin.seed, home, away, collectFrames: true,
+        params: { ai: { transCarryScale: 0 } }
+      });
+      const last = r.events[r.events.length - 1]!;
+      expect(r.events.length).toBe(pin.events);
+      expect(`${last.score[0]}-${last.score[1]}`).toBe(pin.final);
+      expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe(pin.hash);
+    });
+  }
+
+  it('the arming site is draw-free at both ends and draws exactly once at the landing dose', () => {
+    const run = (scale: number): { n: number; armed: boolean } => {
+      const s = mkOffSwitchState('tc-off-switch', {
+        // the isolation patch (block comment above): the sibling arming
+        // sites off through their own hard-zero arms, the live-timeout
+        // site through its staging dial — the carry's draw is the only
+        // scale-sensitive one left on a live_rebound start
+        ai: { transCarryScale: scale, leakOutScale: 0, blowByCarryScale: 0 },
+        endgame: { toLiveSiteOn: 0 }
+      });
+      const counter = countDraws(s.rng);
+      startPossession(s, 0, 'live_rebound');
+      return { n: counter.n, armed: s.poss.carryArmed };
+    };
+    const at0 = run(0);
+    const at1 = run(1);
+    const at05 = run(0.5);
+    // the off-switch equality: 0 and 1 are both draw-free by the guard
+    // shape, so their whole startPossession draw sequences are identical.
+    // A dropped scale guard consumes chance(0) and breaks this from the 0
+    // side; a dropped >= 1 short-circuit breaks it from the 1 side
+    expect(at0.n).toBe(at1.n);
+    // the landing dose draws exactly the one arming chance() more: the
+    // draw precedes assignSpots' fixed-count jitter (rollSpots' header
+    // documents the fixed consumption), so the offset is exact
+    expect(at05.n).toBe(at0.n + 1);
+    // and the arming semantics at the ends: 0 is OFF, 1 always arms on
+    // the carry's own kind scope
+    expect(at0.armed).toBe(false);
+    expect(at1.armed).toBe(true);
   });
 });
