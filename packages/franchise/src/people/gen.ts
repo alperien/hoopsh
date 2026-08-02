@@ -72,6 +72,19 @@ const QUALITY_HI = 90;           // FEEL: generational ceiling for a quality TAR
 // never shoots - skill without appetite is incoherent)
 const COHERENT_SKILL = 75;       // FEEL: a 75+ three is a weapon a real offense weaponizes
 const COHERENT_WANT_FLOOR = 15;  // FEEL: below this appetite the weapon never fires
+// #143 CAN x WANT structure: the calibration packs put the three-ball skill
+// and the appetite in the same bodies and make everyone else a near
+// non-shooter (specialist share 40%, corr 0.962); generation spread the two
+// dials (21%, 0.802) and the engine prices attempts superlinearly in the
+// pair, so league 3PA starved at identical marginals (#126 finding 2).
+// Two sides: a shooting identity's rolled skill floors near specialist level
+// (a pro whose role is the three CAN shoot it), then appetite derives from
+// the final skill. Signature caps outrank both (paint bigs stay paint bigs).
+const SHOOTER_IDENT_TEND = 55; // REAL: the #126 specialist appetite line (tend>=55)
+const SHOOTER_CAN_FLOOR = 72; // SWEPT (#143): identity skill floor for shooting archetypes
+const SHOTTHREE_COUPLE_W = 1.0; // SWEPT (#143): blend toward pure derivation; 1 = pack structure
+const SHOTTHREE_CAN_WANT_OFFSET = 12; // REAL: mw attr.three (~58) minus mw tend.shotThree (~46), packs AND generated (#126)
+const SHOTTHREE_COUPLE_NOISE_SD = 5.5; // SWEPT (#143): reproduces the packs' 0.962 corr at w=1
 
 const RAW_DISCOUNT_PER_YEAR = 3.0; // CAL: current-dial discount per year under 23, at zero readiness
 const RAW_AGE = 23;              // FEEL: by 23 a prospect's dials are his dials (FRANCHISE.md section 5)
@@ -174,7 +187,7 @@ const TALENT_TIERS: readonly TalentTier[] = [
 
 /** Top-two-tier weight response to the class wave. FEEL: a loaded class is loaded at the TOP. */
 const WAVE_TIER_EXP = 4;
-/** Prospect quality never reaches a peak superstar's level on day one. FEEL. */
+/** Prospect quality never reaches a peak superstar's level on day one. SWEPT (#125): 90 carries the +8 supply-parity offset (grid +5/+8/+11; recommendation of record in #125 comment 5156322787). */
 const PROSPECT_QUALITY_HI = 90;
 /** Class strength wave clamp. FEEL: historic weak/loaded classes stay inside +-15%. */
 const WAVE_LO = 0.85;
@@ -327,6 +340,27 @@ export function generatePlayer(rng: Rng, opts: GenPlayerOpts): FrPlayer {
   if (attr.three <= COHERENT_WANT_FLOOR && tend.shotThree >= COHERENT_SKILL) {
     tend.shotThree = bailRepair;
   }
+
+  // #143 (constants above). Side 1: the identity floor. A wing whose role
+  // is shooting arrives able to do the job even on a weak roll - the archs
+  // whose appetite template marks a shooting identity floor their rolled
+  // skill at specialist entry, inside the archetype's own signature cap.
+  // Age rawness still discounts after this, so young picks stay projects.
+  if (arch.tend.shotThree >= SHOOTER_IDENT_TEND && SHOOTER_CAN_FLOOR > 0) {
+    attr.three = Math.max(attr.three, Math.min(SHOOTER_CAN_FLOOR, arch.caps.three ?? 100));
+  }
+  // Side 2: appetite derives from the final skill. The noise is drawn every
+  // call so the draw pattern never varies. The archetype's signature cap
+  // re-applies after the blend: identity outranks coupling (paint bigs
+  // never roll a live three-ball - gen.test.ts holds).
+  const coupleNoise = rng.gaussian(0, SHOTTHREE_COUPLE_NOISE_SD);
+  tend.shotThree = Math.round(clamp(
+    SHOTTHREE_COUPLE_W * (attr.three - SHOTTHREE_CAN_WANT_OFFSET)
+      + (1 - SHOTTHREE_COUPLE_W) * tend.shotThree
+      + coupleNoise,
+    0,
+    Math.min(100, arch.tendCaps.shotThree ?? 100),
+  ));
 
   // usage coherent with quality AND identity: an offense feeds its best
   // players, but a star hub and a star pest carry load differently.
