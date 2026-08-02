@@ -15,6 +15,27 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: post-FT-carry prose truth sweep (#128, issue #116)
+
+- The #82 C1 carry landing (PR #119, `e851169a`) left six prose claims
+  stale or wrong; this sweep corrects them against their records. The
+  REGISTER W82 residual sentence now carries the fixed-class note
+  (25.38/g to 0.02/g, pool rtfg-1..48; the survivor is the #115 C2
+  resume snap). The transcarry delta-F1 header marks its foul-sharing
+  exclusion necessary pre-fix, merely conservative post-fix. Two
+  fouls.ts comments claiming the technical path is unreachable in
+  shipped games are reconciled to FoulOutcome's documented live rate
+  (techPerFoulWhistle 0.017, ~0.71/g). The ftcarry.test.ts header's
+  mutant routes now match the #119 gate review's measurements (review
+  4835956264: lerp-kill posts 0 on the bound clause and 55.6 ft on
+  departure; t-for-wallT posts 51.1 ft on the bound clause, which fires
+  first, plus 85/324 arrival misses, with departure alone green at
+  1.56 ft). The fouls.test.ts pack-derivation locator re-points at the
+  current ftLineSpot helper (fouls.ts:147-163). Comments and docs only;
+  fingerprint-1 identical (1277 events, 115-126); corpus 28/28
+  byte-identical; suite identical (1623 tests, 1621 pass, 0 fail,
+  2 todo).
+
 ### Franchise: late-transaction news (#122, issue #118)
 
 - Draft night and the rollover logged transactions AFTER the day's news

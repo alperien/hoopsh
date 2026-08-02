@@ -172,8 +172,9 @@ function ftLineSpot(s: GameState, side: TeamSide): { rim: V2; dir: number; ftSpo
  * tickFreeThrows ends the trip with a live ball if the front end misses) —
  * bonus callers pass it straight from FoulOutcome.bonus.
  *
- * `tech` (officiating wave; only ever passed when FoulOutcome.techFT was
- * non-null, so shipped games never reach it) arranges the technical free
+ * `tech` (officiating wave; passed exactly when FoulOutcome.techFT is
+ * non-null, which the live officiating.techPerFoulWhistle 0.017 makes a
+ * ~0.71/g occurrence in shipped games) arranges the technical free
  * throw in one of two mutually exclusive shapes:
  *  - `pre`: this is a normal FT trip whose whistle also drew a tech. The
  *    tech shooter's single attempt is shot first (n:1 of:1 technical:true,
@@ -339,9 +340,10 @@ export function tickFreeThrows(s: GameState, dt: number): void {
   }
   if (ph.nextIn > 0) return;
 
-  // Technical prefix attempt (officiating wave; reachable only when a tech
-  // rider was passed into enterFreeThrows, never in a shipped game): shot
-  // first, before the main trip's sequence. By rule the ball is dead: a
+  // Technical prefix attempt (officiating wave; runs when a tech rider was
+  // passed into enterFreeThrows — live at techPerFoulWhistle 0.017, so
+  // shipped games shoot ~0.71 of these a game): shot first, before the
+  // main trip's sequence. By rule the ball is dead: a
   // miss produces no rebound of any kind (not even the formality row) and
   // the attempt has no possession effects; the main trip then runs
   // unchanged (`taken` untouched).

@@ -29,9 +29,12 @@
  *      land between frame ticks, so the origin frame can sit up to one
  *      0.1 s live step — sprint ~2.8 ft — before the true whistle spot,
  *      understating the implied speed by up to ~0.4 ft per pair). Measured
- *      max excess on the pool: 0.287 ft over n=1518 pairs; a killed lerp
- *      (the old entry snap restored) posts excesses of 5-70 ft, so 0.5
- *      keeps orders-of-magnitude signal margin. For a trip whose FIRST
+ *      max excess on the pool: 0.287 ft over n=1518 pairs; the axis-mix
+ *      mutant below reads 51.1 ft against this bound, so 0.5 keeps
+ *      orders-of-magnitude signal margin. A killed lerp reads 0 HERE
+ *      (the interior sees a parked ball); its 55.6 ft signal lands on
+ *      the departure clause. Both routes measured at the #119 gate
+ *      review, 4835956264. For a trip whose FIRST
  *      attempt is also its LAST and misses (1-of-1 non-technical miss,
  *      one-and-one front end included), the pair bracketing the attempt is
  *      excluded: the C3 rim seed lands on that very tick.
@@ -73,8 +76,13 @@
  *     frozen game clock): the lerp parks at the origin and the arrival
  *     gate's nextIn arm relocates the whole jump onto the attempt tick's
  *     own bracketing pair, INSIDE the bound window — the bound clause
- *     catches it. Departure and arrival stay green under this mutant,
- *     which is why the bound clause exists as its own assertion.
+ *     fires first (51.1 ft vs 0.5). Arrival misses too, 85 of 324 checks
+ *     (a non-final attempt at an off-cadence tick shows the origin-parked
+ *     lerp on the frame after the nextIn-arm snap), so two clauses catch
+ *     this mutant, not one. Departure alone stays green (1.56 ft vs 4):
+ *     the bound clause exists as its own assertion because departure
+ *     would miss this route (routes measured at the #119 gate review,
+ *     4835956264).
  */
 import { describe, expect, it } from 'vitest';
 import {

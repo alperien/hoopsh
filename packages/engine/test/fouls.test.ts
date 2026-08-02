@@ -346,9 +346,10 @@ describe('enterFreeThrows (fouls.ts:158-256)', () => {
   });
 
   it('the shooter walks to the PACK-DERIVED line; the ball stays put and carries (#82 C1)', () => {
-    // fouls.ts:215-227 — ftLineFt − rimInsetFt replaced a hardcoded 13.75
-    // that silently diverged for non-NBA packs; period 1, side 0 attacks the
-    // high-x rim, so the line sits toward midcourt from it
+    // fouls.ts:147-163 (ftLineSpot) — ftLineFt − rimInsetFt replaced a
+    // hardcoded 13.75 that silently diverged for non-NBA packs (the #82 C1
+    // landing moved the derivation into the shared helper); period 1, side 0
+    // attacks the high-x rim, so the line sits toward midcourt from it
     const { s, agents } = mkState();
     const shooter = agents.get('h3')!;
     const whistleSpot = { ...s.ball.pos };
