@@ -245,6 +245,21 @@ describe('F2: the blow-by gate, condition by condition (hand-built states)', () 
     expect(gateCase({ moveType: 'putback' })).toBe(false);
   });
 
+  it('the LABEL gate, widen family: cut_finish, post, and heave never blow by (#133)', () => {
+    // the surviving label-widen mutant (drive || cut_finish || post ||
+    // heave) is behaviorally inert in shipped streams only because those
+    // labels never coincide with a live drive-commit window plus the full
+    // gate (the Red Team read 0/150 live-fire divergence over 178 games) —
+    // and nothing pinned that coincidence-emptiness, so a change to commit
+    // labeling or gate shape could make the widen live with zero failing
+    // signal. These states pass every other condition; the gate must
+    // refuse on the label alone. With the rows above, all six non-drive
+    // labels are now pinned FALSE.
+    expect(gateCase({ moveType: 'cut_finish' })).toBe(false);
+    expect(gateCase({ moveType: 'post' })).toBe(false);
+    expect(gateCase({ moveType: 'heave' })).toBe(false);
+  });
+
   it('the COMMIT gate: an expired driveUntil never blows by', () => {
     expect(gateCase({ commitLeft: -0.1 })).toBe(false);
     expect(gateCase({ commitLeft: 0 })).toBe(false); // strict <: expiry is exclusive
