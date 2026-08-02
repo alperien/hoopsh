@@ -6,7 +6,7 @@
  * bump-then-lookup bonus ordering, foul-out replacement, the after-whistle
  * technical draw), fouls.ts:147-296 (dead ball, windup cleared, pack-derived
  * FT line, freeze, shooter protection), events.ts:70-93 (FoulKind — the
- * technical's snapshot-not-increment semantics), events.ts:357-391
+ * technical's snapshot-not-increment semantics), events.ts:364-400
  * (FoulEvent fields), rules/rulepack.ts (thresholds — read from the NBA
  * pack, never written as literals).
  *
@@ -151,7 +151,7 @@ describe('recordFoul (fouls.ts:63-143)', () => {
     expect(e.teamCountInPeriod).toBe(3);
     expect(e.inBonus).toBe(false);
     expect(e.fouledOut).toBe(false);
-    // emit stamps time/score context (state.ts:433-446)
+    // emit stamps time/score context (state.ts:490-503)
     expect(e.t).toBe(100);
     expect(e.clock).toBe(480);
     expect(e.score).toEqual([10, 12]);
@@ -191,7 +191,7 @@ describe('recordFoul (fouls.ts:63-143)', () => {
   });
 
   it('the personal that reaches rules.foulOutAt disqualifies; with the bench exhausted, play on', () => {
-    // fouls.ts:97-110; subs.ts:525-533 — a 5-man roster has no replacement, so
+    // fouls.ts:97-110; subs.ts:551-559 — a 5-man roster has no replacement, so
     // the fouled-out body legally stays in the lineup (the degenerate state
     // liveOnCourt exists for)
     const { s, agents } = mkState();
@@ -215,7 +215,7 @@ describe('recordFoul (fouls.ts:63-143)', () => {
 
   it('a foul-out with a bench pulls the replacement in immediately, mid-play', () => {
     // fouls.ts JSDoc trap ("this can change who's on the floor as a side
-    // effect") + subs.ts:518-541 — the swap happens synchronously, and the
+    // effect") + subs.ts:544-567 — the swap happens synchronously, and the
     // substitution event follows the foul event
     const { s, agents } = mkState({ benchIds: ['h6'] });
     const fouler = agents.get('h1')!;

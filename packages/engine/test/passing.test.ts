@@ -97,7 +97,7 @@ describe('reach-in resolution (passing.ts:179-267)', () => {
 
   it('a NON-bonus reach-in continues the same possession: no free throws, no possession flip', () => {
     // passing.ts:257-266 — the continuation dead ball resumes play with the
-    // fouled team still in possession; fouls.ts:21-34 (bonus null contract).
+    // fouled team still in possession; fouls.ts:26-35 (bonus null contract).
     // Walk from each such foul to the next possession boundary: a
     // possession_start before a possession_end means the whistle flipped the
     // ball (red); a free_throw before any LATER foul means someone shot FTs

@@ -15,6 +15,21 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: sibling-file locator breadcrumb re-point (issue #137)
+
+- The #129/#136 sweep scoped to fouls.ts locators inside fouls.test.ts
+  and reported the same staleness class next door. This pass re-points
+  that remainder: the four stale non-fouls.ts locators in fouls.test.ts
+  (events.ts, state.ts, subs.ts) and the stale fouls.ts locators in
+  carom-attribution, events, foulout-sub, and passing test files (nine
+  sites; the issue counted eight, fouls.ts:75 appears three times, not
+  twice). Each old range reconstructed against the blob it was measured
+  on (5d68eb7 for the flow-wave files, de3ec1e for the audit-wave
+  files); each new range spot-checked against current main. Comments
+  only; zero assertion changes; fingerprint-1 identical (1313 events,
+  121-119); corpus 28/28 byte-identical; suite identical (1643 tests,
+  1641 pass, 0 fail, 2 todo).
+
 ### Docs: fouls.test.ts fouls.ts-locator re-point (#136, issue #129)
 
 - 92fa7f9 and the #82 C1 carry landing frame-shifted most fouls.ts
