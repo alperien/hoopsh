@@ -15,6 +15,389 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: the deliberate CHECKLISTS.md SOURCES exclusion is annotated at both decision surfaces (#248, issue #239)
+
+- The SOURCES guard block in tools/build-bible.mjs already named
+  docs/REGISTER.md and docs/history/* as excluded by design; the
+  docs/CHECKLISTS.md exclusion was equally deliberate but unannotated
+  at either decision surface. Both carry it now: the BY DESIGN
+  comment block under SOURCES grows the CHECKLISTS.md rationale
+  (comment-only; the SOURCES list itself is untouched at 13 entries),
+  and docs/README.md hub maintenance rule 4 states the exclusion in
+  prose. No Bible regen owed: the script hunk is comment-only and
+  docs/README.md is not a SOURCES member, so docs/BIBLE.md is
+  untouched. Docs tier. Merged 1d0b2173.
+
+### Tools: one-command guarded re-baseline of goldens, noise floor, and seed pins (#238, issue #35)
+
+- npm run rebaseline runs the deterministic re-baseline steps in order
+  and prints exactly what moved: guards first (the invariant suite and
+  the #33 determinism gate; red refuses before any byte is written),
+  then the golden corpus rebake with a per-seed movement report, the
+  noise-floor regen with a before/after band table (a stamp-only regen
+  is discarded, so an unchanged kernel stays a provable no-op), stale
+  seed pins through reanchor.ts --write, and a final full-suite run
+  whose failures are listed as manual re-anchor debt. The tool never
+  edits a test, a band, or a params value; --dry-run previews without
+  writing; exit 2 marks rebaselined-with-debt, never a full success;
+  any failed leg restores every owned artifact. Ships the instrument
+  only: the real noise-floor regen is mechanics-ladder work tracked by
+  #228. Two-pass byte-level idempotence and the guard-refusal mutants
+  reproduced at review 4839596362. Tooling tier. Merged ab124a5b.
+
+### Career: the formative arcs give the three dead phases a voice (#227, issue #105)
+
+- The #100 measurement: three career phases had no content classes at
+  all, and two thirds of the pinned phenom's pre-NBA career was
+  zero-event weeks (college 70/104, draftPrep 36/39, worst streak 34
+  weeks). phone-arcs.ts adds three arc builders through the existing
+  candidate machinery: the circuit offseason, the pre-combine
+  draftPrep block, and the NBA draft-to-camp gap. Every beat quotes
+  state that exists (the archive, the devLog, stock.perTeam, the
+  standings, the real rookie contract, the real depth chart) or it
+  does not fire; window triggers carry once-ever tags, season caps and
+  cooldowns apply, nothing new is capExempt, and zero new rng draws.
+  The dev drip also dies loudly: the first slot aimed at a ceilinged
+  group logs the hidden-ceiling reveal, once per group, detected from
+  the event log itself; spine.test.ts's finished-group test updates to
+  that designed contract. The merge resolution re-points the six
+  phone-arcs.ts senders onto the #223 seeded-cast seam; zero hardcoded
+  cast names remain. HS-tail acceptance amended to 10 delivered weeks
+  by the adjudication of record (comment 5159408416); the whole-career
+  criterion moved to #226, the DNP-rookie class to #225. Consumer
+  tier. Merged d65fe8b6.
+
+### Franchise: inbox notices resolve (#240, issue #187)
+
+- Notices never resolved: injuries from two seasons back, expired
+  deadline windows, and spent rituals all counted forever as items
+  that need you. The morning sweep now retires them. Window, ritual,
+  and event notices carry a deadline sized to their real lifetime at
+  post; injury notices carry no deadline and retire on state (the
+  player returned, left the roster, or went down again), with
+  advanceRecoveries running before the sweep so retirement lands the
+  morning of the return; season rollover retires any notice still
+  standing from a past season, the backstop that also clears saves
+  written before notices retired at all. Decision lifecycle untouched:
+  the deadline branch is unchanged, the rollover backstop skips
+  decisions, and the #186 eve-call contract holds with its tests
+  unmodified. Both non-blocking notes from the #213 review are closed;
+  the inbox suite grows 15 to 20, additive except one
+  assertion-preserving refactor (review 4839451465). Consumer tier.
+  Merged 65118cd4.
+
+### Docs: CONTRACT.md added to the Bible SOURCES (#236, issue #220)
+
+- docs/CONTRACT.md enters tools/build-bible.mjs after
+  docs/EMBEDDING.md, matching the hub reading path (EMBEDDING then
+  CONTRACT, docs/README.md rule 4), and the Bible regenerates in the
+  same commit: 12 sources to 13. Regen purity proven at review
+  4839442526: the SOURCES hunk is one line, docs:bible is zero-diff at
+  head and at the reviewer's merged tree, and a second regen after
+  commit produces zero diff. Docs tier. Merged 2b210b2f.
+
+### Franchise: transaction wire mechanisms, ecology fix, save-compatible dials (#235, issue #184 tranche 1)
+
+- The in-season trade wire revives: pulse attempts, a deadline floor,
+  salary-first assembly, and directed user offers. The salary-first
+  pass previously ordered candidates salary-descending, which led with
+  the best-paid roster: a fairly-paid star prices near zero surplus,
+  slips under the value<12 filler line, and got offered to absorb a
+  rental, blowing the seller's own matching band. Now the cheapest
+  single contract that legalizes the return leads (up to three tried,
+  cheapest-up), with cheapest-up aggregation as the fallback and an
+  18%-of-cap core-salary guard keeping fairly-paid stars off the
+  sweetener table entirely. Timeline priors hold without evidence and
+  contend is reachable in reevaluateTimelines. The new params keys
+  fill on load through withFranchiseParams instead of a save-format
+  bump (formatVersion stays 1, saved values win), so every existing
+  save loads; census probes were dropped before merge. Census of
+  record: zero organic closes over d118-130 on both seeds at this
+  tranche, so the dial was correctly not moved; the win-now premium is
+  #230's, and #184 stays open. The reviewer ran the owed acceptance
+  leg at head: gm:acceptance seed acceptance-1, 5 seasons, PASS all
+  gates (review 4839432732). Consumer tier. Merged fd110127.
+
+### Franchise: draft night no longer soft-locks at the 15-man wall (#224, issue #183)
+
+- The user's draft pause item resolved forever on its navigational
+  answer (pushInbox dedupes on id; pause items persist for re-entry
+  detection), wedging draft night silently once the r1 pick filled
+  slot 15 and pinning the calendar. processDraft now upserts the owed
+  pick's item, body refreshed to today's roster truth, naming the
+  15-man wall and the two outs when squeezed; made picks stay
+  resolved; draftPick denies at the wall instead of letting the
+  executor throw surface as a 500. On the app side, runAdvance
+  reported daysDone per loop iteration and stopped only on inbox and
+  phase stops, so a held day spun the whole request as no-ops
+  (daysDone 400, calendar unmoved); daysDone now counts only days that
+  actually moved, and a held day breaks the loop immediately as an
+  inbox stop pointing at the re-issued open clock item. Red-on-base
+  reproduced for all four defect pins and gm:acceptance PASS at review
+  4839397702. Consumer tier. Merged cf12b94f.
+
+### Career: the home cast seeds per career (#223, issue #109)
+
+- The recurring identities around a career (the family advisor, the
+  agent, the beat writer, the wire byline) were hardcoded literals, so
+  every career opened on the same four contacts; playtest session 1
+  opened two careers on opposite specs and met the identical cast.
+  Each identity now draws once per career from its own registered
+  stream (career-cast:<identity>, the recruiterSurname doctrine),
+  stable for a career's life and different in the next one; the
+  advisor pool follows the creation nationality, and pools are
+  in-module and fictional per the circuits.ts doctrine. Measured
+  before the fix: 8 same-spec seeds shared the identical home cast
+  byte-for-byte. After: 8 seeds pairwise distinct on the full cast
+  fingerprint, same seed twice byte-identical, replay gate green;
+  fresh-seed probes 28/28 distinct at review, and a 60-week spot leg
+  showed exactly 28 sender-field diffs with byte-identical events.
+  Consumer tier. Merged 43ccd115.
+
+### Franchise: the deadline-day call posts on the eve (#213, issue #186)
+
+- The advance loop checks for stops between ticks and the wire freezes
+  inside deadline day's own tick, so an item posted on deadline day
+  could only stop the clock at deadline+1: the season's marquee GM
+  stop deep-linked to a desk answering that the deadline has passed.
+  Posted on the eve, the stop lands on deadline morning with the desk
+  open, and the item's board reads are exactly the state the desk
+  evaluates at that stop. The deadline field stays the post date, so
+  the morning sweep retires an ignored call during deadline day's own
+  tick: one stop, and the advance loop's open-decision check cannot
+  re-stop at deadline+1. The #186 pathology is gone on seed pt3-dl
+  (eve post d129, live stop d130, honest deadline+1 refusal); 15 tests
+  before and after, none deleted (review 4839288214). Consumer tier.
+  Merged 3461df9d.
+
+### Docs: register counter ranges read W1-W87 (#208, issue #195)
+
+- The docs/README.md hub row and the docs/GLOSSARY.md register entry
+  said W1-W61; rows run to W87. Both now read W1-W87, Bible
+  regenerated in the same commit. The REGISTER.md intro hunk was
+  dropped pre-merge and deferred to #196, which resolves that header
+  line self-maintaining, so the two scopes merged disjoint. Docs tier.
+  Merged 55f0c4dd.
+
+### App: game center stops printing literal null placeholders (#219, issue #190)
+
+- renderBelow passed its three pre-spoiler placeholders straight to
+  replaceChildren, which String-coerces null arguments to the literal
+  text "null" (el() filters; raw DOM does not), so hidden sections
+  printed nullnullnull. The sections are now collected, absent ones
+  filtered, and only real nodes reach the DOM. Post-spoiler content
+  byte-identical both sides at review 4839141562; the career-side twin
+  is #214's. Consumer tier. Merged b2867111.
+
+### App: almanac awards render baked winner names (#218, issue #188)
+
+- The awards table printed raw ids (Most valuable player: p0016)
+  while the record book above it resolved people fine. The book
+  resolves at write time; the archive now does the same: archiveSeason
+  bakes winnerNames per award, players first, teams for the coy kind,
+  the same honest raw-id fallback, and the screen renders winnerNames,
+  falling back to the id for archives written before the field
+  existed. Ballots still carry ids only; they do not render yet.
+  Additive optional field on AwardResult, no save formatVersion bump
+  (the strict-equality load check would brick every existing save; the
+  absent field falls back honestly). All four save-compat quadrants
+  rendered with real screen code at review 4839141468; suite +5 exact.
+  Consumer tier. Merged 4e989f8a.
+
+### Franchise: deal wire brief bodies from state-quoting pools (#216, issue #189)
+
+- Batch days printed verbatim clone bodies: one static template per
+  wire class, no repeat-avoidance (59x one signing line in the
+  session-3 corpus). Signing, waive, retirement, and draft bodies now
+  deal from small pools where every variant quotes sim facts: terms,
+  per-year average, contract end season, age, tenure with the waiving
+  team, one-club careers, draft provenance, origin. BodyDealer copies
+  the narration LineDealer consumption law: exactly one rng draw per
+  deal on the existing daily news stream, headline draw first,
+  repeat-avoidance by index arithmetic, never a re-draw. Draw count
+  per transaction stays a pure function of the transaction, so the
+  same-day second-pass replay (#118) holds; dealer memory is
+  batch-scoped, so nothing touches saved state. Measured on seed
+  pt3-gm: clone share 124/191 to 17/191, distinct bodies 71 to 182,
+  same-seed double run sha256-identical; the clone collapse reproduced
+  with an independent sampler and the news total identical at review
+  4839061834. Consumer tier. Merged b22ce4cb.
+
+### Docs: the engine API contract (#215, issue #191)
+
+- docs/CONTRACT.md declares the stable surfaces: the 18-kind event
+  schema table with every row citing its emitting module, the replay
+  artifact and frame row layout, the index.ts export surface, and the
+  determinism statement exactly as CI gates it. Also the explicitly
+  unstable surfaces (params values, fingerprints across versions), the
+  change policy with the 0.x reading of a major bump, and a
+  consuming-the-engine section: a minimal fold example and the two
+  rules, nothing imports INTO the engine and params are data. Hub row,
+  Builder reading path, and question-table answer in docs/README.md;
+  README link in Build on it. The 18-kind census was re-derived from
+  the emitters and exact at review 4838971682; adding CONTRACT.md
+  itself to SOURCES was filed as #220 and landed as #236. Docs tier.
+  Merged ac44eeaf.
+
+### Harness: boundary-fragile fidelity rows grade on the multi-base grand center; the W87 quarantine lifts (#209, issue #169)
+
+- W87 (Curry FT% 87.3 vs the 88.0 floor) measured as no-regression:
+  the FT path is byte-identical across the drift window, p(freeThrow
+  99) is an unchanged 0.90445, and the produced grand center at main
+  reads 90.20% (n=3735 FTA, se 0.49pp). The 87.3 was a -1.74
+  per-draw-sd draw at n=268 on the #160-reshuffled stream; the 88.0
+  floor sits -1.36 per-draw sd from the center, an ~8% false trip per
+  stream-moving landing. The row returns to enforced, graded on the
+  MULTI_BASES grand center (the W29 watch protocol, 5x40 games; floor
+  at -3.04 pooled sd, ~0.1% false trip), with the single-slate read
+  kept as the per-slate diagnostic. W86, the same boundary-fragile
+  class, adopts the method with quarantine and range untouched; its
+  re-read is #170's. No target moved; the W87 return to enforced is a
+  strengthening; pin falsification exits 1; suite 1696 to 1698, the
+  two inventory pins (review pinned at b64da1a). Consumer tier.
+  Merged d2184cd4.
+
+### Docs: stale astdShare band refs fixed; the #78 review provenance recorded (#197, issue #180)
+
+- Two textual references to the pre-#56 astdShare band survived the
+  #78 correction: the params.ai.ts assist-crediting rationale (the
+  issue's src/ai path was a typo) and the shotmix-probe.ts prose. Both
+  now cite the corpus-derived 59.8-67.8 band with the #56 pointer. The
+  #78 review follow-up (review 4838517576, disposition 5158044082)
+  folds into the CALIBRATION.md derivation row: the session's
+  unrecorded 12-base n=48 pool seed names, the reviewer's
+  counter-sample (flick-1..12, 4/12 under the floor, mean 60.23, plan
+  on ~1 in 3), the 1536-game decomposition (3x288 + 96 + 12x48), and
+  the reconciled wording. Bible regenerated in the same commit; the
+  params.ai.ts hunk proven comment-only by static extract plus corpus
+  identity. Docs tier. Merged 82463c08.
+
+### Docs: the sanctioned dead-phase ball.pos read surface is named (#198, issue #167)
+
+- The frames-only warrant behind #160 layer B was a one-time proof
+  with no standing guard. The deadcarry.test.ts header now names every
+  s.ball.pos read site at this base with its phase discipline, states
+  the warrant, and sets the review rule: a new read site must be added
+  to the list, and a read reachable in a stoppage phase is a mechanics
+  change. Enumerated from the code and cross-checked against the #160
+  verdict's static sweep; the reviewer's own sweep matched the header
+  list exactly (review pinned at cb480bf2). Comments only, one file,
+  the issue's minimum-viable floor; the optional static reader-count
+  test is deliberately not taken (the issue itself weighs it as
+  fragile). Docs tier. Merged 245b9e04.
+
+### Docs: the stale W-range ceiling leaves the register header (#196, issue #172)
+
+- The docs/REGISTER.md header said W1-W73; the register tops out at
+  W87 at this base. Self-maintaining phrasing per the issue: the
+  ceiling is dropped, and the appended-per-landing convention in the
+  next sentence governs. D1-D9 verified accurate and left as-is; no
+  Bible regen owed (REGISTER.md is excluded from SOURCES by design).
+  Docs tier. Merged a9692068.
+
+### Engine tests: mid-relay ball speed bounded inside whistle windows (#200, issue #166)
+
+- The #115/#160 dead-ball relay was unbounded between whistle and
+  resume: deadcarry clause 2 covers period breaks only, clause 1
+  requires a holder on the right frame, and mid-relay pairs are
+  holderless and never parked, so a mid-window snap (35-89 ft pairs)
+  passed the entire suite at base. New property pin: inside every
+  foul, violation, and timeout window, event-less holderless
+  adjacent-frame ball deltas stay at or under 24 ft per pair (0.2 s at
+  frameEvery 2). Scouted envelope at base: max 16.64 ft/pair over 6120
+  pairs (relayspeed-1..8), 16.47 over 27695 pairs on the 40-game wide
+  pool, matching the #160 Red Team's 16.6; a legit relay's physical
+  ceiling is ~19 ft/pair and the snap class reads 35-89, so the bound
+  keeps 11+ ft of signal margin. Also the relay-era C1-floor guard:
+  this window bound sees what the C1 metric no longer can. Both
+  mutants reproduced RED at review 4838878330; +1 it() in
+  relay-speed.test.ts. Test-only tier. Merged b58329fe.
+
+### Harness: bench prints its invocation contract (#199, issue #175)
+
+- The bench's events figures are a pure function of (tree, Node/V8):
+  seeds are literal strings, N=25 is const, the rosters are fixed, and
+  no CLI args, env vars, clocks, or workers reach the sim. The #174
+  review cycle still recorded a phantom cross-box divergence (1240 vs
+  1238 at the same commit) because the output carried no provenance
+  and off-tree control runs were attributed to the wrong tree.
+  Measured on a third box: 1238 is main lineage, 1240 is the #142
+  head; no determinism break, the corpus gate stands confirmed. The
+  output now states its contract (matchup, seed set, node+V8, tree sha
+  with a DIRTY flag for tracked modifications) and exact figures
+  (events total, per-game counts, FNV-1a summary sig) next to the five
+  legacy lines, which stay byte-unchanged; nothing in the repo parses
+  bench output. INTERNALS.md states the comparison rule; Bible
+  regenerated in the same commit. Three fresh runs byte-identical and
+  the FNV-1a signature re-implemented from spec and matched at review
+  4838863211. Consumer tier. Merged 105db48d.
+
+### Engine tests: full-game scan pins substitutions to legal windows (#194, issue #179)
+
+- Full-game scan over a 23-game pool (20 mirrored sublegal seeds plus
+  pinned OT, NCAA, and endgame:false extras): every substitution event
+  must sit in the engine's own legal-window set, derived from the
+  swapPlayers call sites: stopped-clock dead balls, made-basket
+  stop-clock windows, the FT trip entry, between-attempts gap, and
+  made-final slots, period boundaries, and the fouled-out replacement.
+  Guards the #174 concede-device class: reopening the running-clock
+  make-inbound window goes RED, mutant-verified at the possession.ts
+  liveInbound check and at the postMakeSubWindow default. The
+  classifier partitions complete over the 18 event types (review
+  4838816181); +3 it() in sub-legal-windows.test.ts. Test-only tier.
+  Merged ff17b3ac.
+
+### Harness: sweep rail report separates search pins from defaults on rails (#192, issue #163)
+
+- The rail-pinned convergence report (audit M-25) flagged every value
+  sitting on a knobs.ts rail as a WARNING, including the 8 shipped
+  params.ts defaults that sit on their rails before any run starts, so
+  every mechanics session rediscovered the same standing calibration
+  fact and had to prove it was not theirs. The report now partitions
+  by whether the final value differs from the params.ts default (same
+  1e-9 tolerance as the changed-knobs diff): search-pinned keeps the
+  loud WARNING, M-25's actual target; default-on-rail prints as a note
+  citing #163 and the per-knob knobs.ts documentation. Both sets
+  re-derive from params.ts and knobs.ts on every run, so the report
+  tracks future re-tunes and rail moves without going stale. The
+  verify rung before and after shows WARNING to note with
+  byte-identical band results; both report branches live-demonstrated
+  at review 4838813883. Harness tier. Merged 5d992ec2.
+
+### Engine tests: the putbackstrong helper frames flag reaches collectFrames (#193, issue #162)
+
+- The test helper spread a dead frames: true field into simulateGame:
+  GameConfig has no frames option, the frame switch is collectFrames
+  (default ON), and the object spread bypassed excess-property
+  checking, so the field died silently while the engine default
+  supplied frames to every call. The flag now passes collectFrames;
+  its only true-caller is the off-switch byte pin, whose checksum
+  (f5ebe149) passes unchanged, and the pooled arms flip to frame-free,
+  matching the suite's pooled-run convention. Collection gates frame
+  storage only, so event streams are untouched; test-count delta from
+  base 0. Test-only tier. Merged a33f9a16.
+
+### Harness: astdShare band centered on the sourced corpus; fgPct edges annotated (#78, issue #56)
+
+- Adoption of the owner draft, re-cut at main e05267fb: astdShare
+  54.0-62.0 to 59.8-67.8. The old ceiling was author-recalled; both
+  sourced seasons measure above it (63.80% pooled, 9795/15352 assisted
+  FGM on the 184-game 2025-26 corpus, per-game se 0.48pp, a fourth
+  independent count; 63.27% derived 2023-24). Corrected band = sourced
+  center 63.8 plus and minus the incumbent 4.0pp half-width (width
+  FEEL). fgPct edges stand: sourced 47.4/47.31 sit inside 44.0-49.5
+  with house-normal margins, annotated, not moved. One provenance
+  token corrected: corpus FGA 32452, not 32458 (makes 15352 + misses
+  17100; a fifth independent count at review 4838517576 confirms). The
+  kernel moved under the draft (W84, W85, #119, #160): the astd n40
+  floor center is 60.19, so the corrected floor sits 0.46 draw-sd
+  below center and astdShare is now the boundary band at n<=96 reads.
+  Full trail and re-pricing in the docs/CALIBRATION.md row; Bible
+  regenerated in the same commit. Batch n=96 17/17; n=288 x3 fresh
+  bases 17/17 x3; verify 40x3 17/17, 17/17, 16/17 (the swp-gamma astd
+  boundary draw, recorded as-is); fidelity gate exit 0 with no new
+  enforced miss. Consumer tier. Merged 88775586.
+
 ### Franchise: draft-class talent tiers lifted +8 for supply parity (#173, issue #125)
 
 - Draft classes entered 5.90 ability points under the genesis young
