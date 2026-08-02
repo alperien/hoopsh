@@ -22,25 +22,25 @@ export const SEED_PINS = {
     "note": "Anchors consumed by events.test.ts (evstreamPool), subs.test.ts (otseek, audit H-02), timeouts.test.ts (tocap), leakout.test.ts (leakout). Assertions and floors live in the tests; this file only answers which seeds currently exhibit the pinned phenomena."
   },
   "evstreamPool": {
-    "regulation": "evstream-4",
-    "overtime": "evstream-214",
-    "provenance": "re-anchored 2026-08-01 by the helper (scanned evstream-1..240; the qualifying pair with the widest minimum floor headroom, 1.00x). evstream-4 — regulation; 1 def-won + 1 off-won jumps, 3 offensive fouls, 0 technicals, 2 violations, 1 replay reviews. evstream-214 — overtime; 3 def-won + 0 off-won jumps, 1 offensive fouls, 1 technicals, 2 violations, 2 replay reviews."
+    "regulation": "evstream-28",
+    "overtime": "evstream-196",
+    "provenance": "re-anchored 2026-08-01 by the helper (scanned evstream-1..240; the qualifying pair with the widest minimum floor headroom, 2.00x). evstream-28 — regulation; 1 def-won + 2 off-won jumps, 7 offensive fouls, 1 technicals, 1 violations, 5 replay reviews. evstream-196 — overtime; 1 def-won + 0 off-won jumps, 0 offensive fouls, 1 technicals, 1 violations, 7 replay reviews."
   },
   "otseek": {
     "seeds": [
-      "otseek-35",
-      "otseek-59",
-      "otseek-126",
-      "otseek-157",
-      "otseek-162",
-      "otseek-179"
+      "otseek-63",
+      "otseek-110",
+      "otseek-125",
+      "otseek-142",
+      "otseek-168",
+      "otseek-178"
     ],
-    "provenance": "re-anchored 2026-08-01 by the helper (scanned otseek-0..179 of the 0..1200 ceiling, first 6 OT-reaching seeds — the H-02 doctrine; hand-anchor trail in the subs.test.ts header). 6/6 reach overtime at anchor; the test floor is >= 2."
+    "provenance": "re-anchored 2026-08-01 by the helper (scanned otseek-0..178 of the 0..1200 ceiling, first 6 OT-reaching seeds — the H-02 doctrine; hand-anchor trail in the subs.test.ts header). 6/6 reach overtime at anchor; the test floor is >= 2."
   },
   "tocap": {
     "seeds": [
-      "to-cap-2",
-      "to-cap-4"
+      "to-cap-1",
+      "to-cap-3"
     ],
     "provenance": "re-anchored 2026-08-01 by the helper (scanned to-cap-1..32, first 2 qualifying). Qualification per seed: the control arm (late cap 2) spends >= 1 late-Q4 timeout, the 0-cap arm spends none there and still spends >= 4 in Q1-Q3."
   },

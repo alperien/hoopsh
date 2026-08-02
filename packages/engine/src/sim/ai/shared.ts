@@ -5,7 +5,7 @@
  * decision, action, offense, and defense layers.
  */
 
-import { dist } from '../../core/vec.js';
+import { dist, lerp, segmentT, type V2 } from '../../core/vec.js';
 import { clamp } from '../../core/rng.js';
 import { lateralSpeed } from '../../model/derived.js';
 import { liveOnCourt, other, type Agent, type GameState } from '../state.js';
@@ -80,6 +80,32 @@ export function onBallDefender(s: GameState, holder: Agent): Agent | null {
   }
   // onBallRadiusFt cutoff: past that nobody is meaningfully "on the ball"
   return best && bestD < s.params.ai.onBallRadiusFt ? best : null;
+}
+
+/**
+ * How crowded the drive lane is: a soft count of defenders sitting between the
+ * handler and the rim. Feeds both the projected contest on a drive and a
+ * direct utility penalty — this is what makes a packed paint deter drives and
+ * (via the kickout branch) makes help defense produce open shooters.
+ *
+ * along ∈ (laneAlongMin, laneAlongMax): ignore defenders standing on top of
+ * the handler (that's the on-ball matchup, handled separately) and those
+ * already under the rim. (`along` is segmentT's parametric position on the
+ * handler→rim segment — geometry, NOT the game clock.) lat < laneWidthFt:
+ * within a body's width of the driving line, weighted linearly. All three
+ * constants live in params.ai.lane*.
+ */
+export function defendersInLane(s: GameState, h: Agent, rim: V2): number {
+  const A = s.params.ai;
+  let count = 0;
+  for (const d of liveOnCourt(s, other(h.side))) {
+    const along = segmentT(h.pos, rim, d.pos);
+    if (along > A.laneAlongMin && along < A.laneAlongMax) {
+      const lat = dist(d.pos, lerp(h.pos, rim, along));
+      if (lat < A.laneWidthFt) count += 1 - lat / A.laneWidthFt;
+    }
+  }
+  return count;
 }
 
 /** movement speed for an agent given intent & fatigue */
