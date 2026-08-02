@@ -77,7 +77,12 @@ registerScreen('game', {
 
     const below = el('div');
     const renderBelow = () => {
-      below.replaceChildren(
+      // null marks a section that does not render (pre-spoiler, or absent
+      // data). replaceChildren is raw DOM and, unlike el(), does not filter:
+      // it coerces null to the literal text "null". Three of them printed
+      // between the controls and the replay toggle (issue #190). Collect,
+      // filter, then hand the DOM only what exists.
+      const sections = [
         game.recap && spoiled
           ? el('div', { style: 'margin:14px 0' },
               el('div', { class: 'byline', style: 'color:#7f8794;text-transform:uppercase;font-size:11px;letter-spacing:.06em' }, game.recap.byline),
@@ -92,7 +97,8 @@ registerScreen('game', {
               ...game.keyPlays.map(k => el('div', { class: 'cue', style: 'padding:3px 6px' },
                 el('span', { class: 't' }, k.clock), k.text)))
           : null,
-      );
+      ];
+      below.replaceChildren(...sections.filter(s => s !== null));
     };
     renderBelow();
 
