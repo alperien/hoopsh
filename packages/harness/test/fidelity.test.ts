@@ -14,10 +14,15 @@
  *
  * Ratchet rows (Target.ratchet) are declared destinations whose mechanisms
  * haven't landed — reported by the CLI, skipped here until they flip.
+ * Quarantined rows (Target.quarantine — enforcement suspended pending a
+ * named owner ruling, issue #43) are NOT skipped: they keep their widened
+ * gate below, so a further regression on a quarantined row still fails CI
+ * even while the CLI's exit code exempts the known, register-adjudicated
+ * miss.
  */
 
 import { describe, expect, it } from 'vitest';
-import { BENCHMARKS, TARGETS, runBenchmark } from '../src/fidelity.js';
+import { BENCHMARKS, TARGETS, gradeTarget, runBenchmark, type Target } from '../src/fidelity.js';
 import { NOISE_FLOOR } from '../src/noise-floor.gen.js';
 
 const GAMES = 12; // the gate's speed tier; the CLI owns precision
@@ -30,6 +35,54 @@ describe('runBenchmark input contract', () => {
     for (const bad of [0, -3, 1.5, NaN]) {
       expect(() => runBenchmark(bench, star.id, bad)).toThrow(/integer >= 1/);
     }
+  });
+});
+
+describe('gradeTarget — the CLI exit-code classification (issue #43)', () => {
+  // synthetic row, not a live target: pins the classification the CLI's
+  // nonzero exit hangs on, without simulating a single game
+  const row = (flags: Partial<Target> = {}): Target =>
+    ({ label: 'X', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games), ...flags });
+
+  it('inside range grades ok regardless of flags', () => {
+    expect(gradeTarget(row(), 11)).toBe('ok');
+    expect(gradeTarget(row({ ratchet: true }), 11)).toBe('ok');
+    expect(gradeTarget(row({ quarantine: 'W29' }), 11)).toBe('ok');
+  });
+  it('an enforced miss grades fail — the only grade that exits nonzero, both sides', () => {
+    expect(gradeTarget(row(), 9)).toBe('fail');
+    expect(gradeTarget(row(), 14)).toBe('fail');
+  });
+  it('a ratchet miss stays advisory (RTCH), never fail', () => {
+    expect(gradeTarget(row({ ratchet: true }), 9)).toBe('ratchet-miss');
+  });
+  it('a quarantined miss reports loudly but does not gate (QUAR)', () => {
+    expect(gradeTarget(row({ quarantine: 'W29' }), 9)).toBe('quarantined-miss');
+  });
+
+  // Inventory over the LIVE rows, zero simulation (PR #73 review). The
+  // quarantine value is the exit-code bypass key, and node's type stripping
+  // means an arbitrary truthy string RUNS here even though tsc rejects the
+  // `W${number}` type. This assertion is the enforcement that reaches every
+  // local `npm test`, where tsc is unavailable by design. At-most-one-flag is
+  // gradeTarget's documented precondition: a row carrying both flags grades
+  // ratchet-miss and leaves the tripwire, so the CI coverage the quarantine
+  // paperwork promises would be silently void for that row.
+  it('quarantine inventory: every flag names a register row (W-number) and never doubles with ratchet', () => {
+    const badRefs: string[] = [];
+    const doubled: string[] = [];
+    for (const [starId, rows] of Object.entries(TARGETS)) {
+      for (const t of rows) {
+        if (t.quarantine !== undefined && !/^W\d+$/.test(t.quarantine)) {
+          badRefs.push(`${starId} ${t.label}: ${t.quarantine}`);
+        }
+        if (t.ratchet && t.quarantine !== undefined) {
+          doubled.push(`${starId} ${t.label}`);
+        }
+      }
+    }
+    expect(badRefs).toEqual([]);
+    expect(doubled).toEqual([]);
   });
 });
 

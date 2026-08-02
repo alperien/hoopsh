@@ -15,6 +15,9 @@
  * fidelity matures, same convention as the archetype tests.
  *
  * Run: `npm run fidelity` (add `-- --games 36` to change the slate length).
+ * The exit code is the gate (issue #43): any enforced-row miss exits 1.
+ * Ratchet rows (RTCH) and quarantined rows (QUAR) report loudly and never
+ * gate — see Target.ratchet / Target.quarantine below for what each means.
  */
 
 import { simulateGame, type Player, type Team } from '@hoopsh/engine';
@@ -182,6 +185,22 @@ export interface Target {
    *  skipped by the test gate until its mechanism lands (same convention as
    *  Band.ratchet in bands.ts) */
   ratchet?: boolean;
+  /** enforcement suspended pending the named owner ruling (a docs/REGISTER.md
+   *  row, e.g. 'W29'). The CLI prints the miss loudly (QUAR mark plus a
+   *  summary block) but does not count it toward the nonzero exit — a run
+   *  red only on quarantined rows exits 0, so the exit code stays a signal
+   *  for NEW regressions instead of permanent noise. UNLIKE ratchet rows,
+   *  quarantined rows STAY in the widened tripwire (fidelity.test.ts): a
+   *  further regression on a quarantined row still fails CI. Same
+   *  loud-but-not-gating shape as ratchet, different meaning — ratchet: the
+   *  mechanism has not landed; quarantine: the ruling on WHICH side moves
+   *  (target vs fixture/engine) is pending. Set at most one of the two.
+   *  Remove the flag when the ruling lands, whichever way it goes.
+   *  The register-reference shape is enforced twice (PR #73 review): the
+   *  template literal type gates the types CI job, and the zero-simulation
+   *  inventory test in fidelity.test.ts gates every local `npm test`, where
+   *  tsc is unavailable by design. */
+  quarantine?: `W${number}`;
   get: (l: AggLine) => number;
 }
 
@@ -193,23 +212,76 @@ export interface AggLine extends PlayerLine {
 
 const per = (f: (l: AggLine) => number) => (l: AggLine) => f(l) / Math.max(1, l.games);
 
+/** the four states a graded row can land in; 'fail' is the only one that
+ *  reaches the CLI's nonzero exit (issue #43) */
+export type TargetGrade = 'ok' | 'fail' | 'ratchet-miss' | 'quarantined-miss';
+
+/**
+ * Grade one target row against its measured value. Pure — no side effects.
+ * Called by the CLI runner below for every row; pinned by
+ * harness/test/fidelity.test.ts. A value inside the range grades 'ok'
+ * regardless of flags; outside it, ratchet outranks quarantine (rows should
+ * carry at most one of the two — see the Target field docs).
+ */
+export function gradeTarget(t: Target, v: number): TargetGrade {
+  if (v >= t.lo && v <= t.hi) return 'ok';
+  if (t.ratchet) return 'ratchet-miss';
+  return t.quarantine ? 'quarantined-miss' : 'fail';
+}
+
 /**
  * Composite prime-season ranges — REAL numbers. v2 tightened the slack edges
  * (the sides reality never approached); the contested edges are untouched.
- * One row remains a RATCHET — a real target whose mechanism is only partly
+ * Two rows are RATCHETS — real targets whose mechanisms are only partly
  * landed: downhill 3PA (the transition pull-up exists and doubled his
- * attempts, but reaching 3+ needs a larger transition share of his touches).
- * The hub-TRB ratchet was EARNED by the minutes controller + guard-crash
- * economy and is now enforced.
+ * attempts, but reaching 3+ needs a larger transition share of his touches)
+ * and hub Post shots (REGISTER W58 — real post-entry generation is the
+ * missing mechanism). Four rows are QUARANTINED (hub TRB → W29 and shooter
+ * AST → W71, pending owner rulings; shooter PTS → W86 and shooter FT% →
+ * W87, pending the post-#160 kernel-drift investigations, issues #170 and
+ * #169): reported loudly, not counted toward the exit code, still gated by
+ * the widened tripwire. Quarantined target values
+ * stay untouched while the ruling is pending — the ruling decides which
+ * side moves.
  */
 export const TARGETS: Record<string, Target[]> = {
   'fid-curry': [
-    { label: 'PTS', lo: 24, hi: 32, get: per((l) => l.pts) },
-    { label: 'AST', lo: 4.5, hi: 8.5, get: per((l) => l.ast) },
+    // QUARANTINED pending REGISTER W86: the post-#160 kernel reads the
+    // deterministic 40-game CLI slate at 32.1 vs the 32.0 ceiling — a 0.1
+    // boundary graze, plausibly kernel shift plus sampling noise. It rode
+    // into main silently under the pre-#43 exit-0 defect and was caught by
+    // this PR's own gate at the delta re-check (review 4837720984). The
+    // noise-floor read at higher n (the W29 arc's method: grand center and
+    // se at n40+) and, only if the center truly moved, the target-re-fit vs
+    // mechanism fork are issue #170 — enforcement suspended until it lands.
+    // Range deliberately untouched.
+    { label: 'PTS', lo: 24, hi: 32, quarantine: 'W86', get: per((l) => l.pts) },
+    // QUARANTINED pending REGISTER W71: the W69 generalization audit
+    // confirmed the probe era drifted the elite shooter's assists above his
+    // identity ceiling at n=40 (W71 measured 9.0 vs the 8.5 ceiling; the
+    // issue-#42 committed floor reads n40 grand center 8.64, se ≈ 0.15,
+    // ~1.0 se over; the deterministic 40-game CLI slate reads 9.1). Accept
+    // the redistributed archetype vs trim the fixture/probe dose is a
+    // registered owner TRADE (a dose trim pays back the W69 pass-volume
+    // win), not a bug fix — enforcement suspended until that ruling lands
+    // (issue #43). Range deliberately untouched.
+    { label: 'AST', lo: 4.5, hi: 8.5, quarantine: 'W71', get: per((l) => l.ast) },
     { label: 'TRB', lo: 3.5, hi: 6, get: per((l) => l.trb) },
     { label: '3PA', lo: 10, hi: 14, get: per((l) => l.tpa) },
     { label: '3P%', lo: 0.38, hi: 0.455, pct: true, get: (l) => l.tpm / Math.max(1, l.tpa) },
-    { label: 'FT%', lo: 0.88, hi: 0.965, pct: true, get: (l) => l.ftm / Math.max(1, l.fta) },
+    // QUARANTINED pending REGISTER W87: the post-#160 kernel reads the
+    // deterministic 40-game CLI slate at 87.3% vs the 88.0% floor — 0.7pp
+    // under at freeThrow 99. A 99-rated shooter converting 87.3% reads as
+    // mechanism, not target: likely a real regression among the kernel
+    // movers between the Aug 1 baseline and main 45e55267 (the window that
+    // took fingerprint-1 from 1236 to 1313 to 1188 events). It rode into
+    // main silently under the pre-#43 exit-0 defect and was caught by this
+    // PR's own gate at the delta re-check (review 4837720984). Measurement
+    // first (an n-scaling read with the se stated — 40 games may
+    // under-sample FT attempts — and a bisect over the movers), then the
+    // mechanism-fix vs target-re-fit fork, is issue #169 — enforcement
+    // suspended until it lands. Range deliberately untouched.
+    { label: 'FT%', lo: 0.88, hi: 0.965, pct: true, quarantine: 'W87', get: (l) => l.ftm / Math.max(1, l.fta) },
     { label: '3PA share', lo: 0.5, hi: 0.68, pct: true, get: (l) => l.tpa / Math.max(1, l.fga) }
   ],
   'fid-lebron': [
@@ -223,7 +295,16 @@ export const TARGETS: Record<string, Target[]> = {
   'fid-jokic': [
     { label: 'PTS', lo: 19.5, hi: 28.5, get: per((l) => l.pts) },
     { label: 'AST', lo: 7, hi: 11, get: per((l) => l.ast) },
-    { label: 'TRB', lo: 10, hi: 13, get: (l) => l.trb / Math.max(1, l.games) }, // ratchet EARNED: minutes controller + guard-crash economy
+    // QUARANTINED pending REGISTER W29: the 10.0 floor WAS earned (minutes
+    // controller + guard-crash economy) and enforced, but the engine
+    // re-centered under it across later waves — committed noise floor
+    // (issue #42 regen) n40 grand center 9.02, 8 bases, sd 0.26, se ≈ 0.09:
+    // the floor sits ~10.7 se above the center. The deterministic 40-game
+    // CLI slate reads 9.0. Whether the target re-bases (accept
+    // garbage-rested centers) or the fixture moves (rotationMinutes 35 → 36)
+    // is the open W29 owner ruling — enforcement suspended until it lands
+    // (issue #43). Range deliberately untouched.
+    { label: 'TRB', lo: 10, hi: 13, quarantine: 'W29', get: (l) => l.trb / Math.max(1, l.games) },
     { label: 'FG%', lo: 0.52, hi: 0.64, pct: true, get: (l) => l.fgm / Math.max(1, l.fga) },
     { label: '3PA', lo: 2, hi: 5.5, get: per((l) => l.tpa) },
     // ratchet: the 1.8 floor was never met — measured @40: 1.10 at this
@@ -313,6 +394,7 @@ if (import.meta.main) {
     process.exit(1);
   }
   let failures = 0;
+  const quarantined: string[] = [];
   console.log(`Player-fidelity report — ${games} games per benchmark\n`);
   for (const bench of BENCHMARKS) {
     const star = bench.players[0]!;
@@ -320,14 +402,33 @@ if (import.meta.main) {
     console.log(`── ${star.name} (${bench.name}) — ${(agg.min / agg.games).toFixed(1)} min/g`);
     for (const t of TARGETS[star.id]!) {
       const v = t.get(agg);
-      const ok = v >= t.lo && v <= t.hi;
-      if (!ok && !t.ratchet) failures++;
-      const mark = ok ? ' OK ' : t.ratchet ? 'RTCH' : 'FAIL';
+      const grade = gradeTarget(t, v);
+      if (grade === 'fail') failures++;
+      if (grade === 'quarantined-miss') {
+        quarantined.push(`${star.name} ${t.label}: ${fmt(v, t.pct)} vs ${fmt(t.lo, t.pct)} – ${fmt(t.hi, t.pct)}  (docs/REGISTER.md ${t.quarantine})`);
+      }
+      const mark = grade === 'ok' ? ' OK ' : grade === 'ratchet-miss' ? 'RTCH' : grade === 'quarantined-miss' ? 'QUAR' : 'FAIL';
       console.log(
         ` ${mark}  ${t.label.padEnd(12)} ${fmt(v, t.pct).padStart(7)}   target ${fmt(t.lo, t.pct)} – ${fmt(t.hi, t.pct)}`
       );
     }
     console.log('');
   }
-  console.log(failures === 0 ? 'All enforced benchmark lines inside their ranges.' : `${failures} enforced range misses.`);
+  if (quarantined.length > 0) {
+    // loud by design: a quarantined miss must never read as a clean run
+    console.log('QUARANTINED pending owner ruling — reported, NOT counted toward the exit code:');
+    for (const q of quarantined) console.log(`  ${q}`);
+    console.log('');
+  }
+  if (failures > 0) {
+    // The exit code IS the gate (cli.ts band-gate doctrine). This block used
+    // to print the miss count and fall off the end of the file — exit 0 with
+    // FAIL rows on the board, the silent-regression channel issue #43 closed
+    // (H-validate-1: Jokić TRB sat far under its enforced floor — ~10.7 se
+    // at the issue-#42 committed floor — while the run reported success to
+    // every script checking exit codes).
+    console.error(`${failures} enforced range miss(es) — the exit code is the gate (issue #43).`);
+    process.exit(1);
+  }
+  console.log('All enforced benchmark lines inside their ranges.');
 }

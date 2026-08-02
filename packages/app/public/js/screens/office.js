@@ -20,7 +20,11 @@ async function respond(item, choiceId, rerender) {
   try {
     const result = await api.action({ kind: 'respondToRequest', requestId: item.id, choice: choiceId });
     if (!result.ok) { toast(result.errors.join('; '), true); return; }
+    // an item carrying a live offer executes on accept (#158); counter
+    // routes to the desk with the offering front office already dialed
+    if (item.offer && choiceId === 'accept') toast('the deal is done');
     await store.refresh();
+    if (item.offer && choiceId === 'counter') { navigate(`/trade/${item.offer.from}`); return; }
     rerender();
   } catch (err) {
     toast(err.message, true);
