@@ -142,11 +142,12 @@ function scanFouls(g: GameResult): {
 describe('the last-2:00 window on real streams (REGISTER W63)', () => {
   // seeds scouted per the re-anchor protocol (a reshuffle that starves the
   // vacuity floors fails loudly; re-scan latewin-1..80). Current anchor:
-  // the #74 amended-dose landing — 62 and 73 host three paid trips each,
-  // 9 and 26 two (10 total, 0 unpaid anywhere on the 80-seed scan; trips
-  // run ~0.2-0.3/game by nature — below-threshold teams with two window
-  // fouls)
-  const pool = [game('latewin-62'), game('latewin-73'), game('latewin-9'), game('latewin-26')];
+  // the #114 landing (ai.blowByCarryScale 0 -> 0.5 arms a per-possession
+  // draw upstream) — 27 hosts four paid trips, 35 and 57 two each, 32 one
+  // (9 total, 0 unpaid anywhere on the 80-seed scan; trips run
+  // ~0.2-0.3/game by nature — below-threshold teams with two window
+  // fouls). Prior anchor: the #74 amended-dose landing (62/73/9/26).
+  const pool = [game('latewin-27'), game('latewin-35'), game('latewin-57'), game('latewin-32')];
 
   it('window trips exist, and every one of them pays free throws', () => {
     let paid = 0;
