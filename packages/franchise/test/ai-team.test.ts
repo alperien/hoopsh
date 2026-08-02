@@ -526,3 +526,121 @@ describe('AI draft boards', () => {
     expect(aiSelect(league, 'bos', ['dsafe', 'dboom'])).toBe('dboom');
   });
 });
+
+describe('#164: free agency convenes (scoop gate, salary floor, tax appetite)', () => {
+  it('upkeep leaves the July class to the July market: no rights-holding fills in the offseason window', () => {
+    const league = fixtureLeague({ seed: 'ai-team-164-scoop' });
+    rollCapLines(league, league.season + 1);
+    league.phase = 'draft'; // post-lottery release, pre-moratorium: the old scoop window
+    const vet = fixturePlayer('vet1', null, league.season, 4);
+    setAllAttrs(vet, 90); // tops the ability-sorted patch pool by a mile
+    vet.rights = { teamId: 'bos', tier: 'bird', capHold: 30_000_000, restricted: false };
+    league.players['vet1'] = vet;
+    league.freeAgents.push('vet1');
+    const scrap = fixturePlayer('fa90', null, league.season, 1); // no rights: genuine scrap
+    league.players['fa90'] = scrap;
+    league.freeAgents.push('fa90');
+    aiRosterUpkeep(league);
+    expect(vet.status).toBe('freeAgent'); // the expiring class is never scooped
+    expect(scrap.status).toBe('roster'); // the scrap pool still patches rosters
+  });
+
+  it('rights-holders return to the patch pool once the market has had its window', () => {
+    const league = fixtureLeague({ seed: 'ai-team-164-postfa' });
+    // in-season: signing season == label season, the July market is over
+    const vet = fixturePlayer('vet2', null, league.season, 4);
+    vet.rights = { teamId: 'bos', tier: 'nonBird', capHold: 2_000_000, restricted: false };
+    league.players['vet2'] = vet;
+    league.freeAgents.push('vet2');
+    aiRosterUpkeep(league);
+    expect(vet.status).toBe('roster');
+  });
+
+  it('a team under the salary floor is a buyer by rule: the floor opens the need gate', () => {
+    const run = (padToFloorOffset: number): League => {
+      const league = fixtureLeague({ seed: 'ai-team-164-floor' });
+      rollCapLines(league, league.season + 1);
+      league.phase = 'freeAgency';
+      const s = league.season + 1;
+      const lines = league.capLines[s]!;
+      for (const tid of ['bka', 'bos', 'phi'] as TeamId[]) {
+        const team = league.teams[tid]!;
+        // stuff the roster to the 14-man floor with centers so a center
+        // free agent reads need 0 everywhere (no stock need, no short-roster
+        // point, retool timeline adds nothing)
+        let i = 0;
+        while (team.roster.length < league.params.cba.rosterMin) {
+          const id = `${tid}c${i}`;
+          league.players[id] = fixturePlayer(id, tid, league.season, 4);
+          team.roster.push(id);
+          i += 1;
+        }
+        // one pad contract parks next-season payroll relative to the floor
+        const others = (team.roster.length - 1) * 10_000_000;
+        const pad = league.players[team.roster[0]!]!;
+        pad.contract!.years.find((y) => y.season === s)!.salary =
+          lines.minSalaryFloor + padToFloorOffset - others;
+      }
+      const fa = fixturePlayer('flr1', null, league.season, 4); // center, no rights
+      setAllAttrs(fa, 70);
+      league.players['flr1'] = fa;
+      league.freeAgents.push('flr1');
+      for (let d = 0; d < 3; d += 1) {
+        league.day = d;
+        runFreeAgencyDay(league);
+      }
+      return league;
+    };
+    // every AI team 25M OVER the floor: need 0, nobody calls
+    const over = run(25_000_000);
+    expect(over.players['flr1']!.status).toBe('freeAgent');
+    // every AI team 25M UNDER the floor: the floor gate opens, the market bids
+    const under = run(-25_000_000);
+    expect(under.players['flr1']!.status).toBe('roster');
+    const signing = under.transactions.find((t) => t.kind === 'signing' && t.playerId === 'flr1');
+    expect(signing).toBeDefined();
+  });
+
+  it('an owner spends to his appetite ceiling, and a near-ceiling bid clamps to remaining budget', () => {
+    const run = (appetite: number): League => {
+      const league = fixtureLeague({ seed: 'ai-team-164-appetite' });
+      rollCapLines(league, league.season + 1);
+      league.phase = 'freeAgency';
+      const s = league.season + 1;
+      const lines = league.capLines[s]!;
+      for (const tid of ['bka', 'bos', 'phi'] as TeamId[]) {
+        const team = league.teams[tid]!;
+        team.owner.taxAppetite = appetite;
+        // park next-season payroll exactly at the tax line: the short
+        // fixture rosters keep need positive, so ONLY the appetite ceiling
+        // decides whether anyone picks up the phone
+        const others = (team.roster.length - 1) * 10_000_000;
+        const pad = league.players[team.roster[0]!]!;
+        pad.contract!.years.find((y) => y.season === s)!.salary = lines.tax - others;
+      }
+      const fa = fixturePlayer('app1', null, league.season, 4);
+      setAllAttrs(fa, 70);
+      league.players['app1'] = fa;
+      league.freeAgents.push('app1');
+      for (let d = 0; d < 3; d += 1) {
+        league.day = d;
+        runFreeAgencyDay(league);
+      }
+      return league;
+    };
+    // appetite 0: the ceiling IS the tax line, headroom is zero, nobody bids
+    const cheap = run(0);
+    expect(cheap.players['app1']!.status).toBe('freeAgent');
+    // appetite 10: headroom is 10% of the tax-to-apron2 band — enough to
+    // sign, small enough that the fair-value target must clamp to budget
+    const willing = run(10);
+    const lines = willing.capLines[willing.season + 1]!;
+    const headroom = Math.round((10 / 100) * (lines.apron2 - lines.tax));
+    expect(willing.players['app1']!.status).toBe('roster');
+    const signing = willing.transactions.find((t) => t.kind === 'signing' && t.playerId === 'app1');
+    expect(signing).toBeDefined();
+    if (signing && signing.kind === 'signing') {
+      expect(signing.contract.years[0]!.salary).toBeLessThanOrEqual(headroom);
+    }
+  });
+});

@@ -29,6 +29,7 @@ import {
   qualifyingOfferFor, signingSeason, validateSigning,
 } from '../cba/contracts.js';
 import type { SigningTerms } from '../cba/contracts.js';
+import { capSheet } from '../cba/cap.js';
 import { executeOptionDecision, executeSigning } from '../transactions.js';
 import { abilityScore } from './roster.js';
 
@@ -276,6 +277,29 @@ export function runFreeAgencyDay(league: League): Transaction[] {
   const tailEnd = open + tailDays;
   const teamIds = Object.keys(league.teams).sort();
 
+  // ---- the owner's money picture, one sheet per team per market day (#164).
+  // Two willingness overlays sit on top of CBA legality (bestLegalTerms):
+  // a team under the salary floor is a buyer by rule (the floor was computed
+  // on every cap line and enforced nowhere), and an owner spends past the
+  // tax only as far as his appetite allows (taxAppetite was written at
+  // genesis and read nowhere). Both read the signing season's books — the
+  // label-season sheets are fiction between the lottery and the rollover
+  // (#185). Intra-day staleness is tolerated the same way stale bids are:
+  // execution re-validates.
+  const willLines = league.capLines[signingSeason(league)];
+  const will = new Map<TeamId, { underFloor: boolean; headroom: number }>();
+  for (const tid of teamIds) {
+    if (!willLines) { will.set(tid, { underFloor: false, headroom: Number.MAX_SAFE_INTEGER }); continue; }
+    const total = capSheet(league, tid, signingSeason(league)).total;
+    // appetite 0-100 maps the owner's spending ceiling onto [tax line, second apron]
+    const ceiling = willLines.tax
+      + Math.round((league.teams[tid]!.owner.taxAppetite / 100) * (willLines.apron2 - willLines.tax));
+    will.set(tid, {
+      underFloor: total < willLines.minSalaryFloor,
+      headroom: ceiling - total,
+    });
+  }
+
   klass.forEach((player, rank) => {
     if (player.status !== 'freeAgent') return; // signed already (his rank still shapes the calendar)
     // the career seam: a controlled player's signing is HIS decision; the
@@ -297,11 +321,18 @@ export function runFreeAgencyDay(league: League): Transaction[] {
       const team = league.teams[tid]!;
       if (team.gm === null) continue; // the user bids through actions, never automatically
       const incumbent = player.rights?.teamId === tid;
-      if (!incumbent && needScore(league, tid, player) <= 0) continue;
+      const w = will.get(tid)!;
+      // a team under the salary floor is a buyer by rule: being short of the
+      // floor opens the need gate (#164's missing opposing force)
+      if (!incumbent && !w.underFloor && needScore(league, tid, player) <= 0) continue;
+      // the owner's ceiling: a tapped-out owner does not pick up the phone
+      if (w.headroom < minSalaryFor(league, player)) continue;
       // winner's curse: independent per-team jitter around fair value
       const noisy = Math.round(fair * (1 + rng.gaussian(0, league.params.fa.bidNoiseSd)));
       const years = yearsForAge(age, rng.int(2));
-      const legal = bestLegalTerms(league, tid, player, noisy, years);
+      // an owner near his ceiling bids his remaining budget, not the fair
+      // read: the target clamps to willingness headroom
+      const legal = bestLegalTerms(league, tid, player, Math.min(noisy, w.headroom), years);
       if (!legal) continue;
       bids.push({ teamId: tid, terms: legal.terms, means: legal.means, incumbent });
     }

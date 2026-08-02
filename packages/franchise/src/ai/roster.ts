@@ -188,6 +188,16 @@ function minimumMarket(league: League, teamId: TeamId): FrPlayer[] {
     // An abroad career player parks here as a top free agent for whole
     // seasons; a quiet floor fill must not put him on an NBA roster.
     if (league.careerControlled?.includes(id)) continue;
+    // the July class belongs to the July market (#164): while the signing
+    // season is next season (lottery through free agency), a rights-holding
+    // free agent is never a quiet minimum fill. Before this gate, the
+    // draft-phase fill pass scooped the entire just-released expiring class
+    // at 1-year minimums before free agency convened — measured as THE sink
+    // behind the league's monotonic payroll deflation (zero FA-window
+    // signings on both acceptance seeds). Once the market has had its
+    // window (signing season == label season again), leftover rights-holders
+    // return to the patch pool.
+    if (p.rights && signingSeason(league) !== league.season) continue;
     // a restricted FA belongs to the offer-sheet machinery, not a quiet minimum
     if (p.rights && p.rights.restricted && p.rights.teamId !== teamId) continue;
     if (league.offerSheets.some((s) => s.playerId === id)) continue; // spoken for until the match clock runs
