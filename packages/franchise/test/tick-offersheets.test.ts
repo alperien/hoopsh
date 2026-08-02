@@ -63,7 +63,7 @@ function padRosterToMax(league: League, teamId: TeamId): void {
  */
 function lodgeSheet(
   league: League,
-  opts: { incumbent: TeamId; from: TeamId; year1: number; contractSeason: number },
+  opts: { incumbent: TeamId; from: TeamId; year1: number; contractSeason: number; kind?: Contract['kind'] },
 ): PlayerId {
   const pid = 'rfa-0001';
   const p = fixturePlayer(pid, null, league.season, 0);
@@ -80,7 +80,7 @@ function lodgeSheet(
       { season: opts.contractSeason, salary: opts.year1, guaranteed: opts.year1 },
       { season: opts.contractSeason + 1, salary: opts.year1, guaranteed: opts.year1 },
     ],
-    kind: 'standard', means: 'capSpace',
+    kind: opts.kind ?? 'standard', means: 'capSpace',
     signedOn: { season: league.season, day: league.day },
     birdYearsAtSigning: 0,
   };
@@ -183,6 +183,42 @@ describe('offer-sheet resolution at the tick (#185)', () => {
     expect(offerSheetSignings(league, pid).length).toBe(0);
     expect(matchDecisionsFor(league, pid).length).toBe(1);
     expect(league.inbox.some((i) => i.id.startsWith('sheet-void-') || i.id.startsWith('sheet-match-block-'))).toBe(false);
+  });
+
+  it('voids a two-way sheet when the two-way slots filled during the window', async () => {
+    const league = leagueOn('regular');
+    const offering = league.userTeam;
+    const incumbent = (Object.keys(league.teams) as TeamId[])[1]!;
+    // both two-way books filled to the ceiling during the match window:
+    // the AI incumbent matches (cheap deal, top-rank keeper) but cannot
+    // take delivery, and neither can the user when the match lapses
+    for (const teamId of [offering, incumbent]) {
+      const team = league.teams[teamId]!;
+      let i = 0;
+      while (team.twoWay.length < league.params.cba.twoWaySlots) {
+        const id = `tw-${teamId}-${i}`;
+        league.players[id] = fixturePlayer(id, teamId, league.season, i);
+        team.twoWay.push(id);
+        i += 1;
+      }
+    }
+    const pid = lodgeSheet(league, {
+      incumbent, from: offering, year1: 500_000, contractSeason: league.season, kind: 'twoWay',
+    });
+
+    // on the defective base this day dies inside executeSigning:
+    // "two-way slots full (3)"
+    await advanceDay(league, simulateJobsInline);
+
+    expect(league.offerSheets.length).toBe(0);
+    expect(offerSheetSignings(league, pid).length).toBe(0);
+    const decisions = matchDecisionsFor(league, pid);
+    expect(decisions.length).toBe(1);
+    expect((decisions[0] as { matched?: boolean }).matched).toBe(false);
+    const lapse = league.inbox.find((i) => i.id.startsWith('sheet-match-block-') && i.id.endsWith(pid));
+    expect(lapse?.body ?? '').toContain('two-way');
+    const voided = league.inbox.find((i) => i.id.startsWith('sheet-void-') && i.id.endsWith(pid));
+    expect(voided?.body ?? '').toContain('two-way');
   });
 
   it('prices the auto-match apron test on signing-season books between lottery and rollover', async () => {
