@@ -15,6 +15,21 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Docs: sibling-file locator breadcrumb re-point (#140, issue #137)
+
+- The #129/#136 sweep scoped to fouls.ts locators inside fouls.test.ts
+  and reported the same staleness class next door. This pass re-points
+  that remainder: the four stale non-fouls.ts locators in fouls.test.ts
+  (events.ts, state.ts, subs.ts) and the stale fouls.ts locators in
+  carom-attribution, events, foulout-sub, and passing test files (nine
+  sites; the issue counted eight, fouls.ts:75 appears three times, not
+  twice). Each old range reconstructed against the blob it was measured
+  on (5d68eb7 for the flow-wave files, de3ec1e for the audit-wave
+  files); each new range spot-checked against current main. Comments
+  only; zero assertion changes; fingerprint-1 identical (1313 events,
+  121-119); corpus 28/28 byte-identical; suite identical (1643 tests,
+  1641 pass, 0 fail, 2 todo).
+
 ### Franchise: roster upkeep skips careerControlled players (#102, issue #69)
 
 - The quiet roster floor fill could sign an abroad career player onto
@@ -37,38 +52,6 @@ minutes-targets fix (W65).
   reserved, W83 claimed by the #91 allocation. One line in
   docs/REGISTER.md; Bible regen not owed (build-bible.mjs excludes the
   register by design). Merged f56decfc.
-
-### Engine: halfcourt blow-by carry at ai.blowByCarryScale 0.5 (#123, issue #114)
-
-- Arc #58 increment 3, the mechanics slot occupant. A per-possession
-  arming draw in the heave-guard shape (0 never draws, >= 1 goes
-  draw-free) rolls in startPossession on every start kind and is
-  consumed by executeAction's shoot branch via blowsByToRim; the dose
-  dial scales arming frequency only, and the three FEEL shape gates
-  define what a blow-by is. Landed at 0.5 on the measured astd
-  purchase: pooled 864/arm -0.25pp, fresh-base n=1152/arm -0.63pp,
-  coherent with the arc exchange rate on +0.32 unassisted makes per
-  team-game. 19 files, including re-baked goldens, noise floor, and
-  seed pins; rebased over the #119 FT carry with a four-hash events
-  byte-identity composition proof. Full mechanics ladder at review
-  4836282926, zero findings: batch-48 17/17, sweep verify 17/17 at
-  288x3, bench 4.92 games/sec, corpus 28/28 against main's goldens,
-  making the tune commit the sole behavioral surface. Merged cf0762b4.
-
-### Docs: sibling-file locator breadcrumb re-point (#140, issue #137)
-
-- The #129/#136 sweep scoped to fouls.ts locators inside fouls.test.ts
-  and reported the same staleness class next door. This pass re-points
-  that remainder: the four stale non-fouls.ts locators in fouls.test.ts
-  (events.ts, state.ts, subs.ts) and the stale fouls.ts locators in
-  carom-attribution, events, foulout-sub, and passing test files (nine
-  sites; the issue counted eight, fouls.ts:75 appears three times, not
-  twice). Each old range reconstructed against the blob it was measured
-  on (5d68eb7 for the flow-wave files, de3ec1e for the audit-wave
-  files); each new range spot-checked against current main. Comments
-  only; zero assertion changes; fingerprint-1 identical (1313 events,
-  121-119); corpus 28/28 byte-identical; suite identical (1643 tests,
-  1641 pass, 0 fail, 2 todo).
 
 ### Docs: fouls.test.ts fouls.ts-locator re-point (#136, issue #129)
 
@@ -102,6 +85,23 @@ minutes-targets fix (W65).
   fingerprint-1 identical (1277 events, 115-126); corpus 28/28
   byte-identical; suite identical (1623 tests, 1621 pass, 0 fail,
   2 todo).
+
+### Engine: halfcourt blow-by carry at ai.blowByCarryScale 0.5 (#123, issue #114)
+
+- Arc #58 increment 3, the mechanics slot occupant. A per-possession
+  arming draw in the heave-guard shape (0 never draws, >= 1 goes
+  draw-free) rolls in startPossession on every start kind and is
+  consumed by executeAction's shoot branch via blowsByToRim; the dose
+  dial scales arming frequency only, and the three FEEL shape gates
+  define what a blow-by is. Landed at 0.5 on the measured astd
+  purchase: pooled 864/arm -0.25pp, fresh-base n=1152/arm -0.63pp,
+  coherent with the arc exchange rate on +0.32 unassisted makes per
+  team-game. 19 files, including re-baked goldens, noise floor, and
+  seed pins; rebased over the #119 FT carry with a four-hash events
+  byte-identity composition proof. Full mechanics ladder at review
+  4836282926, zero findings: batch-48 17/17, sweep verify 17/17 at
+  288x3, bench 4.92 games/sec, corpus 28/28 against main's goldens,
+  making the tune commit the sole behavioral surface. Merged cf0762b4.
 
 ### Franchise: late-transaction news (#122, issue #118)
 
