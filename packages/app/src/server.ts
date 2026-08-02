@@ -103,6 +103,31 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
+/**
+ * The shared ingestion point for every JSON-body route (#252). An empty
+ * body keeps reading as {} — clients legitimately POST bare (advance,
+ * save) and each route validates its own required fields. A body that
+ * does not PARSE is the client's own request coming back to it: answer
+ * 400 with one plain-language copy (api.js surfaces { error } verbatim
+ * as the toast) instead of letting the SyntaxError escape to the
+ * catch-all — a form typo must never read, or log, as a server fault.
+ * Returns undefined exactly when the 400 has been written (JSON.parse
+ * can never produce undefined, so the sentinel cannot collide with a
+ * parsed value); callers stop routing on it. Parseable non-object
+ * bodies still flow to each route's own shape checks (#112's layer),
+ * and the catch-all keeps only genuine server faults.
+ */
+async function readJsonBody(req: IncomingMessage, res: ServerResponse): Promise<unknown> {
+  const raw = await readBody(req);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    json(res, 400, { error: 'the request body is not valid JSON' });
+    return undefined;
+  }
+}
+
 /** The async multi-day sim loop; one at a time, polled by the UI. */
 async function runAdvance(state: AppState, days: number, stopOnInbox: boolean): Promise<void> {
   const league = state.league!;
@@ -207,7 +232,8 @@ async function runCareerAdvance(state: AppState, weeks: number, stopOnDecision: 
 async function handleCareerApi(state: AppState, req: IncomingMessage, res: ServerResponse, p: string): Promise<boolean> {
   if (p === '/api/career/new' && req.method === 'POST') {
     if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as NewCareerBody;
+    const body = await readJsonBody(req, res) as NewCareerBody | undefined;
+    if (body === undefined) return true;
     if (!body.spec) { json(res, 400, { error: 'spec is required' }); return true; }
     try {
       state.career = createCareer({
@@ -240,7 +266,8 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
   }
   if (p === '/api/career/load' && req.method === 'POST') {
     if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
+    const body = await readJsonBody(req, res) as { name?: string } | undefined;
+    if (body === undefined) return true;
     if (!body.name) { json(res, 400, { error: 'name is required' }); return true; }
     state.career = loadCareer(body.name);
     state.careerSaveName = body.name;
@@ -258,7 +285,8 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
 
   if (p === '/api/career/save' && req.method === 'POST') {
     if (state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
+    const body = await readJsonBody(req, res) as { name?: string } | undefined;
+    if (body === undefined) return true;
     const name = body.name || state.careerSaveName;
     saveCareer(career, name);
     state.careerSaveName = name;
@@ -334,7 +362,8 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
   }
   if (p === '/api/career/choice' && req.method === 'POST') {
     if (state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { choice?: CareerChoice };
+    const body = await readJsonBody(req, res) as { choice?: CareerChoice } | undefined;
+    if (body === undefined) return true;
     if (!body.choice) { json(res, 400, { error: 'choice is required' }); return true; }
     const result = applyChoice(career, body.choice);
     if (result.ok) saveCareer(career, state.careerSaveName);
@@ -343,7 +372,8 @@ async function handleCareerApi(state: AppState, req: IncomingMessage, res: Serve
   }
   if (p === '/api/career/advance' && req.method === 'POST') {
     if (state.careerSim.running || state.sim.running) { json(res, 409, { error: 'a sim is already running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { weeks?: number; stopOnDecision?: boolean };
+    const body = await readJsonBody(req, res) as { weeks?: number; stopOnDecision?: boolean } | undefined;
+    if (body === undefined) return true;
     const weeks = Math.max(1, Math.min(60, Math.floor(body.weeks ?? 1)));
     void runCareerAdvance(state, weeks, body.stopOnDecision !== false).then(
       () => saveCareer(state.career!, state.careerSaveName),
@@ -449,7 +479,8 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     return true;
   }
   if (p === '/api/new' && req.method === 'POST') {
-    const body = JSON.parse(await readBody(req) || '{}') as NewLeagueBody;
+    const body = await readJsonBody(req, res) as NewLeagueBody | undefined;
+    if (body === undefined) return true;
     if (!body.userTeam) { json(res, 400, { error: 'userTeam is required' }); return true; }
     if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     state.league = createLeague({
@@ -467,7 +498,8 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     return true;
   }
   if (p === '/api/load' && req.method === 'POST') {
-    const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
+    const body = await readJsonBody(req, res) as { name?: string } | undefined;
+    if (body === undefined) return true;
     if (!body.name) { json(res, 400, { error: 'name is required' }); return true; }
     if (state.sim.running || state.careerSim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
     state.league = loadLeague(body.name);
@@ -486,7 +518,8 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
   if (p === '/api/save' && req.method === 'POST') {
     if (state.career) { json(res, 409, { error: 'the career saves through /api/career/save' }); return true; }
     if (state.sim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { name?: string };
+    const body = await readJsonBody(req, res) as { name?: string } | undefined;
+    if (body === undefined) return true;
     const name = body.name || state.saveName;
     saveLeague(league, name);
     state.saveName = name;
@@ -568,7 +601,8 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
   if (p === '/api/sim/advance' && req.method === 'POST') {
     if (state.career) { json(res, 409, { error: 'career mode drives time through /api/career/advance' }); return true; }
     if (state.sim.running) { json(res, 409, { error: 'a sim is already running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { days?: number; stopOnInbox?: boolean };
+    const body = await readJsonBody(req, res) as { days?: number; stopOnInbox?: boolean } | undefined;
+    if (body === undefined) return true;
     const days = Math.max(1, Math.min(400, Math.floor(body.days ?? 1)));
     void runAdvance(state, days, body.stopOnInbox !== false).then(
       () => saveLeague(state.league!, state.saveName), // autosave after every advance run
@@ -580,7 +614,8 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
   if (p === '/api/action' && req.method === 'POST') {
     if (state.career) { json(res, 409, { error: 'the career chair has no GM console' }); return true; }
     if (state.sim.running) { json(res, 409, { error: 'a sim is running' }); return true; }
-    const body = JSON.parse(await readBody(req) || '{}') as { action?: UserAction };
+    const body = await readJsonBody(req, res) as { action?: UserAction } | undefined;
+    if (body === undefined) return true;
     if (!body.action) { json(res, 400, { error: 'action is required' }); return true; }
     const result = applyUserAction(league, body.action);
     if (result.ok) saveLeague(league, state.saveName);
@@ -588,7 +623,8 @@ async function handleApi(state: AppState, req: IncomingMessage, res: ServerRespo
     return true;
   }
   if (p === '/api/trade/evaluate' && req.method === 'POST') {
-    const body = JSON.parse(await readBody(req) || '{}') as { offer?: TradeOffer };
+    const body = await readJsonBody(req, res) as { offer?: TradeOffer } | undefined;
+    if (body === undefined) return true;
     if (!body.offer) { json(res, 400, { error: 'offer is required' }); return true; }
     json(res, 200, respondToOffer(league, body.offer));
     return true;
