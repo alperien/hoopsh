@@ -15,7 +15,47 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
-### Docs: sibling-file locator breadcrumb re-point (issue #137)
+### Franchise: roster upkeep skips careerControlled players (#102, issue #69)
+
+- The quiet roster floor fill could sign an abroad career player onto
+  an NBA roster (he parks in the FA pool as a top free agent for whole
+  seasons), and the two-way conversion, a waive plus a re-sign, could
+  pick a controlled player; both are world decisions a controlled
+  player answers for himself. Roster upkeep now skips
+  League.careerControlled ids in the fill and the conversion, the same
+  skip the FA market already had (finding H-seams-1,
+  findings/franchise-seams.md). The abroad-interest follow-up is filed
+  as #101, not built here. Consumer tier: suite green, engine
+  fingerprint untouched; cross-box byte-identical adjudication at
+  review. Merged 400224fb.
+
+### Docs: REGISTER row W85 for the halfcourt blow-by landing (#132, issue #114)
+
+- Rows append per landing (the W82/W84 precedent) and PR #123 carried
+  none, so this pays the debt now rather than batching it to the arc
+  exit. W85 is the next free number: the register ended at W84, W80-W81
+  reserved, W83 claimed by the #91 allocation. One line in
+  docs/REGISTER.md; Bible regen not owed (build-bible.mjs excludes the
+  register by design). Merged f56decfc.
+
+### Engine: halfcourt blow-by carry at ai.blowByCarryScale 0.5 (#123, issue #114)
+
+- Arc #58 increment 3, the mechanics slot occupant. A per-possession
+  arming draw in the heave-guard shape (0 never draws, >= 1 goes
+  draw-free) rolls in startPossession on every start kind and is
+  consumed by executeAction's shoot branch via blowsByToRim; the dose
+  dial scales arming frequency only, and the three FEEL shape gates
+  define what a blow-by is. Landed at 0.5 on the measured astd
+  purchase: pooled 864/arm -0.25pp, fresh-base n=1152/arm -0.63pp,
+  coherent with the arc exchange rate on +0.32 unassisted makes per
+  team-game. 19 files, including re-baked goldens, noise floor, and
+  seed pins; rebased over the #119 FT carry with a four-hash events
+  byte-identity composition proof. Full mechanics ladder at review
+  4836282926, zero findings: batch-48 17/17, sweep verify 17/17 at
+  288x3, bench 4.92 games/sec, corpus 28/28 against main's goldens,
+  making the tune commit the sole behavioral surface. Merged cf0762b4.
+
+### Docs: sibling-file locator breadcrumb re-point (#140, issue #137)
 
 - The #129/#136 sweep scoped to fouls.ts locators inside fouls.test.ts
   and reported the same staleness class next door. This pass re-points
