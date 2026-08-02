@@ -183,6 +183,11 @@ function minimumMarket(league: League, teamId: TeamId): FrPlayer[] {
     const p = league.players[id];
     if (!p || p.status !== 'freeAgent') continue;
     if (p.health.injury !== null) continue; // nobody signs a body that cannot dress
+    // the career seam: a controlled player's signing is HIS decision, never
+    // the world's (League.careerControlled; the FA market has the same skip).
+    // An abroad career player parks here as a top free agent for whole
+    // seasons; a quiet floor fill must not put him on an NBA roster.
+    if (league.careerControlled?.includes(id)) continue;
     // a restricted FA belongs to the offer-sheet machinery, not a quiet minimum
     if (p.rights && p.rights.restricted && p.rights.teamId !== teamId) continue;
     if (league.offerSheets.some((s) => s.playerId === id)) continue; // spoken for until the match clock runs
@@ -205,6 +210,10 @@ function minimumMarket(league: League, teamId: TeamId): FrPlayer[] {
  *     departures) broke the starting five.
  * All signings flow through validateSigning/executeSigning; anything that
  * cannot be done legally today is skipped without noise.
+ *
+ * careerControlled players are invisible to upkeep: the fill never signs
+ * them and the conversion never picks them (the career seam, types.ts; his
+ * contracts are his own decisions, surfaced through the career bridge).
  */
 export function aiRosterUpkeep(league: League): void {
   const cba = league.params.cba;
@@ -236,6 +245,10 @@ export function aiRosterUpkeep(league: League): void {
       const candidates = team.twoWay
         .map((id) => league.players[id])
         .filter((p): p is FrPlayer => p !== undefined && isAvailable(p))
+        // the career seam: conversion is a waive plus a re-sign, both world
+        // decisions a controlled player answers for himself; the staff
+        // promotes the best unlisted body instead (League.careerControlled)
+        .filter((p) => !league.careerControlled?.includes(p.id))
         .sort((a, b) => abilityScore(b) - abilityScore(a) || (a.id < b.id ? -1 : 1));
       const pick = candidates[0];
       if (pick) {

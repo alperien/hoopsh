@@ -820,7 +820,7 @@ describe('turnover and foul bookkeeping', () => {
   // game (not the period)": +1 per foul, never resetting across periods.
   // Kind 'technical' is the documented exception (events.ts:85-91): a tech
   // is not a personal in NBA accounting, so its stamp REPEATS the fouler's
-  // current total unchanged — "snapshot, not an increment" (fouls.ts:113).
+  // current total unchanged — "snapshot, not an increment" (fouls.ts:130).
   // (invariants.test.ts pins the TEAM chain; the per-player chain is here.)
   it('personalCount chains +1 per personal foul, never resets; a technical repeats it unchanged', () => {
     let techs = 0;
@@ -848,7 +848,7 @@ describe('turnover and foul bookkeeping', () => {
   // rules.teamFoulBonusAt (a tech's snapshot count included); fouledOut is
   // "true exactly when personalCount >= rules.foulOutAt" — EXCEPT kind
   // 'technical', where it "is always false" (events.ts:88-91). The tech
-  // draw runs AFTER the foul-out replacement (fouls.ts:103-116), so a tech
+  // draw runs AFTER the foul-out replacement (fouls.ts:120-133), so a tech
   // riding a foul-out whistle legally stamps personalCount AT the limit
   // with fouledOut still false — the naive formula is wrong for techs.
   // Thresholds read from result.rules, not literals.

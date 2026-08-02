@@ -15,7 +15,7 @@
  * This file breaks the circularity by anchoring on stream facts the boolean
  * cannot relabel:
  *  - the MISS that spawned the scramble. A scramble only exists off a missed
- *    shot or missed final free throw (shooting.ts:199-219, fouls.ts:239-261),
+ *    shot or missed final free throw (shooting.ts:199-219, fouls.ts:473-491),
  *    and the loose ball emits nothing until it resolves — so the nearest
  *    preceding shot/free_throw event names the shooting side, independent of
  *    anything the rebound branch stamps.

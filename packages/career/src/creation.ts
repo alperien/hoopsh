@@ -66,8 +66,8 @@ export interface CreateCareerOpts {
 
 const START_YEAR = 2026;   // REAL: matches franchise genesis DEFAULT_START_SEASON, so the career clock and the world's season agree at day zero
 const CREATION_AGE = 17;   // REAL: the design start point - a high school senior (docs/CAREER.md, Decisions taken at approval)
-const MY_ID = 'p9000';     // career-local ids start at 9000, clear of the league's own p0001.. sequence (the shared test fixture's convention); the draft bridge owns league-side identity at entry
-const RIVAL_ID_SEQ = 9001; // generatePlayer formats this as 'p9001', the next id in the career-local range
+const MY_ID = 'p9000';     // me and the rival are the only career-born 'p' ids: both are league-destined (stock.ts#enterDraftClass), parked at 9000 clear of the league's own p0001.. growth for any plausible pre-entry span. Circuit kids mint in the career-local 'c' alphabet instead, so the league's post-entry draft classes can never re-mint a retained id (circuits.ts#nextIdSeq, issue #83)
+const RIVAL_ID_SEQ = 9001; // generatePlayer formats this as 'p9001', the second and last id in the entry pair's zone
 const WORLD_USER_TEAM = 'nye'; // FEEL: createLeague requires a nominated user team; the persona fill below makes the pick invisible, so any fixed franchise works
 
 // body bounds (validation)
