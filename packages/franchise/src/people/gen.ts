@@ -187,7 +187,7 @@ const TALENT_TIERS: readonly TalentTier[] = [
 
 /** Top-two-tier weight response to the class wave. FEEL: a loaded class is loaded at the TOP. */
 const WAVE_TIER_EXP = 4;
-/** Prospect quality never reaches a peak superstar's level on day one. FEEL. */
+/** Prospect quality never reaches a peak superstar's level on day one. SWEPT (#125): 90 carries the +8 supply-parity offset (grid +5/+8/+11; recommendation of record in #125 comment 5156322787). */
 const PROSPECT_QUALITY_HI = 90;
 /** Class strength wave clamp. FEEL: historic weak/loaded classes stay inside +-15%. */
 const WAVE_LO = 0.85;
