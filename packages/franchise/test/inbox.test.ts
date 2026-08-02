@@ -17,7 +17,7 @@ import type {
 import { buildSeasonCalendar, optionDecisionDay } from '../src/calendar.js';
 import { expireInboxDeadlines, generateGmInbox } from '../src/inbox.js';
 import { advanceDay, applyUserAction } from '../src/tick.js';
-import { aiTradePulse } from '../src/ai/trade.js';
+import { aiTradePulse, respondToOffer } from '../src/ai/trade.js';
 import { fixtureLeague } from './fixture.js';
 
 const USER = 'nye';
@@ -85,20 +85,26 @@ describe('generateGmInbox: the deadline ritual', () => {
     expect(ids(generateGmInbox(league))).not.toContain(brief!.id);
   });
 
-  it('stops the clock on deadline day with a decision that expires at close of business', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
-    const items = generateGmInbox(league);
-    const call = items.find((i) => i.id === `deadline-day-s${league.season}`);
+  it('posts the deadline call on the eve, so the stop it creates lands with the desk open (#186)', () => {
+    const eve = calendarLeague(DEADLINE - 1, 'regular');
+    const items = generateGmInbox(eve);
+    const call = items.find((i) => i.id === `deadline-day-s${eve.season}`);
     expect(call).toBeDefined();
     expect(call!.kind).toBe('decision');
     expect(call!.choices!.length).toBeGreaterThan(0);
-    expect(call!.deadline).toEqual({ season: league.season, day: DEADLINE });
-    // the window brief never doubles up with the day item
-    expect(ids(items)).not.toContain(`deadline-window-s${league.season}`);
+    // deadline = the post date: the sweep retires an ignored call during
+    // deadline day's own tick, so the loop cannot re-stop at deadline+1
+    expect(call!.deadline).toEqual({ season: eve.season, day: DEADLINE - 1 });
+    // the eve belongs to the call alone; the window brief stays quiet
+    expect(ids(items)).not.toContain(`deadline-window-s${eve.season}`);
+    // deadline day itself posts nothing: its tick ends past the freeze,
+    // and a stop past the freeze is the #186 pathology
+    const day = calendarLeague(DEADLINE, 'regular');
+    expect(ids(generateGmInbox(day))).not.toContain(`deadline-day-s${day.season}`);
   });
 
   it('frames deadline day from the trade desk truth: a contender sees the sellers\' best rental', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     league.teams[USER]!.strategy.timeline = 'contend';
     league.teams[AI_A]!.strategy.timeline = 'rebuild';
     const rental = league.teams[AI_A]!.roster[0]!;
@@ -206,13 +212,14 @@ describe('generateGmInbox: the rest of the desk', () => {
   });
 
   it('generates nothing for a persona-run chair: acceptance identity holds by construction', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+    // the eve: the day the desk would speak loudest for a human chair (#186)
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     league.teams[USER]!.gm = { ...persona };
     expect(generateGmInbox(league)).toEqual([]);
   });
 
   it('is a pure function of state: repeated calls return identical items', () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     const a = generateGmInbox(league);
     const b = generateGmInbox(structuredClone(league));
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
@@ -249,16 +256,32 @@ describe('expireInboxDeadlines', () => {
 // ----------------------------------------------------------- integration
 
 describe('the wired day: advanceDay feeds the inbox', () => {
-  it('deadline day lands in league.inbox and the digest, and expires next morning if ignored', async () => {
-    const league = calendarLeague(DEADLINE, 'regular');
+  it('the eve tick posts the call, the stop stands on deadline morning with a live desk, and ignoring costs exactly one stop (#186)', async () => {
+    const league = calendarLeague(DEADLINE - 1, 'regular');
     const digest = await advanceDay(league, noGames);
     const id = `deadline-day-s${league.season}`;
-    expect(digest.inboxIds).toContain(id);
+    expect(digest.inboxIds).toContain(id); // the eve tick triggers the stop
+    expect(league.day).toBe(DEADLINE); // the stop stands on deadline morning
     const item = league.inbox.find((i) => i.id === id)!;
     expect(item.resolved).toBe(false);
-    // the user ignores it; the next morning's sweep retires it
+    // the desk is OPEN at the stop: a dump-shaped call gets a live verdict,
+    // not the frozen one (#186's repro, through the real desk path). Probe
+    // a clone so negotiation memory never touches the advancing league.
+    const probe: Parameters<typeof respondToOffer>[1] = {
+      from: USER, to: AI_A,
+      give: { players: [league.teams[USER]!.roster[0]!], picks: [] },
+      get: { players: [], picks: [] },
+    };
+    const live = respondToOffer(structuredClone(league), probe);
+    expect(live.reasoning).not.toBe('the deadline has passed; call back in July');
+    // the user ignores the stop; deadline day's own tick retires the call
     await advanceDay(league, noGames);
     expect(league.inbox.find((i) => i.id === id)!.resolved).toBe(true);
+    // no open decision remains: the advance loop cannot re-stop at deadline+1
+    expect(league.inbox.some((i) => !i.resolved && i.kind === 'decision')).toBe(false);
+    // and the same call now meets the freeze: the boundary flipped with the tick
+    const frozen = respondToOffer(structuredClone(league), probe);
+    expect(frozen.reasoning).toBe('the deadline has passed; call back in July');
   });
 
   it('same seed, same items: cloned leagues advance to identical inboxes', async () => {
