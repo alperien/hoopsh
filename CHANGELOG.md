@@ -15,6 +15,260 @@ Also in this window: the career fun wave, the dunker dive (REGISTER
 W73), the franchise realism wave (W78-W79), and the core-nine
 minutes-targets fix (W65).
 
+### Franchise: the declined-trade notice carries deadline: today (#274, issue #253)
+
+- A declined directed-trade notice posted with no deadline, so the #187
+  morning sweep never retired it and the decline counted forever as an
+  item that needs you. The notice now carries deadline: today, the
+  sized-to-lifetime rule the other window notices follow. Red-on-base
+  2/2 at pristine base (deadline undefined; the notice survives the
+  sweep), green at head; the tick-offersheets pin file takes the
+  #247-sanctioned comment-only correction of its organic-sheets
+  sentence as a ride-along, proven comment-only by independent
+  strip-and-hash. Merge-leg suite 1816 tests / 1814 pass / 0 fail /
+  2 todo (483 suites), the corrected baseline expectation exactly; the
+  out-of-scope counter-finding stands as #275. Consumer tier.
+  Merged a95db372.
+
+### Engine: push-apart collisions resolve order-independently (#174, issue #142)
+
+- The soft-collision pass resolved overlapping pairs sequentially in
+  place, and agentsOnCourt builds side 0 first, so side-1 teammate
+  pairs resolved last and ended every tick exactly separated while
+  earlier pairs could be re-overlapped. Body separation is behavioral,
+  not cosmetic — resolved positions feed rebound contests, shot
+  contests, and passing lanes — so the ordering was a standing spacing
+  subsidy worth about +1.4 margin and +4.5pp win% per game to the away
+  roster (#126: reversing the build order flipped home win% 45.50 to
+  54.50 at n=800, an exact mirror, larger than the shipped home-court
+  dial's whole effect). Pairwise displacements now compute from one
+  pre-pass snapshot, accumulate per agent, and apply once
+  (Jacobi-style): no resolution sequence, no privileged slot. An
+  isolated overlapping pair keeps arithmetic identical to the old
+  loop; only multi-contact clusters resolve differently. Verified at
+  the merged tree: batch-48 16/17 with pts 118.3 and tpaShare 41.9%
+  inside the #269-tightened bands and the sole miss the #222-priced
+  astdShare boundary flicker (59.4 vs 59.8); the fidelity gate's
+  exit-1 affirmed as a measurement-method artifact with two knife-edge
+  rows genuinely improved by the fix; rebaseline x2 no-op proving the
+  re-bake honest; the 49-seed event ladder reproduced exactly (60914
+  to 61218); Red Team advisory clean, F2/F3 filed as #272. The
+  fingerprint baseline moves: fingerprint-1 is now 1261 events,
+  102-109 (was 1188 events, 108-121); goldens, noise floor, and seed
+  pins re-baked; the identity trio of record is the post-merge read
+  (replay 9e6c87f6, pbp c4d33369). Mechanics tier. Merged 2e8d3a37.
+
+### Docs: the register's D1/D1b rows carry the 169a0cf0 instrument-grade reads (#277, issue #265)
+
+- Single-row word-diff in docs/REGISTER.md: the D1 row gains the
+  post-#78 update with the W6-instrument read landed with method and
+  provenance — batch n=96 x 3 bases at main 169a0cf0 reads astdShare
+  60.204 / 59.971 / 60.041, 17/17 bands each, exit 0, matching the
+  #201 comparator at print precision — and a status cell honest on the
+  3.6-3.8pp distance to the sourced center 63.8. Historical reads
+  retained verbatim with vintage markers; no Bible regen owed
+  (REGISTER.md is excluded from SOURCES by design). Docs tier.
+  Merged eb8a25a0.
+
+### Docs: the bands.ts header describes the per-row provenance state (#276, issue #270)
+
+- The header's blanket 2015-2025 framing predates the re-sourced rows;
+  it now states that two row conventions coexist — legacy rows keep
+  the era framing, re-sourced rows (astdShare per #78; tpaShare and
+  pts per #269) anchor their midpoints to the sourced 2025-26 season
+  with last-5 floors and carry their own authoritative provenance
+  blocks, the #201 era table the source of record for era-wide values.
+  Carries the #269 verifier's fix-forward verbatim: the tpaShare
+  excluded-season note corrected from two seasons to five, through
+  2019-20. Comment-only proven three independent ways (strip-and-hash
+  identical both sides; all 28 diff lines inside comment syntax; an
+  independent grep of the -U0 diff with zero non-comment changed
+  lines). Docs tier. Merged e15ca0d7.
+
+### Harness: the tpaShare and pts bands re-source to the 2025-26 anchors (#269, issues #203, #206)
+
+- Both bands' edges re-derived from the #201 era table independently
+  of the relay arithmetic, exact match, and tighten-only on all four
+  edges: tpaShare width 0.120 to 0.056 (38.7-44.3%), pts 17.0 to 10.0
+  (110.6-120.6), midpoints anchored to the sourced 2025-26 season with
+  last-5 floors. An independent n=96 at head reproduces 17/17 with pts
+  116.6 and tpaShare 42.3%. Two self-derived mutants: a dead-zone
+  mutant proves the tightening behavioral (old-to-new gap values pass
+  base, fail head, all four edges) and an edge-red mutant proves the
+  live batch instrument reads the new edges. One non-blocking
+  fix-forward — the tpaShare provenance block's excluded-season count
+  said two, correct is five through 2019-20 — rides #270, landed as
+  #276. Also closes #201. Harness tier. Merged 4b586f9d.
+
+### App: non-object JSON bodies answer 400 with stable copy, not a TypeError 500 (#267, issue #260)
+
+- The #259 guard covered bodies that fail to parse; a syntactically
+  valid non-object body still reached route code reading named
+  properties and died as a TypeError 500 with live exception copy —
+  filed as #260 from that landing and proven unabsorbed there. All
+  five non-object JSON types now answer the one 400 ingestion copy,
+  and base's accidental garbage-as-{} tolerance goes with them. The
+  census adjudication was independently re-derived and concurred: all
+  eleven routes read named properties only, nothing iterates, spreads,
+  or keys a body, and the guard constrains the top level only — nested
+  arrays flow untouched. Red-on-base transplant 21/24 RED, decomposing
+  exactly (13 null TypeError 500s, 8 copy mismatches from the
+  garbage-as-{} tolerance), the 3 greens correct-by-design boundary
+  pins; suite +24 exact; trio and 28/28 corpus byte-identical.
+  Consumer tier. Merged 6e8a41c9.
+
+### Franchise: offer-sheet resolution re-validates and prices signing-season books (#247, issue #185)
+
+- The offer-sheet match window is days long and rosters move
+  underneath it, so a decision legal when the sheet was lodged can be
+  unexecutable at the deadline — and resolution was the only
+  executeSigning path that never re-validated (caller triangulation
+  proved it), so the day died on a raw executor throw. On pristine
+  main the careers acceptance leg crashes on exactly this (fourstar
+  w284 and walkon w135, transactions.ts:120) — the crashes ARE organic
+  sheets arising via runFreeAgencyDay. Resolution now re-checks the
+  structural walls executeSigning enforces (signable status, the
+  roster ceiling, the two-way ceilings) and routes around a block: a
+  blocked match falls back to the unmatched outcome, a blocked
+  unmatched signing voids the sheet with the player's rights intact,
+  and a reroute on a sheet the user's team is party to surfaces an
+  inbox notice naming the block. Cap legality is deliberately not
+  re-tested (an incumbent may match into any cap situation by rule);
+  pricing reads the signing season's books. Red-on-base 6/6 with exact
+  failure modes; the acceptance leg reproduced both ways (pristine
+  main gates FAIL; merge tree all gates hold, both careers to natural
+  retirement, phenom byte-identical); suite +6 exact; trio and 28-seed
+  corpus byte-identical at base, head, and merge tree. Consumer tier.
+  Merged 95f32bee.
+
+### Docs: the NCAA README cites the post-B1 ftBasePct 0.666 from source (#264, issue #262)
+
+- data/ncaa/README.md still quoted 0.69; the current value is read
+  from source (params.shot.ts:207, ftBasePct 0.666, provenance REAL),
+  not recalled, and the 0.69 stays as explicitly marked pre-B1
+  history. REGISTER W7 and wave2-plan historical mentions deliberately
+  untouched per #262. One file, +2/-1, prose-only; not a Bible SOURCES
+  member, no regen owed. Filed from #261's out-of-scope finding.
+  Docs tier. Merged 106db5d3.
+
+### Franchise: trades freeze through the July moratorium (#258, issue #249)
+
+- The #246 wall enforced the deadline; the July moratorium was still
+  open to the ledger. tradingFrozen now answers true for the
+  moratorium phase in both mirrors (ai/trade.ts and cba/tradelegal.ts,
+  sha-identity re-extracted at review), respondToOffer's refusal copy
+  branches for it, the wire pulse stays down through it, and a site
+  that enumerated the phase locally now rides the shared predicate.
+  Disclosed scope edge: the moratorium phase folds the post-draft dead
+  days in (calendar.ts builder note), so late-June trades freeze a few
+  days early — the signing rules already read the phase the same way
+  (ai/fa.ts, cba/contracts.ts). Every 'moratorium' phase reader swept;
+  gm:acceptance closed empirically — three seasons through three live
+  moratoriums, all gates PASS, line-identical to pristine main at the
+  same seed. Suite +5 exact; trio and 28-seed corpus byte-identical on
+  base, head, and merge. Three standing band misses on main (wins sd,
+  home court, tax teams) recorded as pre-existing calibration debt,
+  identical without this PR. Consumer tier. Merged 1eeb21ca.
+
+### App: malformed JSON request bodies return 400, not 500 (#259, issue #252)
+
+- A body that fails JSON.parse surfaced as a 500 with raw exception
+  copy. Eleven route body parses convert to a shared ingestion guard
+  with guard order preserved; both replay-file parses stay on the
+  catch-all deliberately, and the numstat closes arithmetically, so
+  the catch-all is untouched by construction. Live probes: base 500s
+  with raw exception copy, head 400s with the one ingestion copy; the
+  null body still 500s byte-identical on both sides, proving the
+  non-object class not absorbed — filed as #260, landed as #267.
+  Red-on-base 12/13 RED with the single green pinning the {} coalesce
+  by design; suite +13 exact; trio and 28/28 corpus byte-identical.
+  Consumer tier. Merged db29cd6f.
+
+### Docs: PLAYBOOK Recipe F's shim matcher list is complete (#263, issue #257)
+
+- Recipe F's vitest-shim matcher list omitted the three #257 names;
+  the surface is enumerated from tools/shims/vitest.ts itself (11
+  matchers plus .not — the shim holds nothing else) and an independent
+  enumeration reproduced the set exactly. Two files, +4/-2: the
+  PLAYBOOK hunk plus the pure Bible regen (PLAYBOOK is SOURCES member
+  6 of 13), the regen idempotent across two runs. Zero bytes under
+  packages/ or tools/. Docs tier. Merged c009e7bb.
+
+### Docs: the LeBron fixture FT comment cites the post-B1 curve value (#261, issue #210)
+
+- The fidelity.ts comment graded the fixture's freeThrow 61 against
+  the stale pre-B1 curve read 73.2%. The post-B1 value is re-derived
+  from source, not recalled (ftBasePct 0.666 + ftSkillSwing 0.19 x
+  n(61) 0.22 = 70.78%), and the surviving pre-B1 sentence is
+  explicitly re-pinned to the pre-B1 curve so it cannot go stale the
+  same way. One file, +9/-4, all 13 changed lines comments,
+  mechanically verified. The out-of-scope README finding is filed as
+  #262, landed as #264. Docs tier. Merged 7bd98d19.
+
+### Franchise: the three-ball CAN and WANT live in the same bodies (#221, issue #143)
+
+- The calibration packs put the three-ball skill and the appetite in
+  the same bodies (specialist share 40%, corr 0.962); generation
+  spread the two dials (21%, 0.802), and the engine prices attempts
+  superlinearly in the pair, so league 3PA starved at identical
+  marginals (#126 finding 2). generatePlayer now couples them from
+  both sides: a shooting-identity archetype (appetite template at or
+  above the #126 specialist line) floors its rolled skill at
+  specialist entry inside the archetype's own signature cap, and
+  appetite derives from the final skill through the measured pack
+  offset (12 points) with sd 5.5 noise reproducing the packs' 0.962
+  corr; signature caps re-apply after the blend, so paint bigs stay
+  paint bigs, and age rawness still discounts after the floor, so
+  young picks stay projects. Also carries the #125 PROSPECT_QUALITY_HI
+  retag to SWEPT. Both 5-season acceptance legs re-run exact vs claims
+  (exit 0, all gates PASS); the two uncovered band rows settled
+  pre-existing against the #173 base-era per-seed economy signature;
+  determinism held across three processes. One file; engine untouched,
+  identity ladder byte-identical at all three commits both sides.
+  Tune tier. Merged 473e6384.
+
+### App: POST /api/career/new returns 400 on invalid spec, not 500 (#251, issue #112)
+
+- An invalid creation spec hit createCareer's fail-loud gate and the
+  throw surfaced as a raw 500. The route now catches exactly the
+  gate's stable 'career/creation: invalid spec:' prefix and answers
+  400 with validateCreation's plain-language copy traveling unchanged;
+  anything else rethrows to the catch-all, so a real fault still logs
+  and 500s, and the throw lands before assignment, so no career state
+  mutates on the rejected path. Combined-merge evidence with the
+  sibling app PR (#250): both onto one tree, clean, suite 1760/1758,
+  fingerprint-1 identical, corpus 28/28. Consumer tier.
+  Merged e3f43a89.
+
+### App: the career game center stops printing literal null sections (#250, issue #214)
+
+- The #219 defect's career-side twin, filed as #214 there: the career
+  game screen handed replaceChildren null placeholders for sections
+  that do not render (pre-spoiler, or absent data), and raw DOM does
+  not filter — it coerces null to the literal text "null", four of
+  them under the scorebug. The sections are now collected, filtered,
+  and only real nodes reach the DOM. Combined-merge evidence with the
+  sibling app PR (#251): both onto one tree, clean, suite 1760/1758,
+  fingerprint-1 identical, corpus 28/28. Consumer tier.
+  Merged c4518e6c.
+
+### Franchise: every trade path hits the same deadline wall (#246, issue #231)
+
+- respondToOffer refused frozen talks at the negotiation surface, but
+  the execution side never checked, so a user's inbox accept at
+  deadline+1 validated and executed. The freeze now leads
+  validateTrade — the deadline law binds the ledger, not just the
+  desk — and every execution path funnels through the verdict, since
+  executeTrade throws on !ok: the inbox accept, the AI paths, and any
+  future caller hit the same wall. The deadline-day and frozen
+  predicates are mirrored into cba/tradelegal.ts with keep-in-sync
+  notes both sides (ai/trade.ts consumes this module; the import would
+  be circular). Reviewer merge-result ladder clean at the held tree:
+  suite 1763/1761, fingerprint-1 identical, corpus 28/28, determinism
+  28x2, 48-game bands exit 0, docs:bible zero drift. Unblocks the #249
+  moratorium follow-up, landed as #258. Consumer tier.
+  Merged 122570df.
+
 ### Docs: the deliberate CHECKLISTS.md SOURCES exclusion is annotated at both decision surfaces (#248, issue #239)
 
 - The SOURCES guard block in tools/build-bible.mjs already named
