@@ -104,28 +104,40 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 /**
- * The shared ingestion point for every JSON-body route (#252). An empty
- * body keeps reading as {} — clients legitimately POST bare (advance,
- * save) and each route validates its own required fields. A body that
- * does not PARSE is the client's own request coming back to it: answer
- * 400 with one plain-language copy (api.js surfaces { error } verbatim
- * as the toast) instead of letting the SyntaxError escape to the
- * catch-all — a form typo must never read, or log, as a server fault.
- * Returns undefined exactly when the 400 has been written (JSON.parse
- * can never produce undefined, so the sentinel cannot collide with a
- * parsed value); callers stop routing on it. Parseable non-object
- * bodies still flow to each route's own shape checks (#112's layer),
- * and the catch-all keeps only genuine server faults.
+ * The shared ingestion point for every JSON-body route (#252, #260). An
+ * empty body keeps reading as {} — clients legitimately POST bare
+ * (advance, save) and each route validates its own required fields. A
+ * body that does not PARSE is the client's own request coming back to
+ * it: answer 400 with one plain-language copy (api.js surfaces { error }
+ * verbatim as the toast) instead of letting the SyntaxError escape to
+ * the catch-all — a form typo must never read, or log, as a server
+ * fault. A body that parses to anything but a plain object gets the
+ * same treatment (#260): every route in the census reads named
+ * properties off the body, so no non-object top level is legitimate —
+ * and a well-formed top-level `null` used to pass the parse gate and
+ * come back as a 500 carrying the route's raw TypeError as user-facing
+ * copy. Arrays are typeof 'object' but carry no named fields; the
+ * guard rejects them explicitly. Returns undefined exactly when a 400
+ * has been written (JSON.parse can never produce undefined, so the
+ * sentinel cannot collide with a parsed value); callers stop routing on
+ * it. Well-formed object bodies flow to each route's own shape checks
+ * (#112's layer), and the catch-all keeps only genuine server faults.
  */
 async function readJsonBody(req: IncomingMessage, res: ServerResponse): Promise<unknown> {
   const raw = await readBody(req);
   if (!raw) return {};
+  let parsed: unknown;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     json(res, 400, { error: 'the request body is not valid JSON' });
     return undefined;
   }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    json(res, 400, { error: 'the request body must be a JSON object' });
+    return undefined;
+  }
+  return parsed;
 }
 
 /** The async multi-day sim loop; one at a time, polled by the UI. */
