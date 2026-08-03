@@ -233,12 +233,13 @@ describe('the off-switch pin (explicit logit 0 reproduces the staged stream)', (
     // reshuffle: every stream moves, logit 0 included — this mechanism's
     // own off-path is untouched, which is exactly the legitimate-reorder
     // class the doctrine above allows). Cause stated in the landing
-    // commit.
+    // commit. Re-baked again at the #161 landing (frames-only
+    // break-window holder null): event count and final carry unchanged.
     const r = game('putbackstrong-1', 0, true);
     const last = r.events[r.events.length - 1]!;
     expect(r.events.length).toBe(1269);
     expect(`${last.score[0]}-${last.score[1]}`).toBe('133-124');
-    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('0367bba4');
+    expect(fnv1a(JSON.stringify({ e: r.events, f: r.frames }))).toBe('15fb6986');
   });
 });
 

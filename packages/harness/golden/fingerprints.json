@@ -1,7 +1,7 @@
 {
   "ci-fp": {
     "events": "df17f922466066deaabdf67cfaa5a99c30a07f89feb60fcb2e640886b7f76124",
-    "frames": "3a0266653d7c002720de4d9d2b73102c44e77712b3944222bbeea660dd491950",
+    "frames": "b2c4cf64df893c616417988d36e1a44f6ef6a6d9aa2080f052477a615ef6fce0",
     "finalScore": [
       116,
       127
@@ -9,7 +9,7 @@
   },
   "acceptance-0": {
     "events": "8469ce6fbf1efaa4023661b952c4f74f23f947eb14826b0f1c3092fc843b5983",
-    "frames": "42bf9e4ef35af3424f102c93e5b438f6ce1228b76260a7cbb4c25c5ac1b2af2b",
+    "frames": "4a4467d15595c0088c11651e570dd1eb6d5761104e7cdfb239b6fa5fbe49a4d1",
     "finalScore": [
       117,
       110
@@ -33,7 +33,7 @@
   },
   "golden-2": {
     "events": "4cd81f70acb10dcf373ba28765c6f64fd9b55a5a94e87465eb8056f412462376",
-    "frames": "ed70e1f4a2daf5a7d398b5fd7290e3adc57af84e43e4a30450e3facabbf400e2",
+    "frames": "f2b4e41876ab94e51415313bb402edb4eb414f7aa41d415530873fb333df2587",
     "finalScore": [
       121,
       108
@@ -41,7 +41,7 @@
   },
   "golden-3": {
     "events": "1d0ff7ceacc6a469685c75fd9863f1df121acf1a3997467f1c8454feedc529c3",
-    "frames": "44c5a468533ded16c9b7b2b06f58e4bac07b4f7611c51043dc8e9afab8c5e4be",
+    "frames": "25a82695633b9a4431892ab6450714dde90f37760c0c61a881e1cf7875da50d5",
     "finalScore": [
       104,
       114
@@ -49,7 +49,7 @@
   },
   "golden-4": {
     "events": "3b8030b8e0f1768a2961d2939cd79c57a695cd83acf4b4c50a5eaeeb5b16eb64",
-    "frames": "1056c5f9deaf0a57de4704314ae7a37f17c7ff671d10297156c7729a0d963f19",
+    "frames": "234829d1fbdfded2999bde3b9a222730f68b1329ec63bdae5d447c9d52879eb2",
     "finalScore": [
       108,
       115
@@ -57,7 +57,7 @@
   },
   "golden-5": {
     "events": "28b97d5cb0cebef19f92c3c94314c763888e05f4ea5dbdfe61087dfa1a45d727",
-    "frames": "2629c1ca2fdfbbf47b3a333f7a1897f4501f487a8045c9e254d3bb9b0d276648",
+    "frames": "d7c86a3cd69cfae7481285dafb168688b9cf4ba68a775437ece5c1cb5ccd228b",
     "finalScore": [
       126,
       130
@@ -73,7 +73,7 @@
   },
   "golden-7": {
     "events": "064bbe9d8137e2924592ef1271ad0e8694623063158114d8b18c7536d20af813",
-    "frames": "6147e4ff48820fa0442522843d8e3fb5ed406809e89cc52c46001666b6e0f96a",
+    "frames": "ae78dd0f30b69ee19dad2c233798c7031d5aa504bbed1838c73af4489b7ed380",
     "finalScore": [
       104,
       121
@@ -89,7 +89,7 @@
   },
   "golden-9": {
     "events": "08d04810dfbb71c1a708a1fc79bf6ef3d2b24daefbf16fbefa7bae6e04314313",
-    "frames": "9f5f95ff63a15c70a292c99d4185b26ff448ee6abf63927c9baba7d25a1adc09",
+    "frames": "942bfec6a78f7bc2b01e67b255761a3f00dbeb8ddc34d0c0a7a7a132d7a307a8",
     "finalScore": [
       141,
       131
@@ -97,7 +97,7 @@
   },
   "golden-10": {
     "events": "7e4d8aecb43fa25fead8e1b888b9384def47c7e7a6a43d1f86abed8ae3323b07",
-    "frames": "aa279ed322745cf20ae7236508668b4098a47341b1c3486d146088ab50d2d8cd",
+    "frames": "d94619e8c7423255a938352fdffdf3fb89d90efbab4baa357b116c3d13c50dd5",
     "finalScore": [
       121,
       106
@@ -105,7 +105,7 @@
   },
   "golden-11": {
     "events": "edaf10f2960dc72f9cb77ddeffb2bb9ac53b99544e1c78559d45dcbbf4cf34e6",
-    "frames": "48389b2743246b8c537d7343dc817d21c5b65a216a62ac5c9304e7e68ffce21f",
+    "frames": "4487d53c96cfd2c0c528b0c83346f15b5ca110e20551afd19654f3cfb74a7110",
     "finalScore": [
       135,
       117
@@ -113,7 +113,7 @@
   },
   "golden-12": {
     "events": "fabe88d8580a33b9f66571f19fa734f411a32bc3a742a6ed089e0c170ae2cbbf",
-    "frames": "9e3f53a837ddbe26f6b95d2fcf9aafb3774c4799a5e59d1723db1fab076ebb3b",
+    "frames": "be41c48779431a553e9d5e8907b1e544dbcd6a38a693ac893e666b55706ff668",
     "finalScore": [
       122,
       120
@@ -121,7 +121,7 @@
   },
   "golden-13": {
     "events": "261d4049b6c9ce488cae4d070cf86c8e4875e68e786dcef15c1db7ac9106e485",
-    "frames": "9de17ee78b622467ba09465390d2e9243adbf00ba64911f4ba68d5227b7c9ddf",
+    "frames": "3b42585bb7af812c0ca3f0da8d00be43357ca182e24b9e0cfa320b99d4cfe6bf",
     "finalScore": [
       120,
       113
@@ -129,7 +129,7 @@
   },
   "golden-14": {
     "events": "ccc15717c072c5e07db3af67cd6158482c052983a23b6cc1361ee95461037b49",
-    "frames": "25b825b9c5cc2d76bedf00e6f149c9e74661500f9245ad874dba3dad8ee7c135",
+    "frames": "d5661409bfe014ac7a3787d9212aac5db9c7ca442c8fb6d5be122d9574d31292",
     "finalScore": [
       128,
       117
@@ -137,7 +137,7 @@
   },
   "golden-15": {
     "events": "888dfbabc1bdf79c2365b74639f850702a8b23117ebdf3c7960e5fad1ade078f",
-    "frames": "a962fbec8e8b92e62fe5d579f5e16a3d90b78e75f0408c304633bc49119b94ac",
+    "frames": "dc2387914cb3459305d95dea5de91a377d1c3c5d2056accb745e8a74936e95f7",
     "finalScore": [
       107,
       125
@@ -145,7 +145,7 @@
   },
   "golden-16": {
     "events": "4e2c02bc77d64fc227a4c1f5100196f3243fc814649d19a673da057d140008db",
-    "frames": "8eaa18d3890d7dba0af7941236f8e362310ab0f7373729ce11b2bede77b9f521",
+    "frames": "0176f741bc737a911421c7204aaa9597edfe3a0ee64b7f0fb99aeb89495c47ba",
     "finalScore": [
       123,
       109
@@ -153,7 +153,7 @@
   },
   "golden-17": {
     "events": "5996d24c5a3b09d6651aed0ba962de026aed2c3d09ad011835f3dc477bab143a",
-    "frames": "054baf1d1be4961b28182c9124dbbb565e4a1476d0efa4ad72fee00931c28d68",
+    "frames": "6dc800d8eb8b658b3b437d3973b495c358c51cec9ada3198fadc1feb6a011e66",
     "finalScore": [
       146,
       145
@@ -161,7 +161,7 @@
   },
   "golden-18": {
     "events": "acc137226d4270555ad5729b0a7c97526d2b6abe52ef9e450e8b951407a7d83a",
-    "frames": "ed6013e1405640755acdd2e26574fb43e6e13d6fa28af9cc05b32582145bcace",
+    "frames": "7d61e773e5712b52c48d3ad7590c9a7763e0dd4469bafdeb347a9306d7d42d09",
     "finalScore": [
       134,
       116
@@ -169,7 +169,7 @@
   },
   "golden-19": {
     "events": "5b8ca80411bc0032212bcac47d69c59f264525bba8d64e72371c9e41cb070c9c",
-    "frames": "4c56548b2c2e297064d4cbba1ad4ae36b8d75615aeebdf429f8909870babc586",
+    "frames": "6979b54b6a91931b8c015ee83c74ec50efe0f800eae073be02aa10ee189d181a",
     "finalScore": [
       125,
       138
@@ -177,7 +177,7 @@
   },
   "golden-20": {
     "events": "23014bb30a2a90241204249a43fd3d344c0c5217a430af6080bc7b2dc7c5b613",
-    "frames": "4ada5d00eb22691430b9c7522223efb56c5c0c65e72e772560161e125650945e",
+    "frames": "71e667ee794fe7a6647dd10ff6c8259155888bbf2e8110f2990b6bcdaf9b2573",
     "finalScore": [
       118,
       128
@@ -185,7 +185,7 @@
   },
   "golden-21": {
     "events": "24370ee76aa8862ea15e1b28b668b5cb89fa822c8c11c38327bcff28a5f14dc7",
-    "frames": "9ac5038b5081221c634b1bce00dba6d1277e13fec1b1e8b2e2944316920d7a02",
+    "frames": "68e2aa6de0690732af46eef68926c1d0f8495193e37b6e7b087e489584201051",
     "finalScore": [
       124,
       110
@@ -193,7 +193,7 @@
   },
   "flagoff-legacy-0": {
     "events": "0bf973ab135370f9567365e3c1f482b150633c088ffe36bc46f923775f0b890e",
-    "frames": "9b33640f1262b5379635c0f8d1cad0f635c83d00aa9b6481ca112fba8bd5f66b",
+    "frames": "adedb807dd5c4f0139f3b08be6378eb685094b806a3adb395f53de645d960419",
     "finalScore": [
       106,
       119
@@ -201,7 +201,7 @@
   },
   "flagoff-legacy-1": {
     "events": "5b1785fdd9bdb66186003ec0d5716dc481b0dd6cfe5d9c83c48552d198bc44a6",
-    "frames": "655274e899607b5ab3c8602505b799875674f3e5a3e3ed75e2ac1e5a812350f9",
+    "frames": "861181b56433f4d8fca0577fe9ecc4a3944afa2f8b50529d9c05ed963507c7f7",
     "finalScore": [
       112,
       103
@@ -209,7 +209,7 @@
   },
   "ncaa-0": {
     "events": "b78e9e6966f83b0572efc9cbb7025f3134ec5a6ba1acaadc6b6931a6abbe9f56",
-    "frames": "6ea3f697bce01d7707843fa0749395b02825e462f147c70f201e2ea6d9ee85f0",
+    "frames": "60f8b407d1e3c246f9089f0f6bfb84e6b33c56ff13b67a91cd473dde646dade9",
     "finalScore": [
       99,
       78

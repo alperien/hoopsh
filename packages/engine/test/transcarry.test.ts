@@ -309,14 +309,19 @@ describe('F3: the arming-draw region is pinned (intermediate scale + draw-free t
   // (inverted chance(1 - scale) read 1242/120-113/56393375 against the
   // clean 1223 row below), per the #127 rider and the mutation-shields
   // doctrine.
+  // Re-baked again at the #161 landing: the break-window holder null
+  // moves frames only — every row's event count and final carries
+  // unchanged, and f3pin-1's 0.25/0.5 coincidence pair moves to the
+  // same new value together (the coincidence is in the arming draws,
+  // which the holder null never touches).
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    { seed: 'f3pin-1', scale: 0.25, events: 1223, final: '125-115', hash: 'c6b77ab0' },
-    { seed: 'f3pin-1', scale: 0.5, events: 1223, final: '125-115', hash: 'c6b77ab0' },
-    { seed: 'f3pin-2', scale: 0.5, events: 1300, final: '114-118', hash: '00abda0b' },
-    { seed: 'f3pin-3', scale: 0.5, events: 1163, final: '140-110', hash: '08f98802' },
-    { seed: 'f3pin-4', scale: 0.5, events: 1228, final: '108-121', hash: 'abd7554d' },
-    { seed: 'f3pin-1', scale: 1, events: 1290, final: '144-123', hash: 'b618e07e' },
-    { seed: 'f3pin-2', scale: 1, events: 1259, final: '129-138', hash: '8f46ecd2' }
+    { seed: 'f3pin-1', scale: 0.25, events: 1223, final: '125-115', hash: 'b13d5b74' },
+    { seed: 'f3pin-1', scale: 0.5, events: 1223, final: '125-115', hash: 'b13d5b74' },
+    { seed: 'f3pin-2', scale: 0.5, events: 1300, final: '114-118', hash: '718efd05' },
+    { seed: 'f3pin-3', scale: 0.5, events: 1163, final: '140-110', hash: '8401aec0' },
+    { seed: 'f3pin-4', scale: 0.5, events: 1228, final: '108-121', hash: 'a71c6fbf' },
+    { seed: 'f3pin-1', scale: 1, events: 1290, final: '144-123', hash: '691ed4ae' },
+    { seed: 'f3pin-2', scale: 1, events: 1259, final: '129-138', hash: '5f7ce9a2' }
   ];
 
   for (const pin of PINNED) {
@@ -562,9 +567,11 @@ describe('the scale-0 off-switch (#139): the hard-zero contract at the retired d
   // holds multi-contact scrums like any other, so events and frames both
   // move on every stream). Both rows re-baked; the #139/#156 draw-count
   // property below held unchanged through the landing, as it must.
+  // Re-baked again at the #161 landing (frames-only break-window holder
+  // null): event counts and finals carry unchanged on both rows.
   const PINNED: { seed: string; events: number; final: string; hash: string }[] = [
-    { seed: 'tc0pin-1', events: 1232, final: '96-129', hash: '5f2b5a05' },
-    { seed: 'tc0pin-2', events: 1241, final: '105-102', hash: '976e89c1' }
+    { seed: 'tc0pin-1', events: 1232, final: '96-129', hash: '450b0d69' },
+    { seed: 'tc0pin-2', events: 1241, final: '105-102', hash: '0b64bde1' }
   ];
 
   for (const pin of PINNED) {

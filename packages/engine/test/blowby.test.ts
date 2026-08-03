@@ -358,13 +358,17 @@ describe('F3: the arming-draw region is pinned (landing dose + draw-free top)', 
   // (inverted chance(1 - scale) read 1194/121-120/79ad381d against the
   // clean 1166 row below), per the #127 rider and the mutation-shields
   // doctrine.
+  // Re-baked at the #161 landing: the break-window holder null moves
+  // frames only — every re-baked row's event count and final carries
+  // unchanged. bb3pin-3 at 0.5 and bb3pin-2 at 1 carry whole: those
+  // two games hold no live-holder break horn on these streams.
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    { seed: 'bb3pin-2', scale: 0.25, events: 1166, final: '134-112', hash: '876ccd0a' },
-    { seed: 'bb3pin-1', scale: 0.5, events: 1368, final: '145-141', hash: '741b152e' },
-    { seed: 'bb3pin-2', scale: 0.5, events: 1213, final: '127-118', hash: '69a690b6' },
+    { seed: 'bb3pin-2', scale: 0.25, events: 1166, final: '134-112', hash: 'cd0313d2' },
+    { seed: 'bb3pin-1', scale: 0.5, events: 1368, final: '145-141', hash: '8cfca378' },
+    { seed: 'bb3pin-2', scale: 0.5, events: 1213, final: '127-118', hash: '1baa45de' },
     { seed: 'bb3pin-3', scale: 0.5, events: 1181, final: '106-87', hash: '81717b98' },
-    { seed: 'bb3pin-4', scale: 0.5, events: 1172, final: '109-111', hash: 'ea45d1fc' },
-    { seed: 'bb3pin-1', scale: 1, events: 1242, final: '120-116', hash: 'e89c5fb6' },
+    { seed: 'bb3pin-4', scale: 0.5, events: 1172, final: '109-111', hash: '5346bf54' },
+    { seed: 'bb3pin-1', scale: 1, events: 1242, final: '120-116', hash: '95a9b2de' },
     { seed: 'bb3pin-2', scale: 1, events: 1223, final: '131-119', hash: 'e39d7656' }
   ];
 
@@ -660,9 +664,11 @@ describe('the scale-0 off-switch (#138): the hard-zero contract at the retired d
   // and frames both move on every stream). Both rows re-baked; the #138
   // draw-count property below held unchanged through the landing, as it
   // must.
+  // Re-baked again at the #161 landing (frames-only break-window holder
+  // null): both rows move, event counts and finals carry unchanged.
   const PINNED: { seed: string; events: number; final: string; hash: string }[] = [
-    { seed: 'bb0pin-1', events: 1249, final: '118-120', hash: 'e897397c' },
-    { seed: 'bb0pin-2', events: 1239, final: '108-115', hash: '9794f3bc' }
+    { seed: 'bb0pin-1', events: 1249, final: '118-120', hash: 'd3ecadff' },
+    { seed: 'bb0pin-2', events: 1239, final: '108-115', hash: '5a435244' }
   ];
 
   for (const pin of PINNED) {
