@@ -1,16 +1,22 @@
 /**
  * Realism acceptance bands: per-team per-game averages the sim must land in,
- * drawn from modern NBA league-wide numbers (roughly 2015-2025 ranges, wide
- * enough to accept era variation, tight enough to catch a broken engine).
+ * drawn from modern NBA league-wide numbers. Two row conventions coexist
+ * here. Legacy rows keep the original framing: roughly 2015-2025 ranges,
+ * wide enough to accept era variation, tight enough to catch a broken
+ * engine. Re-sourced rows (astdShare per #78; tpaShare and pts per #269)
+ * anchor their midpoints to the sourced 2025-26 season — tpaShare and pts
+ * with last-5 floors — and each carries its own provenance block below;
+ * the blocks are authoritative over this summary. For era-wide values the
+ * #201 era table is the source of record.
  *
  * Provenance: these are REAL numbers — league-wide season averages a fan of
  * the modern game would recognize — not derived from any hoopsh run. They
- * are deliberately wide bands, not point targets: the goal is "does this
- * still look like basketball," not "match the 2023-24 season exactly." A
- * mechanics change that pushes a metric outside its band has broken
- * something; a change that merely shifts it toward one edge within the band
- * hasn't, and shouldn't be hand-chased (see AGENTS.md §4.4 — that's the
- * sweep's job, not a manual nudge).
+ * are bands, not point targets: the goal is "does this still look like
+ * basketball," not "match the 2023-24 season exactly." A mechanics change
+ * that pushes a metric outside its band has broken something; a change that
+ * merely shifts it toward one edge within the band hasn't, and shouldn't be
+ * hand-chased (see AGENTS.md §4.4 — that's the sweep's job, not a manual
+ * nudge).
  *
  * Calibration order (see ARCHITECTURE.md §5): pace → shot mix → efficiency →
  * fouls/rebounds/turnovers → archetype differentiation. This ordering
@@ -102,9 +108,9 @@ export const NBA_BANDS: Band[] = [
   //     The sweep's centering pressure (sweep.ts CENTER_W) now pulls toward
   //     the sourced modern shot mix instead of the prior unsourced 0.39.
   //   width: half-width 0.028 clears the INSTRUMENT minimum 2 x
-  //     draw-sd(n40) = 0.0106. 2015-16 (.285) and 2016-17 (.316) sit below
-  //     the floor BY DESIGN — the band targets the corpus era per the #78
-  //     precedent; the full era range is on record in #201.
+  //     draw-sd(n40) = 0.0106. 2015-16 (.285) through 2019-20 (.384) sit
+  //     below the floor BY DESIGN — the band targets the corpus era per
+  //     the #78 precedent; the full era range is on record in #201.
   // History: the prior 0.33-0.45 carried no source on either edge; the
   //   floor excluded two seasons of the file's claimed era and the 0.39
   //   midpoint pulled the sweep 2.5pp under the sourced modern share. Both
