@@ -325,6 +325,10 @@ function offerSheetClocks(league: League, items: InboxItem[]): void {
  * Sheet resolutions the user was not in the room for: the outcome of the
  * user's own outgoing sheet (the incumbent decided), and a match window
  * on a user-rights player that lapsed to a decline by inaction.
+ *
+ * The day's signing ledger is the outcome of record, not the decision
+ * row: resolution can void a sheet at execution with no signing at all
+ * (#185), so where the player landed is derived, never assumed.
  */
 function offerSheetResults(league: League, items: InboxItem[]): void {
   const today = currentDate(league);
@@ -335,15 +339,32 @@ function offerSheetResults(league: League, items: InboxItem[]): void {
     const name = league.players[pid]?.name ?? pid;
     const id = `sheet-result-s${today.season}d${today.day}-${pid}`;
     if (alreadyPosted(league, id)) continue;
+    const signingRow = league.transactions.find((t) => t.kind === 'signing'
+      && t.playerId === pid && t.date.season === today.season && t.date.day === today.day);
+    const signing = signingRow?.kind === 'signing' ? signingRow : null;
     const userFiled = league.actionLog.some((a) => a.action.kind === 'offerSheet'
       && a.action.playerId === pid && a.date.season === today.season);
     if (userFiled && tx.teamId !== league.userTeam) {
+      const decider = league.teams[tx.teamId]?.city ?? tx.teamId;
+      let title: string;
+      let body: string;
+      if (tx.matched) {
+        title = `Sheet on ${name}: matched`;
+        body = `${decider} matched your offer sheet. ${name} stays put.`;
+      } else if (!signing) {
+        title = `Sheet on ${name}: voided`;
+        body = `${decider} did not match, but your sheet could not be executed and is void. ${name} remains a free agent.`;
+      } else if (signing.teamId === league.userTeam) {
+        title = `Sheet on ${name}: unmatched`;
+        body = `${decider} declined to match. ${name} is yours at the sheet terms.`;
+      } else {
+        // a same-day signing to a third team: name the ledger's
+        // destination rather than assume the sheet's
+        title = `Sheet on ${name}: unmatched`;
+        body = `${decider} declined to match. ${name} signs with ${league.teams[signing.teamId]?.city ?? signing.teamId}.`;
+      }
       items.push({
-        id, date: today, kind: 'notice',
-        title: `Sheet on ${name}: ${tx.matched ? 'matched' : 'unmatched'}`,
-        body: tx.matched
-          ? `${league.teams[tx.teamId]?.city ?? tx.teamId} matched your offer sheet. ${name} stays put.`
-          : `${league.teams[tx.teamId]?.city ?? tx.teamId} declined to match. ${name} is yours at the sheet terms.`,
+        id, date: today, kind: 'notice', title, body,
         // sheet results are day-of events: read at the stop, retired by
         // the next morning's sweep (#187)
         deadline: today,
@@ -353,16 +374,23 @@ function offerSheetResults(league: League, items: InboxItem[]): void {
       const acted = league.actionLog.some((a) => a.action.kind === 'matchOfferSheet'
         && a.action.playerId === pid && a.date.season === today.season);
       if (acted) continue; // the user decided by hand and knows
-      const signing = league.transactions.find((t) => t.kind === 'signing'
-        && t.playerId === pid && t.date.season === today.season && t.date.day === today.day);
-      const to = signing && signing.kind === 'signing' ? league.teams[signing.teamId]?.city ?? signing.teamId : 'the offering team';
-      items.push({
-        id, date: today, kind: 'notice',
-        title: `${name} signed away`,
-        body: `The match window on ${name} lapsed. He signs with ${to}.`,
-        deadline: today,
-        resolved: false,
-      });
+      if (signing) {
+        items.push({
+          id, date: today, kind: 'notice',
+          title: `${name} signed away`,
+          body: `The match window on ${name} lapsed. He signs with ${league.teams[signing.teamId]?.city ?? signing.teamId}.`,
+          deadline: today,
+          resolved: false,
+        });
+      } else {
+        items.push({
+          id, date: today, kind: 'notice',
+          title: `Sheet on ${name} voided`,
+          body: `The match window on ${name} lapsed, but the sheet could not be executed and is void. ${name} remains a free agent; your rights are unchanged.`,
+          deadline: today,
+          resolved: false,
+        });
+      }
     }
   }
 }

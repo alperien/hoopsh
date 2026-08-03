@@ -46,7 +46,8 @@ import { emptyStanding } from './standings.js';
 import { advancePostseason, buildFirstRound, buildPlayin, runLottery } from './postseason.js';
 import { capSheet, rollCapLines } from './cba/cap.js';
 import {
-  availableMeans, buildContract, maxSalaryFor, qualifyingOfferFor, validateSigning,
+  availableMeans, buildContract, maxSalaryFor, qualifyingOfferFor, signingSeason,
+  validateSigning, yearsOfService,
 } from './cba/contracts.js';
 import { validateTrade } from './cba/tradelegal.js';
 import {
@@ -193,20 +194,108 @@ function coreRank(league: League, teamId: TeamId, playerId: PlayerId): number {
   return better + 1;
 }
 
+/** "City Name" for notices, with the raw id as the never-crash fallback. */
+function teamLabel(league: League, teamId: TeamId): string {
+  const t = league.teams[teamId];
+  return t ? `${t.city} ${t.name}` : teamId;
+}
+
+/**
+ * Why `teamId` cannot execute `sheet` today, or null when it can. Mirrors
+ * exactly the structural facts executeSigning re-checks with a throw
+ * (signable status, the roster ceiling, the two-way ceilings): resolution
+ * must route around those instead of dying mid-day (#185). Cap legality is
+ * deliberately NOT re-tested here — an incumbent may match into any cap
+ * situation by rule, and the offering team's sheet was priced when it was
+ * lodged; the apron read in resolveExpiredOfferSheets is match POLICY, not
+ * an execution wall.
+ */
+function sheetExecutionBlock(league: League, teamId: TeamId, sheet: League['offerSheets'][number]): string | null {
+  const player = league.players[sheet.playerId];
+  if (!player) return `player ${sheet.playerId} no longer exists`;
+  if (player.status !== 'freeAgent' && player.status !== 'draftEligible') {
+    return `${player.name} is no longer signable (status: ${player.status})`;
+  }
+  const team = league.teams[teamId];
+  if (!team) return `team ${teamId} no longer exists`;
+  const cba = league.params.cba;
+  if (sheet.contract.kind === 'twoWay') {
+    if (team.twoWay.length >= cba.twoWaySlots) return `the two-way slots are full (${cba.twoWaySlots})`;
+    if (yearsOfService(player) > 3) return `${player.name} has too much service time for a two-way`;
+  } else if (team.roster.length >= cba.rosterMax) {
+    return `the roster already sits at the ${cba.rosterMax}-man maximum`;
+  }
+  return null;
+}
+
 /**
  * Settle one offer sheet: matched hands the same terms to the incumbent,
  * unmatched lets the offering team sign. The signing itself goes through
  * the executor; the match DECISION record is spine bookkeeping (the frozen
  * barrel exposes no executor for it, and the decision mutates no roster
  * state on its own).
+ *
+ * Resolution re-validates before executing (#185): the match window is
+ * days long and rosters move underneath it, so a decision that was legal
+ * when the sheet was lodged can be unexecutable at the deadline. A blocked
+ * match falls back to the unmatched outcome; a blocked unmatched signing
+ * voids the sheet with the player's rights intact. The day must never die
+ * on a raw executor throw, whichever two teams are involved; a reroute on
+ * a sheet the user's team is party to also surfaces an inbox notice
+ * naming the block.
  */
 function resolveOfferSheet(league: League, sheet: League['offerSheets'][number], matched: boolean): void {
   const player = league.players[sheet.playerId];
   const incumbent = player?.rights?.teamId ?? null;
+  const today = currentDate(league);
+  // Reroute notices speak only when the user's team is a party to the
+  // sheet (offering side or rights-holding incumbent). The inbox is the
+  // user's desk, not a league wire: every generator filters for user
+  // relevance (inbox.ts), and an AI-AI reroute is already on the
+  // transaction log for any surface that reads league-wide truth.
+  const userParty = sheet.from === league.userTeam || incumbent === league.userTeam;
+  if (matched && incumbent) {
+    const block = sheetExecutionBlock(league, incumbent, sheet);
+    if (block) {
+      // the incumbent decided to keep its player but cannot take delivery:
+      // the match lapses to the unmatched outcome instead of a dead day
+      matched = false;
+      if (userParty) {
+        pushInbox(league, {
+          id: `sheet-match-block-${today.season}-${today.day}-${sheet.playerId}`,
+          date: today, kind: 'notice',
+          title: 'Offer sheet match fails at execution',
+          body: `${teamLabel(league, incumbent)} matched the offer sheet for ${player?.name ?? sheet.playerId} but cannot execute it today: ${block}. The sheet resolves as unmatched.`,
+          // a reroute is day-of news: read at the stop, retired by the
+          // next morning's sweep (#187). A deadline-less notice would
+          // linger to the season rollover.
+          deadline: today,
+          resolved: false,
+        });
+      }
+    }
+  }
   if (matched && incumbent) {
     executeSigning(league, incumbent, sheet.playerId, { ...sheet.contract, teamId: incumbent }, true);
   } else {
-    executeSigning(league, sheet.from, sheet.playerId, sheet.contract, true);
+    const block = sheetExecutionBlock(league, sheet.from, sheet);
+    if (block) {
+      // the offering team can no longer take delivery of its own sheet:
+      // the sheet dies, the player stays a free agent, rights intact
+      if (userParty) {
+        pushInbox(league, {
+          id: `sheet-void-${today.season}-${today.day}-${sheet.playerId}`,
+          date: today, kind: 'notice',
+          title: 'Offer sheet voided at execution',
+          body: `${teamLabel(league, sheet.from)} lodged the offer sheet for ${player?.name ?? sheet.playerId} but cannot execute it today: ${block}. The sheet is void; the player remains a free agent and the incumbent's rights are unchanged.`,
+          // day-of news, the same #187 lifetime as the match-block notice
+          deadline: today,
+          resolved: false,
+        });
+      }
+    } else {
+      executeSigning(league, sheet.from, sheet.playerId, sheet.contract, true);
+    }
   }
   if (incumbent) {
     league.transactions.push({
@@ -243,7 +332,15 @@ function resolveExpiredOfferSheets(league: League): void {
     // any AI team; only a HUMAN GM chair (gm === null) decides by hand
     const userIsHuman = league.teams[league.userTeam]?.gm === null;
     if (incumbent && (incumbent !== league.userTeam || !userIsHuman)) {
-      const cs = capSheet(league, incumbent);
+      // The bill for a match lands in the SIGNING season, so that is the
+      // sheet the apron test must read: between the lottery and rollover
+      // the label-season books read $0 (#185 — contract years advance at
+      // the playoffs-to-draft transition) and `0 + year1 <= apron1` waved
+      // every match through on fiction. Lines-missing fallback mirrors
+      // ai/fa.ts pricing: constructed states without rolled signing-season
+      // lines read the label season rather than throwing.
+      const s = league.capLines[signingSeason(league)] ? signingSeason(league) : league.season;
+      const cs = capSheet(league, incumbent, s);
       const year1 = sheet.contract.years[0]?.salary ?? 0;
       matched = cs.total + year1 <= cs.apron1 && coreRank(league, incumbent, sheet.playerId) <= CORE_RANK;
     }
