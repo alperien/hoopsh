@@ -72,7 +72,18 @@ const ITERS = flagNumber(process.argv, '--iters', 28);
 const CANDS = flagNumber(process.argv, '--cands', 4);
 const GAMES = flagNumber(process.argv, '--games', 16);
 const WORKERS = flagNumber(process.argv, '--workers', 2);
-const VERIFY_GAMES = flagNumber(process.argv, '--verify', 24);
+// 160 games per seed base — the verification rung's sample size, sized by
+// measurement, not by feel (issue #266, adjudicating the #222 finding). At
+// the previous rung size of 40 the rung carried a DETERMINISTIC false red:
+// the seed-fixed first 40-game window of the `-verify` bases draws astdShare
+// 1.01 sd below the 160-game center (59.32% over games 0-39 vs 60.09% over
+// 0-159), which is under the 59.8% band floor — so the gate reddened on
+// every run, on a league that was in band, and no re-run could clear it.
+// Widening the window to 160 cuts the fresh-draw false-red rate from ~69% to
+// ~45% while detection power for a real -1pp center regression stays >=0.98
+// (both measured at the #222 adjudication). The rung costs ~4x the wall time
+// it did at 40; that is the price of a gate whose red means something.
+const VERIFY_GAMES = flagNumber(process.argv, '--verify', 160);
 const SEED_BASES = flagValue(process.argv, '--seeds', 'swp-alpha,swp-beta,swp-gamma').split(',');
 for (const [flag, v, min] of [
   ['--iters', ITERS, 0], ['--cands', CANDS, 1], ['--games', GAMES, 1],
@@ -413,12 +424,14 @@ async function main(): Promise<void> {
   }
 
   // Final verification at a LARGER game count than the search used
-  // (VERIFY_GAMES, default 24, vs. GAMES, default 16 — see the CLI flags
+  // (VERIFY_GAMES, default 160, vs. GAMES, default 16 — see the CLI flags
   // above) — the search runs cheap/small to explore many candidates
   // quickly, but the number that gets baked into params.ts and reported to
   // a human should be measured at a sample size large enough that the
   // ~1% noise floor (AGENTS.md §4.4) is actually small relative to the
   // band widths, not the search's own fast-but-noisier evaluation size.
+  // The default moved 24 -> 160 at issue #266; see the flag's own comment
+  // for the measured false-red the smaller windows carried.
   // DISJOINT verify sample (audit M-23): the worker seeds games
   // `${seedBase}-${i}` from i=0, so verifying on the search's own seed bases
   // replayed every search game — games 0..GAMES-1 of the "verification" WERE

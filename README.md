@@ -201,7 +201,7 @@ turnovers, assisted share…), and an automated parameter sweep
 (`npm run sweep`) re-centers them after mechanics changes. **No static pass
 rate is quoted here on purpose — quoted numbers rot.** Measure the current
 state yourself: `npm run batch -- --games 40` for one seed base,
-`npm run sweep -- --iters 0 --verify 40` for three, `npm run oos` for rosters
+`npm run sweep -- --iters 0 --verify 160` for three, `npm run oos` for rosters
 the sweep has never seen (plus a distributional report the means can't
 capture). Residual misses and open calibration findings are recorded in the
 work register, [docs/REGISTER.md](./docs/REGISTER.md), not hidden. The test

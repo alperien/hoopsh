@@ -51,7 +51,7 @@ Answer, in one sentence each, BEFORE coding:
 ```bash
 npm test                                              # always
 npm run batch -- --games 24                           # mechanics/params changes
-npm run sweep -- --iters 0 --games 4 --verify 40      # params changes (3-seed check)
+npm run sweep -- --iters 0 --games 4 --verify 160     # params changes (3-seed check)
 npm run bench                                         # hot-path changes only
 ```
 Paste the actual outputs into your report. If bands drifted and your brief didn't

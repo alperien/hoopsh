@@ -38,7 +38,7 @@ body:
       label: Seed bases and the value measured on each
       description: >
         At least TWO independent seed bases (three is the house standard —
-        `npm run sweep -- --iters 0 --verify 40` measures three for you).
+        `npm run sweep -- --iters 0 --verify 160` measures three for you).
         One line per base.
       placeholder: |
         acceptance-0: 63.7%

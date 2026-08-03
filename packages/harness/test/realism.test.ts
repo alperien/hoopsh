@@ -3,7 +3,7 @@
  *
  * Role: fail `npm test` (and CI) only when an engine change breaks basic
  * statistical realism. The fine-grained instruments are elsewhere: the lock
- * is the three-seed 40-game verify (`npm run sweep -- --iters 0 --verify 40`)
+ * is the three-seed 160-game verify (`npm run sweep -- --iters 0 --verify 160`)
  * plus the fidelity gate and `npm run oos`. Keep the division of labor —
  * a tripwire that cries wolf gets deleted, a tripwire that never fires is
  * decoration.
