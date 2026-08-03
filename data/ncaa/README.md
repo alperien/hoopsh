@@ -360,7 +360,8 @@ Ordered by the calibration order in `bands.ts` (pace → shot mix → efficiency
   `shot.baseThree` (all down: 2P% −4pp, 3P% −2pp at league level — though
   most of this SHOULD come from roster ratings, not bases; decide the split
   deliberately — see 6.4), `shot.ftBasePct` (college league FT% 70.4-72.5 vs
-  NBA 78: at the current `ftBasePct: 0.69` + swing, an NCAA-rated population
+  NBA 78: at the current `ftBasePct: 0.666` (params.shot.ts, since the B1
+  re-center — the pre-B1 base was 0.69) + swing, an NCAA-rated population
   needs the base re-centered or the roster ratings do it), `shot.passQualityCenter`
   (league-typical delivery is worse), `decide.temperature` ↑ (more bad
   decisions — the "IQ dial" is the cleanest talent-width knob the params
