@@ -142,8 +142,8 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 ```
 npm test                        # full suite (~2 min): invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
-npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
-npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
+npm run sweep -- --iters 0 --games 4 --verify 160   # 3-seed band verification — params changes
+npm run sweep -- --iters 14 --cands 4 --games 12 --verify 160  # re-tune — when bands drifted
 npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 ```
 

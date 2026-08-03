@@ -12,9 +12,9 @@ current state is documented here.
 
 1. Change mechanics → `npm test` (invariants + wide guard must stay green).
 2. `npm run batch -- --games 24` → see which bands drifted.
-3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
+3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 160` → let the optimizer
    re-center; bake the printed diff into `params.ts` defaults (keep the odd
-   precision); verify with `npm run sweep -- --iters 0 --verify 40`.
+   precision); verify with `npm run sweep -- --iters 0 --verify 160`.
 4. Regenerate the noise floor: `npm run noisefloor` writes the sampling
    distribution of every gated statistic (`noise-floor.gen.ts`) and the
    permanent gates derive widths from it. Its diff is the accepted-drift

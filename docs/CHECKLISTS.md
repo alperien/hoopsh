@@ -52,8 +52,8 @@ Gates:
 - [ ] `npm test` — full suite (~2 min), green; invariants take precedence
       (AGENTS.md §1.6): if an invariant fails, the change is wrong, never the test.
 - [ ] `npm run batch -- --games 24` — fine-grained NBA bands. Any mechanics/params change.
-- [ ] `npm run sweep -- --iters 0 --games 4 --verify 40` — 3-seed band verification. Params changes.
-- [ ] `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` — re-tune.
+- [ ] `npm run sweep -- --iters 0 --games 4 --verify 160` — 3-seed band verification. Params changes.
+- [ ] `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 160` — re-tune.
       Only when bands drifted AND your brief authorizes recalibration.
 - [ ] `npm run bench` — perf budget ≥1 game/sec. Hot-path changes.
 

@@ -237,7 +237,7 @@ turnovers, assisted share…), and an automated parameter sweep
 (`npm run sweep`) re-centers them after mechanics changes. **No static pass
 rate is quoted here on purpose — quoted numbers rot.** Measure the current
 state yourself: `npm run batch -- --games 40` for one seed base,
-`npm run sweep -- --iters 0 --verify 40` for three, `npm run oos` for rosters
+`npm run sweep -- --iters 0 --verify 160` for three, `npm run oos` for rosters
 the sweep has never seen (plus a distributional report the means can't
 capture). Residual misses and open calibration findings are recorded in the
 work register, [docs/REGISTER.md](./docs/REGISTER.md), not hidden. The test
@@ -854,9 +854,9 @@ current state is documented here.
 
 1. Change mechanics → `npm test` (invariants + wide guard must stay green).
 2. `npm run batch -- --games 24` → see which bands drifted.
-3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40` → let the optimizer
+3. `npm run sweep -- --iters 14 --cands 4 --games 12 --verify 160` → let the optimizer
    re-center; bake the printed diff into `params.ts` defaults (keep the odd
-   precision); verify with `npm run sweep -- --iters 0 --verify 40`.
+   precision); verify with `npm run sweep -- --iters 0 --verify 160`.
 4. Regenerate the noise floor: `npm run noisefloor` writes the sampling
    distribution of every gated statistic (`noise-floor.gen.ts`) and the
    permanent gates derive widths from it. Its diff is the accepted-drift
@@ -1261,8 +1261,8 @@ Full map with per-file detail: `docs/INTERNALS.md`.
 ```
 npm test                        # full suite (~2 min): invariants + fidelity gate — ALWAYS, every change
 npm run batch -- --games 24     # fine-grained NBA bands — any mechanics/params change
-npm run sweep -- --iters 0 --games 4 --verify 40   # 3-seed band verification — params changes
-npm run sweep -- --iters 14 --cands 4 --games 12 --verify 40  # re-tune — when bands drifted
+npm run sweep -- --iters 0 --games 4 --verify 160   # 3-seed band verification — params changes
+npm run sweep -- --iters 14 --cands 4 --games 12 --verify 160  # re-tune — when bands drifted
 npm run bench                   # perf budget ≥1 game/sec — hot-path changes
 ```
 
@@ -1401,7 +1401,7 @@ Answer, in one sentence each, BEFORE coding:
 ```bash
 npm test                                              # always
 npm run batch -- --games 24                           # mechanics/params changes
-npm run sweep -- --iters 0 --games 4 --verify 40      # params changes (3-seed check)
+npm run sweep -- --iters 0 --games 4 --verify 160     # params changes (3-seed check)
 npm run bench                                         # hot-path changes only
 ```
 Paste the actual outputs into your report. If bands drifted and your brief didn't

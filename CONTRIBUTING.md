@@ -31,13 +31,15 @@ failed PR.
 ## The verification ladder (measured runtimes)
 
 Measured 2026-07-29 at commit `edb9e3d` on a 3.9 games/sec box; scale by your
-own `npm run bench`.
+own `npm run bench`. The sweep row was re-measured at #266 on a 4.77 games/sec
+box when the verification rung moved to 160 games per base — it is the one row
+not anchored to the 2026-07-29 run.
 
 | Command | When | Time |
 |---|---|---|
 | `npm test` | every change, no exceptions | **~2 min** (the run prints the live count) |
 | `npm run batch -- --games 24` | any mechanics/params change | 7s |
-| `npm run sweep -- --iters 0 --games 4 --verify 40` | params changes (3 seed bases) | 36s |
+| `npm run sweep -- --iters 0 --games 4 --verify 160` | params changes (3 seed bases) | 100s |
 | `npm run fingerprint` | refactors claiming no behavior change | 9s |
 | `npm run bench` | hot-path changes | 8s |
 
