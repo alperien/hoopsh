@@ -165,13 +165,13 @@ function anchorOf(events: GameEvent[], i: number): GameEvent | null {
 /**
  * The pool. sim once, assert many (the invariants.test.ts shared-games
  * pattern). Two parts:
- *  - sublegal-0..19, home/away mirrored — the broad base. Within it,
- *    sublegal-5 reaches OT and sublegal-3/7/17/19 finish at margins
- *    22-29, so crunch, concede entry/exit, and garbage-time closing
- *    lineups are all exercised.
- *  - pinned extras: sublegal-x-84 (a second OT game); subncaa-3, an NCAA
+ *  - sublegal-0..19, home/away mirrored — the broad base. Within it (at
+ *    the #142 order-independent stream), sublegal-4 reaches OT and
+ *    sublegal-15/17 finish at margins 33-36, so crunch, concede
+ *    entry/exit, and garbage-time closing lineups are all exercised.
+ *  - pinned extras: sublegal-x-86 (a second OT game); subncaa-26, an NCAA
  *    OT game (halves pack, one-and-one bonus, makeStopClockEarlySec 0);
- *    and sublegacy-0, an `endgame: false` legacy-path blowout (margin 31,
+ *    and sublegacy-0, an `endgame: false` legacy-path blowout (margin 27,
  *    no timeout economy). The non-default pins follow the fingerprint
  *    corpus's audit-H-04 lesson: default-config-only coverage is blind to
  *    a window regression that leaks into the legacy or non-NBA paths.
@@ -180,7 +180,13 @@ function anchorOf(events: GameEvent[], i: number): GameEvent | null {
  *    construction, and the coverage test below fails loudly if an
  *    rng-order change ever drifts these seeds away from the states they
  *    were picked for (re-pick from a fresh seed sweep in that case; 166
- *    games were swept for these).
+ *    games were swept for these, originally and again at the #142
+ *    collision-order landing: both OT pins drifted regulation-ward under
+ *    the reshuffle — x-84 to a 35-margin blowout, subncaa-3 to a
+ *    12-margin game — and were re-picked as the first OT index of each
+ *    fresh 166-game sweep (x alternates 126/128; ncaa alternates
+ *    61/111/137/140). The blowout count sits at its floor after the
+ *    re-pick, 3 of >= 3: x-84's 35-margin game left with the swap).
  */
 const BASE_GAMES = 20;
 const results: GameResult[] = [];
@@ -197,11 +203,11 @@ for (let i = 0; i < BASE_GAMES; i++) {
 {
   const { home, away } = sampleMatchup();
   results.push(simulateGame({
-    seed: 'sublegal-x-84', home, away, collectFrames: false
+    seed: 'sublegal-x-86', home, away, collectFrames: false
   }));
   // mirrored orientation, matching the seed sweep that picked it
   results.push(simulateGame({
-    seed: 'subncaa-3', home: away, away: home, rules: NCAA, collectFrames: false
+    seed: 'subncaa-26', home: away, away: home, rules: NCAA, collectFrames: false
   }));
   results.push(simulateGame({
     seed: 'sublegacy-0', home, away, endgame: false, collectFrames: false

@@ -348,24 +348,24 @@ describe('F3: the arming-draw region is pinned (landing dose + draw-free top)', 
     return (h >>> 0).toString(16).padStart(8, '0');
   };
 
-  // Re-anchored at the #115 landing, both layers: the layer A acquisition
-  // stamp + stage-12 holder re-read moved events AND frames; the layer B
-  // dead-phase relay moved frames ONLY — event counts and finals match
-  // the layer-A-only bake exactly (the frames-only contract, the #119
-  // precedent). All seven rows re-baked per this block's doctrine — the
-  // #127 dose row included — causes stated in the landing commits.
+  // Re-anchored at the #142 collision-order landing: the order-independent
+  // push-apart resolves every multi-contact tick differently, so events
+  // AND frames move on every stream at every scale. All seven rows
+  // re-baked per this block's doctrine. bb3pin-2's former 0.25/0.5
+  // arming-draw coincidence RESOLVED on the new streams (while
+  // transcarry's f3pin-1 acquired the same class — see that block); the
+  // 0.25 row's inversion kill was re-verified RED by hand at this bake
+  // (inverted chance(1 - scale) read 1194/121-120/79ad381d against the
+  // clean 1166 row below), per the #127 rider and the mutation-shields
+  // doctrine.
   const PINNED: { seed: string; scale: number; events: number; final: string; hash: string }[] = [
-    // (bb3pin-2's arming draws land identically at 0.25 and 0.5 on the
-    // current streams — the row matching its 0.5 sibling is the same
-    // coincidence class transcarry's f3pin-1 showed at 0.37/0.5, not a
-    // copy error)
-    { seed: 'bb3pin-2', scale: 0.25, events: 1232, final: '124-123', hash: '19842562' },
-    { seed: 'bb3pin-1', scale: 0.5, events: 1364, final: '133-120', hash: 'c58f2dd9' },
-    { seed: 'bb3pin-2', scale: 0.5, events: 1232, final: '124-123', hash: '19842562' },
-    { seed: 'bb3pin-3', scale: 0.5, events: 1210, final: '137-94', hash: '14ad7576' },
-    { seed: 'bb3pin-4', scale: 0.5, events: 1206, final: '88-132', hash: '9092119b' },
-    { seed: 'bb3pin-1', scale: 1, events: 1177, final: '114-119', hash: '35f0d271' },
-    { seed: 'bb3pin-2', scale: 1, events: 1291, final: '125-123', hash: '21c36857' }
+    { seed: 'bb3pin-2', scale: 0.25, events: 1166, final: '134-112', hash: '876ccd0a' },
+    { seed: 'bb3pin-1', scale: 0.5, events: 1368, final: '145-141', hash: '741b152e' },
+    { seed: 'bb3pin-2', scale: 0.5, events: 1213, final: '127-118', hash: '69a690b6' },
+    { seed: 'bb3pin-3', scale: 0.5, events: 1181, final: '106-87', hash: '81717b98' },
+    { seed: 'bb3pin-4', scale: 0.5, events: 1172, final: '109-111', hash: 'ea45d1fc' },
+    { seed: 'bb3pin-1', scale: 1, events: 1242, final: '120-116', hash: 'e89c5fb6' },
+    { seed: 'bb3pin-2', scale: 1, events: 1223, final: '131-119', hash: 'e39d7656' }
   ];
 
   for (const pin of PINNED) {
@@ -653,15 +653,16 @@ describe('the scale-0 off-switch (#138): the hard-zero contract at the retired d
     return (h >>> 0).toString(16).padStart(8, '0');
   };
 
-  // Re-anchored at the #115 landing, both layers (legitimate scale-0
-  // stream reorders — the acquisition stamp moves every stream at every
-  // scale, exactly the uniform-shift class this block's own doctrine
-  // anticipates; the layer B relay then moved frames only, so event
-  // counts and finals match the layer-A-only bake): both rows re-baked,
-  // causes stated in the landing commits.
+  // Re-anchored at the #142 collision-order landing (a legitimate scale-0
+  // stream reorder, exactly the uniform-shift class this block's own
+  // doctrine anticipates: the movement reshuffle is scale-blind — a
+  // scale-0 game holds multi-contact scrums like any other, so events
+  // and frames both move on every stream). Both rows re-baked; the #138
+  // draw-count property below held unchanged through the landing, as it
+  // must.
   const PINNED: { seed: string; events: number; final: string; hash: string }[] = [
-    { seed: 'bb0pin-1', events: 1220, final: '116-128', hash: 'a6d3edc7' },
-    { seed: 'bb0pin-2', events: 1190, final: '120-109', hash: '7adf6077' }
+    { seed: 'bb0pin-1', events: 1249, final: '118-120', hash: 'e897397c' },
+    { seed: 'bb0pin-2', events: 1239, final: '108-115', hash: '9794f3bc' }
   ];
 
   for (const pin of PINNED) {

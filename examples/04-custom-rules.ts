@@ -64,9 +64,10 @@ console.log('');
 // seed re-anchored at the FLOW rebase ('sunday-run' went bonus-quiet), at
 // the rules landing ('saturday-run' did the same), at the session-7
 // pass-volume flip ('rules-demo-1' followed suit), at the #74
-// amended-dose landing ('rules-demo-4' joined them), and at the #114
-// landing ('rules-demo-8' went bonus-quiet in turn); this one shows 2
-const SEED = 'rules-demo-11';
+// amended-dose landing ('rules-demo-4' joined them), at the #114 landing
+// ('rules-demo-8' went bonus-quiet in turn), and at the #142
+// collision-order landing ('rules-demo-11' likewise); this one shows 2
+const SEED = 'rules-demo-13';
 const game = (rules?: RulePack): GameResult => {
   const { home, away } = sampleMatchup();
   return simulateGame({ seed: SEED, home, away, rules });

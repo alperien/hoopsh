@@ -13,7 +13,7 @@
  */
 
 import { clamp } from '../core/rng.js';
-import { add, clampRect, dist, len, norm, scale, sub } from '../core/vec.js';
+import { add, clampRect, dist, len, norm, scale, sub, type V2 } from '../core/vec.js';
 import { acceleration } from '../model/derived.js';
 import type { TeamSide } from '../core/events.js';
 import { onCourt, type Agent, type GameState } from './state.js';
@@ -85,9 +85,25 @@ export function integrateMovement(s: GameState, dt: number): void {
 
   // soft collision avoidance: two agents closer than avoidRadiusFt get pushed
   // directly apart, splitting the overlap 50/50 so neither player "wins" the
-  // spot — this is cosmetic body-separation, not a basketball rule (no
-  // fouls/possession changes result from it, it just stops players
-  // visually overlapping in the replay)
+  // spot. Body separation is BEHAVIORAL, not cosmetic: the resolved
+  // positions feed rebound contests, shot contests, and passing lanes
+  // downstream, so who ends the tick cleanly spaced shows up in the box
+  // score (#126 measured it).
+  //
+  // Order independence (#142): every pairwise displacement is computed from
+  // the same pre-pass snapshot, accumulated per agent, and applied once
+  // (Jacobi-style). The previous loop resolved pairs sequentially in place —
+  // agentsOnCourt is built side 0 first, so side-0 teammate pairs resolved
+  // first and side-1 teammate pairs last, and the last-resolved pairs ended
+  // each tick exactly separated while earlier pairs could be re-overlapped
+  // by later resolutions. That spacing subsidy for slot 1 was worth ~+1.4
+  // margin and ~+4.5pp win% per game to the away roster (#126: reversing
+  // the build order flipped home win% 45.50 -> 54.50 at n=800, an exact
+  // mirror — larger than the shipped home-court dial's whole effect). With
+  // accumulation there is no resolution sequence, so no slot is privileged.
+  // An isolated overlapping pair (the common case) gets arithmetic
+  // identical to the sequential loop's; only multi-contact clusters
+  // (rebound scrums, screens) resolve differently.
   const R = s.params.move.avoidRadiusFt;
   // a live poster DISPLACES opponents rather than splitting the separation:
   // post play is legal contact, and the symmetric 50/50 split let the man
@@ -98,6 +114,9 @@ export function integrateMovement(s: GameState, dt: number): void {
   const act = s.poss.action;
   const posterId = act && act.kind === 'post' ? act.posterId : null;
   const lean = s.params.move.postLeanShare;
+  // accumulated push per agent (indexed like agentsOnCourt); null = no
+  // contact this tick, position untouched by the collision pass
+  const push: (V2 | null)[] = new Array(agentsOnCourt.length).fill(null);
   for (let i = 0; i < agentsOnCourt.length; i++) {
     for (let j = i + 1; j < agentsOnCourt.length; j++) {
       const a = agentsOnCourt[i]!;
@@ -111,10 +130,16 @@ export function integrateMovement(s: GameState, dt: number): void {
         else if (posterId === b.p.id && a.side !== b.side) aShare = lean;
         const overlap = R - d;
         const dir = norm(sub(a.pos, b.pos));
-        a.pos = clampRect(add(a.pos, scale(dir, overlap * aShare)), s.court.length, s.court.width, 0.5);
-        b.pos = clampRect(sub(b.pos, scale(dir, overlap * (1 - aShare))), s.court.length, s.court.width, 0.5);
+        push[i] = add(push[i] ?? { x: 0, y: 0 }, scale(dir, overlap * aShare));
+        push[j] = sub(push[j] ?? { x: 0, y: 0 }, scale(dir, overlap * (1 - aShare)));
       }
     }
+  }
+  for (let i = 0; i < agentsOnCourt.length; i++) {
+    const p = push[i];
+    if (!p) continue;
+    const a = agentsOnCourt[i]!;
+    a.pos = clampRect(add(a.pos, p), s.court.length, s.court.width, 0.5);
   }
 }
 

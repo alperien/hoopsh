@@ -348,12 +348,45 @@ const lineAt = (clock: number): number =>
 /** the side's own entry bar: leaders at the line, trailers lag behind it */
 const barFor = (lead: number, clock: number): number =>
   lead >= 0 ? lineAt(clock) : lineAt(clock) + D.concedeTrailLagPts;
-/** dead-ball markers — events that prove a checkSubs pass just ran/runs:
- *  period start, FT entry, and dead-ball inbounds. Substitutions are NOT
- *  markers (they are emitted mid-wave, before the lineup settles). */
+/** dead-ball markers — events at which the stoppage's checkSubs pass has
+ *  SETTLED: period start, the LAST free throw of a trip, and dead-ball
+ *  inbounds. Substitutions are NOT markers (they are emitted mid-wave,
+ *  before the lineup settles) — and neither are earlier attempts of a
+ *  multi-FT trip: the FT-gap sub slot executes BETWEEN attempts (the real
+ *  rule the rotation grammar models), so at a trip's first free_throw
+ *  event a legally-pending crunch return has not had its window yet.
+ *  Measurement correction at the #142 landing (the FLOW-landing class,
+ *  one marker deeper): the collision-order reshuffle produced the first
+ *  pool draw where a close-late crunch return's first legal window WAS an
+ *  FT gap — concede-live-9, Q4 3:36 tie, bench five returned 0 -> 4
+ *  starters between the attempts of the very trip whose first attempt the
+ *  old marker sampled (rotation rested all five through a stretch whose
+ *  make-inbounds host no sub pass, the M-07 real rule). The contract is
+ *  unchanged; the device now samples where the coach has actually had
+ *  his window. */
 const isDeadBall = (e: GameEvent): boolean =>
-  e.type === 'period_start' || e.type === 'free_throw' ||
+  e.type === 'period_start' || (e.type === 'free_throw' && e.n === e.of) ||
   (e.type === 'possession_start' && e.kind === 'inbound');
+
+/** ...and an INBOUND settles only where a sub window legally exists: a
+ *  running-clock make-inbound hosts no checkSubs pass at all (the M-07
+ *  real rule — W63's stop windows are the only made-basket dead balls
+ *  that do). Walk back past the bookkeeping to see what stopped play: a
+ *  made FG settles the inbound only inside the final-period stop window
+ *  (rules.makeStopClockFinalSec); a timeout always settles it (timeout
+ *  dead balls host rotation passes — the no-thrash mirror's own second
+ *  correction); whistles (fouls, violations, OOB) and FT trips always do. */
+const settledInbound = (events: GameEvent[], idx: number, stopSec: number): boolean => {
+  const e = events[idx]!;
+  for (let k = idx - 1; k >= 0; k--) {
+    const p = events[k]!;
+    if (p.type === 'substitution' || p.type === 'possession_end') continue;
+    if (p.type === 'timeout') return true;
+    if (p.type === 'shot') return !p.made || e.clock <= stopSec;
+    return true;
+  }
+  return true;
+};
 
 interface PoolGame { result: GameResult; starters: [Set<string>, Set<string>] }
 const pool: PoolGame[] = [];
@@ -381,15 +414,21 @@ const pool: PoolGame[] = [];
   });
 }
 
-/** walk a game's final-period events with lineup + margin context */
+/** walk a game's final-period events with lineup + margin context;
+ *  `settled` marks the dead-ball markers where a checkSubs pass has
+ *  actually run AND the lineup has settled (isDeadBall ∧ settledInbound) */
 function foldFinalPeriod(
   g: PoolGame,
   visit: (o: {
     e: GameEvent; side: TeamSide; lead: number; m: number; bar: number; count: number;
+    settled: boolean;
   }) => void
 ): void {
   let lineups: [Set<string>, Set<string>] = [new Set(), new Set()];
-  for (const e of g.result.events as GameEvent[]) {
+  const events = g.result.events as GameEvent[];
+  const stopSec = g.result.rules.makeStopClockFinalSec;
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
     if (e.type === 'game_start') {
       lineups = [new Set(e.home.lineup), new Set(e.away.lineup)];
     } else if (e.type === 'substitution') {
@@ -397,11 +436,13 @@ function foldFinalPeriod(
       for (const id of e.in) lineups[e.team].add(id);
     }
     if (e.period < 4) continue; // final scheduled period + OT, like the branch
+    const settled = isDeadBall(e) &&
+      (e.type !== 'possession_start' || settledInbound(events, i, stopSec));
     for (const side of [0, 1] as TeamSide[]) {
       const lead = e.score[side] - e.score[side === 0 ? 1 : 0];
       let count = 0;
       for (const id of lineups[side]) if (g.starters[side].has(id)) count++;
-      visit({ e, side, lead, m: Math.abs(lead), bar: barFor(lead, e.clock), count });
+      visit({ e, side, lead, m: Math.abs(lead), bar: barFor(lead, e.clock), count, settled });
     }
   }
 }
@@ -415,13 +456,15 @@ describe('LIVE default §5.1: conceded-lineup composition (pool + adversarial fi
     // below the exit floor disarms (the side may legally return). The ≤1
     // allowance covers the FT protect carve-out and foul-out re-entry
     // (design §3.2). Probed: 1704 qualifying events across this pool,
-    // 0 violations; the fixture alone contributes ~300 per side.
+    // 0 violations; the fixture alone contributes ~300 per side (687
+    // under the #142 settled-marker device — sparser markers, same
+    // contract).
     let asserted = 0;
     for (const g of pool) {
       const over: [number, number] = [0, 0]; // dead balls seen at margin ≥ bar+4
-      foldFinalPeriod(g, ({ e, side, m, bar, count }) => {
+      foldFinalPeriod(g, ({ side, m, bar, count, settled }) => {
         if (m < bar - D.concedeExitPts) over[side] = 0; // exit floor: disarm
-        else if (isDeadBall(e) && m >= bar + 4) over[side]++;
+        else if (settled && m >= bar + 4) over[side]++;
         if (over[side] >= 2 && m >= bar + 4) {
           asserted++;
           expect(count).toBeLessThanOrEqual(1);
@@ -634,15 +677,27 @@ describe('LIVE default §5.1: a close game never concedes', () => {
     // behavior contract is asserted where a checkSubs pass has actually
     // run: the dead-ball settlement markers, the same device the
     // composition pin above uses.
+    //
+    // Second measurement correction at the #142 landing (same class, one
+    // marker deeper): markers narrowed to SETTLED stoppages — the last FT
+    // of a trip (the FT-gap sub slot executes BETWEEN attempts) and no
+    // running-clock make-inbounds (they host no checkSubs pass at all, the
+    // M-07 real rule). The #142 stream drew the first pool game whose
+    // close-late crunch return had its only legal window AT the FT gap:
+    // concede-live-9, Q4 3:36 tie, bench five returned 0 -> 4 starters
+    // between the attempts of the trip whose first attempt the old marker
+    // sampled. The contract is unchanged; see isDeadBall/settledInbound.
     let sampled = 0;
     for (const g of pool) {
-      foldFinalPeriod(g, ({ e, m, count }) => {
-        if (isDeadBall(e) && e.clock <= 240 && m <= 8) {
+      foldFinalPeriod(g, ({ e, m, count, settled }) => {
+        if (settled && e.clock <= 240 && m <= 8) {
           sampled++;
           expect(count).toBeGreaterThanOrEqual(1);
         }
       });
     }
-    expect(sampled).toBeGreaterThan(100); // probed 366 marker events: close endings are common
+    // probed: 190 settled markers on the #142 stream (the pre-correction
+    // device read 366 on the pre-#142 stream): close endings are common
+    expect(sampled).toBeGreaterThan(100);
   });
 });

@@ -23,19 +23,19 @@ export const SEED_PINS = {
   },
   "evstreamPool": {
     "regulation": "evstream-1",
-    "overtime": "evstream-18",
-    "provenance": "re-anchored 2026-08-02 by the helper (scanned evstream-1..240; the qualifying pair with the widest minimum floor headroom, 1.00x). evstream-1 — regulation; 0 def-won + 0 off-won jumps, 1 offensive fouls, 2 technicals, 0 violations, 1 replay reviews. evstream-18 — overtime; 2 def-won + 2 off-won jumps, 1 offensive fouls, 0 technicals, 1 violations, 5 replay reviews."
+    "overtime": "evstream-142",
+    "provenance": "re-anchored 2026-08-02 by the helper (scanned evstream-1..240; the qualifying pair with the widest minimum floor headroom, 1.00x). evstream-1 — regulation; 1 def-won + 0 off-won jumps, 4 offensive fouls, 1 technicals, 4 violations, 1 replay reviews. evstream-142 — overtime; 0 def-won + 1 off-won jumps, 2 offensive fouls, 1 technicals, 0 violations, 3 replay reviews."
   },
   "otseek": {
     "seeds": [
-      "otseek-52",
-      "otseek-73",
-      "otseek-81",
-      "otseek-89",
-      "otseek-120",
-      "otseek-125"
+      "otseek-16",
+      "otseek-25",
+      "otseek-57",
+      "otseek-62",
+      "otseek-165",
+      "otseek-176"
     ],
-    "provenance": "re-anchored 2026-08-02 by the helper (scanned otseek-0..125 of the 0..1200 ceiling, first 6 OT-reaching seeds — the H-02 doctrine; hand-anchor trail in the subs.test.ts header). 6/6 reach overtime at anchor; the test floor is >= 2."
+    "provenance": "re-anchored 2026-08-02 by the helper (scanned otseek-0..176 of the 0..1200 ceiling, first 6 OT-reaching seeds — the H-02 doctrine; hand-anchor trail in the subs.test.ts header). 6/6 reach overtime at anchor; the test floor is >= 2."
   },
   "tocap": {
     "seeds": [

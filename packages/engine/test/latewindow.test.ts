@@ -142,13 +142,15 @@ function scanFouls(g: GameResult): {
 describe('the last-2:00 window on real streams (REGISTER W63)', () => {
   // seeds scouted per the re-anchor protocol (a reshuffle that starves the
   // vacuity floors fails loudly; re-scan latewin-1..80). Current anchor:
-  // the #115 layer A acquisition stamp (every giveBall relocates ball.pos
-  // and the stage-12 follows-holder write re-reads the live holder,
-  // reshuffling every stream) — 22 hosts four paid trips, 2 three, 23 and
-  // 58 two each (27 total, 0 unpaid anywhere on the 80-seed scan; trips
-  // run ~0.2-0.3/game by nature — below-threshold teams with two window
-  // fouls). Prior anchor: the #114 landing (27/35/57/32, scan total 9).
-  const pool = [game('latewin-22'), game('latewin-2'), game('latewin-23'), game('latewin-58')];
+  // the #142 collision-order landing (the order-independent push-apart
+  // resolves every multi-contact tick differently, reshuffling every
+  // stream) — 26 and 36 host two paid trips each, 13 and 15 one each
+  // (23 total, 0 unpaid anywhere on the 80-seed scan; trips run
+  // ~0.2-0.3/game by nature — below-threshold teams with two window
+  // fouls). Prior anchors: the #115 layer A acquisition stamp
+  // (22/2/23/58, scan total 27), the #114 landing (27/35/57/32, scan
+  // total 9).
+  const pool = [game('latewin-26'), game('latewin-36'), game('latewin-13'), game('latewin-15')];
 
   it('window trips exist, and every one of them pays free throws', () => {
     let paid = 0;
@@ -158,7 +160,7 @@ describe('the last-2:00 window on real streams (REGISTER W63)', () => {
       paid += s.windowTripPaid;
       unpaid += s.windowTripUnpaid;
     }
-    expect(paid).toBeGreaterThanOrEqual(2); // vacuity floor (scouted 5)
+    expect(paid).toBeGreaterThanOrEqual(2); // vacuity floor (scouted 6 at the #142 pool)
     expect(unpaid).toBe(0); // a penalized non-shooting foul NEVER goes unpaid
   });
 
