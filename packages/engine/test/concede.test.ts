@@ -696,8 +696,9 @@ describe('LIVE default §5.1: a close game never concedes', () => {
         }
       });
     }
-    // probed: 190 settled markers on the #142 stream (the pre-correction
-    // device read 366 on the pre-#142 stream): close endings are common
+    // probed: 190 settled markers on this stream; the pre-correction
+    // device reads 282 on the SAME stream (probe-concede-device.mjs at
+    // kernel a95db372): close endings are common
     expect(sampled).toBeGreaterThan(100);
   });
 });
