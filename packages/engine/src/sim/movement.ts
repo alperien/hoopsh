@@ -90,7 +90,7 @@ export function integrateMovement(s: GameState, dt: number): void {
   // downstream, so who ends the tick cleanly spaced shows up in the box
   // score (#126 measured it).
   //
-  // Order independence (#142): every pairwise displacement is computed from
+  // No privileged slot (#142): every pairwise displacement is computed from
   // the same pre-pass snapshot, accumulated per agent, and applied once
   // (Jacobi-style). The previous loop resolved pairs sequentially in place —
   // agentsOnCourt is built side 0 first, so side-0 teammate pairs resolved
@@ -100,10 +100,14 @@ export function integrateMovement(s: GameState, dt: number): void {
   // margin and ~+4.5pp win% per game to the away roster (#126: reversing
   // the build order flipped home win% 45.50 -> 54.50 at n=800, an exact
   // mirror — larger than the shipped home-court dial's whole effect). With
-  // accumulation there is no resolution sequence, so no slot is privileged.
-  // An isolated overlapping pair (the common case) gets arithmetic
-  // identical to the sequential loop's; only multi-contact clusters
-  // (rebound scrums, screens) resolve differently.
+  // accumulation no slot is privileged, and an isolated overlapping pair
+  // (the common case) is order-exact — arithmetic identical to the
+  // sequential loop's. Multi-contact clusters (rebound scrums, screens)
+  // are order-sensitive at the ulp level: an agent with 3+ simultaneous
+  // contacts folds its pushes in pair-loop order, and float addition
+  // reassociates at 1 ulp (~2,200 such ticks per game), so reordering
+  // the pair loop below would still reshuffle streams — which is why its
+  // canonical iteration order stays pinned (#177).
   const R = s.params.move.avoidRadiusFt;
   // a live poster DISPLACES opponents rather than splitting the separation:
   // post play is legal contact, and the symmetric 50/50 split let the man
