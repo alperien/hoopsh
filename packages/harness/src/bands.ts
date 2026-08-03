@@ -57,7 +57,33 @@ export const NBA_BANDS: Band[] = [
   // is invariant to pace, so it isolates shot-SELECTION realism from tempo —
   // a fast, high-volume team and a slow, low-volume one can both be
   // realistic at the same share.
-  { metric: 'tpaShare', label: '3PA share of FGA', lo: 0.33, hi: 0.45, pct: true },
+  // lo REAL / hi DERIVED-SYM (#203; adjudicated via #201, Lead acceptance
+  //   comment 5161260347; values relayed at #203 comment 5161253925).
+  //   Source: the 2015-16..2025-26 era table, era-league-averages-2016-2026
+  //   .json, sha256
+  //   3ba337c0ee8bca32c60df6d6508ba4db411c7c28f5f0d366bfb15c4dfd5406bd
+  //   (per-page BBR source sha256s inside; rows reproduced in the #201
+  //   relay, comment 5161253848).
+  //   lo 0.387 — REAL: 2022-23 League Average, the minimum of the last-5
+  //     window (2021-22..2025-26).
+  //   hi 0.443 — DERIVED-SYM: sourced center 0.415 (REAL, 2025-26) plus
+  //     the last-5 max deviation 0.028.
+  //   midpoint 0.415 — REAL by construction: the corpus season's value
+  //     (corpus pooled 3PA/FGA .4130, like-for-like with BBR team totals).
+  //     The sweep's centering pressure (sweep.ts CENTER_W) now pulls toward
+  //     the sourced modern shot mix instead of the prior unsourced 0.39.
+  //   width: half-width 0.028 clears the INSTRUMENT minimum 2 x
+  //     draw-sd(n40) = 0.0106. 2015-16 (.285) and 2016-17 (.316) sit below
+  //     the floor BY DESIGN — the band targets the corpus era per the #78
+  //     precedent; the full era range is on record in #201.
+  // History: the prior 0.33-0.45 carried no source on either edge; the
+  //   floor excluded two seasons of the file's claimed era and the 0.39
+  //   midpoint pulled the sweep 2.5pp under the sourced modern share. Both
+  //   edges TIGHTEN here. Pricing at adjudication (engine pin 169a0cf0):
+  //   sim center 0.4190 sits +6.0 draw-sd(n40) above the floor and 4.5
+  //   below the ceiling; per-draw fail probability rounds to 0.0000 at
+  //   every gate size (n40, n48, n96, n160).
+  { metric: 'tpaShare', label: '3PA share of FGA', lo: 0.387, hi: 0.443, pct: true },
   { metric: 'tpPct', label: '3P%', lo: 0.335, hi: 0.385, pct: true },
   { metric: 'fta', label: 'FTA per game', lo: 18, hi: 27 },
   { metric: 'ftPct', label: 'FT%', lo: 0.74, hi: 0.805, pct: true },
