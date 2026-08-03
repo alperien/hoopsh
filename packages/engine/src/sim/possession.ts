@@ -936,6 +936,18 @@ export function endPeriod(s: GameState): void {
     // NBA convention: tip loser opens Q2/Q3, tip winner opens the final period
     team = s.period === s.rules.periods ? s.tipWinner : other(s.tipWinner);
   }
+  // #161 — nobody holds the ball through the break: the horn holder hands
+  // it to the officials, and the #115 relay below walks it to the next
+  // period's designate. deadBall nulls the holder as its first act at
+  // every other stoppage; this construction bypasses deadBall (the same
+  // bypass the relay had to cover), so the horn holder's id survived here
+  // and every break frame carried his holderSlot while the ball walked
+  // away from him (PR #160 Red Team probe, finding 4). Frames-only by the
+  // #115 layer B argument: the frame recorder's holderSlot read (game.ts)
+  // is the only dead-phase consumer of ball.holderId — tickDead's relay
+  // targets bestHandler, and the resume's giveBall stamps the actual
+  // taker on its own tick (breakholder.test.ts pins both faces).
+  s.ball.holderId = null;
   // 1.6s period-opening delay: a touch shorter than the general 1.8s dead-ball
   // default since there's no preceding whistle/basket to read, just a
   // quarter-break cut back to game action, stretched to the monitor delay
