@@ -738,6 +738,9 @@ function performAction(league: League, action: UserAction): ActionResult {
           date: today, kind: 'notice',
           title: `${league.teams[offer.to]!.city} passes`,
           body: verdict.reasoning,
+          // day-of news: read at the stop, retired by the next morning's
+          // sweep (#187); deadline-less it rode to season rollover (#253)
+          deadline: today,
           resolved: false,
         });
       }
